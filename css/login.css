@@ -1,0 +1,227 @@
+@keyframes fadeInZoom {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+body {
+  animation: fadeInZoom 0.6s ease-in-out;
+}
+* {
+  font-family: 'Poppins', sans-serif;
+  box-sizing: border-box;
+  transition: all 0.3s ease-in-out;
+}
+
+body.login {
+  background-color: #002b39;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  animation: fadeIn 0.8s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.link-topo {
+  position: absolute;
+  top: 20px;
+  right: 40px;
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+  color: #4c9bff;
+  border: 2px solid #aaa;
+  padding: 10px 20px;
+  border-radius: 20px;
+  transition: all 0.3s ease-in-out;
+}
+
+.link-topo:hover {
+  background-color: #4c9bff;
+  color: #002b39;
+}
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+  padding: 40px;
+  animation: subir 0.8s ease forwards;
+}
+
+@keyframes subir {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.login-container h1 {
+  color: white;
+  font-size: 32px;
+  margin-bottom: 30px;
+}
+
+.login-container input {
+  width: 320px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 2px solid #ccc;
+  border-radius: 12px;
+  font-size: 16px;
+  background-color: #043743;
+  color: white;
+}
+
+.login-container input::placeholder {
+  color: #bbb;
+}
+
+.botao.roxo {
+  background-color: #a455f1;
+  color: white;
+  border: none;
+  width: 320px;
+  padding: 16px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 6px 0 #6a3baa;
+  transition: transform 0.2s ease;
+  cursor: pointer;
+}
+
+.botao.roxo:hover {
+  transform: translateY(-3px);
+}
+
+@media (max-width: 400px) {
+  .login-container input,
+  .botao.roxo {
+    width: 100%;
+  }
+
+  .link-topo {
+    right: 20px;
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+}
+@media (max-width: 1024px) {
+  .painel-geral {
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 30px;
+  }
+
+  .painel-central,
+  .painel-direito,
+  .bloco-ranking,
+  .banner-loja,
+  .banner-missoes {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .usuario {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .card-info,
+  .card-missao,
+  .card,
+  .missaocard,
+  .recompensa-card {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .status-topo {
+    justify-content: space-around;
+  }
+
+  .campo-codigo {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .conteudo {
+    flex-direction: column;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 600px) {
+  .menu-lateral {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    padding: 20px;
+    border-right: none;
+    border-bottom: 2px solid #4c5c64;
+  }
+
+  .menu-lateral nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .menu-lateral .logo img {
+    width: 100px;
+    margin-bottom: 10px;
+  }
+
+  .painel-central,
+  .painel-direito {
+    padding: 0;
+    margin-top: 20px;
+  }
+
+  .avatar-container img,
+  .usuario img {
+    width: 120px;
+    height: 120px;
+  }
+
+  .btn-descartar {
+    font-size: 18px;
+    padding: 16px 28px;
+  }
+
+  .status-topo span {
+    font-size: 12px;
+  }
+
+  .card-info,
+  .card-missao,
+  .recompensa-card,
+  .missaocard {
+    padding: 14px;
+  }
+}
+
+.painel-central,
+.painel-direito,
+main,
+section {
+  max-width: 100%;
+  overflow-x: hidden;
+}

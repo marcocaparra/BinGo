@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bingo - Ranking</title>
+  <link rel="stylesheet" href="css/ranking.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="img/favicon.png" type="image/png" />
+</head>
+<body class="dashboard">
+  <aside class="menu-lateral">
+    <div class="logo">
+      <img src="img/logo.png" alt="Logo BinGo" />
+    </div>
+    <nav>
+      <a href="dashboard.html">MENU</a>
+      <a href="#" class="ativo">RAKING</a>
+      <a href="missoes.html">MISSÕES</a>
+      <a href="loja.html">LOJA</a>
+      <a href="perfil.html">PERFIL</a>
+    </nav>
+  </aside>
+
+  <main class="painel-geral">
+    <section class="painel-central">
+      <div class="bloco-ranking">
+        <p class="temporada">A temporada será reiniciada <strong>daqui 30 dias...</strong></p>
+
+        <div class="ranking-podium">
+          <div class="coluna turma-c">
+            <h3>TURMA C</h3>
+            <div class="base roxo">0</div>
+          </div>
+
+          <div class="coluna turma-a">
+            <h3>TURMA A</h3>
+            <div class="base amarelo">
+              <img src="img/premio.png" alt="Medalha">
+              <span>1</span>
+            </div>
+          </div>
+
+          <div class="coluna turma-b">
+            <h3>TURMA B</h3>
+            <div class="base azul">0</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="painel-direito">
+      <!-- Topo: status -->
+      <div class="status-topo">
+        <span><img src="img/bingos.png" alt="Bingos" /> 0</span>
+        <span><img src="img/bin.png" alt="Bins" /> 500</span>
+        <span><img src="img/xp.png" alt="XP" /> 0 XP</span>
+      </div>
+
+      <a href="missoes.html" class="card-info card-missao">
+        <h3>Missões diárias</h3>
+        <div class="linha-imagem">
+          <img src="img/missao.png" alt="Missão" />
+          <p>Ganhe 20 Bins</p>
+        </div>
+        <progress value="0" max="20"></progress>
+        <span class="progresso">0/20</span>
+      </a>
+
+      <div class="card-info">
+        <h3>Descarte</h3>
+        <div class="linha-imagem">
+          <img src="img/reciclagem.png" alt="Descarte" />
+          <p>Ganhe suas recompensas</p>
+        </div>
+        <a href="codigo.html">Aproveite</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

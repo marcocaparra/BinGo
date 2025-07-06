@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bingo - Dashboard</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="icon" href="img/favicon.png" type="image/png" />
+</head>
+
+<body class="dashboard">
+  <aside class="menu-lateral">
+    <div class="logo">
+      <img src="img/logo.png" alt="Logo BinGo" />
+    </div>
+    <nav>
+      <a href="#" class="menu-item ativo">MENU</a>
+      <a href="ranking.html">RANKING</a>
+      <a href="missoes.html">MISSÕES</a>
+      <a href="loja.html">LOJA</a>
+      <a href="perfil.html">PERFIL</a>
+    </nav>
+  </aside>
+
+  <main class="painel-geral">
+    
+    <section class="painel-central">
+      <a href="codigo.html" class="btn-descartar">DESCARTAR LIXO ELETRÔNICO</button>
+
+      <a href="perfil.html" class="usuario" style="text-decoration: none; color: inherit;">
+        <img src="img/usuario.png" alt="Avatar do usuário" />
+        <p><strong>Marco Caparra</strong> – Ninja do Lixo</p>
+      </a>
+    </section>
+
+    <section class="painel-direito">
+      <div class="status-topo">
+        <span><img src="img/bingos.png" alt="Bingos" /> 0</span>
+        <span><img src="img/bin.png" alt="Bins" /> 500</span>
+        <span><img src="img/xp.png" alt="XP" /> 0 XP</span>
+      </div>
+
+      <a href="missoes.html" class="card-info" style="text-decoration: none; color: inherit;">
+        <h3>Missões diárias</h3>
+        <div class="linha-imagem">
+          <img src="img/missao.png" alt="Missão" />
+          <p>Ganhe 20 Bins</p>
+        </div>
+        <progress value="0" max="20"></progress>
+        <span class="progresso">0/20</span>
+      </a>
+
+      <div class="card-info">
+        <h3>Ranking</h3>
+        <div class="linha-imagem">
+          <img src="img/trofeu.png" alt="Ranking" />
+          <p>Veja as últimas atualizações</p>
+        </div>
+        <a href="ranking.html">Veja aqui</a>
+      </div>
+
+      <div class="card-info">
+        <h3>Descarte</h3>
+        <div class="linha-imagem">
+          <img src="img/reciclagem.png" alt="Descarte" />
+          <p>Ganhe suas recompensas</p>
+        </div>
+        <a href="codigo.html">Aproveite</a>
+      </div>
+    </section>
+  </main>

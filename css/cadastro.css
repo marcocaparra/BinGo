@@ -1,0 +1,217 @@
+* {
+  font-family: 'Poppins', sans-serif;
+  box-sizing: border-box;
+  transition: all 0.3s ease-in-out;
+}
+
+body.cadastro {
+  background-color: #002b39;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: fadeIn 0.8s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.cadastro-container {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: subir 0.8s ease forwards;
+}
+
+@keyframes subir {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.cadastro-container h1 {
+  color: white;
+  font-size: 32px;
+  margin-bottom: 30px;
+}
+
+.cadastro-container input {
+  width: 320px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 2px solid #ccc;
+  border-radius: 12px;
+  font-size: 16px;
+  background-color: #043743;
+  color: white;
+}
+
+.cadastro-container input::placeholder {
+  color: #bbb;
+}
+
+.botao-cadastro {
+  width: 320px;
+  padding: 16px 0;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  background-color: #3f9cff;
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 0 #1d74c4;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.botao-cadastro:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 0 #1d74c4;
+}
+
+
+.btn-topo {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  background-color: transparent;
+  color: #f2a900;
+  border: 2px solid #f2a900;
+  border-radius: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease-in-out;
+}
+
+.btn-topo:hover {
+  background-color: #f2a900;
+  color: #002b39;
+  transform: scale(1.05);
+}
+
+
+/* Responsivo */
+@media (max-width: 400px) {
+  .cadastro-container input,
+  .botao-cadastro {
+    width: 100%;
+  }
+
+  .btn-topo {
+    right: 10px;
+    top: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+}
+@media (max-width: 1024px) {
+  .painel-geral {
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 30px;
+  }
+
+  .painel-central,
+  .painel-direito,
+  .bloco-ranking,
+  .banner-loja,
+  .banner-missoes {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .usuario {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .card-info,
+  .card-missao,
+  .card,
+  .missaocard,
+  .recompensa-card {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .status-topo {
+    justify-content: space-around;
+  }
+
+  .campo-codigo {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .conteudo {
+    flex-direction: column;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 600px) {
+  .menu-lateral {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    padding: 20px;
+    border-right: none;
+    border-bottom: 2px solid #4c5c64;
+  }
+
+  .menu-lateral nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  .menu-lateral .logo img {
+    width: 100px;
+    margin-bottom: 10px;
+  }
+
+  .painel-central,
+  .painel-direito {
+    padding: 0;
+    margin-top: 20px;
+  }
+
+  .avatar-container img,
+  .usuario img {
+    width: 120px;
+    height: 120px;
+  }
+
+  .btn-descartar {
+    font-size: 18px;
+    padding: 16px 28px;
+  }
+
+  .status-topo span {
+    font-size: 12px;
+  }
+
+  .card-info,
+  .card-missao,
+  .recompensa-card,
+  .missaocard {
+    padding: 14px;
+  }
+}
+
+.painel-central,
+.painel-direito,
+main,
+section {
+  max-width: 100%;
+  overflow-x: hidden;
+}

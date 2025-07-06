@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inserir Código</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/codigo.css" />
+  <link rel="icon" href="img/favicon.png" type="image/png" />
+</head>
+
+<body class="codigo">
+  <a href="dashboard.html" class="btn-voltar">VOLTAR</a>
+
+  <h1>
+    Digite aqui seu código único após descartar<br />
+    seu lixo eletrônico e receba
+    <span class="tag bins">Bins</span> e <span class="tag xp">XP!</span>
+  </h1>
+
+  <div class="campo-codigo">
+    <input
+      type="text"
+      id="codigoInput"
+      placeholder="Código..."
+      maxlength="6"
+    />
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const campoCodigo = document.getElementById('codigoInput');
+
+      campoCodigo.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+          const codigo = campoCodigo.value.trim();
+
+          if (codigo === '') {
+            alert('Por favor, digite um código.');
+            return;
+          }
+
+          if (codigo.length < 6) {
+            alert('O código precisa ter no mínimo 6 caracteres.');
+            return;
+          }
+
+          window.location.href = 'parabens.html';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

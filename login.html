@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>BinGo - Login</title>
+  <link rel="stylesheet" href="css/login.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<link rel="icon" href="img/favicon.png" type="image/png">
+<body class="login">
+
+  <a href="cadastro.html" class="link-topo">CRIAR CONTA</a>
+
+  <div class="login-container">
+    <h1>Entrar</h1>
+
+    <input type="text" id="login" placeholder="E-mail ou nome de usuário..." required>
+    <input type="password" id="senha" placeholder="Senha..." required>
+
+    <button class="botao roxo" onclick="fazerLogin()">ENTRAR</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="js/firebase.js"></script>
+</body>
+</html>

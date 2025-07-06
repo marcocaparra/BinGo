@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bingo - Loja</title>
+  <link rel="stylesheet" href="css/loja.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="img/favicon.png" type="image/png" />
+</head>
+<body class="dashboard">
+  <aside class="menu-lateral">
+    <div class="logo">
+      <img src="img/logo.png" alt="Logo BinGo" />
+    </div>
+    <nav>
+      <a href="dashboard.html">MENU</a>
+      <a href="ranking.html">RAKING</a>
+      <a href="missoes.html">MISSÕES</a>
+      <a href="#" class="ativo">LOJA</a>
+      <a href="perfil.html">PERFIL</a>
+    </nav>
+  </aside>
+
+  <main class="painel-geral">
+    
+    <section class="painel-central">
+      <div class="banner-loja">
+        <div class="texto">
+          <h2>Aproveite as recompensas que são dadas por sua escola, usando seus Bins!</h2>
+        </div>
+        <img src="img/bin.png" alt="Ícone Bin" />
+      </div>
+
+      <h3 class="titulo-sessao">Algumas recompensas</h3>
+
+      <div class="card-missao">
+        <img src="img/salgado.png" alt="Salgado">
+        <p>Direito a uma ficha de salgado da cantina</p>
+        <div class="progresso">750 Bins</div>
+      </div>
+
+      <div class="card-missao">
+        <img src="img/apito.png" alt="Apito">
+        <p>Direito à escolha de um esporte no intervalo</p>
+        <div class="progresso">1320 Bins</div>
+      </div>
+    </section>
+
+    <section class="painel-direito">
+      <div class="status-topo">
+        <span><img src="img/bingos.png" alt="Bingos"> 0</span>
+        <span><img src="img/bin.png" alt="Bins"> 500</span>
+        <span><img src="img/xp.png" alt="XP"> 0 XP</span>
+      </div>
+
+      <div class="card-info">
+        <h3>Descarte</h3>
+        <div class="linha-imagem">
+          <img src="img/reciclagem.png" alt="Descarte">
+          <p>Ganhe suas recompensas</p>
+        </div>
+        <a href="codigo.html">Aproveite</a>
+      </div>
+
+      <div class="card-info">
+        <h3>Ranking</h3>
+        <div class="linha-imagem">
+          <img src="img/trofeu.png" alt="Ranking">
+          <p>Veja as últimas atualizações</p>
+        </div>
+        <a href="ranking.html">Veja aqui</a>
+      </div>
+
+      <div class="card-info">
+        <h3>Missões diárias</h3>
+        <div class="linha-imagem">
+          <img src="img/missao.png" alt="Missão">
+          <p>Ganhe 20 Bins</p>
+        </div>
+        <progress value="0" max="20"></progress>
+        <span class="progresso">0/20</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
