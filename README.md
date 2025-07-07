@@ -4,6 +4,20 @@ BinGo é uma plataforma gamificada de descarte consciente de lixo eletrônico, v
 
 ---
 
+## 🎥 Demonstrações
+
+Confira abaixo o BinGo em funcionamento:
+
+- 🔌 **Protótipo Físico em Ação:**  
+  Veja como a estrutura de sensores, Arduino e display interagem com o descarte real de lixo eletrônico.  
+  [👉 Assista ao vídeo](https://youtu.be/JNeyvvIQdOE)
+
+- 📊 **Painel de Dashboard e Plataforma Web:**  
+  Demonstração do painel de usuário, ranking, inserção de código e gamificação na plataforma web.  
+  [👉 Assista ao vídeo](https://youtu.be/ncCjAd3oDPQ)
+
+---
+
 ## 🚀 Objetivo
 
 O BinGo nasceu com a missão de resolver um problema real: o descarte incorreto de lixo eletrônico. Segundo a *The Global E-Waste Monitor (2020)*, o Brasil é o 5º maior produtor desse tipo de resíduo no mundo, mas recicla menos de **3%**.
