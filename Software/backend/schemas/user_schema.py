@@ -1,0 +1,21 @@
+from pydantic import BaseModel, EmailStr, Field
+
+class UserBase(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=3, max_length=100)
+    name: str = Field(..., min_length=3, max_length=100)
+    cpf: str = Field(..., min_length=11, max_length=11)
+    phone_number: str = Field(..., min_length=8, max_length=20)
+
+class UserResponse(UserBase):
+    id: int
+    is_active: bool
+    name: str
+    cpf: str
+    phone_number: str
+
+    class Config:
+        from_attributes = True
