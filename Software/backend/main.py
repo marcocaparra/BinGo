@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from backend.routers import users
 from backend.database import Base, engine
 
+from backend.models import user_model, material_type_model, discard_model
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(

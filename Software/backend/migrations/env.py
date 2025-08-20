@@ -22,10 +22,12 @@ import sys
 import os
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
-from database import Base
-from models.user_model import User
+from backend.database import Base
+from backend.models.user_model import User
+from backend.models.material_type_model import MaterialType
+from backend.models.discard_model import Discard
 
 target_metadata = Base.metadata
 

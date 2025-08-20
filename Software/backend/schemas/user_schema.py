@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
 
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -30,3 +31,30 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
+
+class MaterialTypeBase(BaseModel):
+    name: str
+    points_per_unit: int
+
+class MaterialTypeCreate(MaterialTypeBase):
+    pass
+
+class MaterialTypeResponse(MaterialTypeBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+class DiscardBase(BaseModel):
+    user_id: int
+    material_type_id: int
+    unique_code: str
+    points_awarded: int
+    
+class DiscardCreate(DiscardBase):
+    pass
+
+class DiscardResponse(DiscardBase):
+    id: int
+    timestamp: datetime
+    class Config:
+        from_attributes = True
