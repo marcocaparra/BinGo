@@ -157,7 +157,7 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE] para
 Para dúvidas, sugestões ou parcerias, entre em contato através de:
 
 *   **Email:** nextidea.ni@gmail.com
-*   **Instagram:** [@bingo.eco]https://www.instagram.com/bingo.eco/)
+*   **Instagram:** [@bingo.eco](https://www.instagram.com/bingo.eco/)
 
 ---
 
