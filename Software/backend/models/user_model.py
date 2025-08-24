@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean
 from ..database import Base
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "users"
@@ -12,6 +13,8 @@ class User(Base):
     name = Column(String(100), nullable=False)
     cpf = Column(String(11), unique=True, index=True, nullable=False)
     phone_number = Column(String(20), nullable=False)
+
+    discard = relationship('Discard', back_populates='user')
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
