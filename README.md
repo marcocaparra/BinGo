@@ -1,6 +1,6 @@
 # ♻️ Projeto BinGo: Transformando o Descarte Consciente em Uma Aventura Recompensadora!
 
-![Imagem da aplicação](/frontend/assets/images/logo-principal)
+![Imagem da aplicação](/Software/frontend/assets/images/logo-principal.png)
 
 ---
 
