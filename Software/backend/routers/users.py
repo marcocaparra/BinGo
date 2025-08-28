@@ -4,10 +4,10 @@ from datetime import timedelta
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 
-from backend.database import get_db
-from backend.models.user_model import User
-from backend.schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
-from backend.auth import verify_password, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
+from ..database import get_db
+from ..models.user_model import User
+from ..schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
+from ..auth import verify_password, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
 
 router = APIRouter(
     prefix='/users',

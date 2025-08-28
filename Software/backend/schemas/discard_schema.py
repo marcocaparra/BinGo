@@ -2,9 +2,9 @@
 
 from pydantic import BaseModel, Field
 from datetime import datetime
-from backend.schemas.user_schema import UserResponse
-from backend.schemas.material_type_schema import MaterialTypeResponse
-from backend.schemas.unique_code_schema import UniqueCodeResponse
+from ..schemas.user_schema import UserResponse
+from ..schemas.material_type_schema import MaterialTypeResponse
+from ..schemas.unique_code_schema import UniqueCodeResponse
 
 class DiscardBase(BaseModel):
     user_id: int
