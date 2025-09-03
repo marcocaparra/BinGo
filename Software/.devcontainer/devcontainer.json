@@ -1,38 +1,26 @@
 {
   "name": "Python Backend Development",
-  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye", // Ou a versão exata que você está usando
-  
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
   "features": {
-    // Exemplo: se precisar de Docker dentro do codespace (para docker-compose, etc.)
-    // "ghcr.io/devcontainers/features/docker-in-docker:2.0.0": {}
+    // ADICIONE ESTA LINHA
+    "ghcr.io/devcontainers/features/docker-in-docker:2.0.0": {} 
   },
-
-  // Novo postCreateCommand para criar a venv e instalar as dependências nela
-  "postCreateCommand": "python -m venv .venv && source ./.venv/bin/activate && pip install fastapi uvicorn[standard] sqlalchemy alembic mysql-connector-python python-jose[cryptography] python-multipart pillow opencv-python pymysql python-dotenv",
-
-  // Porta que o Uvicorn irá expor (geralmente 8000)
+  "postCreateCommand": "cd Software && python -m venv .venv && source ./.venv/bin/activate && pip install fastapi uvicorn[standard] sqlalchemy alembic mysql-connector-python python-jose[cryptography] python-multipart pillow opencv-python pymysql python-dotenv",
   "forwardPorts": [8000],
-
-  // Configurações específicas do VS Code dentro do Codespaces
   "customizations": {
     "vscode": {
       "settings": {
-        // Isso diz ao Pylance para usar o interpretador dentro da venv que será criada
-        "python.defaultInterpreterPath": "/workspaces/${localWorkspaceFolderBasename}/.venv/bin/python",
+        "python.defaultInterpreterPath": "/workspaces/${localWorkspaceFolderBasename}/Software/.venv/bin/python",
         "python.linting.pylintEnabled": true,
         "python.linting.enabled": true
       },
-      // Extensões recomendadas para instalar automaticamente no Codespaces
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-toolsai.jupyter", // Se você usar notebooks
-        "ms-azuretools.vscode-docker", // Se for usar Docker
-        "esbenp.prettier-vscode" // Para formatação de código
+        "ms-toolsai.jupyter",
+        "ms-azuretools.vscode-docker", // BOA PRÁTICA: Adicionar a extensão Docker
+        "esbenp.prettier-vscode"
       ]
     }
-  },
-
-  // Comando para rodar ao iniciar o Codespace (opcional, se quiser que o Uvicorn inicie automaticamente)
-  // "postAttachCommand": "uvicorn main:app --reload --port 8000"
+  }
 }

@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  db:
+    image: mysql:8.0 # Ou a versão do MySQL que você preferir
+    container_name: mysql_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Bingolino53787 # ALtere para uma senha forte
+      MYSQL_DATABASE: bingo_db # Nome do seu banco de dados
+      MYSQL_USER: bingo_user # Usuário para sua aplicação
+      MYSQL_PASSWORD: Bingolino53787 # Senha para sua aplicação
+    ports:
+      - "3306:3306" # Mapeia a porta 3306 do container para a porta 3306 do Codespace
+    volumes:
+      - db_data:/var/lib/mysql # Persiste os dados do banco de dados
+
+volumes:
+  db_data: {}
