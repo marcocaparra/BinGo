@@ -1,0 +1,41 @@
+{
+  "name": "Python Backend Development",
+  // Imagem base do Python. Escolha a versão que você usa (ex: 3.10, 3.11, 3.12)
+  "image": "mcr.microsoft.com/devcontainers/python:3.13.4-bullseye",
+  // Ou, se quiser mais controle e já ter pipenv, poetry etc.:
+  // "image": "mcr.microsoft.com/devcontainers/python:latest",
+
+  "features": {
+    // Exemplo: se precisar de Docker dentro do codespace (para docker-compose, etc.)
+    // "ghcr.io/devcontainers/features/docker-in-docker:2.0.0": {}
+  },
+
+  // Comando que é executado DEPOIS que o container é criado.
+  // Aqui você instala suas dependências!
+  "postCreateCommand": "pip install fastapi uvicorn[standard] sqlalchemy alembic mysql-connector-python python-jose[cryptography] python-multipart pillow opencv-python pymysql python-dotenv",
+
+  // Porta que o Uvicorn irá expor (geralmente 8000)
+  "forwardPorts": [8000],
+
+  // Configurações específicas do VS Code dentro do Codespaces
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python", // Caminho padrão do python na imagem
+        "python.linting.pylintEnabled": true,
+        "python.linting.enabled": true
+      },
+      // Extensões recomendadas para instalar automaticamente no Codespaces
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter", // Se você usar notebooks
+        "ms-azuretools.vscode-docker", // Se for usar Docker
+        "esbenp.prettier-vscode" // Para formatação de código
+      ]
+    }
+  },
+
+  // Comando para rodar ao iniciar o Codespace (opcional, se quiser que o Uvicorn inicie automaticamente)
+  // "postAttachCommand": "uvicorn main:app --reload --port 8000"
+}
