@@ -1,18 +1,14 @@
 {
   "name": "Python Backend Development",
-  // Imagem base do Python. Escolha a versão que você usa (ex: 3.10, 3.11, 3.12)
-  "image": "mcr.microsoft.com/devcontainers/python:3.13.4-bullseye",
-  // Ou, se quiser mais controle e já ter pipenv, poetry etc.:
-  // "image": "mcr.microsoft.com/devcontainers/python:latest",
-
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye", // Ou a versão exata que você está usando
+  
   "features": {
     // Exemplo: se precisar de Docker dentro do codespace (para docker-compose, etc.)
     // "ghcr.io/devcontainers/features/docker-in-docker:2.0.0": {}
   },
 
-  // Comando que é executado DEPOIS que o container é criado.
-  // Aqui você instala suas dependências!
-  "postCreateCommand": "pip install fastapi uvicorn[standard] sqlalchemy alembic mysql-connector-python python-jose[cryptography] python-multipart pillow opencv-python pymysql python-dotenv",
+  // Novo postCreateCommand para criar a venv e instalar as dependências nela
+  "postCreateCommand": "python -m venv .venv && source ./.venv/bin/activate && pip install fastapi uvicorn[standard] sqlalchemy alembic mysql-connector-python python-jose[cryptography] python-multipart pillow opencv-python pymysql python-dotenv",
 
   // Porta que o Uvicorn irá expor (geralmente 8000)
   "forwardPorts": [8000],
@@ -21,7 +17,8 @@
   "customizations": {
     "vscode": {
       "settings": {
-        "python.defaultInterpreterPath": "/usr/local/bin/python", // Caminho padrão do python na imagem
+        // Isso diz ao Pylance para usar o interpretador dentro da venv que será criada
+        "python.defaultInterpreterPath": "/workspaces/${localWorkspaceFolderBasename}/.venv/bin/python",
         "python.linting.pylintEnabled": true,
         "python.linting.enabled": true
       },
