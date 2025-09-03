@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from backend.database import get_db
-from backend.models.material_type_model import MaterialType
-from backend.schemas.material_type_schema import MaterialTypeCreate, MaterialTypeResponse
+from ..database import get_db
+from ..models.material_type_model import MaterialType
+from ..schemas.material_type_schema import MaterialTypeCreate, MaterialTypeResponse
 
 router = APIRouter(prefix="/material_types", tags=["Tipos de Materiais"])
 
