@@ -4,7 +4,7 @@ from datetime import datetime
 class UniqueCodeBase(BaseModel):
     code: str = Field(..., max_length=50)
 
-class UniqueCodeCrete(UniqueCodeBase):
+class UniqueCodeCreate(UniqueCodeBase):
     pass
 
 class UniqueCodeResponse(UniqueCodeBase):
