@@ -15,7 +15,6 @@ def generate_unique_code(
     request: UniqueCodeGenerateRequest,
     db: Session = Depends(get_db) 
 ):
-    _type_name: 'O nome do tipo de material associado.'
     material_type = db.query(MaterialType).filter(MaterialType.name == request.material_type_name).first()
     if not material_type:
         raise HTTPException(
@@ -40,7 +39,7 @@ def generate_unique_code(
     db.commit()
     db.refresh(db_unique_code)
 
-    return UniqueCodeGeneratedResponse(
+    return UniqueCodeGenerateResponse(
         code=db_unique_code.code,
         material_type_id=material_type.id,
         material_type_name=material_type.name,

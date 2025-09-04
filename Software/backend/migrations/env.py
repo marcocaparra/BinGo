@@ -1,8 +1,6 @@
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
 
 # this is the Alembic Config object, which provides
@@ -28,6 +26,7 @@ from backend.database import Base
 from backend.models.user_model import User
 from backend.models.material_type_model import MaterialType
 from backend.models.discard_model import Discard
+from backend.models.unique_code_model import UniqueCode
 
 target_metadata = Base.metadata
 

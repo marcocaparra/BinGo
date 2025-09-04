@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from backend.schemas.user_schema import TokenData
+from backend.schemas.user_schema import TokenData, UserResponse
 from backend.database import get_db
 from backend.models.user_model import User
 from sqlalchemy.orm import Session
@@ -54,4 +54,4 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
     user = db.query(User).filter(User.username == token_data.username).first()
     if user is None:
         raise credentials_exception
-    return user
+    return UserResponse.model_validate(user)

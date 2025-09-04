@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload 
 from typing import List
-
 from backend.database import get_db
 from backend.models.discard_model import Discard
 from backend.models.unique_code_model import UniqueCode
 from backend.schemas.discard_schema import DiscardRequestByApp, DiscardResponse
 from backend.auth import get_current_user 
+from backend.schemas.user_schema import UserResponse
 
 router = APIRouter(prefix="/discards", tags=["Descartes"])
 
@@ -14,9 +14,9 @@ router = APIRouter(prefix="/discards", tags=["Descartes"])
 def create_discard(
     discard_request: DiscardRequestByApp, 
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user) 
+    current_user: UserResponse = Depends(get_current_user) 
 ):
-    user_id = current_user["id"] 
+    user_id = current_user.id 
 
     unique_code_db = (
         db.query(UniqueCode)
@@ -53,8 +53,14 @@ def create_discard(
     )
     
     db.add(db_discard)
+
+    unique_code_db.is_used = True
+    db.add(unique_code_db)
+
     db.commit()
     db.refresh(db_discard)
+    print(f"Timestamp após refresh: {db_discard.timestamp}")
+    db.refresh(unique_code_db)
 
     db_discard_response = (
         db.query(Discard)
@@ -73,9 +79,9 @@ def create_discard(
 def get_discards(
     skip: int = 0, limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: UserResponse = Depends(get_current_user)
 ):
-    user_id = current_user["id"]
+    user_id = current_user.id
     discards = (
         db.query(Discard)
         .options(
