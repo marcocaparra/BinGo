@@ -1,45 +1,52 @@
-version: '3.8'
+# docker-compose.yml
 
 services:
-  # Serviço do Banco de Dados MySQL
   db:
-    image: mysql:8.0 # Usamos uma imagem oficial do MySQL
-    # Para Codespaces, é bom mapear uma porta para poder acessar o DB se necessário (opcional)
-    # ports:
-    #   - "3306:3306"
+    image: mysql:8.0
+    container_name: software-db-1
+    ports:
+      - "3306:3306"
     environment:
-      # Use as mesmas credenciais do seu backend/database.py
-      MYSQL_ROOT_PASSWORD: Bingolino53787 # Senha do usuário root (para administração)
-      MYSQL_DATABASE: bingo_db           # Nome do seu banco de dados
-      MYSQL_USER: bingo_user             # Seu usuário
-      MYSQL_PASSWORD: Bingolino53787     # Sua senha
-    # Volume para persistir os dados do banco de dados (crucial para não perder dados)
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: bingo_db
+      MYSQL_USER: bingo_user
+      MYSQL_PASSWORD: Bingolino53787
     volumes:
       - db_data:/var/lib/mysql
-    # healthcheck: # Opcional, para garantir que o DB está pronto antes do backend iniciar
-    #   test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-    #   timeout: 20s
-    #   retries: 10
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - app_network
 
-  # Serviço do Backend FastAPI
   backend:
-    build: ./backend # Docker Compose vai construir a imagem a partir do Dockerfile na pasta 'backend'
-    # Mapeia a porta 8000 do contêiner para a porta 8000 da máquina host (Codespace)
-    # Codespaces automaticamente encaminha esta porta para sua máquina local.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: software-backend-1
     ports:
       - "8000:8000"
-    # Monta o diretório de código para que as alterações no seu editor sejam refletidas no contêiner
     volumes:
-      - ./backend:/app
-    # Garante que o serviço 'db' esteja pronto antes de iniciar o 'backend'
+      - ./backend:/app/backend
+                               
     depends_on:
-      - db
-    # Comando para iniciar o servidor, sobrescrevendo o CMD do Dockerfile se necessário
-    # command: uvicorn main:app --host 0.0.0.0 --port 8000
-    # Opcional: Variáveis de ambiente para o backend (se você usar .env files)
-    # environment:
-    #   - DATABASE_URL=mysql+pymysql://bingo_user:Bingolino53787@db/bingo_db
+      db:
+        condition: service_healthy
+    environment:
+      PYTHONPATH: /app
+      DATABASE_HOST: db
+      DATABASE_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-bingo_user}o
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Bingolino53787}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-bingo_db}
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - app_network
 
-# Volumes nomeados para persistência de dados
 volumes:
-  db_data: # Este volume vai armazenar os dados do MySQL
+  db_data:
+
+networks:
+  app_network:
+    driver: bridge
