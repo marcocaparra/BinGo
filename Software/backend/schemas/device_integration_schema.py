@@ -9,3 +9,5 @@ class ImageClassificationResponse(BaseModel):
     material_type_name: Optional[str] = Field(None, description="Nome do tipo de material inferido (ex: 'Plástico', 'Metal', 'Eletrônico').")
     confidence: Optional[float] = Field(None, ge=0.0, le=1.0, description="Pontuação de confiança da classificação (0.0 a 1.0).")
     message: str = Field('Imagem classificada com sucesso!', description='Uma mensagem descritiva do resultado da classificação.')
+    action: str = Field(..., description="Instrução para a lixeira (ex: 'OPEN_ELECTRONIC_BIN', 'OPEN_RECOVER_BIN').")
+    unique_code: Optional[str] = Field(None, description='Código único gerado, se o material for eletrônico.')
