@@ -1,26 +1,25 @@
 {
-  "name": "Python Backend Development",
-  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
-  "features": {
-    // ADICIONE ESTA LINHA
-    "ghcr.io/devcontainers/features/docker-in-docker:2.0.0": {} 
-  },
-  "postCreateCommand": "cd Software && python -m venv .venv && source ./.venv/bin/activate && pip install fastapi uvicorn[standard] sqlalchemy alembic mysql-connector-python python-jose[cryptography] python-multipart pillow opencv-python pymysql python-dotenv",
-  "forwardPorts": [8000],
+  "name": "BinGo Project",
+  "dockerComposeFile": "../docker-compose.yml", // Caminho para o seu docker-compose.yml
+  "service": "backend",                        // Qual serviço no docker-compose.yml deve ser o ambiente principal
+  "workspaceFolder": "/app",                   // Diretório de trabalho dentro do contêiner do backend
+
+  // Portas que o Codespaces deve encaminhar automaticamente
+  "forwardPorts": [8000, 3306], 
+
   "customizations": {
     "vscode": {
-      "settings": {
-        "python.defaultInterpreterPath": "/workspaces/${localWorkspaceFolderBasename}/Software/.venv/bin/python",
-        "python.linting.pylintEnabled": true,
-        "python.linting.enabled": true
-      },
       "extensions": [
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-toolsai.jupyter",
-        "ms-azuretools.vscode-docker", // BOA PRÁTICA: Adicionar a extensão Docker
-        "esbenp.prettier-vscode"
+        "ms-azuretools.vscode-docker"
       ]
     }
-  }
+  },
+  
+  // Opcional: Comandos a serem executados após a criação do Codespace
+  "postCreateCommand": "python -m pip install --upgrade pip && pip install -r backend/requirements.txt && alembic upgrade head"
+  // O postCreateCommand pode ser usado para instalar dependências e rodar migrações
+  // Atenção: O `alembic upgrade head` deve ser executado no ambiente do `backend` depois que o `db` estiver pronto.
+  // Você pode precisar de um script auxiliar se houver problemas de tempo.
 }

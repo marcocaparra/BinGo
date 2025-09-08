@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Serviço do Banco de Dados MySQL
+  db:
+    image: mysql:8.0 # Usamos uma imagem oficial do MySQL
+    # Para Codespaces, é bom mapear uma porta para poder acessar o DB se necessário (opcional)
+    # ports:
+    #   - "3306:3306"
+    environment:
+      # Use as mesmas credenciais do seu backend/database.py
+      MYSQL_ROOT_PASSWORD: Bingolino53787 # Senha do usuário root (para administração)
+      MYSQL_DATABASE: bingo_db           # Nome do seu banco de dados
+      MYSQL_USER: bingo_user             # Seu usuário
+      MYSQL_PASSWORD: Bingolino53787     # Sua senha
+    # Volume para persistir os dados do banco de dados (crucial para não perder dados)
+    volumes:
+      - db_data:/var/lib/mysql
+    # healthcheck: # Opcional, para garantir que o DB está pronto antes do backend iniciar
+    #   test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+    #   timeout: 20s
+    #   retries: 10
+
+  # Serviço do Backend FastAPI
+  backend:
+    build: ./backend # Docker Compose vai construir a imagem a partir do Dockerfile na pasta 'backend'
+    # Mapeia a porta 8000 do contêiner para a porta 8000 da máquina host (Codespace)
+    # Codespaces automaticamente encaminha esta porta para sua máquina local.
+    ports:
+      - "8000:8000"
+    # Monta o diretório de código para que as alterações no seu editor sejam refletidas no contêiner
+    volumes:
+      - ./backend:/app
+    # Garante que o serviço 'db' esteja pronto antes de iniciar o 'backend'
+    depends_on:
+      - db
+    # Comando para iniciar o servidor, sobrescrevendo o CMD do Dockerfile se necessário
+    # command: uvicorn main:app --host 0.0.0.0 --port 8000
+    # Opcional: Variáveis de ambiente para o backend (se você usar .env files)
+    # environment:
+    #   - DATABASE_URL=mysql+pymysql://bingo_user:Bingolino53787@db/bingo_db
+
+# Volumes nomeados para persistência de dados
+volumes:
+  db_data: # Este volume vai armazenar os dados do MySQL
