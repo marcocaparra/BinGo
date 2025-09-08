@@ -37,7 +37,7 @@ services:
       PYTHONPATH: /app
       DATABASE_HOST: db
       DATABASE_PORT: 3306
-      MYSQL_USER: ${MYSQL_USER:-bingo_user}o
+      MYSQL_USER: ${MYSQL_USER:-bingo_user}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Bingolino53787}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-bingo_db}
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
