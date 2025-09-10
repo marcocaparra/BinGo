@@ -16,6 +16,12 @@ class DiscardCreate(DiscardBase):
 class DiscardRequestByApp(BaseModel):
     unique_code: str = Field(..., description="O código único obtido da lixeira inteligente.")
 
+class DiscardCreatedResponse(BaseModel):
+    message: str
+    user_total_points: float
+    user_current_level: int
+    discard_id: str
+
 class DiscardResponse(BaseModel):
     id: int
     user_id: int

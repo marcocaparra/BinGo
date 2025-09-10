@@ -9,13 +9,13 @@ from models.unique_code_model import UniqueCode
 from models.user_model import User
 from models.material_type_model import MaterialType
 
-from schemas.discard_schema import DiscardRequestByApp, DiscardResponse
+from schemas.discard_schema import DiscardRequestByApp, DiscardResponse, DiscardCreatedResponse
 from auth import get_current_user
 from schemas.user_schema import UserResponse
 
 router = APIRouter(prefix="/discards", tags=["Descartes"])
 
-@router.post("/", response_model=DiscardResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=DiscardCreatedResponse, status_code=status.HTTP_201_CREATED)
 def create_discard(
     discard_request: DiscardRequestByApp,
     db: Session = Depends(get_db),
@@ -95,7 +95,7 @@ def create_discard(
     db.refresh(db_user)
 
     # Retorno da resposta
-    return DiscardResponse(
+    return DiscardCreatedResponse(
         message="Descarte registrado com sucesso!",
         user_total_points=db_user.total_points,
         user_current_level=db_user.level,
