@@ -23,10 +23,12 @@ class DiscardResponse(BaseModel):
     unique_code_id: int
     timestamp: datetime
     points_awarded: float
-
+    message: str
     user: UserResponse
     material_type: MaterialTypeResponse
     unique_code: UniqueCodeResponse
+    user_total_points: float
+    user_current_level: int
 
     class Config:
         from_attributes = True

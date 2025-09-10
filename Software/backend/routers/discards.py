@@ -1,22 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload 
+from sqlalchemy.orm import Session, joinedload
 from typing import List
+from datetime import datetime
+
 from database import get_db
 from models.discard_model import Discard
 from models.unique_code_model import UniqueCode
+from models.user_model import User
+from models.material_type_model import MaterialType
+
 from schemas.discard_schema import DiscardRequestByApp, DiscardResponse
-from auth import get_current_user 
+from auth import get_current_user
 from schemas.user_schema import UserResponse
 
 router = APIRouter(prefix="/discards", tags=["Descartes"])
 
 @router.post("/", response_model=DiscardResponse, status_code=status.HTTP_201_CREATED)
 def create_discard(
-    discard_request: DiscardRequestByApp, 
+    discard_request: DiscardRequestByApp,
     db: Session = Depends(get_db),
-    current_user: UserResponse = Depends(get_current_user) 
+    current_user: UserResponse = Depends(get_current_user)
 ):
-    user_id = current_user.id 
+    user_id = current_user.id
 
     unique_code_db = (
         db.query(UniqueCode)
@@ -36,44 +41,67 @@ def create_discard(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Código único já foi utilizado."
         )
-    
-    if not unique_code_db.material_type_id:
+
+    if not unique_code_db.material_type:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Código único não possui um tipo de material associado. Contate o suporte técnico."
+            detail="Código único não possui um tipo de material associado válido. Contate o suporte técnico."
         )
 
-    calculated_points = 0.0 
+    calculated_points = 0.0
+
+    if unique_code_db.material_type.name.lower() == "eletrônico":
+        calculated_points = unique_code_db.material_type.points_per_unit
 
     db_discard = Discard(
         user_id=user_id,
         material_type_id=unique_code_db.material_type_id,
         unique_code_id=unique_code_db.id,
-        points_awarded=calculated_points
+        points_awarded=calculated_points,
+        timestamp=datetime.utcnow()
     )
-    
     db.add(db_discard)
 
     unique_code_db.is_used = True
     db.add(unique_code_db)
 
-    db.commit()
-    db.refresh(db_discard)
-    print(f"Timestamp após refresh: {db_discard.timestamp}")
-    db.refresh(unique_code_db)
-
-    db_discard_response = (
-        db.query(Discard)
-        .options(
-            joinedload(Discard.user),
-            joinedload(Discard.material_type),
-            joinedload(Discard.unique_code).joinedload(UniqueCode.material_type) 
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao carregar dados do usuário."
         )
-        .filter(Discard.id == db_discard.id)
-        .first()
+
+    db_user.total_points += calculated_points
+    db.add(db_user)
+
+    if db_user.total_points >= 1000:
+        db_user.level = 5
+    elif db_user.total_points >= 500:
+        db_user.level = 4
+    elif db_user.total_points >= 200:
+        db_user.level = 3
+    elif db_user.total_points >= 50:
+        db_user.level = 2
+    else:
+        db_user.level = 1
+
+    db.add(db_user)
+
+    db.commit()
+
+    db.refresh(db_discard)
+    db.refresh(unique_code_db)
+    db.refresh(db_user)
+
+    # Retorno da resposta
+    return DiscardResponse(
+        message="Descarte registrado com sucesso!",
+        user_total_points=db_user.total_points,
+        user_current_level=db_user.level,
+        discard_id=str(db_discard.id)
     )
 
-    return db_discard_response
 
 @router.get("/", response_model=List[DiscardResponse])
 def get_discards(
@@ -87,7 +115,7 @@ def get_discards(
         .options(
             joinedload(Discard.user),
             joinedload(Discard.material_type),
-            joinedload(Discard.unique_code).joinedload(UniqueCode.material_type) 
+            joinedload(Discard.unique_code).joinedload(UniqueCode.material_type)
         )
         .filter(Discard.user_id == user_id)
         .offset(skip)
