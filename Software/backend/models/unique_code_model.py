@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from ..database import Base
+from database import Base
 
 class UniqueCode(Base):
     __tablename__ = 'unique_codes'

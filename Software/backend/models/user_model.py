@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean
-from backend.database import Base
+from database import Base
 from sqlalchemy.orm import relationship
 
 class User(Base):
@@ -13,6 +13,7 @@ class User(Base):
     name = Column(String(100), nullable=False)
     cpf = Column(String(11), unique=True, index=True, nullable=False)
     phone_number = Column(String(20), nullable=False)
+    total_points = Column(Integer, default=0)
 
     discards = relationship('Discard', back_populates='user')
 

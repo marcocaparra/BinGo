@@ -1,33 +1,32 @@
+from __future__ import with_statement
+import os
+import sys
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from database import Base
+
+from models.user_model import User
+from models.discard_model import Discard
+from models.material_type_model import MaterialType
+from models.unique_code_model import UniqueCode
+
 # this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# access to values within the .ini file in use.
 config = context.config
 
-config.set_main_option('sqlalchemy.url', 'mysql+mysqlconnector://bingo_user:Bingolino53787@localhost:3306/bingo_db')
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# This sets up loggers accordingly.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-import sys
-import os
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
-
-from backend.database import Base
-from backend.models.user_model import User
-from backend.models.material_type_model import MaterialType
-from backend.models.discard_model import Discard
-from backend.models.unique_code_model import UniqueCode
-
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -67,8 +66,9 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    configuration = config.get_section(config.config_ini_section)
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
