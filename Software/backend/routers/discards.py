@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload 
 from typing import List
-from backend.database import get_db
-from backend.models.discard_model import Discard
-from backend.models.unique_code_model import UniqueCode
-from backend.schemas.discard_schema import DiscardRequestByApp, DiscardResponse
-from backend.auth import get_current_user 
-from backend.schemas.user_schema import UserResponse
+from database import get_db
+from models.discard_model import Discard
+from models.unique_code_model import UniqueCode
+from schemas.discard_schema import DiscardRequestByApp, DiscardResponse
+from auth import get_current_user 
+from schemas.user_schema import UserResponse
 
 router = APIRouter(prefix="/discards", tags=["Descartes"])
 

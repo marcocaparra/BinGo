@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 import secrets
 from typing import Optional
 
-from backend.database import get_db
-from backend.schemas.device_integration_schema import ImageClassificationRequest, ImageClassificationResponse
-from backend.models.material_type_model import MaterialType
-from backend.models.unique_code_model import UniqueCode
+from database import get_db
+from schemas.device_integration_schema import ImageClassificationRequest, ImageClassificationResponse
+from models.material_type_model import MaterialType
+from models.unique_code_model import UniqueCode
 
 router = APIRouter(prefix="/device", tags=["Integração com Dispositivos"])
 

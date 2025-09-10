@@ -1,11 +1,11 @@
 from fastapi import FastAPI
-from backend.database import engine 
-from backend.models import user_model, material_type_model, discard_model, unique_code_model 
-from backend.routers import users
-from backend.routers import material_types
-from backend.routers import unique_codes
-from backend.routers import device_integration
-from backend.routers import discards
+from database import engine 
+from models import user_model, material_type_model, discard_model, unique_code_model 
+from routers import users
+from routers import material_types
+from routers import unique_codes
+from routers import device_integration
+from routers import discards
 
 user_model.Base.metadata.create_all(bind=engine)
 material_type_model.Base.metadata.create_all(bind=engine)

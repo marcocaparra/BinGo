@@ -7,9 +7,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from backend.schemas.user_schema import TokenData, UserResponse
-from backend.database import get_db
-from backend.models.user_model import User
+from schemas.user_schema import TokenData, UserResponse
+from database import get_db
+from models.user_model import User
 from sqlalchemy.orm import Session
 
 SECRET_KEY = os.getenv("SECRET_KEY", "7347264762764762")

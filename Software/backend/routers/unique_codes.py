@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 import secrets 
 from typing import Optional 
-from backend.database import get_db
-from backend.models.unique_code_model import UniqueCode
-from backend.models.material_type_model import MaterialType
-from backend.schemas.unique_code_schema import UniqueCodeGenerateRequest, UniqueCodeGenerateResponse, UniqueCodeResponse
+from database import get_db
+from models.unique_code_model import UniqueCode
+from models.material_type_model import MaterialType
+from schemas.unique_code_schema import UniqueCodeGenerateRequest, UniqueCodeGenerateResponse, UniqueCodeResponse
 
 
 router = APIRouter(prefix="/unique_codes", tags=["Códigos Únicos"])
