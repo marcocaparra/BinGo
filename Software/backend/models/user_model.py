@@ -16,6 +16,7 @@ class User(Base):
     total_points = Column(Integer, default=0)
 
     discards = relationship('Discard', back_populates='user')
+    user_missions = relationship('UserMission', back_populates='user')
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"

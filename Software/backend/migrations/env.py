@@ -14,6 +14,7 @@ from models.user_model import User
 from models.discard_model import Discard
 from models.material_type_model import MaterialType
 from models.unique_code_model import UniqueCode
+from models.mission_model import Mission, UserMission
 
 # this is the Alembic Config object, which provides
 # access to values within the .ini file in use.
@@ -40,7 +41,7 @@ def run_migrations_offline() -> None:
 
     This configures the context with just a URL
     and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
+    here as well.  By skippaing the Engine creation
     we don't even need a DBAPI to be available.
 
     Calls to context.execute() here emit the given string to the
