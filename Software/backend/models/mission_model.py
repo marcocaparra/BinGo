@@ -17,7 +17,7 @@ class Mission(Base):
     start_date = Column(DateTime, nullable=False, default=func.now())
     end_date = Column(DateTime, nullable=False)
 
-    user_mission = relationship('UserMission', back_populates='mission')
+    user_missions = relationship('UserMission', back_populates='mission')
 
     def __repr__(self):
         return f"<Mission(id={self.id}, name='{self.name}', type='{self.type}')>"

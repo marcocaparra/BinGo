@@ -42,11 +42,6 @@ except KeyError as e:
 script_engine = create_engine(DOCKER_SQLALCHEMY_DATABASE_URL)
 ScriptSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=script_engine)
 
-# ... (código anterior) ...
-
-# script_engine = create_engine(DOCKER_SQLALCHEMY_DATABASE_URL)
-# ScriptSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=script_engine)
-
 print("Configurando mappers do SQLAlchemy e verificando tabelas (pode levar alguns segundos)...")
 
 # --- INÍCIO: Adição para lidar com FK_CHECKS ---
@@ -68,12 +63,11 @@ with script_engine.connect() as connection:
     connection.commit() # Commit para garantir que o comando seja aplicado
 # --- FIM: Adição para lidar com FK_CHECKS ---
 
-# ... (restante do código) ...
-
 # --- BLOCO DE DIAGNÓSTICO ---
 from sqlalchemy.inspection import inspect
 try:
     mapper = inspect(Mission)
+    # Note: 'user_missions' é o nome da *propriedade* do relacionamento em Mission
     if 'user_missions' in mapper.relationships:
         print("DIAGNÓSTICO: Propriedade 'user_missions' ENCONTRADA na classe Mission (como relacionamento). ✅")
     else:
@@ -157,7 +151,7 @@ def create_test_data():
             mission_total = Mission(
                 name="Descarte Total (3 itens)",
                 description="Descarte 3 itens de qualquer tipo para ganhar pontos extras.",
-                objective={"count": 3},
+                objective=json.dumps({"count": 3}), 
                 reward_points=100,
                 type="discard_total",
                 is_active=True,
@@ -174,7 +168,7 @@ def create_test_data():
             mission_electronic = Mission(
                 name="Eletrônico Mestre (2x)",
                 description="Descarte 2 itens eletrônicos para provar seu domínio.",
-                objective={"count": 2},
+                objective=json.dumps({"count": 2}), 
                 reward_points=150,
                 type="discard_electronic",
                 is_active=True,
@@ -191,7 +185,7 @@ def create_test_data():
             mission_plastic = Mission(
                 name="Plástico Consciente (2x)",
                 description="Descarte 2 itens plásticos para um futuro mais verde.",
-                objective={"count": 2, "material_type_name": "plástico"},
+                objective=json.dumps({"count": 2, "material_type_name": "plástico"}), 
                 reward_points=75,
                 type="discard_material_type",
                 is_active=True,
@@ -208,7 +202,7 @@ def create_test_data():
             mission_points = Mission(
                 name="Acumulador de Pontos (50)",
                 description="Acumule 50 pontos de descarte para uma grande recompensa.",
-                objective={"points": 50},
+                objective=json.dumps({"points": 50}), 
                 reward_points=200,
                 type="accumulate_points",
                 is_active=True,
@@ -261,7 +255,8 @@ def create_test_data():
         }
 
         # FUNÇÃO ALTERADA para gerar códigos alfanuméricos aleatórios de 6 caracteres
-        def generate_random_code(length=6):
+        # AGORA RECEBE material_type_id
+        def generate_random_code(length=6, material_type_id=None): # <-- Adicione material_type_id
             characters = string.ascii_uppercase + string.digits # Letras maiúsculas e números
             
             # Loop para garantir que o código gerado seja único
@@ -272,18 +267,23 @@ def create_test_data():
                 if not existing_code:
                     break # Encontrou um código único, sai do loop
             
-            unique_code_obj = UniqueCode(code=code_str, is_used=False)
+            # PASSA material_type_id para o construtor UniqueCode
+            unique_code_obj = UniqueCode(code=code_str, is_used=False, material_type_id=material_type_id)
             db.add(unique_code_obj)
             db.commit()
             db.refresh(unique_code_obj)
             return code_str
 
         for _ in range(5):
-            # As chamadas agora usam a nova função, sem prefixo no código gerado
-            codes["electronic"].append(generate_random_code()) 
-            codes["plastic"].append(generate_random_code())    
-            codes["any_material"].append(generate_random_code())
-            codes["any_material"].append(generate_random_code()) # Para gerar 10 códigos no total para 'any_material'
+            # As chamadas agora usam a nova função, passando o material_type_id
+            codes["electronic"].append(generate_random_code(material_type_id=material_electronic.id)) 
+            codes["plastic"].append(generate_random_code(material_type_id=material_plastic.id))    
+            
+            # Para "any_material", vou atribuir um material_type_id existente para que não seja nulo.
+            # Você pode escolher qual material_type_id usar aqui, ou se tiver um "MaterialType" genérico, usar o ID dele.
+            # Vou usar o ID do material eletrônico e plástico para demonstrar.
+            codes["any_material"].append(generate_random_code(material_type_id=material_electronic.id))
+            codes["any_material"].append(generate_random_code(material_type_id=material_plastic.id)) # Gera um extra para ter 10 no total
 
         print("\nCódigos Únicos de Teste Gerados:")
         for key, value in codes.items():
