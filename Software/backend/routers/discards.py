@@ -1,11 +1,9 @@
-# backend/routers/discards.py (CORRIGIDO)
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload, selectinload
-from typing import List, Optional # Adicionado Optional para consistência
-from datetime import datetime, UTC # Importado UTC para datetime.now(UTC)
-import json # Importado para parsear o objetivo da missão
+from typing import List, Optional
+from datetime import datetime, UTC
+import json
 
-# Importações absolutas, pois estes módulos estão na "raiz" (`/app`)
 from database import get_db
 from models.discard_model import Discard
 from models.unique_code_model import UniqueCode
@@ -13,9 +11,8 @@ from models.user_model import User
 from models.material_type_model import MaterialType
 from models.mission_model import Mission, UserMission
 
-# Importações dos Schemas (schemas.discard_schema será ajustado para MissionUpdateDetails)
 from schemas.discard_schema import DiscardRequestByApp, DiscardCreatedResponse, MissionUpdateDetails, DiscardResponse # Adicionado MissionUpdateDetails e DiscardResponse
-from auth import get_current_user # Assumindo que auth.py está diretamente na "raiz" (`/app`)
+from auth import get_current_user
 from schemas.user_schema import UserResponse
 
 
@@ -46,33 +43,30 @@ async def _process_missions_after_discard(
         if not mission or not mission.is_active:
             continue
 
-        # Tentar carregar o objective como JSON; se for string, parsear.
         objective_criteria = json.loads(mission.objective) if isinstance(mission.objective, str) else mission.objective
 
         if objective_criteria and objective_criteria.get("action_type") == "discard":
             target_material_type_id_for_mission = objective_criteria.get("material_type_id")
 
-            # Se a missão especifica um tipo de material E este descarte NÃO é desse tipo, ignore.
             if target_material_type_id_for_mission is not None and target_material_type_id_for_mission != discarded_material_type_id:
                 continue
 
-            # Se chegou aqui, a missão se aplica a este descarte.
             user_mission.progress += 1
 
             mission_completed = False
             reward_points_added = 0.0
 
-            if user_mission.progress >= mission.target_quantity: # Assume mission.target_quantity existe
+            if user_mission.progress >= mission.target_quantity:
                 user_mission.status = "Concluída"
                 user_mission.completed_at = datetime.now(UTC)
                 mission_completed = True
-                reward_points_added = float(mission.reward_points) # Recompensa da missão
-                user.total_points += reward_points_added # Adiciona ao total de pontos do usuário
+                reward_points_added = float(mission.reward_points)
+                user.total_points += reward_points_added
                 
                 print(f"🎉 [EVENTO] Missão '{mission.name}' (ID: {mission.id}) concluída pelo usuário {user.id}! +{reward_points_added} pontos.")
 
             db.add(user_mission)
-            db.add(user) # Persiste a atualização de pontos do usuário na sessão
+            db.add(user)
             
             updated_missions_details.append(
                 MissionUpdateDetails(
@@ -126,7 +120,6 @@ async def create_discard(
             detail="Código único não possui um tipo de material associado válido. Contate o suporte técnico."
         )
 
-    # CORRIGIDO: Usa points_per_unit diretamente do material_type associado ao UniqueCode
     calculated_points = unique_code_db.material_type.points_per_unit
     
     db_discard = Discard(
@@ -134,24 +127,21 @@ async def create_discard(
         material_type_id=unique_code_db.material_type_id,
         unique_code_id=unique_code_db.id,
         points_awarded=calculated_points,
-        timestamp=datetime.now(UTC) # CORRIGIDO: Usar datetime.now(UTC)
+        timestamp=datetime.now(UTC)
     )
     db.add(db_discard)
 
     unique_code_db.is_used = True
     db.add(unique_code_db)
 
-    # Adiciona os pontos do descarte ao total do usuário
     db_user.total_points += calculated_points
     
-    # Processa as missões
     mission_updates_list = await _process_missions_after_discard(
         db=db,
         user=db_user,
         discarded_material_type_id=unique_code_db.material_type_id
     )
     
-    # Lógica de atualização de nível (garantir que db_user.total_points seja float)
     if db_user.total_points >= 1000:
         db_user.level = 5
     elif db_user.total_points >= 500:
@@ -183,7 +173,7 @@ async def create_discard(
         user_total_points=db_user.total_points,
         user_current_level=db_user.level,
         discard_id=str(db_discard.id),
-        mission_updates=mission_updates_list # ADICIONADO: Retorna informações sobre missões atualizadas
+        mission_updates=mission_updates_list
     )
 
 

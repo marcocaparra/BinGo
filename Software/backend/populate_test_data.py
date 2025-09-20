@@ -1,4 +1,3 @@
-# backend/populate_test_data.py (CORRIGIDO)
 import os
 import sys
 from pathlib import Path
@@ -8,30 +7,23 @@ import string
 from datetime import datetime, timedelta, UTC
 import json
 
-# --- Configuração do sys.path para encontrar os módulos ---
-# Adiciona o diretório 'backend' (onde este script está) ao sys.path.
-# Isso permite importações como 'from base_class import Base' e 'import models'.
 current_dir = Path(__file__).resolve().parent
 sys.path.insert(0, str(current_dir)) 
-# --- FIM: Configuração do sys.path ---
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-# >>> Importações de Base, DOCKER_SQLALCHEMY_DATABASE_URL e dos Modelos
-# Importa Base do módulo base_class
 from base_class import Base 
-# Importa DOCKER_SQLALCHEMY_DATABASE_URL de database
 from database import DOCKER_SQLALCHEMY_DATABASE_URL
 
-# Importa todos os modelos explicitamente ou através do pacote 'models'.
-# Ao importar 'models', o __init__.py será executado, registrando todos os modelos.
 import models
 from models.user_model import User
 from models.material_type_model import MaterialType
 from models.mission_model import Mission, UserMission 
 from models.unique_code_model import UniqueCode
 from models.discard_model import Discard
+
+from auth import get_password_hash
 
 script_engine = create_engine(DOCKER_SQLALCHEMY_DATABASE_URL)
 ScriptSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=script_engine)
@@ -55,7 +47,6 @@ with script_engine.connect() as connection:
     connection.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
     connection.commit()
 
-# Seu bloco de diagnóstico permanece válido
 from sqlalchemy.inspection import inspect
 try:
     mapper = inspect(Mission)
@@ -84,13 +75,17 @@ def create_test_data():
         print("Iniciando a criação/reset dos dados de teste...\n")
 
         test_user = db.query(User).filter(User.email == "testuser@example.com").first()
+        
+        plaintext_password = "testpassword123"
+        hashed_pw = get_password_hash(plaintext_password)
+
         if not test_user:
             test_user = User(
                 email="testuser@example.com",
                 username="testuser",
-                hashed_password="somehashedpassword",
-                total_points=0.0, # Ajustado para Float
-                level=1, # Adicionado
+                hashed_password=hashed_pw, 
+                total_points=0.0, 
+                level=1, 
                 name="Test User",
                 cpf="11122233344",
                 phone_number="(11)98765-4321",
@@ -100,8 +95,9 @@ def create_test_data():
             db.refresh(test_user)
             print(f"Usuário de Teste criado: {test_user.email} (ID: {test_user.id})")
         else:
-            test_user.total_points = 0.0 # Ajustado para Float
-            test_user.level = 1 # Reset de nível
+            test_user.total_points = 0.0 
+            test_user.level = 1 
+            test_user.hashed_password = hashed_pw
             db.add(test_user)
             db.commit()
             db.refresh(test_user)
@@ -140,13 +136,13 @@ def create_test_data():
             mission_total = Mission(
                 name="Descarte Total (3 itens)",
                 description="Descarte 3 itens de qualquer tipo para ganhar pontos extras.",
-                objective=json.dumps({"action_type": "discard"}), # Ajustado para compatibilidade com lógica de router
+                objective=json.dumps({"action_type": "discard"}),
                 reward_points=100,
                 type="discard_count",
                 is_active=True,
                 start_date=datetime.now(UTC),
                 end_date=datetime.now(UTC) + timedelta(days=30),
-                target_quantity=3 # ADICIONADO: Campo para meta da missão
+                target_quantity=3
             )
             db.add(mission_total)
             db.commit()
@@ -158,7 +154,7 @@ def create_test_data():
             mission_electronic = Mission(
                 name="Eletrônico Mestre (2x)",
                 description="Descarte 2 itens eletrônicos para provar seu domínio.",
-                objective=json.dumps({"action_type": "discard", "material_type_id": material_electronic.id}), # Ajustado
+                objective=json.dumps({"action_type": "discard", "material_type_id": material_electronic.id}),
                 reward_points=150,
                 type="discard_specific_material",
                 is_active=True,
@@ -176,7 +172,7 @@ def create_test_data():
             mission_plastic = Mission(
                 name="Plástico Consciente (2x)",
                 description="Descarte 2 itens plásticos para um futuro mais verde.",
-                objective=json.dumps({"action_type": "discard", "material_type_id": material_plastic.id}), # Ajustado
+                objective=json.dumps({"action_type": "discard", "material_type_id": material_plastic.id}),
                 reward_points=75,
                 type="discard_specific_material",
                 is_active=True,

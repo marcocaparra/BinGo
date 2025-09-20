@@ -5,10 +5,6 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 
-# --- REMOVIDO: A linha sys.path.append(...) continua removida, como na correção anterior ---
-
-# AGORA CORRIGIDO: Importa DOCKER_SQLALCHEMY_DATABASE_URL do database.py
-# e Base diretamente de base_class.py
 from database import DOCKER_SQLALCHEMY_DATABASE_URL 
 from base_class import Base 
 
@@ -16,7 +12,6 @@ from base_class import Base
 # access to values within the .ini file in use.
 config = context.config
 
-# >>> MUDANÇA CRÍTICA AQUI: Usar DOCKER_SQLALCHEMY_DATABASE_URL para o Alembic
 config.set_main_option('sqlalchemy.url', DOCKER_SQLALCHEMY_DATABASE_URL)
 
 # Interpret the config file for Python logging.
