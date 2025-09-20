@@ -7,6 +7,7 @@ from routers import material_types
 from routers import unique_codes
 from routers import device_integration
 from routers import discards
+from routers import mission
 
 Base.metadata.create_all(bind=engine)
 
@@ -21,6 +22,7 @@ app.include_router(material_types.router)
 app.include_router(unique_codes.router)
 app.include_router(device_integration.router)
 app.include_router(discards.router)
+app.include_router(mission.router, tags=["Missions"])
 
 @app.get("/")
 def read_root():
