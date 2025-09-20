@@ -1,8 +1,8 @@
-"""initial_schema_creation
+"""Initial migration with current model state
 
-Revision ID: e632551eb0b8
+Revision ID: 348dc26e7f82
 Revises: 
-Create Date: 2025-09-17 19:52:12.622480
+Create Date: 2025-09-20 01:16:14.938765
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'e632551eb0b8'
+revision: str = '348dc26e7f82'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -33,41 +33,56 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('objective', sa.JSON(), nullable=True),
+    sa.Column('objective', sa.Text(), nullable=False),
     sa.Column('reward_points', sa.Integer(), nullable=False),
     sa.Column('type', sa.String(length=50), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('start_date', sa.DateTime(), nullable=False),
     sa.Column('end_date', sa.DateTime(), nullable=False),
+    sa.Column('target_quantity', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
     op.create_index(op.f('ix_missions_id'), 'missions', ['id'], unique=False)
-    op.create_table('unique_codes',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('code', sa.String(length=6), nullable=False),
-    sa.Column('is_used', sa.Boolean(), nullable=False),
-    sa.Column('generated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code')
-    )
-    op.create_index(op.f('ix_unique_codes_id'), 'unique_codes', ['id'], unique=False)
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(length=50), nullable=False),
     sa.Column('email', sa.String(length=100), nullable=False),
     sa.Column('hashed_password', sa.String(length=255), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('total_points', sa.Float(), nullable=True),
+    sa.Column('level', sa.Integer(), nullable=True),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('cpf', sa.String(length=11), nullable=False),
     sa.Column('phone_number', sa.String(length=20), nullable=False),
-    sa.Column('total_points', sa.Integer(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_cpf'), 'users', ['cpf'], unique=True)
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
     op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
     op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
+    op.create_table('unique_codes',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('code', sa.String(length=50), nullable=False),
+    sa.Column('is_used', sa.Boolean(), nullable=False),
+    sa.Column('generated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('material_type_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['material_type_id'], ['material_types.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('code')
+    )
+    op.create_index(op.f('ix_unique_codes_id'), 'unique_codes', ['id'], unique=False)
+    op.create_table('user_missions',
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('mission_id', sa.Integer(), nullable=False),
+    sa.Column('status', sa.String(length=50), nullable=False),
+    sa.Column('progress', sa.Integer(), nullable=False),
+    sa.Column('completed_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['mission_id'], ['missions.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('user_id', 'mission_id')
+    )
     op.create_table('discards',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
@@ -82,32 +97,22 @@ def upgrade() -> None:
     sa.UniqueConstraint('unique_code_id')
     )
     op.create_index(op.f('ix_discards_id'), 'discards', ['id'], unique=False)
-    op.create_table('user_missions',
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('mission_id', sa.Integer(), nullable=False),
-    sa.Column('status', sa.String(length=50), nullable=False),
-    sa.Column('progress', sa.Integer(), nullable=False),
-    sa.Column('completed_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['mission_id'], ['missions.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('user_id', 'mission_id')
-    )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table('user_missions')
     op.drop_index(op.f('ix_discards_id'), table_name='discards')
     op.drop_table('discards')
+    op.drop_table('user_missions')
+    op.drop_index(op.f('ix_unique_codes_id'), table_name='unique_codes')
+    op.drop_table('unique_codes')
     op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_id'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_index(op.f('ix_users_cpf'), table_name='users')
     op.drop_table('users')
-    op.drop_index(op.f('ix_unique_codes_id'), table_name='unique_codes')
-    op.drop_table('unique_codes')
     op.drop_index(op.f('ix_missions_id'), table_name='missions')
     op.drop_table('missions')
     op.drop_index(op.f('ix_material_types_name'), table_name='material_types')
