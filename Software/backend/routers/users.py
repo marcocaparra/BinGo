@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
+from typing import List, Optional
 
 from database import get_db
 from models.user_model import User
 from schemas.user_schema import UserCreate, UserResponse, UserLogin, Token
+from schemas.ranking_schema import UserRanking
 from auth import verify_password, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
 
 router = APIRouter(
@@ -62,3 +64,23 @@ async def login_for_access_token(
 @router.get('/me/', response_model=UserResponse)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return current_user
+
+router = APIRouter()
+
+@router.get(
+    "/ranking",
+    response_model=List[UserRanking],
+    summary="Obter o ranking global de usuários por pontos",
+    description="Retorna uma lista de usuários ordenada pelos pontos totais (total_points) em ordem decrescente."
+)
+def get_user_ranking(
+    db: Session = Depends(get_db),
+    limit: int = Query(100, ge=1, le=500, description="Número máximo de usuários a retornar no ranking."),
+):
+    """
+    Retrieves a global ranking of users based on their total_points.
+    The list is ordered in descending order of points.
+    """
+    ranking = db.query(User).order_by(User.total_points.desc()).limit(limit).all()
+
+    return ranking

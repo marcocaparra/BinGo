@@ -20,6 +20,7 @@ class User(Base):
 
     discards = relationship('Discard', back_populates='user')
     user_missions = relationship('UserMission', back_populates='user')
+    user_achievements = relationship('UserAchievement', back_populates='user')
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
