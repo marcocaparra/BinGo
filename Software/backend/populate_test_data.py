@@ -1,29 +1,20 @@
-# backend/populate_test_data.py
-
 import os
 import sys
 from pathlib import Path
 
-# --- Adicione estas importações para geração de códigos aleatórios ---
-import secrets # Para geração segura de números aleatórios
-import string  # Para ter acesso a caracteres alfanuméricos
-# --- Fim das novas importações ---
-
-# --- INÍCIO: Configuração do sys.path para encontrar os módulos ---
-# Esta parte é mais para execução local, mas não interfere no Docker
+import secrets
+import string
 current_dir = Path(__file__).resolve().parent
+
 project_root = current_dir.parent
 sys.path.insert(0, str(project_root))
-# --- FIM: Configuração do sys.path ---
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-# Mudança aqui: importando UTC diretamente é ok para Python 3.11+
 from datetime import datetime, timedelta, UTC
 
 import json
 
-# IMPORTAÇÃO CORRIGIDA: Usando DOCKER_SQLALCHEMY_DATABASE_URL
 from database import Base, DOCKER_SQLALCHEMY_DATABASE_URL
 
 try:
@@ -38,17 +29,15 @@ except KeyError as e:
     print("Isso pode indicar que 'backend/database.py' não está importando todos os modelos corretamente ou que o nome da classe está errado.")
     sys.exit(1)
 
-# CRIAÇÃO DO ENGINE CORRIGIDA: Usando DOCKER_SQLALCHEMY_DATABASE_URL
 script_engine = create_engine(DOCKER_SQLALCHEMY_DATABASE_URL)
 ScriptSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=script_engine)
 
 print("Configurando mappers do SQLAlchemy e verificando tabelas (pode levar alguns segundos)...")
 
-# --- INÍCIO: Adição para lidar com FK_CHECKS ---
 with script_engine.connect() as connection:
     print("Desativando verificações de chave estrangeira temporariamente...")
     connection.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-    connection.commit() # Commit para garantir que o comando seja aplicado
+    connection.commit()
 
     print("Deletando todas as tabelas existentes (se houver)...")
     Base.metadata.drop_all(bind=script_engine)
@@ -60,14 +49,11 @@ with script_engine.connect() as connection:
 
     print("Reativando verificações de chave estrangeira...")
     connection.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
-    connection.commit() # Commit para garantir que o comando seja aplicado
-# --- FIM: Adição para lidar com FK_CHECKS ---
+    connection.commit()
 
-# --- BLOCO DE DIAGNÓSTICO ---
 from sqlalchemy.inspection import inspect
 try:
     mapper = inspect(Mission)
-    # Note: 'user_missions' é o nome da *propriedade* do relacionamento em Mission
     if 'user_missions' in mapper.relationships:
         print("DIAGNÓSTICO: Propriedade 'user_missions' ENCONTRADA na classe Mission (como relacionamento). ✅")
     else:
@@ -76,8 +62,6 @@ except Exception as e:
     print(f"DIAGNÓSTICO: Ocorreu um erro ao inspecionar a classe Mission: {e} ⚠️")
     print("Isso pode indicar que a classe Mission não foi registrada corretamente ou há um problema maior.")
 print("-" * 50)
-# --- FIM DO BLOCO DE DIAGNÓSTICO ---
-
 
 def get_db_session():
     db = ScriptSessionLocal()
@@ -93,7 +77,6 @@ def create_test_data():
     try:
         print("Iniciando a criação/reset dos dados de teste...\n")
 
-        # --- 1. Criar/Resetar Usuário de Teste ---
         test_user = db.query(User).filter(User.email == "testuser@example.com").first()
         if not test_user:
             test_user = User(
@@ -116,7 +99,6 @@ def create_test_data():
             db.refresh(test_user)
             print(f"Usuário de Teste existente resetado: {test_user.email} (ID: {test_user.id})")
 
-        # --- 2. Criar/Resetar Tipos de Materiais ---
         material_electronic = db.query(MaterialType).filter(MaterialType.name == "Eletrônico").first()
         if not material_electronic:
             material_electronic = MaterialType(name="Eletrônico", points_per_unit=25.0)
@@ -145,7 +127,6 @@ def create_test_data():
             db.refresh(material_plastic)
             print(f"Tipo de Material 'Plástico' existente (ID: {material_plastic.id})")
             
-        # --- 3. Criar/Resetar Missões ---
         mission_total = db.query(Mission).filter(Mission.name == "Descarte Total (3 itens)").first()
         if not mission_total:
             mission_total = Mission(
@@ -214,8 +195,6 @@ def create_test_data():
             db.refresh(mission_points)
             print(f"Missão criada: '{mission_points.name}' (ID: {mission_points.id})")
 
-
-        # --- 4. Atribuir Missões ao Usuário de Teste (UserMissions) ---
         user_missions_to_assign = [mission_total, mission_electronic, mission_plastic, mission_points]
         for mission_item in user_missions_to_assign:
             user_mission_entry = db.query(UserMission).filter(
@@ -242,8 +221,6 @@ def create_test_data():
                 db.refresh(user_mission_entry)
                 print(f"Missão de Usuário '{mission_item.name}' resetada para o usuário de teste.")
 
-        # --- 5. Gerar Códigos Únicos para Teste ---
-        # Excluir códigos únicos não utilizados para evitar duplicatas e ter um ambiente limpo
         db.query(UniqueCode).filter(UniqueCode.is_used == False).delete()
         db.commit()
         print("\nCódigos Únicos não utilizados limpos.")
@@ -254,20 +231,15 @@ def create_test_data():
             "any_material": []
         }
 
-        # FUNÇÃO ALTERADA para gerar códigos alfanuméricos aleatórios de 6 caracteres
-        # AGORA RECEBE material_type_id
-        def generate_random_code(length=6, material_type_id=None): # <-- Adicione material_type_id
-            characters = string.ascii_uppercase + string.digits # Letras maiúsculas e números
+        def generate_random_code(length=6, material_type_id=None):
+            characters = string.ascii_uppercase + string.digits
             
-            # Loop para garantir que o código gerado seja único
             while True:
                 code_str = ''.join(secrets.choice(characters) for _ in range(length))
-                # Verifica se o código já existe no banco de dados
                 existing_code = db.query(UniqueCode).filter(UniqueCode.code == code_str).first()
                 if not existing_code:
-                    break # Encontrou um código único, sai do loop
+                    break
             
-            # PASSA material_type_id para o construtor UniqueCode
             unique_code_obj = UniqueCode(code=code_str, is_used=False, material_type_id=material_type_id)
             db.add(unique_code_obj)
             db.commit()
@@ -275,13 +247,8 @@ def create_test_data():
             return code_str
 
         for _ in range(5):
-            # As chamadas agora usam a nova função, passando o material_type_id
             codes["electronic"].append(generate_random_code(material_type_id=material_electronic.id)) 
             codes["plastic"].append(generate_random_code(material_type_id=material_plastic.id))    
-            
-            # Para "any_material", vou atribuir um material_type_id existente para que não seja nulo.
-            # Você pode escolher qual material_type_id usar aqui, ou se tiver um "MaterialType" genérico, usar o ID dele.
-            # Vou usar o ID do material eletrônico e plástico para demonstrar.
             codes["any_material"].append(generate_random_code(material_type_id=material_electronic.id))
             codes["any_material"].append(generate_random_code(material_type_id=material_plastic.id)) # Gera um extra para ter 10 no total
 
