@@ -34,7 +34,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         hashed_password=hashed_password,
         name=user.name,
         cpf=user.cpf,
-        phone_number=user.phone_number
+        phone_number=user.phone_number,
+        total_points=user.total_points
     )
     db.add(db_user)
     db.commit()
@@ -64,8 +65,6 @@ async def login_for_access_token(
 @router.get('/me/', response_model=UserResponse)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return current_user
-
-router = APIRouter()
 
 @router.get(
     "/ranking",
