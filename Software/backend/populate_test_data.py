@@ -1,33 +1,37 @@
+# backend/populate_test_data.py (CORRIGIDO)
 import os
 import sys
 from pathlib import Path
 
 import secrets
 import string
-current_dir = Path(__file__).resolve().parent
+from datetime import datetime, timedelta, UTC
+import json
 
-project_root = current_dir.parent
-sys.path.insert(0, str(project_root))
+# --- Configuração do sys.path para encontrar os módulos ---
+# Adiciona o diretório 'backend' (onde este script está) ao sys.path.
+# Isso permite importações como 'from base_class import Base' e 'import models'.
+current_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(current_dir)) 
+# --- FIM: Configuração do sys.path ---
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime, timedelta, UTC
 
-import json
+# >>> Importações de Base, DOCKER_SQLALCHEMY_DATABASE_URL e dos Modelos
+# Importa Base do módulo base_class
+from base_class import Base 
+# Importa DOCKER_SQLALCHEMY_DATABASE_URL de database
+from database import DOCKER_SQLALCHEMY_DATABASE_URL
 
-from database import Base, DOCKER_SQLALCHEMY_DATABASE_URL
-
-try:
-    User = Base.registry._class_registry["User"]
-    MaterialType = Base.registry._class_registry["MaterialType"]
-    Mission = Base.registry._class_registry["Mission"]
-    UserMission = Base.registry._class_registry["UserMission"]
-    UniqueCode = Base.registry._class_registry["UniqueCode"]
-    Discard = Base.registry._class_registry["Discard"]
-except KeyError as e:
-    print(f"ERRO CRÍTICO: Modelo '{e}' não encontrado no registro da Base.")
-    print("Isso pode indicar que 'backend/database.py' não está importando todos os modelos corretamente ou que o nome da classe está errado.")
-    sys.exit(1)
+# Importa todos os modelos explicitamente ou através do pacote 'models'.
+# Ao importar 'models', o __init__.py será executado, registrando todos os modelos.
+import models
+from models.user_model import User
+from models.material_type_model import MaterialType
+from models.mission_model import Mission, UserMission 
+from models.unique_code_model import UniqueCode
+from models.discard_model import Discard
 
 script_engine = create_engine(DOCKER_SQLALCHEMY_DATABASE_URL)
 ScriptSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=script_engine)
@@ -47,10 +51,11 @@ with script_engine.connect() as connection:
     Base.metadata.create_all(bind=script_engine)
     print("Mappers configurados e tabelas verificadas.\n")
 
-    print("Reativando verificações de chave estrangeira...")
+    print("Reativando verificações de chave estrangeira...\n")
     connection.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
     connection.commit()
 
+# Seu bloco de diagnóstico permanece válido
 from sqlalchemy.inspection import inspect
 try:
     mapper = inspect(Mission)
@@ -62,6 +67,7 @@ except Exception as e:
     print(f"DIAGNÓSTICO: Ocorreu um erro ao inspecionar a classe Mission: {e} ⚠️")
     print("Isso pode indicar que a classe Mission não foi registrada corretamente ou há um problema maior.")
 print("-" * 50)
+
 
 def get_db_session():
     db = ScriptSessionLocal()
@@ -83,7 +89,8 @@ def create_test_data():
                 email="testuser@example.com",
                 username="testuser",
                 hashed_password="somehashedpassword",
-                total_points=0,
+                total_points=0.0, # Ajustado para Float
+                level=1, # Adicionado
                 name="Test User",
                 cpf="11122233344",
                 phone_number="(11)98765-4321",
@@ -93,7 +100,8 @@ def create_test_data():
             db.refresh(test_user)
             print(f"Usuário de Teste criado: {test_user.email} (ID: {test_user.id})")
         else:
-            test_user.total_points = 0
+            test_user.total_points = 0.0 # Ajustado para Float
+            test_user.level = 1 # Reset de nível
             db.add(test_user)
             db.commit()
             db.refresh(test_user)
@@ -132,68 +140,72 @@ def create_test_data():
             mission_total = Mission(
                 name="Descarte Total (3 itens)",
                 description="Descarte 3 itens de qualquer tipo para ganhar pontos extras.",
-                objective=json.dumps({"count": 3}), 
+                objective=json.dumps({"action_type": "discard"}), # Ajustado para compatibilidade com lógica de router
                 reward_points=100,
-                type="discard_total",
+                type="discard_count",
                 is_active=True,
                 start_date=datetime.now(UTC),
-                end_date=datetime.now(UTC) + timedelta(days=30)
+                end_date=datetime.now(UTC) + timedelta(days=30),
+                target_quantity=3 # ADICIONADO: Campo para meta da missão
             )
             db.add(mission_total)
             db.commit()
             db.refresh(mission_total)
-            print(f"Missão criada: '{mission_total.name}' (ID: {mission_total.id})")
+            print(f"Missão criada: '{mission_total.name}' (ID: {mission_total.id})\n")
 
         mission_electronic = db.query(Mission).filter(Mission.name == "Eletrônico Mestre (2x)").first()
         if not mission_electronic:
             mission_electronic = Mission(
                 name="Eletrônico Mestre (2x)",
                 description="Descarte 2 itens eletrônicos para provar seu domínio.",
-                objective=json.dumps({"count": 2}), 
+                objective=json.dumps({"action_type": "discard", "material_type_id": material_electronic.id}), # Ajustado
                 reward_points=150,
-                type="discard_electronic",
+                type="discard_specific_material",
                 is_active=True,
                 start_date=datetime.now(UTC),
-                end_date=datetime.now(UTC) + timedelta(days=30)
+                end_date=datetime.now(UTC) + timedelta(days=30),
+                target_quantity=2
             )
             db.add(mission_electronic)
             db.commit()
             db.refresh(mission_electronic)
-            print(f"Missão criada: '{mission_electronic.name}' (ID: {mission_electronic.id})")
+            print(f"Missão criada: '{mission_electronic.name}' (ID: {mission_electronic.id})\n")
 
         mission_plastic = db.query(Mission).filter(Mission.name == "Plástico Consciente (2x)").first()
         if not mission_plastic:
             mission_plastic = Mission(
                 name="Plástico Consciente (2x)",
                 description="Descarte 2 itens plásticos para um futuro mais verde.",
-                objective=json.dumps({"count": 2, "material_type_name": "plástico"}), 
+                objective=json.dumps({"action_type": "discard", "material_type_id": material_plastic.id}), # Ajustado
                 reward_points=75,
-                type="discard_material_type",
+                type="discard_specific_material",
                 is_active=True,
                 start_date=datetime.now(UTC),
-                end_date=datetime.now(UTC) + timedelta(days=30)
+                end_date=datetime.now(UTC) + timedelta(days=30),
+                target_quantity=2
             )
             db.add(mission_plastic)
             db.commit()
             db.refresh(mission_plastic)
-            print(f"Missão criada: '{mission_plastic.name}' (ID: {mission_plastic.id})")
+            print(f"Missão criada: '{mission_plastic.name}' (ID: {mission_plastic.id})\n")
 
         mission_points = db.query(Mission).filter(Mission.name == "Acumulador de Pontos (50)").first()
         if not mission_points:
             mission_points = Mission(
                 name="Acumulador de Pontos (50)",
                 description="Acumule 50 pontos de descarte para uma grande recompensa.",
-                objective=json.dumps({"points": 50}), 
+                objective=json.dumps({"action_type": "accumulate_points", "points_target": 50}),
                 reward_points=200,
                 type="accumulate_points",
                 is_active=True,
                 start_date=datetime.now(UTC),
-                end_date=datetime.now(UTC) + timedelta(days=30)
+                end_date=datetime.now(UTC) + timedelta(days=30),
+                target_quantity=50
             )
             db.add(mission_points)
             db.commit()
             db.refresh(mission_points)
-            print(f"Missão criada: '{mission_points.name}' (ID: {mission_points.id})")
+            print(f"Missão criada: '{mission_points.name}' (ID: {mission_points.id})\n")
 
         user_missions_to_assign = [mission_total, mission_electronic, mission_plastic, mission_points]
         for mission_item in user_missions_to_assign:
@@ -223,7 +235,7 @@ def create_test_data():
 
         db.query(UniqueCode).filter(UniqueCode.is_used == False).delete()
         db.commit()
-        print("\nCódigos Únicos não utilizados limpos.")
+        print("\nCódigos Únicos não utilizados limpos.\n")
 
         codes = {
             "electronic": [],
@@ -231,32 +243,32 @@ def create_test_data():
             "any_material": []
         }
 
-        def generate_random_code(length=6, material_type_id=None):
+        def generate_random_code_and_add(db_session, length=6, material_type_id=None):
             characters = string.ascii_uppercase + string.digits
             
             while True:
                 code_str = ''.join(secrets.choice(characters) for _ in range(length))
-                existing_code = db.query(UniqueCode).filter(UniqueCode.code == code_str).first()
+                existing_code = db_session.query(UniqueCode).filter(UniqueCode.code == code_str).first()
                 if not existing_code:
                     break
             
             unique_code_obj = UniqueCode(code=code_str, is_used=False, material_type_id=material_type_id)
-            db.add(unique_code_obj)
-            db.commit()
-            db.refresh(unique_code_obj)
+            db_session.add(unique_code_obj)
+            db_session.commit()
+            db_session.refresh(unique_code_obj)
             return code_str
 
         for _ in range(5):
-            codes["electronic"].append(generate_random_code(material_type_id=material_electronic.id)) 
-            codes["plastic"].append(generate_random_code(material_type_id=material_plastic.id))    
-            codes["any_material"].append(generate_random_code(material_type_id=material_electronic.id))
-            codes["any_material"].append(generate_random_code(material_type_id=material_plastic.id)) # Gera um extra para ter 10 no total
+            codes["electronic"].append(generate_random_code_and_add(db, material_type_id=material_electronic.id)) 
+            codes["plastic"].append(generate_random_code_and_add(db, material_type_id=material_plastic.id))    
+            codes["any_material"].append(generate_random_code_and_add(db, material_type_id=material_electronic.id))
+            codes["any_material"].append(generate_random_code_and_add(db, material_type_id=material_plastic.id)) 
 
         print("\nCódigos Únicos de Teste Gerados:")
         for key, value in codes.items():
             print(f"- {key}: {value}")
         
-        print("\nCriação de dados de teste finalizada com sucesso!")
+        print("\nCriação de dados de teste finalizada com sucesso!\n")
 
     except Exception as e:
         db.rollback()

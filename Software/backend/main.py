@@ -1,16 +1,14 @@
 from fastapi import FastAPI
 from database import engine 
-from models import user_model, material_type_model, discard_model, unique_code_model 
+from base_class import Base 
+
 from routers import users
 from routers import material_types
 from routers import unique_codes
 from routers import device_integration
 from routers import discards
 
-user_model.Base.metadata.create_all(bind=engine)
-material_type_model.Base.metadata.create_all(bind=engine)
-discard_model.Base.metadata.create_all(bind=engine)
-unique_code_model.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="BinGo API",

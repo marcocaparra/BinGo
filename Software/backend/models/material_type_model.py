@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Integer, Float
 from sqlalchemy.orm import relationship
-from database import Base
+from base_class import Base
 
 class MaterialType(Base):
     __tablename__ = 'material_types'

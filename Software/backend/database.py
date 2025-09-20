@@ -1,7 +1,10 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
+from base_class import Base
+
+import models 
 
 DATABASE_PORT = os.getenv("DATABASE_PORT", "3306")
 DATABASE_USER = os.getenv("MYSQL_USER", "bingo_user")
@@ -22,7 +25,6 @@ HOST_SQLALCHEMY_DATABASE_URL = (
 
 engine = create_engine(DOCKER_SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
 def get_db():
     db = SessionLocal()
@@ -30,9 +32,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-import models.user_model
-import models.discard_model
-import models.material_type_model
-import models.mission_model
-import models.unique_code_model

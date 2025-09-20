@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from database import Base
+from base_class import Base
 import datetime
 
 class Mission(Base):
@@ -16,6 +16,7 @@ class Mission(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     start_date = Column(DateTime, nullable=False, default=func.now())
     end_date = Column(DateTime, nullable=False)
+    target_quantity = Column(Integer, default=0, nullable=False)
 
     user_missions = relationship('UserMission', back_populates='mission')
 
