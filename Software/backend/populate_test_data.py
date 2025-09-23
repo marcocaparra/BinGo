@@ -22,8 +22,10 @@ from models.material_type_model import MaterialType
 from models.mission_model import Mission, UserMission 
 from models.unique_code_model import UniqueCode
 from models.discard_model import Discard
+from models.achievement_model import Achievement, UserAchievement
 
 from auth import get_password_hash
+from services.achievement_service import AchievementConditionType
 
 script_engine = create_engine(DOCKER_SQLALCHEMY_DATABASE_URL)
 ScriptSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=script_engine)
@@ -89,6 +91,8 @@ def create_test_data():
                 name="Test User",
                 cpf="11122233344",
                 phone_number="(11)98765-4321",
+                discard_count=0,
+                mission_completed_count=0
             )
             db.add(test_user)
             db.commit()
@@ -98,6 +102,8 @@ def create_test_data():
             test_user.total_points = 0.0 
             test_user.level = 1 
             test_user.hashed_password = hashed_pw
+            test_user.discard_count = 0
+            test_user.mission_completed_count = 0
             db.add(test_user)
             db.commit()
             db.refresh(test_user)
@@ -131,6 +137,76 @@ def create_test_data():
             db.refresh(material_plastic)
             print(f"Tipo de Material 'Plástico' existente (ID: {material_plastic.id})")
             
+        # --- Criação de Conquistas de Teste ---
+        print("\nCriando conquistas de teste...")
+
+        # Conquista: Primeiro Descarte
+        achievement_first_discard = db.query(Achievement).filter(Achievement.name == "Primeiro Descarte").first()
+        if not achievement_first_discard:
+            achievement_first_discard = Achievement(
+                name="Primeiro Descarte",
+                description="Realize seu primeiro descarte e comece sua jornada sustentável.",
+                criteria_json={"type": AchievementConditionType.FIRST_DISCARD},
+                points_reward=10,
+                badge_image_url="https://example.com/badges/first_discard.png",
+                is_active=True
+            )
+            db.add(achievement_first_discard)
+            db.commit()
+            db.refresh(achievement_first_discard)
+            print(f"Conquista criada: '{achievement_first_discard.name}' (ID: {achievement_first_discard.id})")
+
+        # Conquista: Eco-Novato (100 pontos)
+        achievement_eco_novato = db.query(Achievement).filter(Achievement.name == "Eco-Novato").first()
+        if not achievement_eco_novato:
+            achievement_eco_novato = Achievement(
+                name="Eco-Novato",
+                description="Alcance 100 pontos totais e se torne um Eco-Novato!",
+                criteria_json={"type": AchievementConditionType.TOTAL_POINTS_REACHED, "target": 100},
+                points_reward=20,
+                badge_image_url="https://example.com/badges/eco_novato.png",
+                is_active=True
+            )
+            db.add(achievement_eco_novato)
+            db.commit()
+            db.refresh(achievement_eco_novato)
+            print(f"Conquista criada: '{achievement_eco_novato.name}' (ID: {achievement_eco_novato.id})")
+        
+        # Conquista: Descarte Eletrônico (1 item eletrônico)
+        achievement_e_waste_novice = db.query(Achievement).filter(Achievement.name == "Descarte Eletrônico").first()
+        if not achievement_e_waste_novice:
+            achievement_e_waste_novice = Achievement(
+                name="Descarte Eletrônico",
+                description="Descarte seu primeiro item eletrônico. Um passo importante!",
+                criteria_json={"type": AchievementConditionType.SPECIFIC_MATERIAL_DISCARD_COUNT, "material_type_id": material_electronic.id, "target": 1},
+                points_reward=15,
+                badge_image_url="https://example.com/badges/e_waste_novice.png",
+                is_active=True
+            )
+            db.add(achievement_e_waste_novice)
+            db.commit()
+            db.refresh(achievement_e_waste_novice)
+            print(f"Conquista criada: '{achievement_e_waste_novice.name}' (ID: {achievement_e_waste_novice.id})")
+
+        # Conquista: Mestre do Descarte (5 descartes totais)
+        achievement_discard_master = db.query(Achievement).filter(Achievement.name == "Mestre do Descarte").first()
+        if not achievement_discard_master:
+            achievement_discard_master = Achievement(
+                name="Mestre do Descarte",
+                description="Realize 5 descartes de qualquer tipo.",
+                criteria_json={"type": AchievementConditionType.TOTAL_DISCARDS_COUNT, "target": 5},
+                points_reward=25,
+                badge_image_url="https://example.com/badges/discard_master.png",
+                is_active=True
+            )
+            db.add(achievement_discard_master)
+            db.commit()
+            db.refresh(achievement_discard_master)
+            print(f"Conquista criada: '{achievement_discard_master.name}' (ID: {achievement_discard_master.id})")
+
+        print("Conquistas de teste criadas/atualizadas.\n")
+
+        # --- Lógica de Missões (existente) ---
         mission_total = db.query(Mission).filter(Mission.name == "Descarte Total (3 itens)").first()
         if not mission_total:
             mission_total = Mission(
@@ -265,6 +341,10 @@ def create_test_data():
             print(f"- {key}: {value}")
         
         print("\nCriação de dados de teste finalizada com sucesso!\n")
+
+        db.query(UserAchievement).filter(UserAchievement.user_id == test_user.id).delete()
+        db.commit()
+        print(f"Conquistas do usuário de teste '{test_user.email}' limpas.\n")
 
     except Exception as e:
         db.rollback()

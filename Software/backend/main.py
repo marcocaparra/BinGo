@@ -8,6 +8,7 @@ from routers import unique_codes
 from routers import device_integration
 from routers import discards
 from routers import mission
+from routers import achievements
 
 Base.metadata.create_all(bind=engine)
 
@@ -23,6 +24,7 @@ app.include_router(unique_codes.router)
 app.include_router(device_integration.router)
 app.include_router(discards.router)
 app.include_router(mission.router, tags=["Missions"])
+app.include_router(achievements.router)
 
 @app.get("/")
 def read_root():

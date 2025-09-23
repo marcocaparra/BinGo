@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean # Importa Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.mysql import JSON as MySQLJSON
@@ -13,6 +13,7 @@ class Achievement(Base):
     criteria_json = Column(MySQLJSON, nullable=False)
     points_reward = Column(Integer, nullable=False)
     badge_image_url = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
 
     user_achievements = relationship('UserAchievement', back_populates='achievement')
 

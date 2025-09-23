@@ -1,10 +1,11 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
+from typing import Optional
 
 class UserBase(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
-    total_points: int = 0
+    total_points: float = 0.0
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=3, max_length=100)
@@ -18,6 +19,8 @@ class UserResponse(UserBase):
     name: str
     cpf: str
     phone_number: str
+    discard_count: int
+    mission_completed_count: int
 
     class Config:
         from_attributes = True
