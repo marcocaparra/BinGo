@@ -26,14 +26,6 @@ app.include_router(discards.router)
 app.include_router(mission.router, tags=["Missions"])
 app.include_router(achievements.router)
 
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-# ...
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-# ...
-
 @app.get("/")
 def read_root():
     return {"message": "Bem-vindo à API do BinGo!"}
