@@ -137,10 +137,8 @@ def create_test_data():
             db.refresh(material_plastic)
             print(f"Tipo de Material 'Plástico' existente (ID: {material_plastic.id})")
             
-        # --- Criação de Conquistas de Teste ---
         print("\nCriando conquistas de teste...")
 
-        # Conquista: Primeiro Descarte
         achievement_first_discard = db.query(Achievement).filter(Achievement.name == "Primeiro Descarte").first()
         if not achievement_first_discard:
             achievement_first_discard = Achievement(
@@ -156,7 +154,6 @@ def create_test_data():
             db.refresh(achievement_first_discard)
             print(f"Conquista criada: '{achievement_first_discard.name}' (ID: {achievement_first_discard.id})")
 
-        # Conquista: Eco-Novato (100 pontos)
         achievement_eco_novato = db.query(Achievement).filter(Achievement.name == "Eco-Novato").first()
         if not achievement_eco_novato:
             achievement_eco_novato = Achievement(
@@ -172,7 +169,6 @@ def create_test_data():
             db.refresh(achievement_eco_novato)
             print(f"Conquista criada: '{achievement_eco_novato.name}' (ID: {achievement_eco_novato.id})")
         
-        # Conquista: Descarte Eletrônico (1 item eletrônico)
         achievement_e_waste_novice = db.query(Achievement).filter(Achievement.name == "Descarte Eletrônico").first()
         if not achievement_e_waste_novice:
             achievement_e_waste_novice = Achievement(
@@ -188,7 +184,6 @@ def create_test_data():
             db.refresh(achievement_e_waste_novice)
             print(f"Conquista criada: '{achievement_e_waste_novice.name}' (ID: {achievement_e_waste_novice.id})")
 
-        # Conquista: Mestre do Descarte (5 descartes totais)
         achievement_discard_master = db.query(Achievement).filter(Achievement.name == "Mestre do Descarte").first()
         if not achievement_discard_master:
             achievement_discard_master = Achievement(
@@ -206,7 +201,6 @@ def create_test_data():
 
         print("Conquistas de teste criadas/atualizadas.\n")
 
-        # --- Lógica de Missões (existente) ---
         mission_total = db.query(Mission).filter(Mission.name == "Descarte Total (3 itens)").first()
         if not mission_total:
             mission_total = Mission(
