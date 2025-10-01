@@ -36,7 +36,7 @@ body {
   margin-bottom: 24px;
 }
 
-/* Inputs iguais ao login */
+/* Inputs idênticos ao login, com label cortando o traço */
 .field {
   position: relative;
   margin-bottom: 20px;
@@ -52,6 +52,7 @@ body {
   font-size: 1rem;
   font-family: 'Poppins', sans-serif;
   outline: none;
+  line-height: 1.2;
 }
 
 .field label {
@@ -62,20 +63,23 @@ body {
   font-size: 0.9rem;
   color: #aaa;
   pointer-events: none;
-  transition: 0.3s ease;
+  transition: 0.25s ease;
   background: transparent;
   padding: 0 4px;
+  border-radius: 8px;
 }
 
 .field input:focus + label,
 .field input:not(:placeholder-shown) + label {
-  top: -10px;
-  left: 10px;
+  top: 0;
+  transform: translateY(-50%);
+  left: 12px;
   font-size: 0.75rem;
   color: #2BFDBE;
-  background: #012640;
-  padding: 0 6px;
-  border-radius: 6px;
+  background: #012640;   /* apaga a borda no ponto do rótulo */
+  padding: 0 8px;
+  z-index: 1;
+  border-radius: 10px;
 }
 
 /* Botões bold */

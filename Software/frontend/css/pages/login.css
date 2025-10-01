@@ -35,7 +35,7 @@ body {
   margin-bottom: 24px;
 }
 
-/* Inputs com label flutuante */
+/* Inputs com label flutuante que corta o traço */
 .field {
   position: relative;
   margin-bottom: 20px;
@@ -51,8 +51,10 @@ body {
   font-size: 1rem;
   font-family: 'Poppins', sans-serif;
   outline: none;
+  line-height: 1.2;              /* ajuda no alinhamento vertical */
 }
 
+/* estado “placeholder” centralizado */
 .field label {
   position: absolute;
   left: 14px;
@@ -61,20 +63,24 @@ body {
   font-size: 0.9rem;
   color: #aaa;
   pointer-events: none;
-  transition: 0.3s ease;
+  transition: 0.25s ease;
   background: transparent;
   padding: 0 4px;
+  border-radius: 8px;            /* já arredondado para não ficar quadrado */
 }
 
+/* estado ativo/contém texto: label no meio da borda superior “cortando o traço” */
 .field input:focus + label,
 .field input:not(:placeholder-shown) + label {
-  top: -10px;
-  left: 10px;
+  top: 0;                         /* crava no meio da borda superior */
+  transform: translateY(-50%);    /* metade para fora, metade para dentro */
+  left: 12px;
   font-size: 0.75rem;
   color: #2BFDBE;
-  background: #012640;
-  padding: 0 6px;
-  border-radius: 6px;
+  background: #012640;            /* mesma cor do input para “apagar” a borda atrás */
+  padding: 0 8px;
+  z-index: 1;                     /* fica por cima da borda */
+  border-radius: 10px;            /* cantos suaves no “retângulo” do rótulo */
 }
 
 /* Botão */
@@ -112,6 +118,10 @@ body {
   text-decoration: underline;
 }
 
+/* Bingolino maior (quase altura do card) */
 .mascot img {
-  max-height: 300px;
+  height: 420px;      /* ajuste fino para ficar praticamente do tamanho do card */
+  width: auto;
+  max-width: 100%;
+  display: block;
 }
