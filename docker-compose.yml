@@ -18,18 +18,42 @@ services:
     networks:
       - app_network
 
-  backend:
+  backend-dev:
+    profiles: ["dev"]
     build:
-      context: .                               
-      dockerfile: ./Software/backend/Dockerfile
-    container_name: software-backend-1
+      context: .
+      dockerfile: ./Software/backend/Dockerfile.dev
+    container_name: software-backend-dev
     ports:
       - "8000:8000"
     volumes:
-      - ./Software/backend:/app                 
+      - ./Software/backend:/app
     depends_on:
-      db:
-        condition: service_healthy
+      - db
+    environment:
+      PYTHONPATH: /app
+      DATABASE_HOST: db
+      DATABASE_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-bingo_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Bingolino53787}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-bingo_db}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - app_network
+
+  backend-gpu:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: ./Software/backend/Dockerfile
+    container_name: software-backend-gpu
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./Software/backend:/app
+    depends_on:
+      - db
     environment:
       PYTHONPATH: /app
       DATABASE_HOST: db
@@ -48,3 +72,4 @@ volumes:
 networks:
   app_network:
     driver: bridge
+    name: bingo_network_dev
