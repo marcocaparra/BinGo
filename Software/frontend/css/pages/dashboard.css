@@ -1,0 +1,71 @@
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #012640, #003376);
+  font-family: "Poppins", sans-serif;
+  color: #fff;
+}
+
+.card {
+  background: radial-gradient(circle, #0B477C, #1C7FD6);
+  padding: 40px;
+  border-radius: 16px;
+  border: 2px solid #2BFDBE;
+  width: 400px;
+  text-align: center;
+  animation: fadeIn 0.8s ease;
+}
+
+.card h1 {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 26px;
+  margin-bottom: 12px;
+}
+
+.subtitle {
+  font-size: 16px;
+  margin-bottom: 20px;
+  color: #cce7ff;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn {
+  width: 100%;
+  padding: 14px;
+  background: #C7F9FF;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  color: #003376;
+  transition: transform 0.2s ease, background 0.3s ease;
+}
+
+.btn:hover {
+  transform: scale(1.05);
+  background: #a8ecf7;
+}
+
+.toast {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #2BFDBE;
+  color: #003376;
+  font-weight: bold;
+}
+
+.toast.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,9 +1,8 @@
 {
   "name": "bingo-frontend",
-  "version": "1.0.0",
-  "description": "Frontend do BinGo",
+  "private": true,
   "scripts": {
-    "start": "http-server -c-1 -p 3000"
+    "dev": "http-server -p 5173 -c-1 ."
   },
   "devDependencies": {
     "http-server": "^14.1.1"

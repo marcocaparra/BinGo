@@ -1,0 +1,103 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(180deg, #0B477C, #1C7FD6);
+  font-family: 'Poppins', sans-serif;
+}
+
+.register-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.card {
+  background: linear-gradient(180deg, #012640, #003376);
+  padding: 40px;
+  border-radius: 16px;
+  border: 2px solid #2BFDBE;
+  width: 340px;
+  text-align: center;
+}
+
+.card h1 {
+  font-family: 'Chakra Petch', sans-serif;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.card p {
+  font-size: 0.9rem;
+  color: #d9d9d9;
+  margin-bottom: 24px;
+}
+
+/* Inputs iguais ao login */
+.field {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.field input {
+  width: 100%;
+  padding: 14px 12px;
+  border-radius: 10px;
+  border: 2px solid #2BFDBE;
+  background: #012640;
+  color: #fff;
+  font-size: 1rem;
+  font-family: 'Poppins', sans-serif;
+  outline: none;
+}
+
+.field label {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.9rem;
+  color: #aaa;
+  pointer-events: none;
+  transition: 0.3s ease;
+  background: transparent;
+  padding: 0 4px;
+}
+
+.field input:focus + label,
+.field input:not(:placeholder-shown) + label {
+  top: -10px;
+  left: 10px;
+  font-size: 0.75rem;
+  color: #2BFDBE;
+  background: #012640;
+  padding: 0 6px;
+  border-radius: 6px;
+}
+
+/* Botões bold */
+.btn {
+  width: 100%;
+  padding: 12px;
+  background: #C7F9FF;
+  color: #012640;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  background: #a9e9f5;
+}
+
+/* Esconde etapa */
+.hidden {
+  display: none;
+}

@@ -1,0 +1,32 @@
+import { registerUser } from "../api/auth.js";
+
+const step1 = document.getElementById("step1");
+const step2 = document.getElementById("step2");
+const welcomeName = document.getElementById("welcomeName");
+
+let collectedData = {};
+
+document.getElementById("step1Form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  collectedData.full_name = document.getElementById("fullName").value.trim();
+  collectedData.username = document.getElementById("username").value.trim();
+
+  welcomeName.textContent = `Prazer, ${collectedData.full_name.split(" ")[0]}!`;
+  step1.classList.add("hidden");
+  step2.classList.remove("hidden");
+});
+
+document.getElementById("step2Form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  collectedData.cpf = document.getElementById("cpf").value.trim();
+  collectedData.phone = document.getElementById("phone").value.trim();
+  collectedData.email = document.getElementById("email").value.trim();
+  collectedData.password = document.getElementById("password").value.trim();
+
+  try {
+    await registerUser(collectedData);
+    location.href = "./dashboard.html";
+  } catch (err) {
+    alert(err.message || "Erro ao registrar usuário");
+  }
+});

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="api-base-url" content="http://localhost:8000"/>
+  <title>Entrar • BinGo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/global.css"/>
+  <link rel="stylesheet" href="../css/pages/login.css"/>
+</head>
+<body>
+  <div class="login-container">
+    <div class="card">
+      <h1>Já é um herói?</h1>
+      <p class="subtitle">Faça login e volte a salvar o planeta!</p>
+      <form id="loginForm">
+        <div class="field">
+          <input id="username" type="text" placeholder=" " required>
+          <label for="username">Usuário</label>
+        </div>
+        <div class="field">
+          <input id="password" type="password" placeholder=" " required>
+          <label for="password">Senha</label>
+        </div>
+        <button class="btn primary" type="submit">ENTRAR</button>
+        <div id="error" class="error hidden"></div>
+      </form>
+      <p class="signup-link">Não tem conta? <a href="./register.html">Cadastre-se</a></p>
+    </div>
+    <div class="mascot">
+      <img src="../assets/images/bingolino_potion.png" alt="Bingolino" />
+    </div>
+  </div>
+  <script type="module" src="../js/pages/login.js"></script>
+</body>
+</html>

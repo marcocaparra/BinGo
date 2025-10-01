@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="api-base-url" content="http://localhost:8000"/>
+  <title>Dashboard • BinGo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Poppins:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/global.css"/>
+  <link rel="stylesheet" href="../css/pages/dashboard.css"/>
+</head>
+<body>
+  <div class="card">
+    <h1 id="welcome">Olá, herói!</h1>
+    <div class="subtitle">Sua pontuação total: <strong id="points">0</strong></div>
+    <div class="row" style="margin-top:16px">
+      <button id="goDiscard" class="btn">Registrar código de descarte</button>
+      <button id="logout" class="btn">Sair</button>
+    </div>
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script type="module">
+    import { bootDashboard } from "../js/pages/dashboard.js";
+    bootDashboard();
+  </script>
+</body>
+</html>
