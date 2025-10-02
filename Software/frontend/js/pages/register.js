@@ -3,6 +3,7 @@ import { registerUser } from "../api/auth.js";
 const step1 = document.getElementById("step1");
 const step2 = document.getElementById("step2");
 const welcomeName = document.getElementById("welcomeName");
+const errorBox = document.getElementById("registerError");
 
 let collectedData = {};
 
@@ -27,6 +28,15 @@ document.getElementById("step2Form").addEventListener("submit", async (e) => {
     await registerUser(collectedData);
     location.href = "./dashboard.html";
   } catch (err) {
-    alert(err.message || "Erro ao registrar usuário");
+    let message = "Erro ao registrar. Tente novamente.";
+    if (err.message.toLowerCase().includes("usuário")) {
+      message = "Este nome de usuário já está em uso.";
+    } else if (err.message.toLowerCase().includes("email")) {
+      message = "Este e-mail já está cadastrado.";
+    } else if (err.message.includes("Failed to fetch")) {
+      message = "Falha de conexão com o servidor.";
+    }
+    errorBox.textContent = message;
+    errorBox.classList.remove("hidden");
   }
 });

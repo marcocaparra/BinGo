@@ -7,6 +7,7 @@ export async function bootDashboard() {
   const userBinsEl = document.getElementById("userBins");
   const userLevelEl = document.getElementById("userLevel");
   const logoutBtn = document.getElementById("logout");
+  const errorBox = document.getElementById("dashboardError");
 
   logoutBtn?.addEventListener("click", () => {
     logout();
@@ -14,7 +15,7 @@ export async function bootDashboard() {
 
   try {
     const me = await getMe();
-    
+
     const firstName = (me.name || me.username || "Herói").split(" ")[0];
     userNameEl.textContent = firstName;
 
@@ -32,9 +33,18 @@ export async function bootDashboard() {
     userLevelEl.textContent = levelNames[levelNum] || `Nível ${levelNum}`;
 
     console.log("Dashboard carregado:", me);
+
+    if (errorBox) errorBox.classList.add("hidden");
+
   } catch (err) {
     console.error("Erro ao carregar perfil:", err);
-    alert("Falha ao carregar dados do usuário. Faça login novamente.");
+
+    if (errorBox) {
+      errorBox.textContent =
+        err.message || "Falha ao carregar seus dados. Faça login novamente.";
+      errorBox.classList.remove("hidden");
+    }
+
     logout();
   }
 }

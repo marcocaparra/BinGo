@@ -12,7 +12,13 @@ form.addEventListener("submit", async (e) => {
     await login(username, password);
     location.href = "./dashboard.html";
   } catch (err) {
-    errorBox.textContent = err.message || "Erro ao fazer login";
+    let message = "Erro ao fazer login. Tente novamente.";
+    if (err.message.includes("401")) {
+      message = "Usuário ou senha incorretos.";
+    } else if (err.message.includes("Failed to fetch")) {
+      message = "Falha de conexão com o servidor. Verifique sua internet.";
+    }
+    errorBox.textContent = message;
     errorBox.classList.remove("hidden");
   }
 });
