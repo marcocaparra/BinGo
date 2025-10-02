@@ -15,14 +15,11 @@ export async function bootDashboard() {
   try {
     const me = await getMe();
     
-    // Nome
     const firstName = (me.name || me.username || "Herói").split(" ")[0];
     userNameEl.textContent = firstName;
 
-    // Pontos (Bins)
     userBinsEl.textContent = me.total_points ?? 0;
 
-    // Mapeamento de níveis (visual)
     const levelNames = {
       1: "Semeador",
       2: "Plantador",
@@ -31,7 +28,6 @@ export async function bootDashboard() {
       5: "Mestre Verde"
     };
 
-    // Se o backend mandar um nível que não está no mapa, mostra o número mesmo
     const levelNum = me.level ?? 1;
     userLevelEl.textContent = levelNames[levelNum] || `Nível ${levelNum}`;
 

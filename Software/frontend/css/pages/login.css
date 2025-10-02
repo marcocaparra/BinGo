@@ -7,7 +7,6 @@ body {
   background: linear-gradient(180deg, #012640, #003376);
   font-family: 'Poppins', sans-serif;
 
-  /* fade-in */
   opacity: 0;
   animation: fadeIn 0.8s ease forwards;
 }
@@ -45,7 +44,6 @@ body {
   margin-bottom: 24px;
 }
 
-/* Inputs */
 .field {
   position: relative;
   margin-bottom: 20px;
@@ -92,7 +90,6 @@ body {
   border-radius: 10px;
 }
 
-/* Botão */
 .btn {
   width: 100%;
   padding: 12px;
@@ -108,10 +105,9 @@ body {
 
 .btn:hover {
   background: #a9e9f5;
-  box-shadow: 0 0 12px #C7F9FF; /* glow no hover */
+  box-shadow: 0 0 12px #C7F9FF;
 }
 
-/* Link de cadastro */
 .signup-link {
   margin-top: 16px;
   font-size: 0.9rem;
@@ -128,7 +124,6 @@ body {
   text-shadow: 0 0 8px #C7F9FF;
 }
 
-/* Bingolino */
 .mascot img {
   height: 420px;
   width: auto;

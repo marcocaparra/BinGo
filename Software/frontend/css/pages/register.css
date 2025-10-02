@@ -7,7 +7,6 @@ body {
   background: linear-gradient(180deg, #0B477C, #1C7FD6);
   font-family: 'Poppins', sans-serif;
 
-  /* fade-in */
   opacity: 0;
   animation: fadeIn 0.8s ease forwards;
 }
@@ -46,7 +45,6 @@ body {
   margin-bottom: 24px;
 }
 
-/* Inputs */
 .field {
   position: relative;
   margin-bottom: 20px;
@@ -93,7 +91,6 @@ body {
   border-radius: 10px;
 }
 
-/* Botões bold */
 .btn {
   width: 100%;
   padding: 12px;
@@ -112,7 +109,6 @@ body {
   box-shadow: 0 0 12px #C7F9FF;
 }
 
-/* Esconde etapa */
 .hidden {
   display: none;
 }
