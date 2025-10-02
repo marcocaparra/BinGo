@@ -45,10 +45,7 @@ body {
   margin-bottom: 24px;
 }
 
-.field {
-  position: relative;
-  margin-bottom: 20px;
-}
+.field { position: relative; margin-bottom: 20px; }
 
 .field input {
   width: 100%;
@@ -103,15 +100,9 @@ body {
   cursor: pointer;
   transition: box-shadow 0.3s ease, background 0.3s;
 }
+.btn:hover { background: #a9e9f5; box-shadow: 0 0 12px #C7F9FF; }
 
-.btn:hover {
-  background: #a9e9f5;
-  box-shadow: 0 0 12px #C7F9FF;
-}
-
-.hidden {
-  display: none;
-}
+.hidden { display: none; }
 
 .error {
   background: #ff4d4d;
@@ -125,7 +116,12 @@ body {
   box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);
   animation: fadeIn 0.4s ease;
 }
-.hidden {
-  display: none;
-}
+.hidden { display: none; }
 
+@media (max-width: 900px) {
+  .card { width: 90%; padding: 30px; }
+}
+@media (max-width: 600px) {
+  .card { width: 100%; padding: 20px; }
+  .btn { padding: 10px; font-size: 0.9rem; }
+}

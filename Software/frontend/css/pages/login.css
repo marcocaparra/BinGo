@@ -44,10 +44,7 @@ body {
   margin-bottom: 24px;
 }
 
-.field {
-  position: relative;
-  margin-bottom: 20px;
-}
+.field { position: relative; margin-bottom: 20px; }
 
 .field input {
   width: 100%;
@@ -102,34 +99,18 @@ body {
   cursor: pointer;
   transition: box-shadow 0.3s ease, background 0.3s;
 }
+.btn:hover { background: #a9e9f5; box-shadow: 0 0 12px #C7F9FF; }
 
-.btn:hover {
-  background: #a9e9f5;
-  box-shadow: 0 0 12px #C7F9FF;
-}
-
-.signup-link {
-  margin-top: 16px;
-  font-size: 0.9rem;
-}
-
+.signup-link { margin-top: 16px; font-size: 0.9rem; }
 .signup-link a {
   color: #C7F9FF;
   font-weight: 700;
   text-decoration: none;
   transition: text-shadow 0.3s ease;
 }
+.signup-link a:hover { text-shadow: 0 0 8px #C7F9FF; }
 
-.signup-link a:hover {
-  text-shadow: 0 0 8px #C7F9FF;
-}
-
-.mascot img {
-  height: 420px;
-  width: auto;
-  max-width: 100%;
-  display: block;
-}
+.mascot img { height: 420px; width: auto; max-width: 100%; display: block; }
 
 .error {
   background: #ff4d4d;
@@ -143,6 +124,15 @@ body {
   box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);
   animation: fadeIn 0.4s ease;
 }
-.hidden {
-  display: none;
+.hidden { display: none; }
+
+@media (max-width: 768px) {
+  .login-container { flex-direction: column; gap: 30px; padding: 20px; }
+  .card { width: 100%; max-width: 360px; }
+  .mascot img { height: 300px; }
+}
+@media (max-width: 480px) {
+  .card { padding: 24px; }
+  .btn { padding: 10px; font-size: 0.9rem; }
+  .mascot img { height: 240px; }
 }
