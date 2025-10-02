@@ -6,6 +6,15 @@ body {
   align-items: center;
   background: linear-gradient(180deg, #012640, #003376);
   font-family: 'Poppins', sans-serif;
+
+  /* fade-in */
+  opacity: 0;
+  animation: fadeIn 0.8s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .login-container {
@@ -21,6 +30,7 @@ body {
   border: 2px solid #2BFDBE;
   width: 340px;
   text-align: center;
+  transition: box-shadow 0.4s ease;
 }
 
 .card h1 {
@@ -35,7 +45,7 @@ body {
   margin-bottom: 24px;
 }
 
-/* Inputs com label flutuante que corta o traço */
+/* Inputs */
 .field {
   position: relative;
   margin-bottom: 20px;
@@ -51,10 +61,10 @@ body {
   font-size: 1rem;
   font-family: 'Poppins', sans-serif;
   outline: none;
-  line-height: 1.2;              /* ajuda no alinhamento vertical */
+  line-height: 1.2;
+  transition: box-shadow 0.3s ease;
 }
 
-/* estado “placeholder” centralizado */
 .field label {
   position: absolute;
   left: 14px;
@@ -66,21 +76,20 @@ body {
   transition: 0.25s ease;
   background: transparent;
   padding: 0 4px;
-  border-radius: 8px;            /* já arredondado para não ficar quadrado */
+  border-radius: 8px;
 }
 
-/* estado ativo/contém texto: label no meio da borda superior “cortando o traço” */
 .field input:focus + label,
 .field input:not(:placeholder-shown) + label {
-  top: 0;                         /* crava no meio da borda superior */
-  transform: translateY(-50%);    /* metade para fora, metade para dentro */
+  top: 0;
+  transform: translateY(-50%);
   left: 12px;
   font-size: 0.75rem;
   color: #2BFDBE;
-  background: #012640;            /* mesma cor do input para “apagar” a borda atrás */
+  background: #012640;
   padding: 0 8px;
-  z-index: 1;                     /* fica por cima da borda */
-  border-radius: 10px;            /* cantos suaves no “retângulo” do rótulo */
+  z-index: 1;
+  border-radius: 10px;
 }
 
 /* Botão */
@@ -94,12 +103,12 @@ body {
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
   cursor: pointer;
-  transition: 0.3s;
+  transition: box-shadow 0.3s ease, background 0.3s;
 }
 
 .btn:hover {
-  transform: translateY(-2px);
   background: #a9e9f5;
+  box-shadow: 0 0 12px #C7F9FF; /* glow no hover */
 }
 
 /* Link de cadastro */
@@ -112,15 +121,16 @@ body {
   color: #C7F9FF;
   font-weight: 700;
   text-decoration: none;
+  transition: text-shadow 0.3s ease;
 }
 
 .signup-link a:hover {
-  text-decoration: underline;
+  text-shadow: 0 0 8px #C7F9FF;
 }
 
-/* Bingolino maior (quase altura do card) */
+/* Bingolino */
 .mascot img {
-  height: 420px;      /* ajuste fino para ficar praticamente do tamanho do card */
+  height: 420px;
   width: auto;
   max-width: 100%;
   display: block;

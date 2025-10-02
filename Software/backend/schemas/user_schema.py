@@ -21,6 +21,7 @@ class UserResponse(UserBase):
     phone_number: str
     discard_count: int
     mission_completed_count: int
+    level: int
 
     class Config:
         from_attributes = True

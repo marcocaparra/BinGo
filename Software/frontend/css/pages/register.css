@@ -6,6 +6,15 @@ body {
   align-items: center;
   background: linear-gradient(180deg, #0B477C, #1C7FD6);
   font-family: 'Poppins', sans-serif;
+
+  /* fade-in */
+  opacity: 0;
+  animation: fadeIn 0.8s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .register-container {
@@ -20,8 +29,9 @@ body {
   padding: 40px;
   border-radius: 16px;
   border: 2px solid #2BFDBE;
-  width: 340px;
+  width: 600px;
   text-align: center;
+  transition: box-shadow 0.4s ease;
 }
 
 .card h1 {
@@ -36,7 +46,7 @@ body {
   margin-bottom: 24px;
 }
 
-/* Inputs idênticos ao login, com label cortando o traço */
+/* Inputs */
 .field {
   position: relative;
   margin-bottom: 20px;
@@ -53,6 +63,7 @@ body {
   font-family: 'Poppins', sans-serif;
   outline: none;
   line-height: 1.2;
+  transition: box-shadow 0.3s ease;
 }
 
 .field label {
@@ -76,7 +87,7 @@ body {
   left: 12px;
   font-size: 0.75rem;
   color: #2BFDBE;
-  background: #012640;   /* apaga a borda no ponto do rótulo */
+  background: #012640;
   padding: 0 8px;
   z-index: 1;
   border-radius: 10px;
@@ -93,12 +104,12 @@ body {
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
   cursor: pointer;
-  transition: 0.3s;
+  transition: box-shadow 0.3s ease, background 0.3s;
 }
 
 .btn:hover {
-  transform: translateY(-2px);
   background: #a9e9f5;
+  box-shadow: 0 0 12px #C7F9FF;
 }
 
 /* Esconde etapa */
