@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>BinGo • Aqui, Descartar Lixo é Coisa de Herói!</title>
+  <link rel="icon" type="image/png" href="../assets/favicon.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/landing.css">
+</head>
+<body>
+  <header class="hero-header">
+    <span class="brand">BinGo</span>
+    <button class="cta-small" onclick="location.href='../public/login.html'">VISTA SUA CAPA</button>
+  </header>
+
+  <section class="hero" id="hero">
+    <div class="hero-content">
+      <img src="./assets/images/bingolino-hero.png" alt="Bingolino" class="hero-img">
+      <div class="hero-text">
+        <h1>Aqui, Descartar Lixo é Coisa de Herói!</h1>
+        <div class="hero-buttons">
+          <a href="../public/register.html" class="btn primary">COMECE AGORA</a>
+          <a href="../public/login.html" class="btn secondary">JÁ TENHO UMA CONTA</a>
+        </div>
+      </div>
+    </div>
+    <div class="scroll-down">
+      <img src="./assets/images/arrow.png" alt="Scroll para baixo">
+    </div>
+  </section>
+
+  <section class="section-simple" id="simple">
+    <div class="section-content">
+      <div class="text-block">
+        <h2>Reciclar é Simples,<br>Divertido e Recompensador!</h2>
+        <p>
+          Leve seu lixo eletrônico (pilhas, celulares, fones) até a lixeira BinGo na sua escola. 
+          Ela valida seu descarte na hora!
+        </p>
+      </div>
+      <div class="image-block">
+        <img src="./assets/images/phone-mockup.png" alt="App no celular" class="phone-img">
+      </div>
+    </div>
+  </section>
+
+  <section class="section-champion" id="champion">
+    <div class="section-content reverse">
+      <div class="image-block">
+        <img src="./assets/images/bingolino-trophy.png" alt="Bingolino campeão" class="champion-img">
+      </div>
+      <div class="text-block">
+        <h2>Recicle como um Campeão:<br>Missões, Desafios e Muito Mais!</h2>
+        <p class="highlight">
+          Aceite desafios que te ensinam sobre sustentabilidade e te dão pontos extras! 
+          Quanto mais você joga, mais você aprende e ganha.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-impact" id="impact">
+    <div class="section-content">
+      <div class="text-block">
+        <h2>Sua Reciclagem Faz a Diferença,<br>de Verdade!</h2>
+        <ul>
+          <li>
+            Com a implementação do BinGo em escola, projetamos que o engajamento ativo 
+            dos alunos pode atingir entre <strong>50% e 70%</strong>.
+          </li>
+          <li>
+            Além disso, projetamos que cada escola poderá coletar e mensurar até 
+            <strong>200 kg de lixo eletrônico por ano!</strong>
+          </li>
+        </ul>
+      </div>
+      <div class="image-block">
+        <img src="./assets/images/plant.png" alt="Plantinha sustentável" class="plant-img">
+      </div>
+    </div>
+  </section>
+
+  <section class="section-final" id="final">
+    <div class="section-content">
+      <div class="text-block">
+        <h2>
+          Junte-se com o Bingolino e a<br>
+          Comunidade BinGo para Mudar o Jogo!
+        </h2>
+        <a href="../public/register.html" class="btn-final">QUERO SER UM HERÓI BINGO!</a>
+      </div>
+      <div class="image-block">
+        <img src="./assets/images/bingolino-box.png" alt="Bingolino animado na caixa" class="final-img">
+      </div>
+    </div>
+  </section>
+
+  <script>
+    document.querySelector(".scroll-down img").addEventListener("click", () => {
+      document.querySelector("#simple").scrollIntoView({ behavior: "smooth" });
+    });
+  </script>
+</body>
+</html>
