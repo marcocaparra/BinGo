@@ -5,7 +5,7 @@ from typing import Annotated, List
 
 from database import get_db
 from models.user_model import User
-from schemas.user_schema import UserCreate, UserResponse, Token
+from schemas.user_schema import UserCreate, UserResponse, Token, UserLogin
 from schemas.ranking_schema import UserRanking
 from auth import verify_password, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
 
@@ -48,14 +48,11 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(
-    form_data: Annotated[dict, Depends()],
+    form_data: UserLogin,  # agora usa o schema Pydantic
     db: Session = Depends(get_db)
 ):
-    username = form_data["username"]
-    password = form_data["password"]
-
-    user = db.query(User).filter(User.username == username).first()
-    if not user or not verify_password(password, user.hashed_password):
+    user = db.query(User).filter(User.username == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuário ou senha incorretos. Verifique e tente novamente.",

@@ -2,19 +2,10 @@ import { apiBaseUrl, STORAGE_KEYS } from "../config.js";
 import { apiFetch } from "./http.js";
 
 export async function login(username, password) {
-  const body = new URLSearchParams({
-    grant_type: "password",
-    username,   
-    password,
-    scope: "",
-    client_id: "",
-    client_secret: ""
-  });
-
   const res = await fetch(`${apiBaseUrl()}/users/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password })
   });
 
   if (!res.ok) throw new Error(`Falha no login: ${res.status}`);
