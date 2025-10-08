@@ -25,19 +25,18 @@ tryAgainBtn?.addEventListener("click", () => {
   errorSection.classList.add("hidden");
   discardSection.classList.remove("hidden");
   input.value = "";
-  feedback.textContent = "";
+  feedback.classList.add("hidden");
   bingolinoImg.src = "../assets/images/bingolino-discard.png";
 });
 
 button.addEventListener("click", async () => {
+  feedback.classList.add("hidden");
+  
   const code = input.value.trim();
   if (!code) {
     showError("Por favor, digite um código.");
     return;
   }
-
-  feedback.className = "";
-  feedback.textContent = "Validando...";
 
   try {
     await registerDiscard(code);
@@ -53,12 +52,10 @@ button.addEventListener("click", async () => {
 
     const levelNum = me.level ?? 1;
     userLevelEl.textContent = levelNames[levelNum] || `Nível ${levelNum}`;
-
     userPointsEl.textContent = me.total_points ?? 0;
 
     discardSection.classList.add("hidden");
     successSection.classList.remove("hidden");
-    bingolinoImg.src = "../assets/images/bingolino-happy.png";
 
   } catch (err) {
     console.warn("Erro ao validar:", err);
@@ -68,6 +65,6 @@ button.addEventListener("click", async () => {
 });
 
 function showError(msg) {
-  feedback.className = "error";
   feedback.textContent = msg;
+  feedback.classList.remove("hidden");
 }
