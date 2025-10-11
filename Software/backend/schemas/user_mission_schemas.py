@@ -14,3 +14,8 @@ class UserMissionResponse(BaseModel):
     mission: MissionResponse
 
     model_config = ConfigDict(from_attributes=True)
+
+class MissionUpdateResponse(BaseModel):
+    mission_id: int
+    new_progress: int
+    new_status: str

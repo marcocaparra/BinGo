@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from base_class import Base
 import datetime
+import json
 
 class Mission(Base):
     __tablename__ = 'missions'
@@ -19,6 +20,14 @@ class Mission(Base):
     target_quantity = Column(Integer, default=0, nullable=False)
 
     user_missions = relationship('UserMission', back_populates='mission')
+
+    @property
+    def objective_as_dict(self):
+        """ Retorna o campo 'objective' como um dicionário Python de forma segura. """
+        try:
+            return json.loads(self.objective)
+        except (json.JSONDecodeError, TypeError):
+            return {}
 
     def __repr__(self):
         return f"<Mission(id={self.id}, name='{self.name}', type='{self.type}')>"
