@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BinGo • Minhas Missões</title>
+
+  <link rel="icon" type="image/png" href="../assets/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/pages/missions.css" />
+</head>
+
+<body>
+  <main class="missions-wrapper">
+
+    <header class="page-hero">
+      <div class="title">
+        <h1>Minhas Missões</h1>
+        <p class="subtitle">Gerencie seu progresso e garanta mais Bins!</p>
+      </div>
+      <div class="mascot">
+        <img src="../assets/images/bingolino-happy.png" alt="Bingolino animado" />
+      </div>
+    </header>
+
+    <section class="boards" id="boards">
+      <!-- colunas renderizadas via JS -->
+      <div class="board">
+        <h2>Disponíveis</h2>
+        <div class="list" id="missions-pending"></div>
+      </div>
+
+      <div class="board">
+        <h2>Ativas</h2>
+        <div class="list" id="missions-active"></div>
+      </div>
+
+      <div class="board">
+        <h2>Concluídas</h2>
+        <div class="list" id="missions-done"></div>
+      </div>
+    </section>
+
+    <footer class="bottom-nav">
+      <div class="nav-box">
+        <span class="brand">BinGo —</span>
+        <button class="back-btn" id="backBtn">VOLTAR</button>
+      </div>
+    </footer>
+
+    <!-- Confete (feedback conclusão) -->
+    <div id="confetti" class="confetti hidden"></div>
+    <div id="toast" class="toast hidden">Missão concluída! 🎉</div>
+  </main>
+
+  <script type="module" src="../js/pages/missionsPage.js"></script>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { apiBaseUrl, STORAGE_KEYS } from "../config.js";
+import { logout } from "./auth.js";
 
 function buildUrl(path) {
   const base = apiBaseUrl();
@@ -13,19 +14,24 @@ export async function apiFetch(path, options = {}) {
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
-  console.log("➡️ Fetch:", buildUrl(path));
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
   const res = await fetch(buildUrl(path), { ...options, headers });
-
-  let data = null;
+  
+  if (res.status === 401) {
+    logout();
+    throw new Error("Sessão inválida.");
+  }
+  
   const text = await res.text();
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-
+  const data = text ? JSON.parse(text) : null;
+  
   if (!res.ok) {
     const msg = data?.detail || data?.message || `Erro HTTP ${res.status}`;
     throw new Error(msg);
   }
+  
   return data;
 }
