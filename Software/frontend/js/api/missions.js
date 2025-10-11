@@ -14,15 +14,27 @@ export async function fetchAvailableMissions() {
 
 export async function fetchMyMissions() {
   const data = await apiFetch("/users/me/missions", { method: "GET" });
-  return (data || []).map(item => ({
-    id: item.mission.id,
-    title: item.mission.name,
-    description: item.mission.description,
-    status: item.status.toUpperCase().replace(" ", "_"),
-    current: item.progress,
-    target: item.mission.target_quantity,
-    points: item.mission.reward_points
-  }));
+
+  return (data || []).map(item => {
+    let normalizedStatus = "PENDING";
+    const backendStatus = String(item.status || "").toUpperCase();
+
+    if (backendStatus.includes("PROGRESSO") || backendStatus === "IN_PROGRESS") {
+      normalizedStatus = "IN_PROGRESS";
+    } else if (backendStatus === "CONCLUÍDA" || backendStatus === "COMPLETED") {
+      normalizedStatus = "COMPLETED";
+    }
+
+    return {
+      id: item.mission.id,
+      title: item.mission.name,
+      description: item.mission.description,
+      status: normalizedStatus,
+      current: item.progress,
+      target: item.mission.target_quantity,
+      points: item.mission.reward_points
+    };
+  });
 }
 
 export async function acceptMission(missionId) {

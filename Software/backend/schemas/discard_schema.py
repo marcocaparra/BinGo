@@ -6,7 +6,6 @@ from .user_schema import UserResponse
 from .material_type_schema import MaterialTypeResponse
 from .unique_code_schema import UniqueCodeResponse
 from .achievement_schema import UnlockedAchievementDetail
-# --- MUDANÇA 1: Importar o novo schema de atualização de missão ---
 from .user_mission_schemas import MissionUpdateResponse
 
 class DiscardBase(BaseModel):
@@ -20,9 +19,6 @@ class DiscardCreate(DiscardBase):
 
 class DiscardRequestByApp(BaseModel):
     unique_code: str = Field(..., description="O código único obtido da lixeira inteligente.")
-
-# --- MUDANÇA 2: REMOVA a classe MissionUpdateDetails daqui ---
-# Ela não é mais necessária neste arquivo.
 
 class DiscardCreatedResponse(BaseModel):
     message: str

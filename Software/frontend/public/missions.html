@@ -13,8 +13,23 @@
 </head>
 
 <body>
+  <!-- TOP HEADER (idêntico ao dashboard) -->
+  <header class="top-header">
+    <div class="avatar-box">
+      <img src="../assets/images/bingolino-avatar.png" alt="Avatar" class="avatar">
+    </div>
+    <div class="user-meta">
+      <span id="userName">Carregando...</span>
+      <span class="divider">|</span>
+      <img src="../assets/images/bin-coin.png" alt="Bins" class="coin-icon">
+      <span id="userBins">0</span>
+    </div>
+  </header>
+
+  <!-- CONTEÚDO (entre header e navbar) -->
   <main class="missions-wrapper">
 
+    <!-- HERO (não ultrapassa o grid; mesma “régua” dos boards) -->
     <header class="page-hero">
       <div class="title">
         <h1>Minhas Missões</h1>
@@ -25,8 +40,8 @@
       </div>
     </header>
 
+    <!-- BOARDS -->
     <section class="boards" id="boards">
-      <!-- colunas renderizadas via JS -->
       <div class="board">
         <h2>Disponíveis</h2>
         <div class="list" id="missions-pending"></div>
@@ -43,18 +58,28 @@
       </div>
     </section>
 
-    <footer class="bottom-nav">
-      <div class="nav-box">
-        <span class="brand">BinGo —</span>
-        <button class="back-btn" id="backBtn">VOLTAR</button>
-      </div>
-    </footer>
-
-    <!-- Confete (feedback conclusão) -->
+    <!-- FEEDBACK -->
     <div id="confetti" class="confetti hidden"></div>
     <div id="toast" class="toast hidden">Missão concluída! 🎉</div>
   </main>
 
+  <!-- NAVBAR (fora do wrapper; 1:1 com dashboard) -->
+  <footer class="bottom-nav">
+    <div class="nav-box">
+      <span class="brand">BinGo ㅤ—</span>
+      <div class="tabs">
+        <button onclick="goTo('dashboard.html')"   class="tab">INÍCIO</button>
+        <button onclick="goTo('missions.html')"    class="tab active">MISSÕES</button>
+        <button onclick="goTo('ranking.html')"     class="tab">RANKING</button>
+        <button onclick="goTo('recompensas.html')" class="tab">RECOMPENSAS</button>
+        <button onclick="goTo('perfil.html')"      class="tab">PERFIL</button>
+      </div>
+    </div>
+  </footer>
+
   <script type="module" src="../js/pages/missionsPage.js"></script>
+  <script>
+    function goTo(page) { location.href = `./${page}`; }
+  </script>
 </body>
 </html>

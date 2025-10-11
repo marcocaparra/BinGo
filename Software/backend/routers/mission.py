@@ -68,7 +68,7 @@ def accept_mission(
     - Cria uma nova entrada em UserMission com status 'in_progress' e progress '0'.
     - Retorna os detalhes da UserMission criada/atualizada.
     """
-    print(f"DEBUG: Tentando aceitar missão para user_id={current_user.id}, mission_id={mission_id}") # Adicione esta linha
+    print(f"DEBUG: Tentando aceitar missão para user_id={current_user.id}, mission_id={mission_id}")
     mission = db.query(Mission).filter(Mission.id == mission_id).first()
     if not mission:
         raise HTTPException(
@@ -90,10 +90,10 @@ def accept_mission(
         )
         .first()
     )
-    print(f"DEBUG: existing_user_mission: {existing_user_mission}") # Adicione esta linha
+    print(f"DEBUG: existing_user_mission: {existing_user_mission}")
 
     if existing_user_mission:
-        print(f"DEBUG: Status da missão existente: {existing_user_mission.status}") # Adicione esta linha
+        print(f"DEBUG: Status da missão existente: {existing_user_mission.status}")
         if existing_user_mission.status == "completed":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -113,9 +113,9 @@ def accept_mission(
     )
 
     db.add(new_user_mission)
-    print("DEBUG: Adicionando nova UserMission e tentando commit...") # Adicione esta linha
+    print("DEBUG: Adicionando nova UserMission e tentando commit...")
     db.commit()
-    print("DEBUG: Commit realizado com sucesso!") # Adicione esta linha (não deve ser printada se o erro persistir)
+    print("DEBUG: Commit realizado com sucesso!")
     db.refresh(new_user_mission)
 
     user_mission_with_details = (
