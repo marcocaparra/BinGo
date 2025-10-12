@@ -1,6 +1,5 @@
 import { apiFetch } from "./http.js";
 
-// Util: pega Bins de forma compatível (reward_bins novo ou reward_points legado)
 const binsOf = (obj) => {
   if (typeof obj?.reward_bins === "number") return obj.reward_bins;
   if (typeof obj?.reward_points === "number") return obj.reward_points;
@@ -8,7 +7,6 @@ const binsOf = (obj) => {
   return 0;
 };
 
-// Normaliza status vindos do backend (novo e antigo)
 function normalizeStatus(value) {
   const v = String(value || "").toUpperCase();
   if (v.includes("PROGRESSO") || v === "IN_PROGRESS") return "IN_PROGRESS";
@@ -23,7 +21,7 @@ export async function fetchAvailableMissions() {
     id: m.id,
     title: m.name,
     description: m.description,
-    points: binsOf(m),               // << Bins
+    points: binsOf(m),
     target: m.target_quantity,
     status: "AVAILABLE",
   }));
@@ -39,7 +37,7 @@ export async function fetchMyMissions() {
     status: normalizeStatus(item.status),
     current: item.progress ?? 0,
     target: item.mission.target_quantity,
-    points: binsOf(item.mission),    // << Bins
+    points: binsOf(item.mission),
   }));
 }
 

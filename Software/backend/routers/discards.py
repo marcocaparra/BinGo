@@ -22,18 +22,12 @@ from services.achievement_service import check_and_unlock_achievements
 
 router = APIRouter(prefix="/discards", tags=["Descartes"])
 
-
-# ---------------------------
-# Helpers / Normalizações
-# ---------------------------
-
 IN_PROGRESS_STATUSES = {
     "in_progress", "em progresso", "em_progresso", "pending", "pendente"
 }
 COMPLETED_STATUSES = {"completed", "concluida", "concluída"}
 
 def _now_utc() -> datetime:
-    # armazena timestamps em UTC
     return datetime.utcnow().replace(tzinfo=None)
 
 def _normalize_to_in_progress(s: str) -> str:
@@ -42,7 +36,6 @@ def _normalize_to_in_progress(s: str) -> str:
     return "in_progress"
 
 def _weekday_token(dt: datetime) -> str:
-    # mon..sun
     return ["mon","tue","wed","thu","fri","sat","sun"][dt.weekday()]
 
 def _parse_objective(mission: Mission) -> Dict[str, Any]:
@@ -75,7 +68,6 @@ def _current_streak_days(
     Conta dias consecutivos (incluindo hoje se houve descarte hoje) com >=1 descarte.
     Se material_type_id for informado, conta apenas descartes desse tipo.
     """
-    # Pega as datas (UTC) distintas de descarte do usuário, últimos 90 dias (suficiente p/ streaks normais)
     days_back = 120
     since = date.fromordinal((_now_utc() - timedelta(days=days_back)).date().toordinal())
     q = db.query(func.date(Discard.timestamp))\
@@ -83,12 +75,11 @@ def _current_streak_days(
     if material_type_id:
         q = q.filter(Discard.material_type_id == material_type_id)
     q = q.group_by(func.date(Discard.timestamp)).order_by(func.date(Discard.timestamp).desc())
-    rows = [r[0] for r in q.all()]  # list[date]
+    rows = [r[0] for r in q.all()]
 
     if not rows:
         return 0
 
-    # transforma em set p/ busca O(1)
     dayset = set(rows)
     streak = 0
     d = _now_utc().date()
@@ -96,11 +87,6 @@ def _current_streak_days(
         streak += 1
         d = d - timedelta(days=1)
     return streak
-
-
-# ---------------------------------------------------
-# Atualização de missões – cobre diversos objetivos
-# ---------------------------------------------------
 
 def update_mission_progress(db: Session, user: User, event_data: Dict[str, Any]) -> List[UserMission]:
     """
@@ -122,7 +108,6 @@ def update_mission_progress(db: Session, user: User, event_data: Dict[str, Any])
         .options(joinedload(UserMission.mission))
         .filter(
             UserMission.user_id == user.id,
-            # qualquer coisa que não seja "completed"
             ~UserMission.status.in_(list(COMPLETED_STATUSES))
         )
         .all()
@@ -130,7 +115,6 @@ def update_mission_progress(db: Session, user: User, event_data: Dict[str, Any])
     if not active_user_missions:
         return []
 
-    # Info do evento (descarte)
     material_type_id_of_discard: Optional[int] = event_data.get("material_type_id")
     points_awarded_from_event: float = float(event_data.get("points_awarded") or 0.0)
     event_dt: datetime = event_data.get("timestamp") or _now_utc()
@@ -146,18 +130,12 @@ def update_mission_progress(db: Session, user: User, event_data: Dict[str, Any])
         current = int(um.progress or 0)
         changed = False
 
-        # Se houver restrição de weekday no objective, só conta quando bater
         allowed_weekdays = set([w.lower() for w in obj.get("weekday", [])]) if obj.get("weekday") else None
         if allowed_weekdays and event_weekday not in allowed_weekdays:
-            # não conta esse evento para essa missão
-            # (mas outras missões do usuário ainda podem progredir)
             pass
         else:
-            # Tratamento por tipo de missão do seu seed
             if mission.type == "discard_count":
-                # Pode ter variantes com janela (within_days) e/ou streak
                 if "within_days" in obj:
-                    # Recalcula contando janela deslizante
                     days = int(obj["within_days"])
                     count = _count_discards_within_days(db, user.id, days, None)
                     new_progress = min(count, target or count)
@@ -172,15 +150,12 @@ def update_mission_progress(db: Session, user: User, event_data: Dict[str, Any])
                         um.progress = new_progress
                         changed = True
                 else:
-                    # simples incremento por descarte
                     um.progress = current + 1
                     changed = True
 
             elif mission.type == "discard_specific_material":
-                # Respeita material_type da missão
                 target_mat = obj.get("material_type_id")
                 if target_mat and material_type_id_of_discard and int(material_type_id_of_discard) == int(target_mat):
-                    # Pode combinar com within_days/streak_days
                     if "within_days" in obj:
                         days = int(obj["within_days"])
                         count = _count_discards_within_days(db, user.id, days, int(target_mat))
@@ -200,7 +175,6 @@ def update_mission_progress(db: Session, user: User, event_data: Dict[str, Any])
                         changed = True
 
             elif mission.type == "accumulate_points":
-                # Soma de pontos de descartes do usuário (não soma recompensa de missão)
                 points_target = int(obj.get("points_target") or target or 0)
                 total_points_from_discards = _sum_discard_points(db, user.id)
                 new_progress = min(int(total_points_from_discards), points_target or int(total_points_from_discards))
@@ -208,21 +182,17 @@ def update_mission_progress(db: Session, user: User, event_data: Dict[str, Any])
                     um.progress = new_progress
                     changed = True
 
-        # Normaliza status internamente para EN sempre que mexer
         if changed:
             if str(um.status or "").lower() in COMPLETED_STATUSES:
-                # já estava como completed, não mexe
                 pass
             else:
                 um.status = "in_progress"
 
-            # Checa conclusão
             if target and int(um.progress or 0) >= target:
                 um.progress = target
                 um.status = "completed"
                 um.completed_at = _now_utc()
 
-                # recompensa da missão
                 user.total_points = float(user.total_points or 0.0) + int(mission.reward_points or 0)
                 user.mission_completed_count = int(user.mission_completed_count or 0) + 1
 
@@ -230,11 +200,6 @@ def update_mission_progress(db: Session, user: User, event_data: Dict[str, Any])
             updated.append(um)
 
     return updated
-
-
-# -------------------------------------------
-# Endpoint principal de criar descarte (POST)
-# -------------------------------------------
 
 @router.post("/", response_model=DiscardCreatedResponse, status_code=status.HTTP_201_CREATED)
 def create_discard(
@@ -263,10 +228,8 @@ def create_discard(
             detail="Código único sem tipo de material associado."
         )
 
-    # pontos calculados
     calculated_points = float(unique_code_db.material_type.points_per_unit or 0.0)
 
-    # cria descarte
     ts = _now_utc()
     db_discard = Discard(
         user_id=user_id,
@@ -277,15 +240,12 @@ def create_discard(
     )
     db.add(db_discard)
 
-    # marca código como usado
     unique_code_db.is_used = True
 
-    # atualiza usuário
     db_user: User = db.query(User).filter(User.id == user_id).first()
     db_user.total_points = float(db_user.total_points or 0.0) + calculated_points
     db_user.discard_count = int(db_user.discard_count or 0) + 1
 
-    # atualiza missões
     mission_event_data = {
         "material_type_id": unique_code_db.material_type_id,
         "points_awarded": calculated_points,
@@ -293,7 +253,6 @@ def create_discard(
     }
     updated_user_missions = update_mission_progress(db, db_user, mission_event_data)
 
-    # Atualiza level simples
     tp = float(db_user.total_points or 0.0)
     if tp >= 1000:
         db_user.level = 5
@@ -306,18 +265,15 @@ def create_discard(
     else:
         db_user.level = 1
 
-    # Conquistas
     newly_unlocked_user_achievements: List[UserAchievement] = check_and_unlock_achievements(
         db=db, user=db_user, event_type="DISCARD_PROCESSED",
         event_data={"material_type_id": unique_code_db.material_type_id}
     )
 
-    # commit
     db.commit()
     db.refresh(db_user)
     db.refresh(db_discard)
 
-    # Monta retorno
     mission_updates_for_response = [
         MissionUpdateResponse(
             mission_id=um.mission_id,

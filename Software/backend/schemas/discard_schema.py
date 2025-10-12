@@ -25,7 +25,6 @@ class DiscardCreatedResponse(BaseModel):
     user_total_points: float
     user_current_level: int
     discard_id: str
-    # --- MUDANÇA 3: Use o schema importado ---
     mission_updates: List[MissionUpdateResponse] = Field(default_factory=list, description="Lista de missões do usuário que foram atualizadas ou concluídas.")
     unlocked_achievements: List[UnlockedAchievementDetail] = Field(default_factory=list, description="Lista de conquistas recém-desbloqueadas pelo usuário.")
 

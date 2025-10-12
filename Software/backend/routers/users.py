@@ -48,7 +48,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(
-    form_data: UserLogin,  # agora usa o schema Pydantic
+    form_data: UserLogin,
     db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(User.username == form_data.username).first()

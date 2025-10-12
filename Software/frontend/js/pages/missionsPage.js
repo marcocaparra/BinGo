@@ -3,9 +3,7 @@ import { fetchMyMissions, fetchAvailableMissions, acceptMission } from "../api/m
 
 requireAuth();
 
-/* ----------------------- helpers locais (evita ReferenceError) ----------------------- */
 function enableOnlyListsScroll() {
-  // deixa as listas roláveis sem estourar o layout
   document.querySelectorAll(".boards .list").forEach((el) => {
     el.style.overflowY = "auto";
     el.style.webkitOverflowScrolling = "touch";
@@ -21,7 +19,6 @@ function el(tag, cls) { const n = document.createElement(tag); if (cls) n.classN
 function computePct(cur = 0, tgt = 1) { if (!tgt) return 0; const v = Math.round((cur / tgt) * 100); return Math.max(0, Math.min(100, v)); }
 function escapeHtml(s = "") { return String(s).replace(/[&<>"']/g, (m) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
 function showEmpty(container, text) { clear(container); const box = el("div", "empty"); box.textContent = text; container.appendChild(box); }
-/* ------------------------------------------------------------------------------------- */
 
 const els = {
   available: document.getElementById("missions-pending"),
@@ -64,7 +61,6 @@ async function init() {
       fetchAvailableMissions(),
     ]);
 
-    // ids que o usuário já tem (qualquer status)
     const acceptedIds = new Set(userMissions.map((m) => m.id));
     const availableToAccept = availableMissions.filter((m) => !acceptedIds.has(m.id));
 
@@ -77,7 +73,7 @@ async function init() {
   } catch (err) {
     console.error("❌ Falha ao carregar missões:", err);
     showToast("Erro ao carregar missões.");
-    // mostra vazios para não deixar os quadros em branco
+    
     renderAvailable([]);
     renderActive([]);
     renderDone([]);

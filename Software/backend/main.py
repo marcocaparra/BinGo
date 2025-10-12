@@ -32,7 +32,6 @@ app.add_middleware(
     allow_headers=["*"], 
 )
 
-# --- Inclusão dos Routers ---
 app.include_router(users.router)
 app.include_router(material_types.router)
 app.include_router(unique_codes.router)

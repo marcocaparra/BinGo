@@ -1,4 +1,3 @@
-// public/js/api/http.js
 import { apiBaseUrl, STORAGE_KEYS } from "../config.js";
 
 function buildUrl(path) {
@@ -20,8 +19,6 @@ export async function apiFetch(path, { method = "GET", headers, body } = {}) {
 
   if (token) finalHeaders.set("Authorization", `Bearer ${token}`);
 
-  // DEBUG: loga a requisição
-  // (se preferir, comente após validar)
   console.debug("[apiFetch] →", method, url, { body });
 
   let res;
@@ -38,7 +35,6 @@ export async function apiFetch(path, { method = "GET", headers, body } = {}) {
     throw new Error("Falha de rede ao contactar o backend");
   }
 
-  // DEBUG: status
   console.debug("[apiFetch] ←", res.status, res.statusText, url);
 
   if (!res.ok) {
@@ -50,10 +46,8 @@ export async function apiFetch(path, { method = "GET", headers, body } = {}) {
     throw new Error(msg);
   }
 
-  // 204/205 não têm corpo
   if (res.status === 204 || res.status === 205) return null;
 
-  // tenta JSON, se não for, devolve texto
   const ct = res.headers.get("content-type") || "";
   if (ct.includes("application/json")) return res.json();
   return res.text();
