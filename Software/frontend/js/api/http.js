@@ -1,7 +1,7 @@
 import { apiBaseUrl, STORAGE_KEYS } from "../config.js";
 
 function buildUrl(path) {
-  const base = apiBaseUrl();            // garante sem barra no final
+  const base = apiBaseUrl();
   const clean = String(path || "").trim();
   if (!clean.startsWith("/")) return `${base}/${clean}`;
   return `${base}${clean}`;
