@@ -1,25 +1,100 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+:root {
+  --bg1: #012640;
+  --bg2: #003376;
+  --card1: #0B477C;
+  --card2: #1C7FD6;
+  --ink: #fff;
+  --muted: #d9d9d9;
+  --accent: #2BFDBE;
+  --cta: #C7F9FF;
+  --cta-dark: #012640;
+  --divider: #888;
+  --error: #FF6B6B;
 }
+
+* { box-sizing: border-box; }
 
 body {
-  font-family: 'Poppins', sans-serif;
-  color: #fff;
-  background: #012640;
+  margin: 0;
   min-height: 100vh;
+  font-family: 'Poppins', sans-serif;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--bg1), var(--bg2));
+  background-attachment: fixed;
+  opacity: 0;
+  animation: fadeIn 0.6s ease forwards;
+}
+
+@keyframes fadeIn { to { opacity: 1; } }
+
+.top-header {
   display: flex;
-  justify-content: center;
   align-items: center;
+  gap: 14px;
+  padding: 20px 40px 10px;
 }
-
-h1, h2, h3 {
+.avatar-box {
+  background: linear-gradient(180deg, #014880, #0069c0);
+  border: 2px solid var(--cta);
+  border-radius: 12px;
+  width: 72px; height: 72px;
+  display: flex; justify-content: center; align-items: center;
+  transition: box-shadow .3s ease;
+}
+.avatar-box:hover { box-shadow: 0 0 16px var(--cta); }
+.avatar { width: 60px; height: 60px; }
+.user-meta {
+  display: flex; align-items: center; gap: 12px;
   font-family: 'Chakra Petch', sans-serif;
-  font-weight: 700;
+  font-size: 1.35rem; font-weight: 600;
+}
+.divider { color: var(--divider); }
+.coin-icon { width: 32px; height: 32px; }
+
+.bottom-nav{
+  display:flex; justify-content:center;
+  padding:0 0 70px;
+  flex-shrink:0;
+  position: relative;
+  z-index: 3;
+}
+.nav-box{
+  display:flex; align-items:center; justify-content:center; gap:40px;
+  background:linear-gradient(270deg,var(--card1),var(--card2));
+  background-size:200% 200%;
+  border:2px solid var(--divider);
+  border-radius:12px;
+  padding:14px 245px;
+  max-width:1100px;
+  width:fit-content;
+  transition:background-position 1.2s ease;
+  flex-wrap:nowrap;
+  margin: 0 auto;
+}
+.brand{
+  font-family:'Chakra Petch',sans-serif;
+  font-size:1.4rem; font-weight:700;
+}
+.tabs{ display:flex; gap:14px }
+
+.tab{
+  border:none; border-radius:999px; padding:12px 20px;
+  background:var(--cta); color:var(--cta-dark);
+  font-family:'Poppins',sans-serif; font-weight:700; cursor:pointer;
+  transition: box-shadow .25s ease;
+}
+.tab:hover{ box-shadow:0 0 12px var(--cta); transform:none; }
+.tab.active{
+  background:#5DF9FF; color:var(--cta-dark);
+  box-shadow:none;
+}
+.tab.active:hover{
+  box-shadow:0 0 12px var(--cta);
 }
 
-button {
-  cursor: pointer;
-  transition: all 0.3s ease;
+.hidden { display: none !important; }
+
+@media (max-width: 1024px) {
+  .top-header, .nav-box { padding-left: 20px; padding-right: 20px; }
+  .nav-box { flex-direction: column; gap: 20px; }
 }

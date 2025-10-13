@@ -1,0 +1,166 @@
+/* ===== FRAME GERAL (reserva espaço p/ navbar e evita sobrepor) ===== */
+body{
+  overflow:hidden;
+  display:flex; flex-direction:column; height:100vh;
+}
+.content-wrapper{
+  flex:1 1 auto; display:flex; flex-direction:column;
+  width:100%; max-width:1320px; margin:0 auto;
+  /* ↓ subi os cards reduzindo o padding-top e mantive o espaço da navbar */
+  padding: 15px 40px 340px;
+  min-height:0;
+}
+
+/* ===== GRID ===== */
+.ranking-grid{
+  display:grid; grid-template-columns:430px 1fr; /* leve ajuste na coluna do bingolino */
+  gap:26px;
+  flex:1 1 auto; min-height:0;
+  /* ↓ puxa o grid um pouco pra cima */
+  margin-top:-6px;
+}
+
+/* ===== COLUNA ESQUERDA (bingolino) ===== */
+.my-rank-hero{
+  background:linear-gradient(180deg, var(--card1), var(--card2));
+  border:1px solid var(--divider); border-radius:16px;
+  position:relative; padding:20px 16px 16px;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+  min-height:430px; overflow:visible;
+}
+.rank-tag-wrapper{
+  position:absolute; top:12px; left:50%; transform:translateX(-50%);
+  width:min(92%, 380px); display:flex; justify-content:center;
+}
+.rank-tag{
+  width:100%; text-align:center; background:rgba(1,38,64,.9);
+  color:var(--cta); padding:7px 12px; border-radius:10px;
+  border:1px solid var(--divider); font-family:'Chakra Petch',sans-serif;
+  font-weight:700; font-size:.98rem; box-shadow:none;
+}
+.rank-tag .rank-you{ text-decoration:underline }
+.hero-mascot{
+  max-width:95%; max-height:84%; object-fit:contain;
+  margin-top:-10px; filter:drop-shadow(0 4px 14px rgba(0,0,0,.22));
+}
+
+/* ===== COLUNA DIREITA (leaderboard) ===== */
+.leaderboard{
+  background:linear-gradient(180deg, var(--card1), var(--card2));
+  border:1px solid var(--divider); border-radius:16px;
+  /* ↓ menos “folga” interna no topo pra subir o conteúdo */
+  padding:14px 24px;
+  display:flex; flex-direction:column; min-height:0;
+}
+.leaderboard h1{
+  position:sticky; top:0; z-index:3;
+  margin:0 0 10px; padding:10px 6px 10px;
+  text-align:center; font-family:'Chakra Petch',sans-serif;
+  font-size:2.25rem;
+  color:var(--cta);
+  text-shadow:0 0 10px rgba(199,249,255,.55);
+  background:transparent;
+}
+
+/* Lista com scroll local + cutline (linha neon) */
+.ranking-list-container{
+  position:relative;
+  flex:1 1 auto; overflow-y:auto; padding:0 0 240px 0;  /* grande folga interna */
+  min-height:0;
+}
+.ranking-list-container::before{
+  content:"";
+  position:sticky;
+  top:0;                        /* cola exatamente no corte */
+  display:block;
+  height:0;                     /* border-top é a linha */
+  margin:0 12px;
+  border-top:2px solid #C7F9FF;
+  box-shadow:0 0 10px rgba(199,249,255,.85), 0 0 18px rgba(199,249,255,.35);
+  border-radius:999px;
+  opacity:0; transition:opacity .18s ease;
+  pointer-events:none; z-index:3;
+}
+.ranking-list-container.show-cutline::before{ opacity:1; }
+
+/* Gutter lateral pros itens (evita “corte” do glow) */
+.ranking-list{ list-style:none; margin:0; padding:0 12px 0; }
+
+/* ===== CARDS COMPACTOS ===== */
+.rank-item{
+  display:flex; align-items:center;
+  background:rgba(1,38,64,.9); border-radius:12px;
+  padding:8px 12px;
+  margin:0 0 8px;
+  border:1px solid var(--divider);
+  transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+.rank-item:hover{
+  border-color:#AEEFFF;
+  box-shadow:0 0 12px rgba(199,249,255,.45), inset 0 0 0 1px #AEEFFF;
+  background:linear-gradient(180deg, rgba(12,63,104,.95), rgba(13,71,124,.95));
+}
+.rank-position{
+  font-family:'Chakra Petch',sans-serif; font-size:1rem;
+  font-weight:700; font-style:italic;
+  color:var(--cta); margin-right:10px;
+}
+.rank-username{ font-weight:600; font-size:.94rem; }
+.rank-points{ margin-left:auto; font-weight:600; color:var(--muted); font-size:.92rem; }
+
+/* Destaque do usuário logado — FUNDO CLARO + BORDA ESCURA, sem glow */
+.rank-item.is-me{
+  background:var(--cta); color:var(--cta-dark);
+  border:2px solid #0e395b; box-shadow:none;
+}
+.rank-item.is-me .rank-position,
+.rank-item.is-me .rank-username,
+.rank-item.is-me .rank-points{ color:var(--cta-dark); }
+
+/* ===== NAVBAR — mais baixa (sem translate no hover) ===== */
+.bottom-nav{
+  display:flex; justify-content:center;
+  padding: 0 0 140px;          /* distância ao fundo */
+  flex-shrink:0; position:static; z-index:0;
+  margin-top: 102px;           /* desce a barra em relação aos cards */
+}
+.nav-box{
+  display:flex; align-items:center; justify-content:center; gap:40px;
+  background:linear-gradient(270deg,var(--card1),var(--card2));
+  background-size:200% 200%;
+  border:2px solid var(--divider); border-radius:12px;
+  padding:14px 245px; width:fit-content; max-width:2000px;
+  transition:background-position 1.2s ease;
+  flex-wrap:nowrap;
+}
+.nav-box:hover{ background-position:100% 50%; }
+.brand{ font-family:'Chakra Petch',sans-serif; font-size:1.4rem; font-weight:600; white-space:nowrap; }
+.tabs{ display:flex; gap:14px; }
+.tab{
+  border:none; border-radius:999px; padding:12px 20px;
+  background:var(--cta); color:var(--cta-dark);
+  font-family:'Poppins',sans-serif; font-weight:700; cursor:pointer;
+  transition: box-shadow .25s ease;             /* sem translate no hover */
+}
+.tab:hover,
+.tab.active:hover{ box-shadow:0 0 12px var(--cta); }
+.tab.active{ background:#5DF9FF; color:var(--cta-dark); box-shadow:none; }
+
+/* ===== SCROLLBAR sem glow (só cor no hover) ===== */
+.ranking-list-container::-webkit-scrollbar{ width:8px; }
+.ranking-list-container::-webkit-scrollbar-track{ background:#0d3154; border-radius:4px; }
+.ranking-list-container::-webkit-scrollbar-thumb{
+  background:var(--cta); border-radius:4px; transition:background-color .2s ease;
+}
+.ranking-list-container::-webkit-scrollbar-thumb:hover{ background:#5df9ff; }
+
+/* ===== RESPONSIVO ===== */
+@media (max-width:1180px){
+  .content-wrapper{ max-width:1100px; }
+  .ranking-grid{ grid-template-columns:1fr; gap:14px; margin-top:0; } /* neutraliza o pull-up no mobile */
+  .my-rank-hero{ min-height:410px; }
+}
+@media (max-width:480px){
+  .nav-box{ padding:10px 20px; gap:12px; }
+  .tab{ padding:8px 12px; font-size:.85rem; }
+}

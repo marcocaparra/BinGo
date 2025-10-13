@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ranking • BinGo</title>
+
+  <link rel="icon" type="image/png" href="../assets/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet"/>
+
+  <link rel="stylesheet" href="../css/global.css"/>
+  <link rel="stylesheet" href="../css/pages/ranking.css"/>
+</head>
+<body>
+  <!-- Header -->
+  <header class="top-header">
+    <div class="avatar-box">
+      <img src="../assets/images/bingolino-avatar.png" alt="Avatar" class="avatar"/>
+    </div>
+    <div class="user-meta">
+      <span id="userName">Carregando...</span>
+      <span class="divider">|</span>
+      <img src="../assets/images/bin-coin.png" alt="BinCoins" class="coin-icon"/>
+      <span id="userBins">0</span>
+    </div>
+  </header>
+
+  <!-- Conteúdo -->
+  <div class="content-wrapper">
+    <div class="ranking-grid">
+
+      <!-- Coluna esquerda -->
+      <aside id="my-rank-hero" class="my-rank-hero">
+        <div class="rank-tag-wrapper">
+          <div class="rank-tag" id="my-rank-tag">
+            <span class="rank-you">Você:</span> <span id="my-rank-position">--</span>º Lugar
+          </div>
+        </div>
+        <img src="../assets/images/bingolino-gaming.png" alt="Seu mascote jogando videogame" class="hero-mascot"/>
+      </aside>
+
+      <!-- Coluna direita -->
+      <main class="leaderboard">
+        <h1>RANKING GERAL</h1>
+        <div class="ranking-list-container" id="rankingScroll">
+          <ol class="ranking-list" id="ranking-list"></ol>
+        </div>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Navbar (idêntica à Missões) -->
+  <footer class="bottom-nav">
+    <div class="nav-box">
+      <span class="brand">BinGo ㅤ—</span>
+      <div class="tabs">
+        <button onclick="goTo('dashboard.html')"   class="tab">INÍCIO</button>
+        <button onclick="goTo('missions.html')"    class="tab">MISSÕES</button>
+        <button onclick="goTo('ranking.html')"     class="tab active">RANKING</button>
+        <button onclick="goTo('recompensas.html')" class="tab">RECOMPENSAS</button>
+        <button onclick="goTo('perfil.html')"      class="tab">PERFIL</button>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="../js/pages/rankingPage.js"></script>
+  <script>
+    function goTo(page){ location.href = `./${page}`; }
+  </script>
+</body>
+</html>

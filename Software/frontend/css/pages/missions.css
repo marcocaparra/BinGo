@@ -85,7 +85,7 @@ body{
   display:grid; grid-template-columns:repeat(3,1fr); gap:12px;
   flex:1 1 auto;
   min-height:0; overflow:hidden;
-  margin-bottom:6px;
+  margin-bottom:10px;
 }
 .board{
   background:linear-gradient(180deg,#014880,#0069c0);
@@ -102,15 +102,31 @@ body{
 }
 
 .list{
+  position:relative;
   flex:1 1 auto; min-height:160px;
   max-height:var(--list-max-h);
   overflow-y:auto;
-  display:flex; flex-direction:column; gap:8px; padding-right:6px;
+  display:flex; flex-direction:column; gap:8px;
+  padding:0 10px 0 10px;
 }
+.list::before{
+  content:"";
+  position:sticky; top:0;
+  display:block; height:0;
+  margin:0 -2px;
+  border-top:2px solid var(--cta);
+  box-shadow:0 0 10px rgba(199,249,255,.85), 0 0 18px rgba(199,249,255,.35);
+  border-radius:999px;
+  opacity:0; transition:opacity .18s ease;
+  pointer-events:none; z-index:3;
+}
+.list.show-cutline::before{ opacity:1; }
+
 .list::-webkit-scrollbar{ width:8px }
 .list::-webkit-scrollbar-track{ background:#0d3154; border-radius:4px }
-.list::-webkit-scrollbar-thumb{ background:var(--cta); border-radius:4px }
+.list::-webkit-scrollbar-thumb{ background:var(--cta); border-radius:4px; transition:background-color .2s ease }
 .list::-webkit-scrollbar-thumb:hover{ background:#5df9ff }
+
 
 .mission{
   background:rgba(255,255,255,.06);
@@ -163,7 +179,6 @@ body{
 }
 .mission.done .progress .pct{ display: none; }
 .mission.done .meta:last-of-type{ display: none; }
-
 
 .empty{
   text-align:center; color:#cfefff; padding:12px;

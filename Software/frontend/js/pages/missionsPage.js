@@ -32,6 +32,21 @@ const els = {
 enableOnlyListsScroll();
 ensureListClass([els.available, els.active, els.done]);
 
+function setupCutlineOnLists(){
+  const lists = [els.available, els.active, els.done].filter(Boolean);
+
+  const toggle = (node) => {
+    if (node.scrollTop > 2) node.classList.add("show-cutline");
+    else node.classList.remove("show-cutline");
+  };
+
+  lists.forEach((node) => {
+    toggle(node);
+    node.addEventListener("scroll", () => toggle(node), { passive: true });
+  });
+}
+setupCutlineOnLists();
+
 els.backBtn?.addEventListener("click", () => history.back());
 
 loadHeaderData();
@@ -170,6 +185,14 @@ async function handleAcceptMission(event, mission, cardElement) {
       const empty = els.active.querySelector(".empty");
       if (empty) clear(els.active);
       els.active.insertBefore(createActiveCard(mission), els.active.firstChild);
+
+      [els.available, els.active].forEach((node) => {
+        if (node) {
+          if (node.scrollTop > 2) node.classList.add("show-cutline");
+          else node.classList.remove("show-cutline");
+        }
+      });
+
     }, 300);
   } catch (err) {
     console.error("Erro ao aceitar missão:", err);
@@ -188,7 +211,7 @@ function skeletons() {
       <div class="title">
         <h3 style="background:#2a6a9e; border-radius:4px; width:70%; height:1rem;"></h3>
       </div>
-      <div class="meta" style="background:#2a6a9e; border-radius:4px; width:90%; height:2rem;"></div>
+        <div class="meta" style="background:#2a6a9e; border-radius:4px; width:90%; height:2rem;"></div>
     `;
     target.appendChild(sk);
   });
