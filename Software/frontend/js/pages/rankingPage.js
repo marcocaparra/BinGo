@@ -18,7 +18,6 @@ function firstName(full){
   return parts[0] || "Usuário";
 }
 
-/** Liga/desliga a linha neon do “corte” só quando a lista está rolando */
 function setupCutlineOnScroll(container){
   if(!container) return;
 
@@ -30,7 +29,7 @@ function setupCutlineOnScroll(container){
     }
   };
 
-  toggle(); // estado inicial
+  toggle();
   container.addEventListener("scroll", toggle, { passive: true });
 }
 
@@ -41,7 +40,6 @@ async function init(){
       getMe()
     ]);
 
-    // Header: apenas primeiro nome + bins
     els.userName.textContent = firstName(currentUser.name);
     els.userBins.textContent = currentUser.total_points ?? 0;
 

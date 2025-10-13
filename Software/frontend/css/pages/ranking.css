@@ -1,4 +1,3 @@
-/* ===== FRAME GERAL (reserva espaço p/ navbar e evita sobrepor) ===== */
 body{
   overflow:hidden;
   display:flex; flex-direction:column; height:100vh;
@@ -6,21 +5,17 @@ body{
 .content-wrapper{
   flex:1 1 auto; display:flex; flex-direction:column;
   width:100%; max-width:1320px; margin:0 auto;
-  /* ↓ subi os cards reduzindo o padding-top e mantive o espaço da navbar */
   padding: 15px 40px 340px;
   min-height:0;
 }
 
-/* ===== GRID ===== */
 .ranking-grid{
-  display:grid; grid-template-columns:430px 1fr; /* leve ajuste na coluna do bingolino */
+  display:grid; grid-template-columns:430px 1fr;
   gap:26px;
   flex:1 1 auto; min-height:0;
-  /* ↓ puxa o grid um pouco pra cima */
   margin-top:-6px;
 }
 
-/* ===== COLUNA ESQUERDA (bingolino) ===== */
 .my-rank-hero{
   background:linear-gradient(180deg, var(--card1), var(--card2));
   border:1px solid var(--divider); border-radius:16px;
@@ -44,11 +39,9 @@ body{
   margin-top:-10px; filter:drop-shadow(0 4px 14px rgba(0,0,0,.22));
 }
 
-/* ===== COLUNA DIREITA (leaderboard) ===== */
 .leaderboard{
   background:linear-gradient(180deg, var(--card1), var(--card2));
   border:1px solid var(--divider); border-radius:16px;
-  /* ↓ menos “folga” interna no topo pra subir o conteúdo */
   padding:14px 24px;
   display:flex; flex-direction:column; min-height:0;
 }
@@ -62,18 +55,17 @@ body{
   background:transparent;
 }
 
-/* Lista com scroll local + cutline (linha neon) */
 .ranking-list-container{
   position:relative;
-  flex:1 1 auto; overflow-y:auto; padding:0 0 240px 0;  /* grande folga interna */
+  flex:1 1 auto; overflow-y:auto; padding:0 0 240px 0; 
   min-height:0;
 }
 .ranking-list-container::before{
   content:"";
   position:sticky;
-  top:0;                        /* cola exatamente no corte */
+  top:0;
   display:block;
-  height:0;                     /* border-top é a linha */
+  height:0;
   margin:0 12px;
   border-top:2px solid #C7F9FF;
   box-shadow:0 0 10px rgba(199,249,255,.85), 0 0 18px rgba(199,249,255,.35);
@@ -83,10 +75,8 @@ body{
 }
 .ranking-list-container.show-cutline::before{ opacity:1; }
 
-/* Gutter lateral pros itens (evita “corte” do glow) */
 .ranking-list{ list-style:none; margin:0; padding:0 12px 0; }
 
-/* ===== CARDS COMPACTOS ===== */
 .rank-item{
   display:flex; align-items:center;
   background:rgba(1,38,64,.9); border-radius:12px;
@@ -108,7 +98,6 @@ body{
 .rank-username{ font-weight:600; font-size:.94rem; }
 .rank-points{ margin-left:auto; font-weight:600; color:var(--muted); font-size:.92rem; }
 
-/* Destaque do usuário logado — FUNDO CLARO + BORDA ESCURA, sem glow */
 .rank-item.is-me{
   background:var(--cta); color:var(--cta-dark);
   border:2px solid #0e395b; box-shadow:none;
@@ -117,12 +106,11 @@ body{
 .rank-item.is-me .rank-username,
 .rank-item.is-me .rank-points{ color:var(--cta-dark); }
 
-/* ===== NAVBAR — mais baixa (sem translate no hover) ===== */
 .bottom-nav{
   display:flex; justify-content:center;
-  padding: 0 0 140px;          /* distância ao fundo */
+  padding: 0 0 140px;
   flex-shrink:0; position:static; z-index:0;
-  margin-top: 102px;           /* desce a barra em relação aos cards */
+  margin-top: 102px;
 }
 .nav-box{
   display:flex; align-items:center; justify-content:center; gap:40px;
@@ -140,13 +128,12 @@ body{
   border:none; border-radius:999px; padding:12px 20px;
   background:var(--cta); color:var(--cta-dark);
   font-family:'Poppins',sans-serif; font-weight:700; cursor:pointer;
-  transition: box-shadow .25s ease;             /* sem translate no hover */
+  transition: box-shadow .25s ease;
 }
 .tab:hover,
 .tab.active:hover{ box-shadow:0 0 12px var(--cta); }
 .tab.active{ background:#5DF9FF; color:var(--cta-dark); box-shadow:none; }
 
-/* ===== SCROLLBAR sem glow (só cor no hover) ===== */
 .ranking-list-container::-webkit-scrollbar{ width:8px; }
 .ranking-list-container::-webkit-scrollbar-track{ background:#0d3154; border-radius:4px; }
 .ranking-list-container::-webkit-scrollbar-thumb{
@@ -154,10 +141,9 @@ body{
 }
 .ranking-list-container::-webkit-scrollbar-thumb:hover{ background:#5df9ff; }
 
-/* ===== RESPONSIVO ===== */
 @media (max-width:1180px){
   .content-wrapper{ max-width:1100px; }
-  .ranking-grid{ grid-template-columns:1fr; gap:14px; margin-top:0; } /* neutraliza o pull-up no mobile */
+  .ranking-grid{ grid-template-columns:1fr; gap:14px; margin-top:0; }
   .my-rank-hero{ min-height:410px; }
 }
 @media (max-width:480px){
