@@ -28,8 +28,11 @@ services:
       - "8000:8000"
     volumes:
       - ./Software/backend:/app
+    
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
     environment:
       PYTHONPATH: /app
       DATABASE_HOST: db
@@ -52,8 +55,11 @@ services:
       - "8000:8000"
     volumes:
       - ./Software/backend:/app
+
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+        
     environment:
       PYTHONPATH: /app
       DATABASE_HOST: db
