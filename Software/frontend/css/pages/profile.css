@@ -196,7 +196,6 @@ html,body{ height:100%; overflow:hidden; }
   max-height: var(--profile-list-max-h);
   overflow-y:auto;
   padding: var(--hist-pad);
-  scrollbar-gutter: stable;
 }
 .history-list::before{
   content:"";

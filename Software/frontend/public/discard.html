@@ -9,11 +9,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/pages/discard.css">
+  <link rel="stylesheet" href="../css/pages/loader.css">
 </head>
-
 <body>
+
+  <div id="pageLoader" class="page-loader is-visible" aria-hidden="false">
+    <div class="loader-wrap">
+      <div class="loader-row">
+        <img class="loader-bingo" src="/public/assets/images/bingolino_cafe.png" alt="">
+        <img class="loader-gif"   src="/public/assets/images/loader-icon.gif" alt="">
+      </div>
+      <p class="loader-text">Carregando...</p>
+    </div>
+  </div>
+
   <main class="discard-wrapper">
-    
     <section class="discard-card" id="discard-section">
       <div class="left">
         <h1>Valide aqui<br>seu código!</h1>
@@ -31,19 +41,13 @@
       </div>
 
       <div class="right">
-        <img 
-          src="/public/assets/images/bingolino-discard.png" 
-          alt="Bingolino animado com celular"
-          id="bingolino-img">
+        <img src="/public/assets/images/bingolino-discard.png" alt="Bingolino animado com celular" id="bingolino-img">
       </div>
     </section>
 
     <section class="discard-result hidden" id="success-section">
       <div class="result-left">
-        <img 
-          src="/public/assets/images/bingolino-happy.png" 
-          alt="Bingolino feliz comemorando"
-          class="result-img">
+        <img src="/public/assets/images/bingolino-happy.png" alt="Bingolino feliz comemorando" class="result-img">
       </div>
 
       <div class="result-right">
@@ -60,10 +64,7 @@
 
     <section class="discard-result hidden" id="error-section">
       <div class="result-left">
-        <img 
-          src="/public/assets/images/bingolino-error.png" 
-          alt="Bingolino confuso"
-          class="result-img">
+        <img src="/public/assets/images/bingolino-error.png" alt="Bingolino confuso" class="result-img">
       </div>
 
       <div class="result-right">
@@ -81,6 +82,7 @@
     </footer>
   </main>
 
+  <script type="module" src="../js/ui/loader-nav.js"></script>
   <script type="module" src="../js/discardPage.js"></script>
 </body>
 </html>

@@ -12,9 +12,20 @@
 
   <link rel="stylesheet" href="../css/global.css"/>
   <link rel="stylesheet" href="../css/pages/ranking.css"/>
+  <link rel="stylesheet" href="../css/pages/loader.css"/>
 </head>
 <body>
-  <!-- Header -->
+
+  <div id="pageLoader" class="page-loader is-visible" aria-hidden="false">
+    <div class="loader-wrap">
+      <div class="loader-row">
+        <img class="loader-bingo" src="/public/assets/images/bingolino_cafe.png" alt="">
+        <img class="loader-gif"   src="/public/assets/images/loader-icon.gif" alt="">
+      </div>
+      <p class="loader-text">Carregando...</p>
+    </div>
+  </div>
+
   <header class="top-header">
     <div class="avatar-box">
       <img src="/public/assets/images/bingolino-avatar.png" alt="Avatar" class="avatar"/>
@@ -27,11 +38,9 @@
     </div>
   </header>
 
-  <!-- Conteúdo -->
   <div class="content-wrapper">
     <div class="ranking-grid">
 
-      <!-- Coluna esquerda -->
       <aside id="my-rank-hero" class="my-rank-hero">
         <div class="rank-tag-wrapper">
           <div class="rank-tag" id="my-rank-tag">
@@ -40,8 +49,7 @@
         </div>
         <img src="/public/assets/images/bingolino-gaming.png" alt="Seu mascote jogando videogame" class="hero-mascot"/>
       </aside>
-
-      <!-- Coluna direita -->
+      
       <main class="leaderboard">
         <h1>RANKING GERAL</h1>
         <div class="ranking-list-container" id="rankingScroll">
@@ -52,7 +60,6 @@
     </div>
   </div>
 
-  <!-- Navbar (idêntica à Missões) -->
   <footer class="bottom-nav">
     <div class="nav-box">
       <span class="brand">BinGo ㅤ—</span>
@@ -66,6 +73,7 @@
     </div>
   </footer>
 
+  <script type="module" src="../js/ui/loader-nav.js"></script>
   <script type="module" src="../js/pages/rankingPage.js"></script>
   <script>
     function goTo(page){ location.href = `./${page}`; }

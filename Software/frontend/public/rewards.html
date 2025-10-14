@@ -10,8 +10,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/global.css">
   <link rel="stylesheet" href="../css/pages/rewards.css">
+  <link rel="stylesheet" href="../css/pages/loader.css">
 </head>
 <body>
+
+  <div id="pageLoader" class="page-loader is-visible" aria-hidden="false">
+    <div class="loader-wrap">
+      <div class="loader-row">
+        <img class="loader-bingo" src="/public/assets/images/bingolino_cafe.png" alt="">
+        <img class="loader-gif"   src="/public/assets/images/loader-icon.gif" alt="">
+      </div>
+      <p class="loader-text">Carregando...</p>
+    </div>
+  </div>
+
   <header class="top-header">
     <div class="avatar-box">
       <img src="/public/assets/images/bingolino-avatar.png" alt="Avatar" class="avatar">
@@ -60,6 +72,7 @@
 
   <div id="toast" class="toast hidden"></div>
 
+  <script type="module" src="../js/ui/loader-nav.js"></script>
   <script type="module" src="../js/pages/rewardsPage.js"></script>
   <script>
     function goTo(page) { location.href = `./${page}`; }
