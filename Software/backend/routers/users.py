@@ -64,7 +64,6 @@ async def login_for_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
-# --- FIM DA ALTERAÇÃO ---
 
 @router.get('/me/', response_model=UserResponse)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):

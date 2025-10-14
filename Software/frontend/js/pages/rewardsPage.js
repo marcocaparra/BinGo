@@ -71,7 +71,7 @@ function createRewardCard(reward) {
     <button class="redeem-btn" data-id="${reward.id}" ${!canAfford ? "disabled" : ""}>
       <span class="redeem-left">RESGATAR</span>
       <span class="redeem-cost">
-        <img src="../assets/images/bin-coin.png" alt="BinCoin">
+        <img src="/public/assets/images/bin-coin.png" alt="BinCoin">
         ${reward.cost}
       </span>
     </button>

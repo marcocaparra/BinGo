@@ -12,9 +12,6 @@ from auth import get_current_user
 
 router = APIRouter(prefix="/rewards", tags=["Rewards"])
 
-# --- CORREÇÃO APLICADA AQUI ---
-# Trocamos @router.get("/") por @router.get("")
-# Isso faz com que a rota responda diretamente em /rewards
 @router.get("", response_model=List[RewardResponse])
 def get_all_rewards(db: Session = Depends(get_db)):
     """ Retorna uma lista de todas as recompensas disponíveis. """
@@ -26,7 +23,6 @@ def redeem_reward(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ... (o resto da função continua igual)
     reward = db.query(Reward).filter(Reward.id == reward_id).first()
     if not reward:
         raise HTTPException(status_code=404, detail="Recompensa não encontrada.")

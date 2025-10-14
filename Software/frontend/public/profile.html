@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfil • BinGo</title>
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/pages/profile.css">
+</head>
+<body>
+  <header class="top-card">
+    <div class="identity">
+      <div class="avatar-wrap">
+        <img src="/public/assets/images/bingolino-avatar.png" class="avatar" alt="Avatar">
+        <button class="logout-btn" id="logoutBtn">Logout</button>
+      </div>
+      <div class="who">
+        <div class="name" id="userName">Carregando...</div>
+        <div class="username" id="userUsername">@user</div>
+      </div>
+    </div>
+    <div class="vsep"></div>
+    <div class="coins">
+      <img src="/public/assets/images/bin-coin.png" class="coin" alt="Bins">
+      <span id="userBins" class="amount">0</span>
+    </div>
+    <div class="vsep"></div>
+    <div class="level">
+      <div class="level-row">
+        <span class="label">Seu nível:</span>
+        <strong class="level-name" id="userLevelLabel">—</strong>
+      </div>
+      <div class="level-bar">
+        <div class="level-fill" id="levelFill"></div>
+      </div>
+    </div>
+    <div class="vsep"></div>
+    <div class="discards">
+      <div class="mini">Já descartou</div>
+      <div class="big"><span id="discardCount" class="cnt">0</span> <span class="vezes">VEZES</span></div>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Conquistas</h2>
+      <div class="card-body">
+        <div class="achievements-grid" id="achievementsGrid"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Minha História</h2>
+      <div class="card-body">
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="bottom-nav">
+    <div class="nav-box">
+      <span class="brand">BinGo ㅤ—</span>
+      <div class="tabs">
+        <button onclick="goTo('dashboard.html')" class="tab">INÍCIO</button>
+        <button onclick="goTo('missions.html')" class="tab">MISSÕES</button>
+        <button onclick="goTo('ranking.html')" class="tab">RANKING</button>
+        <button onclick="goTo('rewards.html')" class="tab">RECOMPENSAS</button>
+        <button onclick="goTo('profile.html')" class="tab active">PERFIL</button>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="../js/pages/profilePage.js"></script>
+  <script>
+    function goTo(page){ location.href = `./${page}`; }
+  </script>
+</body>
+</html>

@@ -112,6 +112,9 @@ body{
   flex-shrink:0; position:static; z-index:0;
   margin-top: 102px;
 }
+
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
 .nav-box{
   display:flex; align-items:center; justify-content:center; gap:40px;
   background:linear-gradient(270deg,var(--card1),var(--card2));
@@ -121,7 +124,8 @@ body{
   transition:background-position 1.2s ease;
   flex-wrap:nowrap;
 }
-.nav-box:hover{ background-position:100% 50%; }
+.nav-box:hover{ animation:gradientShift 3s ease infinite }
+
 .brand{ font-family:'Chakra Petch',sans-serif; font-size:1.4rem; font-weight:600; white-space:nowrap; }
 .tabs{ display:flex; gap:14px; }
 .tab{

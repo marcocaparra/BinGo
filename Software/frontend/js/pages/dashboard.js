@@ -32,10 +32,7 @@ export async function bootDashboard() {
     const levelNum = me.level ?? 1;
     userLevelEl.textContent = levelNames[levelNum] || `Nível ${levelNum}`;
 
-    console.log("Dashboard carregado:", me);
-
     if (errorBox) errorBox.classList.add("hidden");
-
   } catch (err) {
     console.error("Erro ao carregar perfil:", err);
 

@@ -1,0 +1,260 @@
+*,
+*::before,
+*::after{ box-sizing:border-box; }
+
+:root{
+  --grad1:#0B477C;
+  --grad2:#1C7FD6;
+  --panel:#012640;
+  --stroke:rgba(255,255,255,.22);
+  --cyan:#6DEFFF;
+  --turq:#00FFBA;
+  --ink:#E9F6FF;
+  --white:#FFFFFF;
+  --blueText:#b3ebfd;
+  --cardBorder:#a9bccc;
+  --nav-side-pad:275px;
+  --nav-max-core:1255px;
+  --profile-list-max-h: clamp(240px, 36vh, 420px);
+  --cutline:#C7F9FF;
+}
+
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+html,body{ height:100%; overflow:hidden; }
+
+.top-card{
+  max-width:1255px;
+  margin:22px auto 0;
+  padding:18px 22px;
+  border-radius:18px;
+  background:radial-gradient(circle at 30% 30%, var(--grad1) 0%, var(--grad2) 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+  border:1.5px solid var(--cardBorder);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:22px;
+}
+
+.identity{ display:flex; align-items:center; gap:12px; }
+.avatar-wrap{ position:relative; width:64px; height:64px; border-radius:14px; overflow:visible; }
+.avatar{ width:100%; height:100%; object-fit:cover; display:block; }
+
+.logout-btn{
+  position:absolute; top:calc(100% + 8px); left:0; right:0;
+  height:36px; border:1.5px solid var(--cardBorder); border-radius:12px;
+  background:linear-gradient(180deg, rgba(109,239,255,1), rgba(39,255,209,1));
+  color:#0A1830;
+  font-family:'Chakra Petch',sans-serif; font-weight:800; letter-spacing:.3px;
+  box-shadow:0 6px 18px rgba(0, 215, 255, .25), 0 0 12px rgba(109,239,255,.7) inset;
+  opacity:0; transform:translateY(6px);
+  transition:opacity .18s ease, transform .18s ease, filter .2s ease;
+  cursor:pointer;
+}
+.identity:hover .logout-btn{ opacity:1; transform:translateY(0); }
+
+.who .name{ font-family:'Chakra Petch',sans-serif; color:#fff; font-size:22px; line-height:1; }
+.who .username{ font-family:'Poppins',sans-serif; color:var(--blueText); font-size:13px; margin-top:4px; }
+
+.vsep{ width:1px; height:64px; background:rgba(255,255,255,.18); border-radius:1px; }
+
+.coins{ display:flex; align-items:center; gap:12px; }
+.coin{ height:64px; }
+.coins .amount{
+  font-family:'Chakra Petch',sans-serif;
+  font-weight:400;
+  font-size:34px;
+  color:#fff;
+  line-height:1;
+}
+
+.level{
+  display:flex; flex-direction:column; gap:10px;
+  min-width:460px;
+  align-items:center;
+  transform:translateX(6px);
+}
+.level-row{ display:flex; align-items:baseline; gap:10px; justify-content:center; }
+.level .label{ color:#fff; font-family:'Chakra Petch',sans-serif; font-size:26px; }
+.level .level-name{
+  font-family:'Chakra Petch',sans-serif; font-style:italic;
+  color:var(--blueText); text-shadow:0 0 10px rgba(179,235,253,.9);
+  font-size:30px;
+}
+.level-bar{
+  width:420px; height:18px; background:#10324f; border-radius:999px; overflow:hidden;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.06);
+}
+.level-fill{
+  height:100%; width:0%;
+  background:linear-gradient(90deg,#27FFD1,#6DEFFF); box-shadow:0 0 10px rgba(0,255,186,.6);
+}
+
+.discards{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-width:260px;
+}
+.discards .mini{
+  color:#fff; opacity:.95; font-family:'Chakra Petch',sans-serif;
+  font-size:16px; line-height:1.1; text-align:center;
+}
+.discards .big{
+  color:#fff; font-family:'Chakra Petch',sans-serif; font-size:32px; line-height:1.1;
+  display:flex; align-items:center; gap:8px;
+}
+.discards .big .cnt{
+  color:var(--blueText); font-weight:800; font-style:italic;
+  text-shadow:0 0 10px rgba(179,235,253,.9);
+}
+.discards .vezes{ color:var(--blueText); text-shadow:0 0 10px rgba(179,235,253,.9); }
+
+.grid{
+  max-width:1255px;
+  margin:16px auto 16px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+}
+
+.card{
+  border-radius:18px;
+  background:radial-gradient(circle at 30% 30%, var(--grad1) 0%, var(--grad2) 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+  border:1.5px solid var(--cardBorder);
+  padding:14px 14px 16px;
+  color:#fff;
+}
+.card h2{ margin:0 0 10px 0; font-family:'Chakra Petch',sans-serif; color:#fff; }
+
+.card-body{
+  background:rgba(0,0,0,.12);
+  border:1px solid var(--cardBorder);
+  border-radius:12px;
+  padding:12px;
+  min-height:327px;
+}
+.achievements-grid{
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:10px;
+  padding:12px;
+  justify-items:start;
+  align-content:start;
+  max-height:none;
+  overflow:visible;
+}
+
+.ach-card{
+  background:var(--panel);
+  border:1.5px solid var(--cardBorder);
+  border-radius:12px;
+  padding:10px 10px;
+  width:100%;
+  max-width: 140px;
+  min-height: 118px;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:6px;
+  text-align:center;
+  transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease, transform .2s ease;
+}
+.ach-card:hover{
+  border-color:#AEEFFF;
+  box-shadow:0 0 12px rgba(199,249,255,.45), inset 0 0 0 1px #AEEFFF;
+  background:linear-gradient(180deg, rgba(12,63,104,.95), rgba(13,71,124,.95));
+  transform:translateY(-2px);
+}
+.ach-card .ach-img{ height:38px; width:auto; display:block; }
+.ach-card .ach-name{ font-family:'Chakra Petch',sans-serif; color:#2BFDBE; font-size:13px; }
+.ach-card .ach-points{ font-family:'Chakra Petch',sans-serif; color:var(--blueText); font-size:12px; }
+
+@media (max-width:1100px){
+  .achievements-grid{ grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width:760px){
+  .achievements-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width:420px){
+  .achievements-grid{ grid-template-columns: 1fr; }
+}
+
+.ach-card:hover{
+  border-color:#AEEFFF;
+  box-shadow:0 0 12px rgba(199,249,255,.45), inset 0 0 0 1px #AEEFFF;
+  background:linear-gradient(180deg, rgba(12,63,104,.95), rgba(13,71,124,.95));
+  transform:translateY(-2px);
+}
+.ach-card .ach-img{ height:46px; width:auto; display:block; }
+.ach-card .ach-name{ font-family:'Chakra Petch',sans-serif; color:#2BFDBE; font-size:14px; }
+.ach-card .ach-points{ font-family:'Chakra Petch',sans-serif; color:var(--blueText); font-size:13px; }
+
+.history-list{
+  --hist-pad:12px;
+  position:relative;
+  display:flex; flex-direction:column; gap:10px;
+  max-height: var(--profile-list-max-h);
+  overflow-y:auto;
+  padding: var(--hist-pad);
+  scrollbar-gutter: stable;
+}
+.history-list::before{
+  content:"";
+  position:sticky;
+  top: calc(-1 * var(--hist-pad));
+  left: 0; right: 0;
+  height:0;
+  border-top:2px solid var(--cutline);
+  box-shadow:0 0 10px rgba(199,249,255,.85), 0 0 18px rgba(199,249,255,.35);
+  border-radius:999px;
+  opacity:0;
+  transition:opacity .18s ease;
+  pointer-events:none;
+  z-index:3;
+}
+.history-list.show-cutline::before{ opacity:1; }
+
+.history-item{
+  display:flex; align-items:center; gap:12px;
+  padding:10px 14px; border-radius:12px;
+  background:var(--panel); border:1.5px solid var(--cardBorder);
+  transition:border-color .2s ease, box-shadow .2s ease, background-color .2s ease, transform .2s ease;
+}
+.history-item:hover{
+  border-color:#AEEFFF;
+  box-shadow:0 0 12px rgba(199,249,255,.45), inset 0 0 0 1px #AEEFFF;
+  background:linear-gradient(180deg, rgba(12,63,104,.95), rgba(13,71,124,.95));
+  transform:translateY(-2px);
+}
+.history-item .date{
+  font-family:'Chakra Petch',sans-serif;
+  color:var(--blueText);
+  font-size:14px;
+  font-weight:700;
+}
+.history-item .desc{ font-family:'Chakra Petch',sans-serif; color:var(--white); font-size:15px; }
+
+.history-list::-webkit-scrollbar{ width:8px; }
+.history-list::-webkit-scrollbar-track{ background:#0d3154; border-radius:4px; }
+.history-list::-webkit-scrollbar-thumb{ background:#C7F9FF; border-radius:4px; transition:background-color .2s ease; }
+.history-list::-webkit-scrollbar-thumb:hover{ background:#5df9ff; }
+
+.bottom-nav{ margin-top:8px; }
+.bottom-nav .brand{ white-space:nowrap; }
+.bottom-nav .nav-box{
+  padding:14px 270px;
+  max-width:2000px;
+  background:linear-gradient(270deg,var(--grad1),var(--grad2));
+  background-size:200% 200%;
+  border:2px solid var(--cardBorder);
+  border-radius:12px;
+  display:flex; align-items:center; justify-content:center; gap:40px;
+  transition:background-position 1.2s ease;
+}
+.bottom-nav .nav-box:hover{ animation:gradientShift 3s ease infinite }
+
+@media (max-width:1140px){
+  .grid{ grid-template-columns:1fr; }
+  .level{ min-width:0; }
+  .vsep{ display:none; }
+}

@@ -13,6 +13,11 @@
   --card-min-h:365px;
 }
 
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes neonPulse{0%{box-shadow:0 0 10px rgba(109,239,255,.65)}50%{box-shadow:0 0 18px rgba(109,239,255,1)}100%{box-shadow:0 0 10px rgba(109,239,255,.65)}}
+@keyframes pop-in{0%{opacity:0;transform:scale(.96)}100%{opacity:1;transform:scale(1)}}
+@keyframes pop-out{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.96)}}
+
 html,body{
   height:100%;
   overflow:hidden;
@@ -102,8 +107,6 @@ html,body{
 
 .expiry-box .until{ opacity:.95; }
 .expiry-box .when{ font-style:italic; text-decoration:underline; }
-
-@keyframes neonPulse{0%{box-shadow:0 0 10px rgba(109,239,255,.65)}50%{box-shadow:0 0 18px rgba(109,239,255,1)}100%{box-shadow:0 0 10px rgba(109,239,255,.65)}}
 
 .redeem-btn{
   position:relative;
@@ -196,9 +199,6 @@ html,body{
 
 .modal-overlay.closing .modal-content{ animation:pop-out .2s ease forwards; }
 
-@keyframes pop-in{0%{opacity:0;transform:scale(.96)}100%{opacity:1;transform:scale(1)}}
-@keyframes pop-out{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.96)}}
-
 .modal-body{ display:flex; align-items:center; gap:26px; }
 .modal-text{ text-align:center; flex:1; }
 
@@ -266,7 +266,15 @@ body.modal-open{ overflow:hidden; }
   max-width:2000px;
   margin:0 auto;
   transform:translateY(0);
+  background:linear-gradient(270deg,#0B477C,#1C7FD6);
+  background-size:200% 200%;
+  border:2px solid #a9bccc;
+  border-radius:12px;
+  display:flex; align-items:center; justify-content:center; gap:40px;
+  transition:background-position 1.2s ease;
+  padding:14px 245px;
 }
+.bottom-nav .nav-box:hover{ animation:gradientShift 3s ease infinite }
 
 .bottom-nav .brand{ white-space:nowrap; }
 
