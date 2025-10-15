@@ -173,3 +173,10 @@ body {
 [hidden] {
   display: none !important;
 }
+
+input[type="password"]::-webkit-password-reveal-button {
+  display: none !important;
+}
+input[type="password"]::-ms-reveal {
+  display: none !important;
+}
