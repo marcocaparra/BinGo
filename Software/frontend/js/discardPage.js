@@ -17,8 +17,6 @@ const backBtn = document.getElementById("backBtn");
 const userLevelEl = document.getElementById("userLevel");
 const userPointsEl = document.getElementById("userPoints");
 
-console.log("🟢 discardPage.js carregado");
-
 backBtn.addEventListener("click", () => history.back());
 
 tryAgainBtn?.addEventListener("click", () => {
@@ -26,7 +24,7 @@ tryAgainBtn?.addEventListener("click", () => {
   discardSection.classList.remove("hidden");
   input.value = "";
   feedback.classList.add("hidden");
-  bingolinoImg.src = "../assets/images/bingolino-discard.png";
+  bingolinoImg.src = "/public/assets/images/bingolino-discard.png";
 });
 
 button.addEventListener("click", async () => {
@@ -40,7 +38,8 @@ button.addEventListener("click", async () => {
 
   try {
     await registerDiscard(code);
-    const me = await getMe();
+
+    const me = await getMe({ noLoader: true });
 
     const levelNames = {
       1: "Semeador",

@@ -7,22 +7,17 @@ export async function login(username, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password })
   });
-
   if (!res.ok) throw new Error(`Falha no login: ${res.status}`);
-
   const data = await res.json();
   const token = data?.access_token;
   if (!token) throw new Error("Resposta sem token");
-
   localStorage.setItem(STORAGE_KEYS.token, token);
-
   try {
-    const me = await getMe();
+    const me = await getMe({ noLoader: true });
     localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(me));
   } catch (err) {
     console.warn("Login ok mas falhou ao buscar /me:", err);
   }
-
   return true;
 }
 
@@ -30,21 +25,19 @@ export async function registerUser({ username, email, password, full_name, cpf, 
   await apiFetch("/users/", {
     method: "POST",
     body: JSON.stringify({
-      username,
-      email,
-      password,
-      name: full_name,
-      cpf: cpf || null,
-      phone_number: phone || null,
-      total_points: 0
+      username, email, password, name: full_name,
+      cpf: cpf || null, phone_number: phone || null, total_points: 0
     })
   });
-
   await login(username, password);
 }
 
-export async function getMe() {
-  return apiFetch("/users/me/", { method: "GET" });
+/**
+ * @param {object} options
+ * @param {boolean} options.noLoader
+ */
+export async function getMe({ noLoader = false } = {}) {
+  return apiFetch("/users/me/", { method: "GET", noLoader: noLoader });
 }
 
 export function logout() {
@@ -52,7 +45,6 @@ export function logout() {
   localStorage.removeItem(STORAGE_KEYS.user);
   sessionStorage.removeItem(STORAGE_KEYS.token);
   sessionStorage.removeItem(STORAGE_KEYS.user);
-  
   location.replace("./login.html");
 }
 
@@ -65,7 +57,6 @@ function checkAuth() {
 
 export function requireAuth() {
   checkAuth();
-
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) {
       console.log("Página carregada do cache. Verificando autenticação novamente.");
