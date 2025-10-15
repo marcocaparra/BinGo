@@ -1,4 +1,9 @@
 import { login } from "../api/auth.js";
+import { setupPasswordToggle } from "../ui/password-toggle.js";
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupPasswordToggle('password', 'togglePassword');
+});
 
 const form = document.getElementById("loginForm");
 const errorBox = document.getElementById("error");

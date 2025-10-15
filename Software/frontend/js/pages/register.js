@@ -1,4 +1,9 @@
 import { registerUser } from "../api/auth.js";
+import { setupPasswordToggle } from "../ui/password-toggle.js";
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupPasswordToggle('password', 'togglePassword');
+});
 
 const step1 = document.getElementById("step1");
 const step2 = document.getElementById("step2");
