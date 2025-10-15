@@ -1,23 +1,31 @@
-# Contrato de API para Integração de Hardware (Lixeira Inteligente)
 
-Este documento define o contrato da API para comunicação entre a lixeira inteligente (hardware) e o backend do sistema BinGo. São especificados endpoints, formatos de requisição e resposta, além dos códigos de status HTTP.
+# Contrato de API – Integração Hardware BinGo
+
+Este documento detalha o contrato de integração entre o hardware (lixeira inteligente) e o backend do BinGo, refletindo o funcionamento real do sistema.
 
 ---
 
-## 1. Endpoint Principal
+## 1. Fluxo de Integração
 
-- **Função:** Enviar uma imagem capturada pela lixeira para classificação e, se aplicável, geração de código único de descarte.
+1. **Captura e envio da imagem:**
+   - O hardware captura a imagem do descarte e envia para o backend via API REST.
+2. **Classificação e geração de código:**
+   - O backend processa a imagem, classifica o material e, se necessário, gera um código único de descarte.
+3. **Retorno para o hardware:**
+   - O backend retorna o resultado da classificação e o código (se aplicável) para o hardware.
+
+---
+
+## 2. Endpoint Principal
+
 - **URL:** `/device/classify_image`
 - **Método:** `POST`
 - **Content-Type:** `application/json`
+- **Descrição:** Recebe uma imagem em Base64, classifica o material e retorna o resultado.
 
 ---
 
-## 2. Formato da Requisição
-
-A requisição deve conter um JSON com o campo `image_base64`, representando a imagem codificada em Base64.
-
-### Exemplo
+## 3. Requisição
 
 ```json
 {
@@ -27,12 +35,9 @@ A requisição deve conter um JSON com o campo `image_base64`, representando a i
 
 ---
 
-## 3. Formato da Resposta
+## 4. Resposta
 
-A resposta será um JSON com o resultado da classificação e, se aplicável, o código único gerado.
-
-### 3.1. Resposta para Item Eletrônico
-
+### 4.1. Item Eletrônico
 ```json
 {
   "status": "success",
@@ -42,8 +47,7 @@ A resposta será um JSON com o resultado da classificação e, se aplicável, o 
 }
 ```
 
-### 3.2. Resposta para Item Não Eletrônico
-
+### 4.2. Item Não Eletrônico
 ```json
 {
   "status": "success",
@@ -52,8 +56,7 @@ A resposta será um JSON com o resultado da classificação e, se aplicável, o 
 }
 ```
 
-### 3.3. Resposta de Erro
-
+### 4.3. Erro
 ```json
 {
   "status": "error",
@@ -63,18 +66,22 @@ A resposta será um JSON com o resultado da classificação e, se aplicável, o 
 
 ---
 
-## 4. Códigos de Status HTTP
+## 5. Códigos de Status HTTP
 
-| Código | Descrição                   | Significado                                                                 |
-|--------|-----------------------------|-----------------------------------------------------------------------------|
-| 200    | OK                          | Requisição processada com sucesso; resposta contém a classificação.         |
-| 400    | Bad Request                 | Corpo da requisição malformado ou dados inválidos (ex.: image_base64 ausente ou corrompido). |
-| 500    | Internal Server Error       | Erro inesperado no backend ao processar a requisição.                       |
+| Código | Descrição           | Significado                                                        |
+|--------|---------------------|--------------------------------------------------------------------|
+| 200    | OK                  | Requisição processada com sucesso; resposta contém a classificação.|
+| 400    | Bad Request         | Dados inválidos ou imagem ausente/corrompida.                      |
+| 500    | Internal Server Error| Erro inesperado no backend.                                        |
 
 ---
 
-## 5. Observações
+## 6. Observações Práticas
 
-- O campo `unique_code` só será retornado quando o item for classificado como "Eletrônico".
-- Para outros tipos de materiais, o campo `unique_code` não estará presente na resposta.
-- Certifique-se de enviar imagens válidas e corretamente codificadas em Base64.
+- O campo `unique_code` só é retornado para itens classificados como "Eletrônico".
+- Para outros materiais, o campo não aparece.
+- O backend valida o formato da imagem e retorna erro se estiver inválido.
+- O endpoint pode ser expandido para outros tipos de materiais no futuro.
+- O fluxo de integração é assíncrono e tolerante a falhas: o hardware pode reprocessar ou reenviar em caso de erro.
+
+---
