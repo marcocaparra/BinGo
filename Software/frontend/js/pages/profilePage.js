@@ -89,7 +89,7 @@ function fallbackHistoryFromAchievements(achievements) {
 }
 
 function resolveAsset(url) {
-  if (!url) return "/public/assets/images/trophy.png";
+  if (!url) return "/public/assets/images/trophy.svg";
   if (/^https?:\/\//i.test(url)) return url;
   if (url.startsWith("/assets/")) return "/public" + url;
   return url.startsWith("/public") ? url : "/public" + (url.startsWith("/") ? url : "/" + url);
@@ -106,12 +106,14 @@ function renderAchievements(list) {
     const c = document.createElement("div");
     c.className = "ach-card";
     const imgSrc = resolveAsset(item.achievement?.badge_image_url);
+    
     c.innerHTML = `
       <img class="ach-img" src="${sanitize(imgSrc)}" alt="badge"
-           onerror="this.src='/public/assets/images/trophy.png'">
+           onerror="this.onerror=null; this.src='/public/assets/images/trophy.svg';">
       <div class="ach-name">${sanitize(item.achievement?.name || "")}</div>
       <div class="ach-points">+${Number(item.achievement?.points_reward || 0)} Bins</div>
     `;
+    
     root.appendChild(c);
   });
 }
