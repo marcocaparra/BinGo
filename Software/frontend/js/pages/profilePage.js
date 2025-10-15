@@ -1,4 +1,4 @@
-import { requireAuth, getMe } from "../api/auth.js";
+import { requireAuth, getMe, logout } from "../api/auth.js";
 import { apiFetch } from "../api/http.js";
 
 requireAuth();
@@ -31,7 +31,6 @@ async function init() {
     : fallbackHistoryFromAchievements(achievements);
   renderHistory(history);
 
-  // cutline só no histórico (conquistas não têm scroll)
   setupCutlineOnScroll(els.historyList);
 }
 
@@ -56,13 +55,8 @@ function fillHeader(user) {
   els.userBins.textContent = user.total_points ?? 0;
   els.discardCount.textContent = user.discard_count ?? 0;
 
-  // mesmo mapa do dashboard
   const levelNames = {
-    1: "Semeador",
-    2: "Plantador",
-    3: "Cuidador",
-    4: "Guardião",
-    5: "Mestre Verde",
+    1: "Semeador", 2: "Plantador", 3: "Cuidador", 4: "Guardião", 5: "Mestre Verde",
   };
   const levelNum = user.level ?? 1;
   els.userLevelLabel.textContent = levelNames[levelNum] || `Nível ${levelNum}`;
@@ -76,11 +70,7 @@ function levelProgress(points = 0) {
 }
 
 function bindLogout() {
-  els.logoutBtn?.addEventListener("click", () => {
-    try { localStorage.removeItem("access_token"); } catch {}
-    try { sessionStorage.removeItem("access_token"); } catch {}
-    location.href = "./login.html";
-  });
+  els.logoutBtn?.addEventListener("click", logout);
 }
 
 async function safeAchievements() {
@@ -98,15 +88,10 @@ function fallbackHistoryFromAchievements(achievements) {
   }));
 }
 
-// garante caminho certo e fallback de imagem
 function resolveAsset(url) {
   if (!url) return "/public/assets/images/trophy.png";
   if (/^https?:\/\//i.test(url)) return url;
-
-  // normaliza caminhos antigos '/assets/...'
   if (url.startsWith("/assets/")) return "/public" + url;
-
-  // garante prefixo '/public'
   return url.startsWith("/public") ? url : "/public" + (url.startsWith("/") ? url : "/" + url);
 }
 

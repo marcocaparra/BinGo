@@ -50,10 +50,26 @@ export async function getMe() {
 export function logout() {
   localStorage.removeItem(STORAGE_KEYS.token);
   localStorage.removeItem(STORAGE_KEYS.user);
-  location.href = "./login.html";
+  sessionStorage.removeItem(STORAGE_KEYS.token);
+  sessionStorage.removeItem(STORAGE_KEYS.user);
+  
+  location.replace("./login.html");
+}
+
+function checkAuth() {
+  const token = localStorage.getItem(STORAGE_KEYS.token);
+  if (!token) {
+    location.replace("./login.html");
+  }
 }
 
 export function requireAuth() {
-  const token = localStorage.getItem(STORAGE_KEYS.token);
-  if (!token) location.href = "./login.html";
+  checkAuth();
+
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      console.log("Página carregada do cache. Verificando autenticação novamente.");
+      checkAuth();
+    }
+  });
 }
