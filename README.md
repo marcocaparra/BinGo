@@ -1,7 +1,7 @@
 
 # ♻️ Projeto BinGo: Descarte Inteligente, Gamificação e Educação Ambiental
 
-![Logo BinGo](/Software/frontend/assets/images/logo-principal.png)
+![Logo BinGo](/Software/frontend/public/assets/images/logo-principal.png)
 
 ---
 
