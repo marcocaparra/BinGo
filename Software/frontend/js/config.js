@@ -1,13 +1,15 @@
 export function apiBaseUrl() {
-  const meta = document.querySelector('meta[name="api-base-url"]')?.content?.trim();
-  const fromWindow = window.__API_BASE_URL__;
-  const stored = localStorage.getItem("API_BASE_URL");
+    const { hostname } = window.location;
 
-  const base = fromWindow || meta || stored || "http://localhost:8000/";
-  return String(base).replace(/\/+$/, "");
+    if (hostname.endsWith('.github.dev')) {
+        const newHostname = hostname.replace('5173', '8000');
+        return `https://${newHostname}`;
+    }
+
+    return "http://localhost:8000";
 }
 
 export const STORAGE_KEYS = {
-  token: "authToken",
-  user: "authUser",
+    token: "access_token",
+    user: "current_user",
 };

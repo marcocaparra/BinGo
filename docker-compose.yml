@@ -5,14 +5,14 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
-      MYSQL_DATABASE: bingo_db
-      MYSQL_USER: bingo_user
-      MYSQL_PASSWORD: Bingolino53787
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-bingo_db}
+      MYSQL_USER: ${MYSQL_USER:-bingo_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Bingolino53787}
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root_password}"]
       timeout: 20s
       retries: 10
     networks:
@@ -28,11 +28,9 @@ services:
       - "8000:8000"
     volumes:
       - ./Software/backend:/app
-    
     depends_on:
       db:
         condition: service_healthy
-
     environment:
       PYTHONPATH: /app
       DATABASE_HOST: db
@@ -55,11 +53,9 @@ services:
       - "8000:8000"
     volumes:
       - ./Software/backend:/app
-
     depends_on:
       db:
         condition: service_healthy
-        
     environment:
       PYTHONPATH: /app
       DATABASE_HOST: db
@@ -78,4 +74,3 @@ volumes:
 networks:
   app_network:
     driver: bridge
-    name: bingo_network_dev

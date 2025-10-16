@@ -1,11 +1,13 @@
 {
-  "name": "BinGo Project",
+  "name": "BinGo Dev Environment",
   "dockerComposeFile": "../docker-compose.yml",
-  "service": "backend",
+  "service": "backend-dev",
   "workspaceFolder": "/app",
-
-  "forwardPorts": [8000, 3306], 
-
+  "forwardPorts": [
+    8000,
+    3306,
+    5173
+  ],
   "customizations": {
     "vscode": {
       "extensions": [
@@ -15,10 +17,5 @@
       ]
     }
   },
-  
-
-  "postCreateCommand": "python -m pip install --upgrade pip && pip install -r backend/requirements.txt && alembic upgrade head"
-  
-  
-  
+  "postCreateCommand": "pip install -r requirements-dev.txt && alembic upgrade head"
 }
