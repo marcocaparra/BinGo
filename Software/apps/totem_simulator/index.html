@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BinGo | Totem Simulator</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="side-nav" aria-label="Navegação principal">
+      <div class="brand">
+        <span class="brand-mark">B</span>
+        <div>
+          <strong>BinGo</strong>
+          <small>Totem Simulator</small>
+        </div>
+      </div>
+
+      <button class="nav-button active" type="button" data-section="discard-section">
+        <span>Descarte</span>
+      </button>
+      <button class="nav-button" type="button" data-section="student-section">
+        <span>Aluno</span>
+      </button>
+      <button class="nav-button" type="button" data-section="ranking-section">
+        <span>Rankings</span>
+      </button>
+    </nav>
+
+    <main class="app-shell">
+      <header class="page-header">
+        <p id="school-name">Escola Demo BinGo</p>
+        <h1 id="section-title">Simulador de descarte</h1>
+      </header>
+
+      <section id="discard-section" class="page-section active" aria-labelledby="discard-title">
+        <div class="section-grid">
+          <form id="discard-form" class="panel" aria-labelledby="discard-title">
+            <div class="panel-heading">
+              <h2 id="discard-title">Novo descarte</h2>
+              <p>Simule a leitura de um item pelo totem.</p>
+            </div>
+
+            <label>
+              Aluno
+              <select id="discard-student"></select>
+            </label>
+
+            <label>
+              Turma
+              <input id="discard-class" type="text" readonly />
+            </label>
+
+            <label>
+              Tamanho do lixo
+              <select id="item-size">
+                <option value="SMALL">SMALL - 10 Bins</option>
+                <option value="MEDIUM">MEDIUM - 25 Bins</option>
+                <option value="LARGE">LARGE - 50 Bins</option>
+              </select>
+            </label>
+
+            <label>
+              Validação do item
+              <select id="item-validity">
+                <option value="valid">Item válido</option>
+                <option value="invalid">Item inválido</option>
+              </select>
+            </label>
+
+            <label>
+              Tipo detectado
+              <select id="detected-type">
+                <option value="mouse">mouse</option>
+                <option value="teclado">teclado</option>
+                <option value="cabo">cabo</option>
+                <option value="pilha">pilha</option>
+                <option value="celular">celular</option>
+                <option value="objeto inválido">objeto inválido</option>
+              </select>
+            </label>
+
+            <button class="primary-action" type="submit">Simular descarte</button>
+          </form>
+
+          <aside class="panel result-panel" aria-live="polite">
+            <div class="panel-heading">
+              <h2>Resultado</h2>
+              <p>O retorno aparece aqui depois da simulação.</p>
+            </div>
+            <div id="discard-message" class="empty-state">
+              Nenhum descarte simulado nesta sessão.
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="student-section" class="page-section" aria-labelledby="student-title">
+        <div class="section-grid">
+          <div class="panel">
+            <div class="panel-heading">
+              <h2 id="student-title">Informações do aluno</h2>
+              <p>Consulte os dados atualizados pela simulação local.</p>
+            </div>
+
+            <label>
+              Aluno
+              <select id="student-info-select"></select>
+            </label>
+
+            <div id="student-details" class="details-list"></div>
+          </div>
+
+          <aside class="panel">
+            <div class="panel-heading">
+              <h2>Últimos descartes</h2>
+              <p>Histórico em memória da sessão atual.</p>
+            </div>
+            <div id="student-history" class="history-list"></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="ranking-section" class="page-section" aria-labelledby="ranking-title">
+        <div class="panel">
+          <div class="panel-heading">
+            <h2 id="ranking-title">Rankings</h2>
+            <p>Classificações atualizadas automaticamente após cada descarte.</p>
+          </div>
+
+          <div class="ranking-grid">
+            <div>
+              <h3>Alunos</h3>
+              <ol id="student-ranking" class="ranking-list"></ol>
+            </div>
+
+            <div>
+              <h3>Turmas</h3>
+              <ol id="class-ranking" class="ranking-list"></ol>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
