@@ -17,7 +17,8 @@ def create_deposit(
     session: Session = Depends(get_session),
 ) -> DepositResponse:
     machine_id, api_key = edge_headers
-    authenticate_machine(session, machine_id, api_key)
+    machine = authenticate_machine(session, machine_id, api_key)
+    payload = payload.model_copy(update={"school_id": machine.school_id, "machine_id": machine.id})
     deposit = register_deposit(session, payload)
     return DepositResponse(
         id=deposit.id,

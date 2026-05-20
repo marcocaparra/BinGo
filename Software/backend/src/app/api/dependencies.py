@@ -39,7 +39,9 @@ def require_admin(principal: dict = Depends(get_current_principal)) -> dict:
 
 
 def require_edge_headers(
-    x_machine_id: UUID = Header(..., alias="X-Machine-Id"),
-    x_api_key: str = Header(..., alias="X-Api-Key"),
+    x_machine_id: UUID | None = Header(None, alias="X-Machine-Id"),
+    x_api_key: str | None = Header(None, alias="X-Api-Key"),
 ) -> tuple[UUID, str]:
+    if x_machine_id is None or x_api_key is None:
+        raise UnauthorizedError("Credenciais técnicas ausentes.")
     return x_machine_id, x_api_key

@@ -1,5 +1,8 @@
 import uuid
 
+from fastapi.testclient import TestClient
+
+from app.main import app
 from infra.db.models import AuditLog, Redemption, Reward, Student
 from shared.constants.enums import RedemptionStatus, RewardStatus, StudentStatus
 
@@ -34,6 +37,34 @@ def admin_login(client):
 
 def edge_headers(ids):
     return {"X-Machine-Id": ids["machine_id"], "X-Api-Key": "edge-secret"}
+
+
+def test_cors_preflight_allows_totem_simulator_origin():
+    client = TestClient(app)
+    response = client.options(
+        "/v1/totem/context",
+        headers={
+            "Origin": "http://localhost:8001",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "X-Machine-Id,X-Api-Key",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8001"
+
+
+def test_cors_headers_are_present_on_unexpected_errors():
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get(
+        "/v1/totem/context",
+        headers={
+            "Origin": "http://localhost:8001",
+            "X-Machine-Id": "40000000-0000-4000-8000-000000000001",
+            "X-Api-Key": "edge-demo-key",
+        },
+    )
+    assert response.status_code == 500
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8001"
 
 
 def test_activate_student_success(client, seeded_ids, session_factory):
@@ -139,6 +170,27 @@ def test_duplicate_event_id_does_not_duplicate_points(client, seeded_ids, sessio
     }
     first = client.post("/v1/deposits/sync", headers=edge_headers(seeded_ids), json=payload)
     second = client.post("/v1/deposits/sync", headers=edge_headers(seeded_ids), json=payload)
+    assert first.json()["id"] == second.json()["id"]
+    session = session_factory()
+    student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
+    assert student.points_student_balance == 150
+    session.close()
+
+
+def test_deposit_without_school_or_machine_in_body_is_idempotent(client, seeded_ids, session_factory):
+    event_id = str(uuid.uuid4())
+    payload = {
+        "event_id": event_id,
+        "class_id": seeded_ids["class_id"],
+        "student_id": seeded_ids["student_id"],
+        "is_valid": True,
+        "detected_type": "mouse",
+        "size": "MEDIUM",
+    }
+    first = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
+    second = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
+    assert first.status_code == 201
+    assert second.status_code == 201
     assert first.json()["id"] == second.json()["id"]
     session = session_factory()
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
@@ -256,3 +308,68 @@ def test_sensitive_actions_generate_audit_logs(client, seeded_ids, session_facto
     session = session_factory()
     assert session.query(AuditLog).count() >= 3
     session.close()
+
+
+def test_totem_context_with_valid_machine_auth(client, seeded_ids):
+    response = client.get("/v1/totem/context", headers=edge_headers(seeded_ids))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["school"]["id"] == seeded_ids["school_id"]
+    assert body["machine"]["id"] == seeded_ids["machine_id"]
+    assert body["classes"][0]["id"] == seeded_ids["class_id"]
+    assert body["students"][0]["id"] == seeded_ids["student_id"]
+    assert "pin_hash" not in str(body)
+    assert "password_hash" not in str(body)
+    assert "api_key_hash" not in str(body)
+
+
+def test_totem_context_with_invalid_machine_auth_fails(client, seeded_ids):
+    headers = edge_headers(seeded_ids)
+    headers["X-Api-Key"] = "wrong-key"
+    response = client.get("/v1/totem/context", headers=headers)
+    assert response.status_code == 401
+
+
+def test_totem_context_without_machine_headers_fails_with_unauthorized(client):
+    response = client.get("/v1/totem/context")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Credenciais técnicas ausentes."
+
+
+def test_totem_rankings(client, seeded_ids):
+    response = client.get("/v1/totem/rankings", headers=edge_headers(seeded_ids))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["students"][0]["name"] == "Joao Teste"
+    assert body["classes"][0]["name"] == "7A"
+
+
+def test_totem_student_summary(client, seeded_ids):
+    valid_payload = {
+        "event_id": str(uuid.uuid4()),
+        "class_id": seeded_ids["class_id"],
+        "student_id": seeded_ids["student_id"],
+        "is_valid": True,
+        "detected_type": "mouse",
+        "size": "MEDIUM",
+    }
+    invalid_payload = {
+        "event_id": str(uuid.uuid4()),
+        "class_id": seeded_ids["class_id"],
+        "student_id": seeded_ids["student_id"],
+        "is_valid": False,
+        "detected_type": "objeto inválido",
+        "size": "SMALL",
+    }
+    client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=valid_payload)
+    client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=invalid_payload)
+
+    response = client.get(f"/v1/totem/students/{seeded_ids['student_id']}/summary", headers=edge_headers(seeded_ids))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["student"]["id"] == seeded_ids["student_id"]
+    assert body["student"]["class_name"] == "7A"
+    assert body["stats"]["valid_deposits_count"] == 1
+    assert body["stats"]["invalid_deposits_count"] == 1
+    assert body["stats"]["total_bins_generated"] == 30
+    assert len(body["recent_deposits"]) == 2
