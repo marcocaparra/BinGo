@@ -8,8 +8,8 @@ from shared.constants.enums import DepositSize
 
 class DepositCreateRequest(BaseModel):
     event_id: UUID
-    school_id: UUID
-    machine_id: UUID
+    school_id: UUID | None = None
+    machine_id: UUID | None = None
     class_id: UUID
     student_id: UUID | None = None
     is_valid: bool
