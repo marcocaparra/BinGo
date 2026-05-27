@@ -80,6 +80,7 @@ Campos iniciais:
 - school_id
 - class_id
 - name
+- auth_user_id
 - pin_hash
 - is_activated
 - points_student_balance
@@ -89,6 +90,12 @@ Campos iniciais:
 
 Observações:
 - aluno pertence a uma escola e a uma turma
+- `auth_user_id` é um vínculo futuro e opcional com o usuário do Supabase Auth
+- `auth_user_id` deve ser único quando preenchido, mas pode permanecer nulo para alunos pré-cadastrados
+- Supabase Auth será a fonte de verdade para e-mail, senha, hash, recuperação de senha, sessão e tokens do app
+- `students` continua sendo a fonte de verdade para dados de domínio do aluno: escola, turma, nome, pontos, status e PIN do Totem
+- `students` não deve armazenar `password_hash`
+- `pin_hash` permanece em `students` porque pertence ao fluxo do Totem, separado do login do app
 - PIN não deve ser salvo em texto puro
 - `is_activated` indica se o aluno já criou o PIN no primeiro uso
 - `status` pode ser usado para ativo/inativo sem apagar histórico
@@ -264,6 +271,9 @@ Observações:
 ## 5. Regras de integridade iniciais
 
 - `students.pin_hash` nunca armazena o PIN em texto puro
+- `students.password_hash` não deve existir; senha do app pertence ao Supabase Auth
+- `students.auth_user_id` deve ser único quando preenchido
+- `students.auth_user_id` pode ser nulo enquanto o aluno ainda não ativou conta no app
 - `redemptions.code` deve ser único
 - `deposits.event_id` deve ser único
 - `students.points_student_balance` não pode ser negativo
@@ -279,6 +289,9 @@ Observações:
 ## 6. Decisões já consideradas no modelo
 
 - login do totem pode ser opcional no descarte
+- login do app será por e-mail/senha no Supabase Auth
+- login do Totem continuará usando PIN separado em `students.pin_hash`
+- `students.auth_user_id` permitirá relacionar a entidade de domínio do aluno ao usuário autenticado do app
 - sem login individual, ainda existe pontuação para turma
 - resgate no V1 é feito apenas no totem
 - mobile no V1 é consulta, não resgata

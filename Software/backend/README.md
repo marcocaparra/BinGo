@@ -67,7 +67,11 @@ backend/
 ```bash
 cd backend
 pip install -e .[dev]
-uvicorn app.main:app --reload
+
+$env:BINGO_DATABASE_URL="postgresql+psycopg://bingo:bingo123@localhost:5432/bingo_dev"
+$env:BINGO_JWT_SECRET="dev-secret-change-me"
+
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 pytest
 ```
 
