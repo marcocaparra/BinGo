@@ -58,6 +58,7 @@ class Student(Base):
     school_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("schools.id", ondelete="RESTRICT"), nullable=False)
     class_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("classes.id", ondelete="RESTRICT"), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    auth_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, unique=True)
     pin_hash: Mapped[str | None] = mapped_column(Text)
     is_activated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     points_student_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
