@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BinGo | Totem Simulator</title>
-    <link rel="stylesheet" href="style.css?v=totem-flow-3" />
+    <link rel="stylesheet" href="style.css?v=student-info-picker-1" />
   </head>
   <body>
     <nav class="side-nav" aria-label="Navegação principal">
@@ -101,14 +101,34 @@
                 Turma
                 <select id="identified-class-select"></select>
               </label>
-              <label>
-                Aluno
-                <select id="identified-student-select"></select>
-              </label>
+              <div class="student-picker-field">
+                <span>Aluno</span>
+                <select id="identified-student-select" hidden></select>
+                <button id="student-picker-open" class="student-picker-trigger" type="button">
+                  <span id="student-picker-selected">Escolher aluno</span>
+                  <small>Toque para buscar por nome</small>
+                </button>
+              </div>
               <label>
                 PIN
                 <input id="student-pin" type="password" inputmode="numeric" maxlength="4" placeholder="0000" />
               </label>
+              <div id="student-picker-dialog" class="student-picker-dialog" hidden>
+                <div class="student-picker-panel" role="dialog" aria-modal="true" aria-labelledby="student-picker-title">
+                  <div class="student-picker-heading">
+                    <div>
+                      <strong id="student-picker-title">Escolher aluno</strong>
+                      <span>Digite as primeiras letras ou toque em um nome.</span>
+                    </div>
+                    <button id="student-picker-close" class="secondary-action student-picker-close" type="button">Fechar</button>
+                  </div>
+                  <label class="student-search-label">
+                    Digite as primeiras letras
+                    <input id="student-picker-search" type="search" autocomplete="off" placeholder="Ex.: ana" />
+                  </label>
+                  <div id="student-picker-list" class="student-picker-list"></div>
+                </div>
+              </div>
               <div class="totem-footer-actions">
                 <button class="secondary-action" type="button" data-discard-action="back">Voltar</button>
                 <button class="primary-action" type="button" data-discard-action="validate-student">Validar aluno</button>
@@ -186,9 +206,35 @@
             </div>
 
             <label>
-              Aluno
-              <select id="student-info-select"></select>
+              Turma
+              <select id="student-info-class-select"></select>
             </label>
+
+            <div class="student-picker-field">
+              <span>Aluno</span>
+              <select id="student-info-select" hidden></select>
+              <button id="student-info-picker-open" class="student-picker-trigger" type="button">
+                <span id="student-info-picker-selected">Escolher aluno</span>
+                <small>Toque para buscar o histórico</small>
+              </button>
+            </div>
+
+            <div id="student-info-picker-dialog" class="student-picker-dialog" hidden>
+              <div class="student-picker-panel" role="dialog" aria-modal="true" aria-labelledby="student-info-picker-title">
+                <div class="student-picker-heading">
+                  <div>
+                    <strong id="student-info-picker-title">Escolher aluno</strong>
+                    <span>Digite as primeiras letras ou toque em um nome.</span>
+                  </div>
+                  <button id="student-info-picker-close" class="secondary-action student-picker-close" type="button">Fechar</button>
+                </div>
+                <label class="student-search-label">
+                  Digite as primeiras letras
+                  <input id="student-info-picker-search" type="search" autocomplete="off" placeholder="Ex.: ana" />
+                </label>
+                <div id="student-info-picker-list" class="student-picker-list"></div>
+              </div>
+            </div>
 
             <div id="student-details" class="details-list"></div>
           </div>
@@ -225,6 +271,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=totem-login-1"></script>
+    <script src="app.js?v=student-info-picker-1"></script>
   </body>
 </html>

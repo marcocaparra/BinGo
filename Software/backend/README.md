@@ -64,6 +64,8 @@ backend/
 
 ## Rodando localmente
 
+Para o passo a passo completo de ligar o banco local do Supabase, aplicar a seed e testar o Totem Simulator, veja `../docs/iniciar-supabase-local.md`.
+
 Com Supabase local:
 
 ```bash

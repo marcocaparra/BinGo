@@ -172,6 +172,8 @@ Esta versão usa a API real do backend BinGo para carregar alunos, turmas, ranki
 
 ## Como abrir localmente
 
+Para o passo a passo completo de iniciar o Supabase local, subir o backend e conferir a seed 008, veja `../../docs/iniciar-supabase-local.md`.
+
 Antes de abrir o simulador, deixe o backend rodando em `http://localhost:8000` e aplique as migrations mais a seed:
 
 ```powershell
