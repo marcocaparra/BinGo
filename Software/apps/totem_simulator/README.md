@@ -175,7 +175,7 @@ Esta versão usa a API real do backend BinGo para carregar alunos, turmas, ranki
 Antes de abrir o simulador, deixe o backend rodando em `http://localhost:8000` e aplique as migrations mais a seed:
 
 ```powershell
-database/seeds/007_dev_deposit_flow_demo.sql
+database/seeds/008_seed_totem_simulator_rich_demo.sql
 ```
 
 Depois sirva os arquivos estáticos:
@@ -201,11 +201,11 @@ Não existe etapa de build ou instalação de dependências para o frontend.
 
 ## Dados de desenvolvimento
 
-O simulador espera a escola criada pela seed `007_dev_deposit_flow_demo.sql`:
+O simulador espera a escola criada pela seed `008_seed_totem_simulator_rich_demo.sql`:
 
 - Escola Demo BinGo
-- Turmas: 6º Ano A, 7º Ano B e 1ª Série A
-- Alunos demo: Ana Silva, Lucas Costa, Pedro Santos, João Teste e Maria Oliveira
+- Turmas: 6º Ano A, 7º Ano A, 8º Ano A, 9º Ano A, 1ª Série A, 2ª Série A e 3ª Série A
+- Alunos demo: 70 alunos com PIN individual de 4 digitos
 - Máquina demo: Totem Demo 01
 - API key demo: `edge-demo-key`
 

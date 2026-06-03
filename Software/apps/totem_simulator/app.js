@@ -1,13 +1,13 @@
-const API_BASE_URL = "http://localhost:8000/v1";
+﻿const API_BASE_URL = "http://localhost:8000/v1";
 const MACHINE_ID = "40000000-0000-4000-8000-000000000001";
 
-// Chave exposta apenas porque este é um simulador web de desenvolvimento.
-// No totem real, a API key deve ficar protegida no serviço local do Edge/Orange Pi.
+// Chave exposta apenas porque este Ã© um simulador web de desenvolvimento.
+// No totem real, a API key deve ficar protegida no serviÃ§o local do Edge/Orange Pi.
 const MACHINE_API_KEY = "edge-demo-key";
 
 const sectionTitles = {
   "discard-section": "Simulador de descarte",
-  "student-section": "Informações do aluno",
+  "student-section": "InformaÃ§Ãµes do aluno",
   "ranking-section": "Rankings",
 };
 
@@ -30,6 +30,7 @@ const state = {
     classId: null,
     studentId: null,
     pin: "",
+    studentToken: null,
     lastPayload: null,
     lastDeposit: null,
   },
@@ -102,6 +103,13 @@ function loadStudentSummary(studentId) {
 
 function loadRankings() {
   return apiRequest("/totem/rankings");
+}
+
+function loginTotemStudent(payload) {
+  return apiRequest("/totem/students/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 function submitDeposit(payload) {
@@ -226,6 +234,7 @@ function resetDiscardFlow({ keepMessage = false } = {}) {
     classId: state.context?.classes[0]?.id || null,
     studentId: null,
     pin: "",
+    studentToken: null,
     lastPayload: null,
     lastDeposit: null,
   };
@@ -234,13 +243,13 @@ function resetDiscardFlow({ keepMessage = false } = {}) {
   renderDiscardScreen("start");
 
   if (!keepMessage) {
-    setDiscardMessage("Aguardando início do descarte.");
+    setDiscardMessage("Aguardando iní­cio do descarte.");
   }
 }
 
 function showModeScreen() {
   renderDiscardScreen("mode");
-  setDiscardMessage("Tela 2: escolha se o descarte terá aluno identificado ou somente turma.");
+  setDiscardMessage("Tela 2: escolha se o descarte tera aluno identificado ou somente turma.");
 }
 
 function showAnonymousClassScreen() {
@@ -267,7 +276,7 @@ function showItemScreen() {
   setDiscardMessage(`Tela 4: descarte em nome de <strong>${identityText}</strong>.`);
 }
 
-function validateStudentAndContinue() {
+async function validateStudentAndContinue() {
   state.discard.classId = identifiedClassSelect.value;
   state.discard.studentId = identifiedStudentSelect.value;
   state.discard.pin = studentPinInput.value.trim();
@@ -282,8 +291,24 @@ function validateStudentAndContinue() {
     return;
   }
 
-  setDiscardMessage("Aluno validado no simulador. Próxima etapa: informar o item.", "message success");
-  showItemScreen();
+  try {
+    setDiscardEnabled(false);
+    setDiscardMessage("Validando PIN do aluno no backend...");
+    const result = await loginTotemStudent({
+      class_id: state.discard.classId,
+      student_id: state.discard.studentId,
+      pin: state.discard.pin,
+    });
+    state.discard.studentId = result.student.id;
+    state.discard.studentToken = result.access_token;
+    setDiscardMessage("Aluno identificado com PIN correto. Proxima etapa: informar o item.", "message success");
+    showItemScreen();
+  } catch (error) {
+    state.discard.studentToken = null;
+    setDiscardMessage(`<strong>Não foi possível identificar o aluno.</strong><p>${error.message}</p>`, "message error");
+  } finally {
+    setDiscardEnabled(true);
+  }
 }
 
 function buildDepositPayload() {
@@ -308,15 +333,15 @@ function renderDepositResult(payload, deposit) {
 
   resultTitle.textContent = validText;
   resultSubtitle.textContent = payload.is_valid
-    ? "Pontuação registrada pelo backend."
-    : "Nenhum Bin foi gerado para item inválido.";
+    ? "PontuaÃ§Ã£o registrada pelo backend."
+    : "Nenhum Bin foi gerado para item invÃ¡lido.";
 
   discardResultCard.className = `result-summary ${statusClass}`;
   discardResultCard.innerHTML = `
     <div class="metric"><span>Status</span><span>${validText}</span></div>
     <div class="metric"><span>Tipo</span><span>${payload.detected_type || "sem tipo"}</span></div>
     <div class="metric"><span>Tamanho</span><span>${payload.size}</span></div>
-    <div class="metric"><span>Aluno</span><span>${refreshedStudent ? refreshedStudent.name : "Sem identificação"}</span></div>
+    <div class="metric"><span>Aluno</span><span>${refreshedStudent ? refreshedStudent.name : "Sem identificaÃ§Ã£o"}</span></div>
     <div class="metric"><span>Pontos da turma</span><span>${deposit.points_awarded_class} Bins</span></div>
     <div class="metric"><span>Saldo da turma</span><span>${refreshedClass ? `${refreshedClass.points_class_balance} Bins` : "-"}</span></div>
   `;
@@ -418,10 +443,10 @@ function renderStudentInfo(summary) {
     <div class="metric"><span>Nome</span><span>${summary.student.name}</span></div>
     <div class="metric"><span>Turma</span><span>${summary.student.class_name}</span></div>
     <div class="metric"><span>Saldo atual</span><span>${summary.student.points_student_balance} Bins</span></div>
-    <div class="metric"><span>Descartes válidos</span><span>${summary.stats.valid_deposits_count}</span></div>
-    <div class="metric"><span>Descartes inválidos</span><span>${summary.stats.invalid_deposits_count}</span></div>
+    <div class="metric"><span>Descartes vÃ¡lidos</span><span>${summary.stats.valid_deposits_count}</span></div>
+    <div class="metric"><span>Descartes invÃ¡lidos</span><span>${summary.stats.invalid_deposits_count}</span></div>
     <div class="metric"><span>Total gerado</span><span>${summary.stats.total_bins_generated} Bins</span></div>
-    <div class="metric"><span>Último descarte</span><span>${lastDepositText}</span></div>
+    <div class="metric"><span>Ãšltimo descarte</span><span>${lastDepositText}</span></div>
   `;
 
   studentHistory.innerHTML = summary.recent_deposits.length
@@ -584,3 +609,4 @@ studentPinInput.addEventListener("input", () => {
 studentInfoSelect.addEventListener("change", handleStudentInfoChange);
 
 init();
+

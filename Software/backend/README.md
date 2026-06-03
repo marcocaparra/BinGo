@@ -64,20 +64,7 @@ backend/
 
 ## Rodando localmente
 
-Com Postgres local via Docker Compose antigo:
-
-```bash
-cd backend
-pip install -e .[dev]
-
-$env:BINGO_DATABASE_URL="postgresql+psycopg://bingo:bingo123@localhost:5432/bingo_dev"
-$env:BINGO_JWT_SECRET="dev-secret-change-me"
-
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-pytest
-```
-
-Com Supabase local, suba o Supabase pela CLI na raiz do projeto e aponte o backend para a porta local do banco definida em `supabase/config.toml`:
+Com Supabase local:
 
 ```bash
 supabase start
@@ -89,6 +76,14 @@ $env:BINGO_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres
 $env:BINGO_JWT_SECRET="dev-secret-change-me"
 
 uvicorn app.main:app --host 0.0.0.0 --port 8000
+pytest
+```
+
+Com Docker Compose na raiz do projeto, o `backend-dev` tambem usa o banco local do Supabase:
+
+```bash
+supabase start
+docker compose up -d backend-dev
 ```
 
 O backend normaliza URLs `postgresql://` e `postgres://` para o driver `psycopg`, então a URL copiada do Supabase pode ser usada sem trocar manualmente o scheme para `postgresql+psycopg://`.
@@ -96,7 +91,7 @@ O backend normaliza URLs `postgresql://` e `postgres://` para o driver `psycopg`
 ## Variáveis de ambiente
 
 ```env
-BINGO_DATABASE_URL=postgresql+psycopg://bingo:bingo123@localhost:5432/bingo_dev
+BINGO_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 BINGO_JWT_SECRET=change-me
 BINGO_API_PREFIX=/v1
 BINGO_TOKEN_TTL_MINUTES=30

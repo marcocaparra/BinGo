@@ -36,6 +36,17 @@ def get_context(session: Session, machine: Machine) -> dict:
     }
 
 
+def get_student_identity(session: Session, machine: Machine, student_id: UUID):
+    student_row = session.execute(
+        select(Student, ClassRoom.name)
+        .join(ClassRoom, ClassRoom.id == Student.class_id)
+        .where(Student.id == student_id, Student.school_id == machine.school_id)
+    ).one_or_none()
+    if student_row is None:
+        raise NotFoundError("Aluno nÃ£o encontrado para a escola da mÃ¡quina.")
+    return student_row
+
+
 def get_student_summary(session: Session, machine: Machine, student_id: UUID) -> dict:
     student_row = session.execute(
         select(Student, ClassRoom.name)
