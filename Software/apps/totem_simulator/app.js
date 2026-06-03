@@ -11,10 +11,28 @@ const sectionTitles = {
   "ranking-section": "Rankings",
 };
 
+const discardScreens = {
+  start: { id: "discard-screen-start", step: "Tela 1 de 5" },
+  mode: { id: "discard-screen-mode", step: "Tela 2 de 5" },
+  class: { id: "discard-screen-class", step: "Tela 3A de 5" },
+  student: { id: "discard-screen-student", step: "Tela 3B de 5" },
+  item: { id: "discard-screen-item", step: "Tela 4 de 5" },
+  result: { id: "discard-screen-result", step: "Tela 5 de 5" },
+};
+
 const state = {
   context: null,
   rankings: null,
   selectedStudentSummary: null,
+  discard: {
+    screen: "start",
+    mode: null,
+    classId: null,
+    studentId: null,
+    pin: "",
+    lastPayload: null,
+    lastDeposit: null,
+  },
 };
 
 const navButtons = document.querySelectorAll(".nav-button");
@@ -22,13 +40,21 @@ const sections = document.querySelectorAll(".page-section");
 const sectionTitle = document.querySelector("#section-title");
 const schoolName = document.querySelector("#school-name");
 
-const discardForm = document.querySelector("#discard-form");
-const discardStudentSelect = document.querySelector("#discard-student");
-const discardClassInput = document.querySelector("#discard-class");
+const discardFlow = document.querySelector("#discard-flow");
+const discardStepLabel = document.querySelector("#discard-step-label");
+const discardMessage = document.querySelector("#discard-message");
+const discardProgressItems = document.querySelectorAll(".totem-progress span");
+
+const discardClassSelect = document.querySelector("#discard-class-select");
+const identifiedClassSelect = document.querySelector("#identified-class-select");
+const identifiedStudentSelect = document.querySelector("#identified-student-select");
+const studentPinInput = document.querySelector("#student-pin");
 const itemSizeSelect = document.querySelector("#item-size");
 const itemValiditySelect = document.querySelector("#item-validity");
 const detectedTypeSelect = document.querySelector("#detected-type");
-const discardMessage = document.querySelector("#discard-message");
+const resultTitle = document.querySelector("#result-title");
+const resultSubtitle = document.querySelector("#result-subtitle");
+const discardResultCard = document.querySelector("#discard-result-card");
 
 const studentInfoSelect = document.querySelector("#student-info-select");
 const studentDetails = document.querySelector("#student-details");
@@ -85,8 +111,16 @@ function submitDeposit(payload) {
   });
 }
 
-function getSelectedStudent(selectElement = discardStudentSelect) {
-  return state.context?.students.find((student) => student.id === selectElement.value);
+function getClassById(classId) {
+  return state.context?.classes.find((classroom) => classroom.id === classId);
+}
+
+function getStudentById(studentId) {
+  return state.context?.students.find((student) => student.id === studentId);
+}
+
+function getStudentsByClass(classId) {
+  return (state.context?.students || []).filter((student) => student.class_id === classId);
 }
 
 function formatDate(value) {
@@ -114,30 +148,256 @@ function setActiveSection(sectionId) {
   }
 }
 
-function setLoadingMessage(message) {
-  discardMessage.className = "empty-state";
-  discardMessage.textContent = message;
+function setDiscardMessage(content, className = "empty-state") {
+  discardMessage.className = className;
+  discardMessage.innerHTML = content;
 }
 
-function setFormEnabled(isEnabled) {
-  discardForm.querySelectorAll("button, input, select").forEach((element) => {
+function setDiscardEnabled(isEnabled) {
+  discardFlow.querySelectorAll("button, input, select").forEach((element) => {
     element.disabled = !isEnabled;
   });
 }
 
-function renderStudentOptions() {
-  const students = state.context?.students || [];
-  const options = students
-    .map((student) => `<option value="${student.id}">${student.name}</option>`)
+function renderOptions(selectElement, items, getLabel) {
+  selectElement.innerHTML = items
+    .map((item) => `<option value="${item.id}">${getLabel(item)}</option>`)
     .join("");
-
-  discardStudentSelect.innerHTML = options;
-  studentInfoSelect.innerHTML = options;
 }
 
-function updateDiscardClass() {
-  const student = getSelectedStudent();
-  discardClassInput.value = student?.class_name || "";
+function renderStudentOptions() {
+  const students = state.context?.students || [];
+  renderOptions(studentInfoSelect, students, (student) => student.name);
+}
+
+function renderDiscardClassOptions() {
+  const classes = state.context?.classes || [];
+  renderOptions(discardClassSelect, classes, (classroom) => classroom.name);
+  renderOptions(identifiedClassSelect, classes, (classroom) => classroom.name);
+
+  if (!state.discard.classId && classes[0]) {
+    state.discard.classId = classes[0].id;
+  }
+
+  if (state.discard.classId) {
+    discardClassSelect.value = state.discard.classId;
+    identifiedClassSelect.value = state.discard.classId;
+  }
+
+  renderIdentifiedStudentOptions();
+}
+
+function renderIdentifiedStudentOptions() {
+  const classId = identifiedClassSelect.value || state.discard.classId;
+  const students = getStudentsByClass(classId);
+  renderOptions(identifiedStudentSelect, students, (student) => student.name);
+
+  const previousStudentStillVisible = students.some((student) => student.id === state.discard.studentId);
+  if (previousStudentStillVisible) {
+    identifiedStudentSelect.value = state.discard.studentId;
+  } else if (students[0]) {
+    state.discard.studentId = students[0].id;
+    identifiedStudentSelect.value = students[0].id;
+  } else {
+    state.discard.studentId = null;
+  }
+}
+
+function renderDiscardScreen(screenName) {
+  state.discard.screen = screenName;
+  const screen = discardScreens[screenName];
+  document.querySelectorAll(".discard-screen").forEach((element) => {
+    const isActive = element.id === screen.id;
+    element.classList.toggle("active", isActive);
+    element.hidden = !isActive;
+  });
+
+  discardStepLabel.textContent = screen.step;
+  const progressIndex = screenName === "start" ? 0 : screenName === "mode" ? 1 : screenName === "item" ? 3 : screenName === "result" ? 4 : 2;
+  discardProgressItems.forEach((item, index) => {
+    item.classList.toggle("active", index <= progressIndex);
+  });
+}
+
+function resetDiscardFlow({ keepMessage = false } = {}) {
+  state.discard = {
+    screen: "start",
+    mode: null,
+    classId: state.context?.classes[0]?.id || null,
+    studentId: null,
+    pin: "",
+    lastPayload: null,
+    lastDeposit: null,
+  };
+  studentPinInput.value = "";
+  renderDiscardClassOptions();
+  renderDiscardScreen("start");
+
+  if (!keepMessage) {
+    setDiscardMessage("Aguardando início do descarte.");
+  }
+}
+
+function showModeScreen() {
+  renderDiscardScreen("mode");
+  setDiscardMessage("Tela 2: escolha se o descarte terá aluno identificado ou somente turma.");
+}
+
+function showAnonymousClassScreen() {
+  state.discard.mode = "anonymous";
+  state.discard.studentId = null;
+  discardClassSelect.value = state.discard.classId || discardClassSelect.value;
+  renderDiscardScreen("class");
+  setDiscardMessage("Tela 3A: selecione a turma para pontuar sem identificar aluno.");
+}
+
+function showIdentifiedStudentScreen() {
+  state.discard.mode = "identified";
+  identifiedClassSelect.value = state.discard.classId || identifiedClassSelect.value;
+  renderIdentifiedStudentOptions();
+  renderDiscardScreen("student");
+  setDiscardMessage("Tela 3B: selecione turma, aluno e PIN de 4 dígitos.");
+}
+
+function showItemScreen() {
+  renderDiscardScreen("item");
+  const className = getClassById(state.discard.classId)?.name || "turma";
+  const student = getStudentById(state.discard.studentId);
+  const identityText = student ? `${student.name} (${className})` : `sem identificação (${className})`;
+  setDiscardMessage(`Tela 4: descarte em nome de <strong>${identityText}</strong>.`);
+}
+
+function validateStudentAndContinue() {
+  state.discard.classId = identifiedClassSelect.value;
+  state.discard.studentId = identifiedStudentSelect.value;
+  state.discard.pin = studentPinInput.value.trim();
+
+  if (!state.discard.classId || !state.discard.studentId) {
+    setDiscardMessage("<strong>Selecione turma e aluno para continuar.</strong>", "message error");
+    return;
+  }
+
+  if (!/^\d{4}$/.test(state.discard.pin)) {
+    setDiscardMessage("<strong>PIN inválido.</strong><p>Informe exatamente 4 dígitos.</p>", "message error");
+    return;
+  }
+
+  setDiscardMessage("Aluno validado no simulador. Próxima etapa: informar o item.", "message success");
+  showItemScreen();
+}
+
+function buildDepositPayload() {
+  const classId = state.discard.mode === "anonymous" ? discardClassSelect.value : state.discard.classId;
+  state.discard.classId = classId;
+
+  return {
+    event_id: crypto.randomUUID(),
+    student_id: state.discard.mode === "identified" ? state.discard.studentId : null,
+    class_id: classId,
+    is_valid: itemValiditySelect.value === "valid",
+    detected_type: detectedTypeSelect.value,
+    size: itemSizeSelect.value,
+  };
+}
+
+function renderDepositResult(payload, deposit) {
+  const refreshedStudent = payload.student_id ? getStudentById(payload.student_id) : null;
+  const refreshedClass = getClassById(payload.class_id);
+  const validText = payload.is_valid ? "Descarte aceito" : "Item devolvido";
+  const statusClass = payload.is_valid ? "success" : "error";
+
+  resultTitle.textContent = validText;
+  resultSubtitle.textContent = payload.is_valid
+    ? "Pontuação registrada pelo backend."
+    : "Nenhum Bin foi gerado para item inválido.";
+
+  discardResultCard.className = `result-summary ${statusClass}`;
+  discardResultCard.innerHTML = `
+    <div class="metric"><span>Status</span><span>${validText}</span></div>
+    <div class="metric"><span>Tipo</span><span>${payload.detected_type || "sem tipo"}</span></div>
+    <div class="metric"><span>Tamanho</span><span>${payload.size}</span></div>
+    <div class="metric"><span>Aluno</span><span>${refreshedStudent ? refreshedStudent.name : "Sem identificação"}</span></div>
+    <div class="metric"><span>Pontos da turma</span><span>${deposit.points_awarded_class} Bins</span></div>
+    <div class="metric"><span>Saldo da turma</span><span>${refreshedClass ? `${refreshedClass.points_class_balance} Bins` : "-"}</span></div>
+  `;
+
+  if (refreshedStudent) {
+    discardResultCard.innerHTML += `
+      <div class="metric"><span>Pontos do aluno</span><span>${deposit.points_awarded_student} Bins</span></div>
+      <div class="metric"><span>Saldo do aluno</span><span>${refreshedStudent.points_student_balance} Bins</span></div>
+    `;
+  }
+
+  setDiscardMessage(
+    `<strong>${validText}.</strong><p>${refreshedStudent ? `Aluno: ${refreshedStudent.name}. ` : "Sem aluno identificado. "}Turma: ${refreshedClass?.name || "-"}.</p>`,
+    `message ${statusClass}`,
+  );
+}
+
+async function confirmDiscard() {
+  const payload = buildDepositPayload();
+
+  if (!payload.class_id) {
+    setDiscardMessage("<strong>Selecione uma turma antes de confirmar.</strong>", "message error");
+    return;
+  }
+
+  try {
+    setDiscardEnabled(false);
+    setDiscardMessage("Processando descarte no backend...");
+    const deposit = await submitDeposit(payload);
+    state.discard.lastPayload = payload;
+    state.discard.lastDeposit = deposit;
+    await refreshAfterDeposit(payload.student_id);
+    renderDepositResult(payload, deposit);
+    renderDiscardScreen("result");
+  } catch (error) {
+    setDiscardMessage(`<strong>Erro ao simular descarte.</strong><p>${error.message}</p>`, "message error");
+  } finally {
+    setDiscardEnabled(true);
+  }
+}
+
+function handleBackAction() {
+  if (state.discard.screen === "mode") {
+    resetDiscardFlow();
+    return;
+  }
+
+  if (state.discard.screen === "class" || state.discard.screen === "student") {
+    showModeScreen();
+    return;
+  }
+
+  if (state.discard.screen === "item") {
+    if (state.discard.mode === "anonymous") {
+      showAnonymousClassScreen();
+    } else {
+      showIdentifiedStudentScreen();
+    }
+  }
+}
+
+function handleDiscardAction(action) {
+  const actions = {
+    start: showModeScreen,
+    anonymous: showAnonymousClassScreen,
+    identified: showIdentifiedStudentScreen,
+    "class-next": () => {
+      state.discard.classId = discardClassSelect.value;
+      showItemScreen();
+    },
+    "validate-student": validateStudentAndContinue,
+    "confirm-discard": confirmDiscard,
+    back: handleBackAction,
+    finish: () => resetDiscardFlow(),
+    "new-discard": () => {
+      resetDiscardFlow({ keepMessage: true });
+      showModeScreen();
+    },
+  };
+
+  actions[action]?.();
 }
 
 function renderStudentInfo(summary) {
@@ -170,7 +430,7 @@ function renderStudentInfo(summary) {
           (deposit) => `
             <article class="history-item">
               <strong>${deposit.detected_type || "sem tipo"} - ${deposit.size}</strong>
-              <small>${deposit.is_valid ? `${deposit.points_awarded_student} Bins gerados` : "Item inválido"} · ${formatDate(deposit.created_at)}</small>
+              <small>${deposit.is_valid ? `${deposit.points_awarded_student} Bins gerados` : "Item inválido"} - ${formatDate(deposit.created_at)}</small>
             </article>
           `,
         )
@@ -213,28 +473,30 @@ function renderRankings() {
     .join("");
 }
 
-function syncSelectedStudentAcrossSections(studentId) {
-  if (discardStudentSelect.value !== studentId) {
-    discardStudentSelect.value = studentId;
+function syncSelectedStudentInfo(studentId) {
+  if (!studentId) {
+    return;
   }
+
   if (studentInfoSelect.value !== studentId) {
     studentInfoSelect.value = studentId;
   }
 }
 
 async function refreshContext() {
-  const previousDiscardStudent = discardStudentSelect.value;
   const previousInfoStudent = studentInfoSelect.value;
+  const previousDiscardClass = state.discard.classId;
   state.context = await loadContext();
   schoolName.textContent = state.context.school.name;
   renderStudentOptions();
 
-  const preferredStudent = previousDiscardStudent || previousInfoStudent || state.context.students[0]?.id;
+  state.discard.classId = previousDiscardClass || state.context.classes[0]?.id || null;
+  renderDiscardClassOptions();
+
+  const preferredStudent = previousInfoStudent || state.context.students[0]?.id;
   if (preferredStudent) {
-    discardStudentSelect.value = preferredStudent;
-    studentInfoSelect.value = previousInfoStudent || preferredStudent;
+    studentInfoSelect.value = preferredStudent;
   }
-  updateDiscardClass();
 }
 
 async function refreshStudentSummary(studentId = studentInfoSelect.value) {
@@ -255,67 +517,9 @@ async function refreshRankings() {
 
 async function refreshAfterDeposit(studentId) {
   await refreshContext();
-  syncSelectedStudentAcrossSections(studentId);
-  updateDiscardClass();
-  await Promise.all([refreshRankings(), refreshStudentSummary(studentId)]);
-}
-
-async function handleDiscardSubmit(event) {
-  event.preventDefault();
-  const student = getSelectedStudent();
-  if (!student) {
-    return;
-  }
-
-  const payload = {
-    event_id: crypto.randomUUID(),
-    student_id: student.id,
-    class_id: student.class_id,
-    is_valid: itemValiditySelect.value === "valid",
-    detected_type: detectedTypeSelect.value,
-    size: itemSizeSelect.value,
-  };
-
-  try {
-    setFormEnabled(false);
-    const deposit = await submitDeposit(payload);
-    await refreshAfterDeposit(student.id);
-
-    const refreshedStudent = state.context.students.find((item) => item.id === student.id);
-    const refreshedClass = state.context.classes.find((item) => item.id === student.class_id);
-
-    if (!payload.is_valid) {
-      discardMessage.className = "message error";
-      discardMessage.innerHTML = `
-        <strong>Item inválido. Nenhum Bin foi gerado.</strong>
-        <ul>
-          <li>Aluno: ${refreshedStudent.name}</li>
-          <li>Turma: ${refreshedStudent.class_name}</li>
-          <li>Tipo detectado: ${payload.detected_type}</li>
-        </ul>
-      `;
-      return;
-    }
-
-    discardMessage.className = "message success";
-    discardMessage.innerHTML = `
-      <strong>Descarte registrado pelo backend.</strong>
-      <ul>
-        <li>Aluno: ${refreshedStudent.name}</li>
-        <li>Turma: ${refreshedStudent.class_name}</li>
-        <li>Tamanho do item: ${payload.size}</li>
-        <li>Tipo detectado: ${payload.detected_type}</li>
-        <li>Pontos gerados: ${deposit.points_awarded_student} Bins</li>
-        <li>Novo saldo do aluno: ${refreshedStudent.points_student_balance} Bins</li>
-        <li>Novo saldo da turma: ${refreshedClass.points_class_balance} Bins</li>
-      </ul>
-    `;
-  } catch (error) {
-    discardMessage.className = "message error";
-    discardMessage.innerHTML = `<strong>Erro ao simular descarte.</strong><p>${error.message}</p>`;
-  } finally {
-    setFormEnabled(true);
-  }
+  syncSelectedStudentInfo(studentId);
+  const summaryTarget = studentId || studentInfoSelect.value;
+  await Promise.all([refreshRankings(), refreshStudentSummary(summaryTarget)]);
 }
 
 async function handleStudentInfoChange() {
@@ -329,23 +533,22 @@ async function handleStudentInfoChange() {
 
 async function init() {
   try {
-    setFormEnabled(false);
-    setLoadingMessage("Carregando dados reais da API...");
+    setDiscardEnabled(false);
+    setDiscardMessage("Carregando dados reais da API...");
     await refreshContext();
     await Promise.all([refreshRankings(), refreshStudentSummary()]);
-    setLoadingMessage("Dados carregados. Simule um descarte para ver o resultado.");
+    resetDiscardFlow();
   } catch (error) {
     schoolName.textContent = "API indisponível";
-    discardMessage.className = "message error";
-    discardMessage.innerHTML = `
-      <strong>Não foi possível carregar o Totem Simulator.</strong>
-      <p>${error.message}</p>
-    `;
+    setDiscardMessage(
+      `<strong>Não foi possível carregar o Totem Simulator.</strong><p>${error.message}</p>`,
+      "message error",
+    );
     studentDetails.innerHTML = '<div class="empty-state">Verifique se o backend está rodando em localhost:8000.</div>';
     studentHistory.innerHTML = "";
     renderRankings();
   } finally {
-    setFormEnabled(true);
+    setDiscardEnabled(true);
   }
 }
 
@@ -353,12 +556,31 @@ navButtons.forEach((button) => {
   button.addEventListener("click", () => setActiveSection(button.dataset.section));
 });
 
-discardStudentSelect.addEventListener("change", () => {
-  updateDiscardClass();
-  syncSelectedStudentAcrossSections(discardStudentSelect.value);
-  refreshStudentSummary(discardStudentSelect.value);
+discardFlow.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-discard-action]");
+  if (!button) {
+    return;
+  }
+  handleDiscardAction(button.dataset.discardAction);
 });
+
+discardClassSelect.addEventListener("change", () => {
+  state.discard.classId = discardClassSelect.value;
+});
+
+identifiedClassSelect.addEventListener("change", () => {
+  state.discard.classId = identifiedClassSelect.value;
+  renderIdentifiedStudentOptions();
+});
+
+identifiedStudentSelect.addEventListener("change", () => {
+  state.discard.studentId = identifiedStudentSelect.value;
+});
+
+studentPinInput.addEventListener("input", () => {
+  studentPinInput.value = studentPinInput.value.replace(/\D/g, "").slice(0, 4);
+});
+
 studentInfoSelect.addEventListener("change", handleStudentInfoChange);
-discardForm.addEventListener("submit", handleDiscardSubmit);
 
 init();
