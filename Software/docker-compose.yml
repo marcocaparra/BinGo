@@ -1,31 +1,17 @@
 services:
-  db:
-    image: postgres:16
-    container_name: bingo-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: bingo
-      POSTGRES_PASSWORD: bingo123
-      POSTGRES_DB: bingo_dev
-    ports:
-      - "5432:5432"
-    volumes:
-      - bingo_pgdata:/var/lib/postgresql/data
-
   backend-dev:
     image: python:3.12-slim
     container_name: bingo-backend-dev
     working_dir: /app/backend
     command: sh -c "pip install -e .[dev] && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
-      BINGO_DATABASE_URL: postgresql+psycopg://bingo:bingo123@db:5432/bingo_dev
+      # Supabase local DB from supabase/config.toml: host port 54322 -> container port 5432.
+      # Inside Docker, host.docker.internal points back to the host where Supabase exposes 54322.
+      BINGO_DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:54322/postgres
       BINGO_JWT_SECRET: dev-secret
     volumes:
       - .:/app
     ports:
       - "8000:8000"
-    depends_on:
-      - db
-
-volumes:
-  bingo_pgdata:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

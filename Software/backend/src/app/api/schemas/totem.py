@@ -64,6 +64,18 @@ class TotemStudentSummaryResponse(BaseModel):
     recent_deposits: list[TotemDepositResponse]
 
 
+class TotemStudentLoginRequest(BaseModel):
+    class_id: UUID
+    student_id: UUID
+    pin: str
+
+
+class TotemStudentLoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    student: TotemStudentResponse
+
+
 class TotemStudentRankingItem(BaseModel):
     id: UUID
     name: str

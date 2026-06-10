@@ -336,6 +336,44 @@ def test_totem_context_without_machine_headers_fails_with_unauthorized(client):
     assert response.json()["detail"] == "Credenciais técnicas ausentes."
 
 
+def test_totem_student_login_success_and_wrong_pin(client, seeded_ids):
+    activate_student(client, seeded_ids, pin="4827")
+    payload = {
+        "class_id": seeded_ids["class_id"],
+        "student_id": seeded_ids["student_id"],
+        "pin": "4827",
+    }
+
+    success = client.post("/v1/totem/students/login", headers=edge_headers(seeded_ids), json=payload)
+    assert success.status_code == 200
+    body = success.json()
+    assert body["token_type"] == "bearer"
+    assert body["access_token"]
+    assert body["student"]["id"] == seeded_ids["student_id"]
+    assert body["student"]["class_name"] == "7A"
+    assert "pin_hash" not in str(body)
+
+    wrong_pin = client.post(
+        "/v1/totem/students/login",
+        headers=edge_headers(seeded_ids),
+        json={**payload, "pin": "9999"},
+    )
+    assert wrong_pin.status_code == 401
+
+
+def test_totem_student_login_requires_machine_auth(client, seeded_ids):
+    activate_student(client, seeded_ids)
+    response = client.post(
+        "/v1/totem/students/login",
+        json={
+            "class_id": seeded_ids["class_id"],
+            "student_id": seeded_ids["student_id"],
+            "pin": "1234",
+        },
+    )
+    assert response.status_code == 401
+
+
 def test_totem_rankings(client, seeded_ids):
     response = client.get("/v1/totem/rankings", headers=edge_headers(seeded_ids))
     assert response.status_code == 200

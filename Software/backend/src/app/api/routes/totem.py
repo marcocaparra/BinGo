@@ -13,12 +13,15 @@ from app.api.schemas.totem import (
     TotemRankingsResponse,
     TotemSchoolResponse,
     TotemStudentRankingItem,
+    TotemStudentLoginRequest,
+    TotemStudentLoginResponse,
     TotemStudentResponse,
     TotemStudentStatsResponse,
     TotemStudentSummaryResponse,
 )
+from domain.auth.service import login_student
 from domain.machines.service import authenticate_machine
-from domain.totem.service import get_context, get_rankings, get_student_summary
+from domain.totem.service import get_context, get_rankings, get_student_identity, get_student_summary
 
 router = APIRouter()
 
@@ -60,6 +63,21 @@ def read_totem_context(
             for item in context["classes"]
         ],
         students=[_student_response(student, class_name) for student, class_name in context["students"]],
+    )
+
+
+@router.post("/students/login", response_model=TotemStudentLoginResponse)
+def login_totem_student(
+    payload: TotemStudentLoginRequest,
+    edge_headers: tuple = Depends(require_edge_headers),
+    session: Session = Depends(get_session),
+) -> TotemStudentLoginResponse:
+    machine = _authenticate_totem_machine(session, edge_headers)
+    token = login_student(session, machine.school_id, payload.class_id, payload.student_id, payload.pin)
+    student, class_name = get_student_identity(session, machine, payload.student_id)
+    return TotemStudentLoginResponse(
+        access_token=token,
+        student=_student_response(student, class_name),
     )
 
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BinGo | Totem Simulator</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=student-info-picker-1" />
   </head>
   <body>
     <nav class="side-nav" aria-label="Navegação principal">
@@ -35,61 +35,163 @@
 
       <section id="discard-section" class="page-section active" aria-labelledby="discard-title">
         <div class="section-grid">
-          <form id="discard-form" class="panel" aria-labelledby="discard-title">
+          <div id="discard-flow" class="panel totem-panel" aria-labelledby="discard-title">
             <div class="panel-heading">
-              <h2 id="discard-title">Novo descarte</h2>
-              <p>Simule a leitura de um item pelo totem.</p>
+              <h2 id="discard-title">Totem BinGo</h2>
+              <p id="discard-step-label">Tela 1 de 5</p>
             </div>
 
-            <label>
-              Aluno
-              <select id="discard-student"></select>
-            </label>
+            <div class="totem-progress" aria-hidden="true">
+              <span class="active"></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
 
-            <label>
-              Turma
-              <input id="discard-class" type="text" readonly />
-            </label>
+            <div id="discard-screen-start" class="discard-screen active">
+              <div class="totem-copy">
+                <strong>Pronto para descartar?</strong>
+                <span>Comece pelo botão abaixo.</span>
+              </div>
+              <button class="totem-action primary-action" type="button" data-discard-action="start">
+                Descartar
+              </button>
+            </div>
 
-            <label>
-              Tamanho do lixo
-              <select id="item-size">
-                <option value="SMALL">SMALL - 10 Bins</option>
-                <option value="MEDIUM">MEDIUM - 25 Bins</option>
-                <option value="LARGE">LARGE - 50 Bins</option>
-              </select>
-            </label>
+            <div id="discard-screen-mode" class="discard-screen" hidden>
+              <div class="totem-copy">
+                <strong>Como deseja registrar?</strong>
+                <span>Você pode pontuar só a turma ou identificar o aluno.</span>
+              </div>
+              <div class="totem-actions">
+                <button class="totem-action" type="button" data-discard-action="anonymous">
+                  Descartar sem identificação
+                </button>
+                <button class="totem-action" type="button" data-discard-action="identified">
+                  Identificar aluno
+                </button>
+              </div>
+              <button class="secondary-action totem-back-action" type="button" data-discard-action="back">
+                Voltar
+              </button>
+            </div>
 
-            <label>
-              Validação do item
-              <select id="item-validity">
-                <option value="valid">Item válido</option>
-                <option value="invalid">Item inválido</option>
-              </select>
-            </label>
+            <div id="discard-screen-class" class="discard-screen" hidden>
+              <div class="totem-copy">
+                <strong>Escolha a turma</strong>
+                <span>Sem identificação, os pontos vão apenas para a turma.</span>
+              </div>
+              <label>
+                Turma
+                <select id="discard-class-select"></select>
+              </label>
+              <div class="totem-footer-actions">
+                <button class="secondary-action" type="button" data-discard-action="back">Voltar</button>
+                <button class="primary-action" type="button" data-discard-action="class-next">Continuar</button>
+              </div>
+            </div>
 
-            <label>
-              Tipo detectado
-              <select id="detected-type">
-                <option value="mouse">mouse</option>
-                <option value="teclado">teclado</option>
-                <option value="cabo">cabo</option>
-                <option value="pilha">pilha</option>
-                <option value="celular">celular</option>
-                <option value="objeto inválido">objeto inválido</option>
-              </select>
-            </label>
+            <div id="discard-screen-student" class="discard-screen" hidden>
+              <div class="totem-copy">
+                <strong>Identifique o aluno</strong>
+                <span>Selecione a turma, o nome e informe o PIN de 4 dígitos.</span>
+              </div>
+              <label>
+                Turma
+                <select id="identified-class-select"></select>
+              </label>
+              <div class="student-picker-field">
+                <span>Aluno</span>
+                <select id="identified-student-select" hidden></select>
+                <button id="student-picker-open" class="student-picker-trigger" type="button">
+                  <span id="student-picker-selected">Escolher aluno</span>
+                  <small>Toque para buscar por nome</small>
+                </button>
+              </div>
+              <label>
+                PIN
+                <input id="student-pin" type="password" inputmode="numeric" maxlength="4" placeholder="0000" />
+              </label>
+              <div id="student-picker-dialog" class="student-picker-dialog" hidden>
+                <div class="student-picker-panel" role="dialog" aria-modal="true" aria-labelledby="student-picker-title">
+                  <div class="student-picker-heading">
+                    <div>
+                      <strong id="student-picker-title">Escolher aluno</strong>
+                      <span>Digite as primeiras letras ou toque em um nome.</span>
+                    </div>
+                    <button id="student-picker-close" class="secondary-action student-picker-close" type="button">Fechar</button>
+                  </div>
+                  <label class="student-search-label">
+                    Digite as primeiras letras
+                    <input id="student-picker-search" type="search" autocomplete="off" placeholder="Ex.: ana" />
+                  </label>
+                  <div id="student-picker-list" class="student-picker-list"></div>
+                </div>
+              </div>
+              <div class="totem-footer-actions">
+                <button class="secondary-action" type="button" data-discard-action="back">Voltar</button>
+                <button class="primary-action" type="button" data-discard-action="validate-student">Validar aluno</button>
+              </div>
+            </div>
 
-            <button class="primary-action" type="submit">Simular descarte</button>
-          </form>
+            <div id="discard-screen-item" class="discard-screen" hidden>
+              <div class="totem-copy">
+                <strong>Informe o item</strong>
+                <span>Esta etapa simula a leitura e validação do totem.</span>
+              </div>
+              <label>
+                Tipo de lixo
+                <select id="detected-type">
+                  <option value="mouse">mouse</option>
+                  <option value="teclado">teclado</option>
+                  <option value="cabo">cabo</option>
+                  <option value="pilha">pilha</option>
+                  <option value="celular">celular</option>
+                  <option value="objeto inválido">objeto inválido</option>
+                </select>
+              </label>
+              <label>
+                Tamanho
+                <select id="item-size">
+                  <option value="SMALL">SMALL - 10 Bins</option>
+                  <option value="MEDIUM">MEDIUM - 25 Bins</option>
+                  <option value="LARGE">LARGE - 50 Bins</option>
+                </select>
+              </label>
+              <label>
+                Válido/inválido
+                <select id="item-validity">
+                  <option value="valid">Item válido</option>
+                  <option value="invalid">Item inválido</option>
+                </select>
+              </label>
+              <div class="totem-footer-actions">
+                <button class="secondary-action" type="button" data-discard-action="back">Voltar</button>
+                <button class="primary-action" type="button" data-discard-action="confirm-discard">Confirmar descarte</button>
+              </div>
+            </div>
+
+            <div id="discard-screen-result" class="discard-screen" hidden>
+              <div class="totem-copy">
+                <strong id="result-title">Resultado do descarte</strong>
+                <span id="result-subtitle">Confira a pontuação registrada.</span>
+              </div>
+              <div id="discard-result-card" class="result-summary"></div>
+              <div class="totem-footer-actions">
+                <button class="secondary-action" type="button" data-discard-action="finish">Finalizar</button>
+                <button class="primary-action" type="button" data-discard-action="new-discard">Novo descarte</button>
+              </div>
+            </div>
+          </div>
 
           <aside class="panel result-panel" aria-live="polite">
             <div class="panel-heading">
-              <h2>Resultado</h2>
-              <p>O retorno aparece aqui depois da simulação.</p>
+              <h2>Estado do fluxo</h2>
+              <p>Resumo da sessão atual do totem.</p>
             </div>
             <div id="discard-message" class="empty-state">
-              Nenhum descarte simulado nesta sessão.
+              Aguardando início do descarte.
             </div>
           </aside>
         </div>
@@ -104,9 +206,35 @@
             </div>
 
             <label>
-              Aluno
-              <select id="student-info-select"></select>
+              Turma
+              <select id="student-info-class-select"></select>
             </label>
+
+            <div class="student-picker-field">
+              <span>Aluno</span>
+              <select id="student-info-select" hidden></select>
+              <button id="student-info-picker-open" class="student-picker-trigger" type="button">
+                <span id="student-info-picker-selected">Escolher aluno</span>
+                <small>Toque para buscar o histórico</small>
+              </button>
+            </div>
+
+            <div id="student-info-picker-dialog" class="student-picker-dialog" hidden>
+              <div class="student-picker-panel" role="dialog" aria-modal="true" aria-labelledby="student-info-picker-title">
+                <div class="student-picker-heading">
+                  <div>
+                    <strong id="student-info-picker-title">Escolher aluno</strong>
+                    <span>Digite as primeiras letras ou toque em um nome.</span>
+                  </div>
+                  <button id="student-info-picker-close" class="secondary-action student-picker-close" type="button">Fechar</button>
+                </div>
+                <label class="student-search-label">
+                  Digite as primeiras letras
+                  <input id="student-info-picker-search" type="search" autocomplete="off" placeholder="Ex.: ana" />
+                </label>
+                <div id="student-info-picker-list" class="student-picker-list"></div>
+              </div>
+            </div>
 
             <div id="student-details" class="details-list"></div>
           </div>
@@ -143,6 +271,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=api-real-1"></script>
+    <script src="app.js?v=student-info-picker-1"></script>
   </body>
 </html>
