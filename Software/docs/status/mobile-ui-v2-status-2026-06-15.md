@@ -7,6 +7,7 @@ Este documento registra o estado atual do app Flutter visual que substitui o mob
 - Repositorio base: `https://github.com/marcocaparra/BinGo.git`
 - Branch base: `origin/develop`
 - Branch local de trabalho: `feature/mobile-ui-v2-local-snapshot`
+- Publicacao para o time: integrado em `origin/develop` em 2026-06-15.
 - Commit local do snapshot visual: `fd782e6 feat(mobile): add current Flutter UI snapshot`
 - Commit local deste status: `docs(status): map mobile UI v2 snapshot`.
 - Pasta do app no repo: `Software/mobile/bingo_app`
@@ -16,7 +17,7 @@ Este documento registra o estado atual do app Flutter visual que substitui o mob
   - `flutter test --no-pub`: 7 testes passaram
   - `flutter build web --no-pub --no-wasm-dry-run`: build web gerado com sucesso
 
-Observacao: este trabalho ainda esta apenas no computador local, na pasta `_github_work/BinGo_mobile_ui_v2`. Nada foi enviado para a `main` do GitHub.
+Observacao: este trabalho foi preparado na pasta local `_github_work/BinGo_mobile_ui_v2` e deve ser consumido pelo time pela branch `develop`. A `main` continua intocada.
 
 ## O que esta pronto
 
@@ -70,13 +71,12 @@ O app mobile deve consumir essa base, nao recriar regra de negocio no cliente.
 - Webcam/visao computacional real.
 - Admin Lite visual.
 - Integracao Supabase Auth no app.
-- Push para GitHub.
-- Pull request para `develop`.
+- Pull request para `main`.
 
 ## Recomendacoes imediatas
 
 1. Manter `main` intocada ate o time decidir promover uma versao estavel.
 2. Usar `develop` como base de integracao.
-3. Fazer push desta branch local para o GitHub apenas quando o time quiser preservar o snapshot remoto.
-4. Abrir PR para `develop` somente apos revisao do escopo visual e aceite do time.
+3. Quem for desenvolver deve usar `develop` como ponto de partida.
+4. Abrir PR para `main` somente quando houver versao estavel e validada pelo time.
 5. Criar novos status sempre que uma parte importante mudar: app mobile, totem, backend, banco, feira/piloto e hardware.
