@@ -14,7 +14,7 @@
   </p>
 </div>
 
-> Você está lendo o README da branch `main`. Esta branch preserva a versão legada/estável do projeto. O desenvolvimento atual do MVP está em [`develop`](https://github.com/marcocaparra/BinGo/tree/develop).
+> Você está lendo o README da branch `main`. Esta branch preserva a versão legada/estável do projeto. Para o MVP atual, use a branch `develop`.
 
 ## 🌱 O Que É O BinGo
 
@@ -45,10 +45,10 @@ Esta branch mostra uma fase anterior do projeto, com:
 | `main` | Preserva a versão legada/estável do projeto |
 | `develop` | Integra o MVP atual: Supabase local, totem kiosk, app Flutter e backend reestruturado |
 
-Se você quer entender o BinGo atual, comece por:
+Se você quer entender o BinGo atual, troque para a branch:
 
 ```text
-https://github.com/marcocaparra/BinGo/tree/develop
+develop
 ```
 
 ## 🗂️ Estrutura Desta Branch
@@ -192,14 +192,18 @@ fix(api, cors): finalize CORS configuration for Codespaces with regex
 | Mecânica | Gustavo Borrego | Estrutura física e montagem |
 | Apoio pontual | Guilherme Albano | Apoio não operacional |
 
-## 🔗 Links Úteis
+## 🧩 Mapa Interno Da Branch
 
-| Recurso | Link |
+| Se você vai mexer em... | Comece por |
 |---|---|
-| Branch atual do MVP | https://github.com/marcocaparra/BinGo/tree/develop |
-| Notion - tarefas | https://www.notion.so/2f7229b439f88122a3d8c01247448309 |
-| Notion - projetos | https://www.notion.so/2f7229b439f8817cba32cc9521b3809b |
-| Documento BinGo 2026 | https://docs.google.com/document/d/1OD3hdFm2UbYNE3HBNEI6vms9kNsu5Rd5fo-KymgfRvY/edit |
+| API legada | `Software/backend/main.py` e `Software/backend/routers` |
+| Modelos do banco legado | `Software/backend/models` |
+| Schemas Pydantic legados | `Software/backend/schemas` |
+| Serviços/regras auxiliares | `Software/backend/services` |
+| Frontend web legado | `Software/frontend/public`, `Software/frontend/js` e `Software/frontend/css` |
+| Landing antiga | `Software/frontend/landing` |
+| Visão computacional antiga | `Hardware/BinGoVision` |
+| Ambiente Docker legado | `docker-compose.yml` |
 
 ## 📄 Licença
 
