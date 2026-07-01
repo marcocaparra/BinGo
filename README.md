@@ -26,7 +26,7 @@ O objetivo do MVP é provar o ciclo completo:
 Aluno -> Totem físico -> Backend/Banco -> Pontos -> Ranking/App -> Recompensa
 ```
 
-## 🚦 Estado Atual
+## 🚦 Estado Da Branch
 
 | Frente | Estado | Onde olhar |
 |---|---:|---|
@@ -312,4 +312,5 @@ fix(api, cors): finalize CORS configuration for Codespaces with regex
 ## 📄 Licença
 
 Veja `LICENSE`.
+
 
