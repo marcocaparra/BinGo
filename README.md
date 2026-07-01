@@ -1,154 +1,181 @@
-# BinGo
+<div align="center">
+  <img src="assets/b1n-logo.png" alt="B1N, mascote do BinGo" width="220" />
 
-BinGo é uma plataforma gamificada de descarte de resíduos eletrônicos para escolas. O aluno usa um totem físico para registrar descartes, acumula Bins e consulta seu progresso pelo app. A escola acompanha engajamento, impacto e recompensas por meio de uma operação simples para piloto e MVP.
+  # BinGo
 
-> Status: projeto em desenvolvimento. A branch `develop` contém o estado mais atual do MVP. A branch `main` funciona como referência estável/histórica até que `develop` seja promovida.
+  **Totem inteligente + gamificação + educação ambiental para escolas.**
 
-## Visão rápida
+  <p>
+    <img alt="Branch" src="https://img.shields.io/badge/branch-develop-2563eb?style=for-the-badge" />
+    <img alt="Status" src="https://img.shields.io/badge/status-MVP%20em%20desenvolvimento-f59e0b?style=for-the-badge" />
+    <img alt="Totem" src="https://img.shields.io/badge/totem-HTML%2FCSS%2FJS-22c55e?style=for-the-badge" />
+    <img alt="Mobile" src="https://img.shields.io/badge/mobile-Flutter-38bdf8?style=for-the-badge" />
+    <img alt="Backend alvo" src="https://img.shields.io/badge/backend%20alvo-Supabase%20Edge%20Functions-3ecf8e?style=for-the-badge" />
+  </p>
+</div>
 
-- Produto: descarte de resíduo eletrônico gamificado para escolas.
-- MVP V1: totem físico + backend + app mobile de consulta + Admin Lite.
-- Totem V1: web/kiosk em HTML, CSS e JavaScript, rodando em Orange Pi.
-- App V1: Flutter, somente consulta de pontos e progresso.
-- Backend definido: Supabase PostgreSQL + Edge Functions em Deno/TypeScript.
-- Backend existente no repositório: FastAPI em Python, usado como implementação temporária/protótipo técnico até a migração para Edge Functions.
-- Hardware definido: Orange Pi + Arduino via comunicação Serial.
+> Você está lendo o README da branch `develop`, a branch mais atual do MVP. A branch `main` ainda representa uma referência histórica/estável do projeto legado.
 
-## Estado atual do repositório
+## 🌱 O Que É
 
-O README antigo descrevia uma arquitetura legada com frontend web geral, MySQL e ESP32/ESP8266. Isso não representa mais o projeto atual.
+O BinGo transforma o descarte de resíduo eletrônico em uma experiência gamificada para escolas. O aluno descarta um item no totem físico, ganha **Bins**, acompanha seu progresso no app e pode trocar pontos por recompensas reais definidas pela escola.
 
-Hoje, a branch `develop` concentra:
+O objetivo do MVP é provar o ciclo completo:
 
-- Backend FastAPI V1 em `Software/Backend`, com regras de autenticação, depósitos, resgates, máquinas, recompensas e auditoria.
-- Banco Supabase/PostgreSQL versionado em `Software/database` e `Software/supabase`.
-- Simulador técnico do totem em `Software/apps/totem_simulator`.
-- Protótipo visual kiosk do totem em `Software/apps/totem_kiosk_wireframe`.
-- App Flutter em `Software/mobile/bingo_app`.
-- Documentos técnicos em `Software/docs`.
-- Protótipo de visão computacional em `Hardware/BinGoVision`.
+```text
+Aluno -> Totem físico -> Backend/Banco -> Pontos -> Ranking/App -> Recompensa
+```
 
-A migração crítica ainda é transformar as regras atuais do backend FastAPI em Supabase Edge Functions, sem manter servidor separado para produção.
+## 🚦 Estado Atual
 
-## Estrutura de pastas
+| Frente | Estado | Onde olhar |
+|---|---:|---|
+| Totem kiosk visual | Em revisão visual | `Software/apps/totem_kiosk_wireframe` |
+| Totem simulator técnico | Funcional para testar backend | `Software/apps/totem_simulator` |
+| App mobile | Protótipo Flutter visual | `Software/mobile/bingo_app` |
+| Backend atual | FastAPI temporário | `Software/backend` |
+| Backend alvo | Supabase Edge Functions | `Software/supabase` |
+| Banco | Supabase/PostgreSQL local | `Software/database` e `Software/supabase` |
+| Visão computacional | Protótipo inicial | `Hardware/BinGoVision` |
+
+### ⚠️ Atenção Técnica
+
+O backend em `Software/backend` está em **FastAPI/Python**. Ele modela regras importantes do V1, mas **não é a stack final acordada**. A direção técnica travada para produção é:
+
+```text
+Supabase PostgreSQL + Edge Functions em Deno/TypeScript
+```
+
+Então o FastAPI deve ser tratado como base temporária de regras, testes e contratos até a migração.
+
+## 🧭 Arquitetura Do MVP
+
+```text
+┌──────────────────────┐
+│ Aluno                │
+└──────────┬───────────┘
+           │ toque / PIN / descarte
+┌──────────▼───────────┐
+│ Totem web/kiosk      │  HTML + CSS + JS
+│ Orange Pi            │
+└──────────┬───────────┘
+           │ serial / sensores
+┌──────────▼───────────┐
+│ Arduino + mecanismo  │
+└──────────┬───────────┘
+           │ evento validado
+┌──────────▼───────────┐
+│ Backend temporário   │  FastAPI hoje
+│ Backend alvo         │  Supabase Edge Functions
+└──────────┬───────────┘
+           │
+┌──────────▼───────────┐
+│ Supabase/PostgreSQL  │
+└──────────┬───────────┘
+           │ consulta
+┌──────────▼───────────┐
+│ App Flutter V1       │  consulta de pontos
+└──────────────────────┘
+```
+
+## 🗂️ Estrutura Do Repositório
 
 ```text
 BinGo/
+├── assets/
+│   └── b1n-logo.png
 ├── Hardware/
 │   └── BinGoVision/                 # Protótipo de visão computacional
 ├── Software/
-│   ├── Backend/                      # Backend FastAPI temporário do V1
-│   │   ├── src/app/api/routes/       # Rotas HTTP
-│   │   ├── src/app/api/schemas/      # Schemas de entrada/saída
-│   │   ├── src/domain/               # Regras de negócio
-│   │   ├── src/infra/                # Banco, auth, repositories
-│   │   └── tests/                    # Testes do backend
 │   ├── apps/
-│   │   ├── totem_simulator/          # Simulador técnico integrado ao backend
-│   │   └── totem_kiosk_wireframe/    # Protótipo visual do kiosk/totem
+│   │   ├── totem_kiosk_wireframe/    # Protótipo visual do totem kiosk
+│   │   └── totem_simulator/          # Simulador técnico integrado ao backend
+│   ├── backend/                      # Backend FastAPI temporário
+│   │   ├── src/app/api/routes/       # Rotas HTTP
+│   │   ├── src/domain/               # Regras de negócio
+│   │   ├── src/infra/                # Banco, auth e repositories
+│   │   └── tests/                    # Testes automatizados
 │   ├── database/
-│   │   ├── migrations/               # SQL de estrutura do banco
-│   │   └── seeds/                    # Dados demo e seeds de desenvolvimento
-│   ├── docs/                         # Documentação técnica e status
+│   │   ├── migrations/               # Estrutura SQL
+│   │   └── seeds/                    # Dados demo
+│   ├── docs/                         # Documentos técnicos
 │   ├── mobile/
 │   │   └── bingo_app/                # App Flutter
-│   ├── supabase/                     # Configuração local do Supabase
-│   └── docker-compose.yml            # Serviço local do backend-dev
-├── Gestão e Operacional/             # Status e contexto operacional do projeto
-├── README.md                         # Este guia de entrada
-└── LICENSE
+│   ├── supabase/                     # Configuração Supabase local
+│   └── docker-compose.yml            # Serviço backend-dev
+└── README.md
 ```
 
-## Componentes principais
+## 🚀 Guia Rápido
 
-### Backend
+### Pré-requisitos
 
-- Local atual: `Software/Backend`
-- Stack atual no repo: Python 3.12, FastAPI, SQLAlchemy, PostgreSQL/Supabase, PyJWT.
-- Responsável: João Predeus.
-- Observação técnica: esta implementação existe, mas não é a stack final acordada. A stack final do V1 é Supabase Edge Functions em Deno/TypeScript.
+- Git
+- Docker Desktop
+- Supabase CLI
+- Python 3.12+
+- Flutter SDK, apenas para o app mobile
 
-Principais responsabilidades atuais:
-
-- Login de aluno/admin.
-- Registro de depósitos.
-- Idempotência por evento de depósito.
-- Regras de pontuação e antifraude.
-- Resgates e entrega por admin.
-- Status operacional de máquinas.
-- Auditoria de ações sensíveis.
-
-### Banco de dados
-
-- Local: `Software/database` e `Software/supabase`
-- Stack: Supabase local com PostgreSQL.
-- Tabelas do domínio: `schools`, `classes`, `students`, `admins`, `machines`, `rewards`, `deposits`, `redemptions`, `audit_logs`, `school_configs`/configurações equivalentes.
-
-### Totem
-
-Existem dois artefatos diferentes:
-
-- `Software/apps/totem_simulator`: ferramenta técnica para testar backend, seeds, depósitos, rankings e comportamento de API.
-- `Software/apps/totem_kiosk_wireframe`: protótipo visual do fluxo kiosk, usado para revisão de UI/UX do totem físico.
-
-O produto final do Totem V1 deve ser web/kiosk em HTML, CSS e JavaScript no Orange Pi. Não é Flutter.
-
-### App mobile
-
-- Local: `Software/mobile/bingo_app`
-- Stack: Flutter.
-- Responsável: Gustavo Alencar.
-- Escopo V1: consulta de pontos, progresso e narrativa visual. Resgate não acontece no app no V1; resgate é pelo totem físico.
-
-### Hardware e visão
-
-- Hardware definido: Orange Pi + Arduino via Serial.
-- Local de protótipo de visão: `Hardware/BinGoVision`.
-- Direção do produto: Orange Pi executa a camada local do totem/edge; Arduino controla partes físicas; visão computacional classifica itens em SMALL, MEDIUM ou LARGE com fallback operacional.
-
-## Como rodar localmente
-
-As instruções abaixo são para desenvolvimento. Não representam deploy de produção.
-
-### 1. Supabase local
+### 1. Subir Supabase Local
 
 A partir de `Software/`:
 
 ```powershell
+cd Software
 supabase start
 ```
 
-A configuração local fica em `Software/supabase/config.toml`. Para um passo a passo mais completo, veja `Software/docs/iniciar-supabase-local.md`.
+Serviços esperados:
 
-### 2. Backend FastAPI atual
+```text
+Supabase API:    http://localhost:54321
+Supabase Studio: http://localhost:54323
+Postgres:        127.0.0.1:54322
+```
 
-A partir de `Software/Backend/`:
+### 2. Subir Backend FastAPI Temporário
+
+A partir de `Software/`:
 
 ```powershell
+docker compose up -d backend-dev
+```
+
+Verificar:
+
+```powershell
+Invoke-RestMethod -Uri http://localhost:8000/health
+```
+
+Resposta esperada:
+
+```json
+{"status":"ok"}
+```
+
+Alternativa sem Docker:
+
+```powershell
+cd Software/backend
 pip install -e .[dev]
 $env:BINGO_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 $env:BINGO_JWT_SECRET="dev-secret-change-me"
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Testes:
+Rodar testes:
 
 ```powershell
+cd Software/backend
 pytest
 ```
 
-Alternativa com Docker Compose, a partir de `Software/`:
+### 3. Abrir Totem Simulator Técnico
+
+Use quando quiser testar backend, seed, depósitos, alunos e rankings.
 
 ```powershell
-supabase start
-docker compose up -d backend-dev
-```
-
-### 3. Totem Simulator
-
-Com o backend em `http://localhost:8000`, a partir de `Software/apps/totem_simulator/`:
-
-```powershell
+cd Software/apps/totem_simulator
 python -m http.server 8001
 ```
 
@@ -158,54 +185,99 @@ Abra:
 http://localhost:8001
 ```
 
-### 4. Totem Kiosk Wireframe
+### 4. Abrir Totem Kiosk Visual
 
-A partir de `Software/apps/totem_kiosk_wireframe/`:
+Use quando quiser revisar a experiência visual do totem físico.
 
 ```powershell
-python -m http.server 8002
+cd Software
+python -m http.server 8092 --bind 127.0.0.1
 ```
 
 Abra:
 
 ```text
-http://localhost:8002
+http://127.0.0.1:8092/apps/totem_kiosk_wireframe/
 ```
 
-Esse protótipo é visual e de fluxo; ele não substitui a integração real com Orange Pi, Arduino, backend e visão computacional.
-
-### 5. App Flutter
-
-A partir de `Software/mobile/bingo_app/`:
+### 5. Rodar App Flutter
 
 ```powershell
+cd Software/mobile/bingo_app
 flutter pub get
 flutter analyze
 flutter test
 flutter run
 ```
 
-Para build web:
+Build web:
 
 ```powershell
 flutter build web
 ```
 
-## Branches
+## 🧪 Seeds E Dados Demo
 
-- `main`: branch padrão do GitHub. Deve receber apenas estados estáveis ou promovidos.
-- `develop`: branch de integração atual do MVP. É onde backend, mobile, totem e documentação estão avançando.
-- Branches de feature: criar a partir de `develop`, usando nomes descritivos como `feature/totem-ux-v0`, `feature/database-supabase-auth` ou `fix/auth-pin-validation`.
-
-Fluxo recomendado:
+A seed principal do simulador é:
 
 ```text
-develop -> feature/* -> Pull Request -> develop -> promoção planejada para main
+Software/database/seeds/008_seed_totem_simulator_rich_demo.sql
 ```
 
-## Padrão de commits
+Ela cria a Escola Demo BinGo, 7 turmas, 70 alunos, PINs de demonstração, máquina demo e recompensas.
 
-O repositório usa Conventional Commits. Exemplos reais do histórico:
+Para recarregar a seed com o Supabase local ligado, rode a partir de `Software/`:
+
+```powershell
+Get-Content database\seeds\008_seed_totem_simulator_rich_demo.sql | docker exec -i supabase_db_Software psql -v ON_ERROR_STOP=1 -U postgres -d postgres
+```
+
+## 🎮 Fluxos Do Produto
+
+### Login Do Aluno
+
+```text
+Segmento -> Série -> Turma -> Nome -> PIN de 4 dígitos -> JWT
+```
+
+### Descarte
+
+```text
+Totem acorda -> aluno escolhe identificar-se ou ajudar a turma -> item é inserido
+-> visão/sensores validam -> backend registra evento -> pontos entram no saldo
+```
+
+### Resgate
+
+No V1, resgate é feito pelo **totem físico**. O app mobile é apenas consulta.
+
+## 👥 Responsáveis
+
+| Frente | Pessoa | Responsabilidade |
+|---|---|---|
+| Produto e integração | Marco Caparra | Coordenação geral, decisões e validação |
+| Backend e banco | João Predeus | Supabase, Edge Functions e contratos de API |
+| Frontend/UX | Gustavo Alencar | Totem kiosk, app Flutter e identidade BinGópolis |
+| Hardware/CAD | Gustavo Bretas | Orange Pi, Arduino, circuito e componentes |
+| Mecânica | Gustavo Borrego | MDF, montagem e estrutura física |
+| Apoio pontual | Guilherme Albano | Apoio não operacional |
+
+## 🌿 Branches E Commits
+
+| Branch | Uso |
+|---|---|
+| `main` | referência estável/histórica |
+| `develop` | integração atual do MVP |
+| `feature/*` | novas frentes a partir de `develop` |
+| `fix/*` | correções pontuais |
+
+Padrão de commit:
+
+```text
+tipo(escopo): descrição curta
+```
+
+Exemplos reais:
 
 ```text
 feat(totem): add kiosk wireframe prototype
@@ -215,52 +287,27 @@ seed(database): add updated demo school dataset
 fix(api, cors): finalize CORS configuration for Codespaces with regex
 ```
 
-Use o formato:
+## 🔗 Links Úteis
 
-```text
-tipo(escopo): descrição curta no imperativo
-```
+| Recurso | Link |
+|---|---|
+| GitHub | https://github.com/marcocaparra/BinGo |
+| Branch develop | https://github.com/marcocaparra/BinGo/tree/develop |
+| Notion - tarefas | https://www.notion.so/2f7229b439f88122a3d8c01247448309 |
+| Notion - projetos | https://www.notion.so/2f7229b439f8817cba32cc9521b3809b |
+| Documento BinGo 2026 | https://docs.google.com/document/d/1OD3hdFm2UbYNE3HBNEI6vms9kNsu5Rd5fo-KymgfRvY/edit |
+| Componentes e BOM | https://docs.google.com/spreadsheets/d/1N7zrweYtqQFoFymsH3EZ1djiAX-3tFzBTZ71HSuSdk0/edit |
+| Cronograma | https://docs.google.com/spreadsheets/d/1St1Xw-g0P6QZDXfAjKSIkHHS6w-jj98bh7YkkGKBzqY/edit |
 
-Tipos comuns:
+## 🔒 Regras Que Não Devem Ser Reabertas Sem Decisão Formal
 
-- `feat`: nova funcionalidade.
-- `fix`: correção de bug.
-- `docs`: documentação.
-- `chore`: configuração/manutenção.
-- `refactor`: mudança interna sem alterar comportamento.
-- `test`: testes.
-- `seed`: dados de desenvolvimento.
+- Totem V1 é web/kiosk, não Flutter.
+- App Flutter V1 é consulta, não resgate.
+- Backend final é Supabase Edge Functions, não servidor FastAPI separado.
+- Resgate acontece no totem físico.
+- Offline significa fila pendente e sincronização posterior.
+- Credencial técnica de máquina não deve ficar exposta em frontend real.
 
-## Responsáveis por frente
-
-| Frente | Responsável principal | Observação |
-|---|---|---|
-| Integração geral, produto e operação | Marco Caparra | Coordena decisões, valida prioridades e integra frentes |
-| Backend e banco | João Predeus | Supabase Edge Functions e PostgreSQL; FastAPI atual precisa migrar |
-| Frontend, UI e UX | Gustavo Alencar | Totem kiosk, app Flutter, identidade visual e BinGópolis |
-| Hardware, CAD e eletrônica | Gustavo Bretas | Orange Pi, Arduino, circuito e componentes |
-| Mecânica e estrutura | Gustavo Borrego | Corte, MDF e montagem física do totem |
-| Apoio pontual | Guilherme Albano | Apoio não operacional |
-
-## Links úteis
-
-- Repositório GitHub: https://github.com/marcocaparra/BinGo
-- Branch principal de desenvolvimento: https://github.com/marcocaparra/BinGo/tree/develop
-- Notion - tarefas: https://www.notion.so/2f7229b439f88122a3d8c01247448309
-- Notion - projetos: https://www.notion.so/2f7229b439f8817cba32cc9521b3809b
-- Notion - Gestão e Operações: https://www.notion.so/2f7229b439f8800eb1acfc3dc500f5b8
-- Documento BinGo 2026: https://docs.google.com/document/d/1OD3hdFm2UbYNE3HBNEI6vms9kNsu5Rd5fo-KymgfRvY/edit
-- Componentes e BOM: https://docs.google.com/spreadsheets/d/1N7zrweYtqQFoFymsH3EZ1djiAX-3tFzBTZ71HSuSdk0/edit
-- Cronograma de Projetos: https://docs.google.com/spreadsheets/d/1St1Xw-g0P6QZDXfAjKSIkHHS6w-jj98bh7YkkGKBzqY/edit
-
-## Avisos importantes
-
-- Não tratar o backend FastAPI como decisão final de produção. Ele é base técnica atual, mas a arquitetura acordada é Supabase Edge Functions.
-- Não mover o totem para Flutter no V1. O totem é web/kiosk.
-- Não implementar resgate no app mobile V1. Resgate é no totem físico.
-- Não expor chave técnica de máquina em frontend real. No simulador local isso existe apenas para desenvolvimento.
-- Antes de alterar fluxos principais, conferir `Gestão e Operacional/STATUS.md` e a tarefa correspondente no Notion.
-
-## Licença
+## 📄 Licença
 
 Veja `LICENSE`.
