@@ -159,6 +159,17 @@ Abra:
 http://localhost:8080
 ```
 
+## 👥 Responsáveis
+
+| Frente | Pessoa | Responsabilidade |
+|---|---|---|
+| Produto e integração | Marco Caparra | Coordenação geral, decisões e validação |
+| Backend e banco | João Predeus | Backend, banco e contratos de API |
+| Frontend/UX | Gustavo Alencar | Totem, app, identidade visual e BinGópolis |
+| Hardware/CAD | Gustavo Bretas | Eletrônica, Orange Pi/Arduino e componentes |
+| Mecânica | Gustavo Borrego | Estrutura física e montagem |
+| Apoio pontual | Guilherme Albano | Apoio não operacional |
+
 ## 🌿 Branches E Commits
 
 Fluxo recomendado:
@@ -180,17 +191,6 @@ feat(totem): add kiosk wireframe prototype
 docs(status): map mobile UI v2 snapshot
 fix(api, cors): finalize CORS configuration for Codespaces with regex
 ```
-
-## 👥 Responsáveis
-
-| Frente | Pessoa | Responsabilidade |
-|---|---|---|
-| Produto e integração | Marco Caparra | Coordenação geral, decisões e validação |
-| Backend e banco | João Predeus | Backend, banco e contratos de API |
-| Frontend/UX | Gustavo Alencar | Totem, app, identidade visual e BinGópolis |
-| Hardware/CAD | Gustavo Bretas | Eletrônica, Orange Pi/Arduino e componentes |
-| Mecânica | Gustavo Borrego | Estrutura física e montagem |
-| Apoio pontual | Guilherme Albano | Apoio não operacional |
 
 ## 🧩 Onde Mexer
 
