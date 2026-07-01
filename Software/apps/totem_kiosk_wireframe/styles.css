@@ -329,7 +329,7 @@ p {
 
 .screen--insert .content-zone--big {
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .screen--insert {
@@ -337,8 +337,12 @@ p {
   --b1n-big-img-h: 238px;
 }
 
-.screen--insert .b1n-talk--big {
-  transform: translate(-8px, 8px);
+.screen--insert .b1n-avatar {
+  transform: translate(-8px, 12px);
+}
+
+.screen--insert .insert-visual {
+  transform: translateY(10px);
 }
 
 .screen--success .content-zone--big {
@@ -1041,7 +1045,7 @@ p {
   overflow: hidden;
   border-radius: 999px;
   background: #dce9ff;
-  transform: translateY(8px);
+  transform: translateY(3px);
 }
 
 .analysis-talk .b1n-avatar {
@@ -1052,9 +1056,21 @@ p {
 
 .content-zone--analysis {
   justify-content: end;
-  gap: 14px;
+  gap: 4px;
   padding-top: 0;
   padding-bottom: 2px;
+  --b1n-big-w: 326px;
+  --b1n-big-h: 286px;
+  --b1n-big-img-h: 286px;
+}
+
+.analysis-talk {
+  gap: 0;
+  transform: translateY(22px);
+}
+
+.analysis-talk .b1n-avatar {
+  transform: translateX(12px);
 }
 
 .progress span {
@@ -1090,21 +1106,24 @@ p {
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  color: #29405f;
-  background: #eef6ff;
+  color: #667391;
+  background: #f3f6fb;
 }
 
 .metric--class > span {
-  color: #0b5ed7;
-  background: #eaf3ff;
+  color: #667391;
+  background: #f3f6fb;
 }
 
 .metric:not(.metric--class) > span {
-  color: #178445;
-  background: #ebfbef;
+  color: #2cab62;
+  background: #effbf3;
 }
 
 .metric strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   font-size: 25px;
   font-weight: 950;
 }
@@ -1116,6 +1135,7 @@ p {
 }
 
 .reward-unit {
+  display: inline-block;
   font-size: 0.72em;
   font-weight: 850;
 }
