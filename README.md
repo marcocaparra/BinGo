@@ -14,7 +14,7 @@
   </p>
 </div>
 
-> Você está lendo o README da branch `develop`, a branch mais atual do MVP. A branch `main` ainda representa uma referência histórica/estável do projeto legado.
+> Você está lendo o README da branch `develop`, a branch mais atual do MVP. Este README é um guia interno de engenharia: foco em arquitetura, pastas, comandos e decisões técnicas.
 
 ## 🌱 O Que É
 
@@ -287,17 +287,18 @@ seed(database): add updated demo school dataset
 fix(api, cors): finalize CORS configuration for Codespaces with regex
 ```
 
-## 🔗 Links Úteis
+## 🧩 Onde Mexer
 
-| Recurso | Link |
+| Se você vai mexer em... | Comece por |
 |---|---|
-| GitHub | https://github.com/marcocaparra/BinGo |
-| Branch develop | https://github.com/marcocaparra/BinGo/tree/develop |
-| Notion - tarefas | https://www.notion.so/2f7229b439f88122a3d8c01247448309 |
-| Notion - projetos | https://www.notion.so/2f7229b439f8817cba32cc9521b3809b |
-| Documento BinGo 2026 | https://docs.google.com/document/d/1OD3hdFm2UbYNE3HBNEI6vms9kNsu5Rd5fo-KymgfRvY/edit |
-| Componentes e BOM | https://docs.google.com/spreadsheets/d/1N7zrweYtqQFoFymsH3EZ1djiAX-3tFzBTZ71HSuSdk0/edit |
-| Cronograma | https://docs.google.com/spreadsheets/d/1St1Xw-g0P6QZDXfAjKSIkHHS6w-jj98bh7YkkGKBzqY/edit |
+| Fluxo visual do totem | `Software/apps/totem_kiosk_wireframe` |
+| Teste técnico de depósito/ranking | `Software/apps/totem_simulator` |
+| Regras temporárias do backend | `Software/backend/src/domain` |
+| Rotas da API temporária | `Software/backend/src/app/api/routes` |
+| Contratos/schemas da API | `Software/backend/src/app/api/schemas` |
+| Banco local e seeds | `Software/database` e `Software/supabase` |
+| App mobile Flutter | `Software/mobile/bingo_app` |
+| Visão computacional | `Hardware/BinGoVision` |
 
 ## 🔒 Regras Que Não Devem Ser Reabertas Sem Decisão Formal
 
@@ -311,3 +312,4 @@ fix(api, cors): finalize CORS configuration for Codespaces with regex
 ## 📄 Licença
 
 Veja `LICENSE`.
+
