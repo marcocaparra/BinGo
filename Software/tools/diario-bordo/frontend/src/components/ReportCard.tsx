@@ -4,7 +4,6 @@ const statusLabels: Record<ReportStatus, string> = {
   SUBMITTED: 'Enviado',
   SUBMITTED_LATE: 'Enviado com atraso',
   NO_ACTIVITY: 'Sem atividade',
-  PENDING: 'Pendente',
 }
 
 function formatDate(date: string) {

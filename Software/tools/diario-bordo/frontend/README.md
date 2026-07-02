@@ -1,25 +1,29 @@
 # Frontend do Diário de Bordo Coletivo
 
-V0 visual e navegável da ferramenta interna do projeto BinGo. Esta versão usa
-somente dados mockados e estado local: não há autenticação, backend, banco de
-dados ou exportação real.
+Frontend React da ferramenta interna do projeto BinGo. Integrantes e relatórios
+são carregados da API Spring Boot; autenticação, pendências automáticas e
+exportação permanecem fora desta etapa.
 
-## Tecnologias
+## Configuração
 
-- Vite;
-- React;
-- TypeScript;
-- CSS puro.
+Crie um arquivo `.env` nesta pasta usando `.env.example` como base:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080
+```
+
+Reinicie o Vite sempre que alterar variáveis de ambiente.
 
 ## Executar localmente
+
+Com o backend em execução:
 
 ```bash
 npm install
 npm run dev
 ```
 
-O Vite exibirá o endereço local no terminal, normalmente
-`http://localhost:5173`.
+O frontend normalmente ficará disponível em `http://localhost:5173`.
 
 ## Verificações
 
@@ -28,12 +32,13 @@ npm run lint
 npm run build
 ```
 
-## Páginas
+## Integração atual
 
-- Início;
-- Relatório de hoje;
-- Histórico com filtros locais;
-- Relatórios pendentes;
-- Exportação futura.
+- `GET /members`: integrantes do formulário;
+- `GET /reports`: histórico;
+- `POST /reports/today`: envio do relatório diário;
+- `POST /reports/no-activity`: registro de dia sem atividade.
 
-Os dados de demonstração ficam em `src/data/mockData.ts`.
+O backend local permite requisições de `http://localhost:5173` e
+`http://127.0.0.1:5173`. Outros ambientes podem definir as origens permitidas
+pela variável `CORS_ALLOWED_ORIGINS`.

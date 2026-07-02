@@ -22,3 +22,7 @@ spring:
 
   jackson:
     time-zone: America/Sao_Paulo
+
+app:
+  cors:
+    allowed-origins: "${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}"

@@ -1,5 +1,16 @@
-import { useState, type FormEvent } from 'react'
-import { areas, members } from '../data/mockData'
+import { useEffect, useState, type FormEvent } from 'react'
+import { getMembers } from '../api/membersApi'
+import {
+  createNoActivityReport,
+  createTodayReport,
+} from '../api/reportsApi'
+import type { Member } from '../types/member'
+import type { CreateTodayReportRequest } from '../types/report'
+
+type Feedback = {
+  type: 'success' | 'error'
+  message: string
+}
 
 function getTodayLabel() {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -11,17 +22,122 @@ function getTodayLabel() {
   }).format(new Date())
 }
 
-export function TodayReportPage() {
-  const [feedback, setFeedback] = useState('')
+function optionalField(formData: FormData, name: string) {
+  const value = formData.get(name)?.toString().trim()
+  return value || undefined
+}
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFeedback('Relatório salvo localmente para demonstração. Nenhum dado foi enviado.')
-    event.currentTarget.reset()
+export function TodayReportPage() {
+  const [members, setMembers] = useState<Member[]>([])
+  const [selectedMemberId, setSelectedMemberId] = useState('')
+  const [area, setArea] = useState('')
+  const [isLoadingMembers, setIsLoadingMembers] = useState(true)
+  const [membersError, setMembersError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [feedback, setFeedback] = useState<Feedback | null>(null)
+
+  useEffect(() => {
+    let isCurrent = true
+
+    getMembers()
+      .then((data) => {
+        if (isCurrent) {
+          setMembers(data)
+          setMembersError('')
+        }
+      })
+      .catch((error: unknown) => {
+        if (isCurrent) {
+          setMembersError(
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível carregar os integrantes.',
+          )
+        }
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsLoadingMembers(false)
+        }
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [])
+
+  function handleMemberChange(memberId: string) {
+    setSelectedMemberId(memberId)
+    const member = members.find((item) => item.id === memberId)
+    setArea(member?.defaultArea ?? '')
+    setFeedback(null)
   }
 
-  function handleNoActivity() {
-    setFeedback('Registro de dia sem atividade marcado apenas nesta demonstração.')
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const minutes = optionalField(formData, 'timeSpentMinutes')
+
+    const payload: CreateTodayReportRequest = {
+      memberId: selectedMemberId,
+      area: area.trim(),
+      title: formData.get('title')?.toString().trim() ?? '',
+      description: formData.get('description')?.toString().trim() ?? '',
+      problems: optionalField(formData, 'problems'),
+      solution: optionalField(formData, 'solution'),
+      nextSteps: optionalField(formData, 'nextSteps'),
+      evidenceLinks: optionalField(formData, 'evidenceLinks'),
+      timeSpentMinutes: minutes ? Number(minutes) : undefined,
+    }
+
+    setIsSubmitting(true)
+    setFeedback(null)
+
+    try {
+      await createTodayReport(payload)
+      form.reset()
+      setSelectedMemberId('')
+      setArea('')
+      setFeedback({ type: 'success', message: 'Relatório salvo com sucesso.' })
+    } catch (error: unknown) {
+      setFeedback({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Não foi possível salvar o relatório.',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleNoActivity() {
+    if (!selectedMemberId) {
+      setFeedback({
+        type: 'error',
+        message: 'Selecione um integrante antes de marcar o dia sem atividade.',
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    setFeedback(null)
+
+    try {
+      await createNoActivityReport({ memberId: selectedMemberId })
+      setSelectedMemberId('')
+      setArea('')
+      setFeedback({
+        type: 'success',
+        message: 'Dia sem atividade registrado com sucesso.',
+      })
+    } catch (error: unknown) {
+      setFeedback({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Não foi possível registrar o dia sem atividade.',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -50,17 +166,35 @@ export function TodayReportPage() {
           <div className="form-grid two-columns">
             <label>
               Integrante
-              <select name="member" required defaultValue="">
-                <option value="" disabled>Selecione seu nome</option>
-                {members.map((member) => <option key={member}>{member}</option>)}
+              <select
+                name="memberId"
+                required
+                value={selectedMemberId}
+                disabled={isLoadingMembers || Boolean(membersError)}
+                onChange={(event) => handleMemberChange(event.target.value)}
+              >
+                <option value="" disabled>
+                  {isLoadingMembers ? 'Carregando integrantes...' : 'Selecione seu nome'}
+                </option>
+                {members.map((member) => (
+                  <option value={member.id} key={member.id}>{member.name}</option>
+                ))}
               </select>
+              {membersError && <span className="field-state error">{membersError}</span>}
+              {!isLoadingMembers && !membersError && members.length === 0 && (
+                <span className="field-state">Nenhum integrante ativo encontrado.</span>
+              )}
             </label>
             <label>
               Área
-              <select name="area" required defaultValue="">
-                <option value="" disabled>Selecione a área</option>
-                {areas.map((area) => <option key={area}>{area}</option>)}
-              </select>
+              <input
+                name="area"
+                required
+                maxLength={80}
+                value={area}
+                onChange={(event) => setArea(event.target.value)}
+                placeholder="Ex.: Backend / Software"
+              />
             </label>
           </div>
         </section>
@@ -76,7 +210,7 @@ export function TodayReportPage() {
           <div className="form-grid">
             <label>
               Título da atividade
-              <input name="title" required placeholder="Ex.: Teste do sensor de presença" />
+              <input name="title" required maxLength={160} placeholder="Ex.: Teste do sensor de presença" />
             </label>
             <label>
               Descrição do que foi feito
@@ -106,17 +240,17 @@ export function TodayReportPage() {
           <div className="form-grid">
             <label>
               Próximo passo
-              <input name="nextStep" placeholder="Ex.: Repetir o teste com a nova configuração" />
+              <input name="nextSteps" placeholder="Ex.: Repetir o teste com a nova configuração" />
             </label>
             <div className="form-grid evidence-grid">
               <label>
                 Links de evidência
-                <textarea name="evidence" rows={3} placeholder="Cole um link por linha" />
+                <textarea name="evidenceLinks" rows={3} placeholder="Cole um link por linha" />
               </label>
               <label>
                 Tempo aproximado
                 <span className="input-with-suffix">
-                  <input name="minutes" type="number" min="1" placeholder="60" />
+                  <input name="timeSpentMinutes" type="number" min="0" placeholder="60" />
                   <span>min</span>
                 </span>
               </label>
@@ -124,13 +258,33 @@ export function TodayReportPage() {
           </div>
         </section>
 
-        {feedback && <div className="feedback-message" role="status">{feedback}</div>}
+        {feedback && (
+          <div className={`feedback-message ${feedback.type}`} role="status">
+            {feedback.message}
+          </div>
+        )}
 
         <div className="form-actions">
-          <button className="button ghost" type="button" onClick={handleNoActivity}>
+          <button
+            className="button ghost"
+            type="button"
+            disabled={isSubmitting}
+            onClick={handleNoActivity}
+          >
             Não fiz atividade hoje
           </button>
-          <button className="button primary" type="submit">Salvar relatório</button>
+          <button
+            className="button primary"
+            type="submit"
+            disabled={
+              isSubmitting ||
+              isLoadingMembers ||
+              Boolean(membersError) ||
+              members.length === 0
+            }
+          >
+            {isSubmitting ? 'Salvando...' : 'Salvar relatório'}
+          </button>
         </div>
       </form>
     </div>

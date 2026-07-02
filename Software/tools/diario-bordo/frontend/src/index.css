@@ -229,6 +229,12 @@ main {
   transform: translateY(-1px);
 }
 
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+}
+
 .button.primary {
   color: #fff;
   background: var(--accent);
@@ -339,6 +345,15 @@ main {
   margin-top: 16px;
   color: rgba(255, 255, 255, 0.66);
   font-size: 0.78rem;
+}
+
+.today-panel-error {
+  position: relative;
+  z-index: 1;
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  line-height: 1.4;
 }
 
 .shortcut-section {
@@ -621,6 +636,23 @@ textarea:focus {
   font-size: 0.88rem;
 }
 
+.feedback-message.error {
+  border-color: rgba(160, 74, 60, 0.3);
+  color: var(--danger);
+  background: #f8e6e2;
+}
+
+.field-state {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.field-state.error,
+.state-message.error h2 {
+  color: var(--danger);
+}
+
 .page-feedback {
   margin: -18px 0 22px;
 }
@@ -756,6 +788,15 @@ textarea:focus {
 
 .empty-state p {
   color: var(--muted);
+}
+
+.state-message {
+  width: 100%;
+  grid-column: 1 / -1;
+}
+
+.state-message .button {
+  margin-top: 14px;
 }
 
 .pending-list {

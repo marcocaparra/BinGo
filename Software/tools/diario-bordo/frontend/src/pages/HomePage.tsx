@@ -1,3 +1,7 @@
+import { useEffect, useState } from 'react'
+import { getMembers } from '../api/membersApi'
+import { getReports } from '../api/reportsApi'
+
 const shortcuts = [
   {
     eyebrow: 'Registrar',
@@ -22,13 +26,67 @@ const shortcuts = [
   },
 ]
 
+function getTodayDate() {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  }).format(new Date())
+}
+
 export function HomePage() {
+  const [memberCount, setMemberCount] = useState(0)
+  const [todayReportCount, setTodayReportCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [summaryError, setSummaryError] = useState('')
+
+  useEffect(() => {
+    let isCurrent = true
+
+    Promise.all([getMembers(), getReports()])
+      .then(([members, reports]) => {
+        if (isCurrent) {
+          const today = getTodayDate()
+          setMemberCount(members.length)
+          setTodayReportCount(
+            reports.filter((report) => report.reportDate === today).length,
+          )
+          setSummaryError('')
+        }
+      })
+      .catch((error: unknown) => {
+        if (isCurrent) {
+          setSummaryError(
+            error instanceof Error
+              ? error.message
+              : 'Não foi possível carregar o resumo.',
+          )
+        }
+      })
+      .finally(() => {
+        if (isCurrent) {
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      isCurrent = false
+    }
+  }, [])
+
+  const pendingCount = Math.max(memberCount - todayReportCount, 0)
+  const progress = memberCount > 0
+    ? Math.round((todayReportCount / memberCount) * 100)
+    : 0
+  const reportLabel = todayReportCount === 1 ? 'relatório enviado' : 'relatórios enviados'
+
   return (
     <div className="page home-page">
       <section className="hero-section">
         <div className="hero-copy">
           <span className="eyebrow"><span className="live-dot" /> Projeto BinGo</span>
-          <h1>Diário de Bordo<br/>BinGo</h1>
+          <h1>Diário de Bordo<br />BinGo</h1>
           <p>
             Um lugar simples para registrar o que o grupo construiu hoje e
             manter a evolução do projeto sempre visível.
@@ -42,19 +100,20 @@ export function HomePage() {
         <aside className="today-panel" aria-label="Resumo do dia">
           <div className="today-panel-header">
             <span>Resumo de hoje</span>
-            <span className="soft-badge">V0</span>
+            <span className="soft-badge">API</span>
           </div>
           <div className="today-stat">
-            <strong>1</strong>
-            <span>relatório enviado</span>
+            <strong>{isLoading || summaryError ? '—' : todayReportCount}</strong>
+            <span>{isLoading ? 'carregando dados' : reportLabel}</span>
           </div>
-          <div className="progress-track" aria-label="25% dos relatórios enviados">
-            <span style={{ width: '25%' }} />
+          <div className="progress-track" aria-label={`${progress}% dos relatórios enviados`}>
+            <span style={{ width: `${progress}%` }} />
           </div>
           <div className="today-footer">
-            <span>4 integrantes</span>
-            <span>3 pendentes</span>
+            <span>{isLoading || summaryError ? '— integrantes' : `${memberCount} integrantes`}</span>
+            <span>{isLoading || summaryError ? '— pendentes' : `${pendingCount} pendentes`}</span>
           </div>
+          {summaryError && <p className="today-panel-error">{summaryError}</p>}
         </aside>
       </section>
 
