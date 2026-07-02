@@ -1,57 +1,105 @@
-# Modelo de dados
+# Modelo de dados do Diário de Bordo
 
-Este documento descreve o modelo inicial. Os nomes e tipos definitivos serão
-formalizados pela primeira migration SQL.
+## Objetivo e isolamento
 
-## `members`
+Este banco armazena integrantes e relatórios diários da ferramenta interna do
+grupo BinGo. Ele não é o banco do produto principal do BinGo e suas migrations
+não devem ser aplicadas nesse banco.
 
-Representa um integrante do grupo.
+As tabelas recebem o prefixo `diary_` para deixar o domínio explícito e evitar
+colisões. Ainda assim, a recomendação operacional é usar um projeto ou banco
+PostgreSQL/Supabase exclusivo para o Diário de Bordo.
 
-| Coluna | Tipo sugerido | Regra |
+## Enum `diary_report_status`
+
+Valores persistidos:
+
+- `SUBMITTED`: relatório enviado na data correspondente;
+- `SUBMITTED_LATE`: relatório enviado depois da data correspondente;
+- `NO_ACTIVITY`: integrante declarou não ter realizado atividade.
+
+`PENDING` não é salvo. Uma pendência é calculada quando um integrante ativo
+não possui registro em `diary_reports` para a data consultada. Isso evita criar
+linhas artificiais e mantém o histórico como registro de fatos ocorridos.
+
+## Tabela `diary_members`
+
+Representa os integrantes que podem preencher o diário.
+
+| Coluna | Tipo | Regra |
 | --- | --- | --- |
-| `id` | `BIGINT` | chave primária gerada |
-| `name` | `VARCHAR(120)` | obrigatório |
-| `area` | `VARCHAR(80)` | obrigatório |
+| `id` | `UUID` | PK, gerado com `gen_random_uuid()` |
+| `name` | `VARCHAR(120)` | obrigatório, não vazio e único sem diferenciar maiúsculas |
+| `default_area` | `VARCHAR(80)` | opcional; área sugerida no preenchimento |
+| `role` | `VARCHAR(80)` | opcional; função principal no grupo |
 | `is_active` | `BOOLEAN` | obrigatório, padrão `TRUE` |
+| `created_at` | `TIMESTAMPTZ` | criação da linha |
+| `updated_at` | `TIMESTAMPTZ` | atualizado automaticamente por trigger |
 
-## `daily_reports`
+O índice único `ux_diary_members_name_lower` aplica a unicidade sobre
+`LOWER(name)`, impedindo variações duplicadas apenas por capitalização.
 
-Representa o registro de um integrante em uma data.
+## Tabela `diary_reports`
 
-| Coluna | Tipo sugerido | Regra |
+Representa um relatório ou uma declaração de ausência de atividade.
+
+| Coluna | Tipo | Regra |
 | --- | --- | --- |
-| `id` | `BIGINT` | chave primária gerada |
-| `member_id` | `BIGINT` | FK obrigatória para `members.id` |
-| `report_date` | `DATE` | obrigatório |
-| `area` | `VARCHAR(80)` | obrigatório |
-| `title` | `VARCHAR(160)` | obrigatório |
-| `description` | `TEXT` | obrigatório |
+| `id` | `UUID` | PK, gerado com `gen_random_uuid()` |
+| `member_id` | `UUID` | FK obrigatória para `diary_members.id` |
+| `report_date` | `DATE` | data civil do relatório |
+| `area` | `VARCHAR(80)` | obrigatório e não vazio |
+| `title` | `VARCHAR(160)` | obrigatório e não vazio |
+| `description` | `TEXT` | obrigatório e não vazio |
 | `problems` | `TEXT` | opcional |
 | `solution` | `TEXT` | opcional |
 | `next_steps` | `TEXT` | opcional |
-| `evidence_links` | a definir na migration | lista opcional de URLs |
-| `status` | `VARCHAR(30)` | obrigatório |
-| `submitted_at` | `TIMESTAMPTZ` | obrigatório |
-| `created_at` | `TIMESTAMPTZ` | obrigatório |
-| `updated_at` | `TIMESTAMPTZ` | obrigatório |
+| `evidence_links` | `TEXT` | URLs opcionais, uma por linha na V1 |
+| `time_spent_minutes` | `INTEGER` | opcional e nunca negativo |
+| `status` | `diary_report_status` | obrigatório |
+| `submitted_at` | `TIMESTAMPTZ` | instante do envio |
+| `created_at` | `TIMESTAMPTZ` | criação da linha |
+| `updated_at` | `TIMESTAMPTZ` | atualizado automaticamente por trigger |
 
-Status aceitos inicialmente:
+### Relacionamento e exclusão
 
-- `SUBMITTED`: enviado na data do relatório;
-- `SUBMITTED_LATE`: enviado depois da data do relatório;
-- `NO_ACTIVITY`: integrante declarou não ter realizado atividade.
+`member_id` usa `ON DELETE RESTRICT`. Relatórios são históricos e não devem
+ser apagados automaticamente quando um integrante for desativado ou quando
+alguém tentar removê-lo. Na operação normal, integrantes devem ser desativados
+com `is_active = FALSE`, não excluídos.
 
-## Integridade
+### Relatório único por integrante e data
 
-A restrição central do modelo é:
+A constraint central é:
 
 ```sql
-UNIQUE (member_id, report_date)
+CONSTRAINT uq_diary_reports_member_report_date
+    UNIQUE (member_id, report_date)
 ```
 
-Ela garante, inclusive sob requisições concorrentes, no máximo um relatório
-por integrante e data. A aplicação também validará a duplicidade para retornar
-uma mensagem clara, mas o banco continua sendo a garantia final.
+Ela garante no próprio PostgreSQL que cada integrante tenha no máximo um
+registro por dia, inclusive diante de requisições concorrentes. Um registro
+`NO_ACTIVITY` também ocupa essa combinação e não pode coexistir com outro
+relatório para o mesmo integrante e data.
 
-Pendências não serão armazenadas como linhas: serão calculadas pela ausência
-de relatório de um integrante ativo na data consultada.
+## Evidências na V1
+
+Evidências são links armazenados em `evidence_links`, com uma URL por linha.
+Arquivos e imagens não são salvos no banco. A opção por `TEXT` mantém a V1
+simples; uma estrutura normalizada poderá ser criada futuramente se surgirem
+requisitos de busca ou metadados por evidência.
+
+## Índices
+
+Existem índices para as consultas previstas por:
+
+- data do relatório;
+- integrante e data;
+- status;
+- área.
+
+## RLS
+
+Row Level Security não está ativo na V1 porque o acesso será intermediado pelo
+backend Spring Boot. Se o frontend passar a consultar o Supabase diretamente,
+RLS e policies adequadas deverão ser implementados antes dessa mudança.
