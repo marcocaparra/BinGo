@@ -12,6 +12,16 @@ class AppColors {
   static const danger = Color(0xFFFF2B2B);
 }
 
+class AppMotion {
+  static const fast = 150;
+  static const standard = 260;
+}
+
+class AppElevation {
+  static const buttonBlur = 14.0;
+  static const buttonOffset = Offset(0, 7);
+}
+
 class AppTheme {
   static ThemeData light() {
     final base = ThemeData(

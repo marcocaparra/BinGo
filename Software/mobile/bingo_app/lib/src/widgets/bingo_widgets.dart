@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/demo_data.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
+import 'bingo_action_button.dart';
 
 class AppPage extends StatelessWidget {
   const AppPage({
@@ -65,28 +66,19 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buttonStyle = FilledButton.styleFrom(
-      backgroundColor: color,
-      foregroundColor: Colors.white,
-      textStyle: Theme.of(context).textTheme.labelLarge,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    );
+    final tone = color == AppColors.green
+        ? BingoActionTone.green
+        : color == AppColors.scr4p
+        ? BingoActionTone.purple
+        : color == AppColors.warning
+        ? BingoActionTone.yellow
+        : BingoActionTone.blue;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: icon == null
-          ? FilledButton(
-              onPressed: onPressed,
-              style: buttonStyle,
-              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            )
-          : FilledButton.icon(
-              onPressed: onPressed,
-              icon: Icon(icon, size: 20),
-              label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-              style: buttonStyle,
-            ),
+    return BingoActionButton(
+      label: label,
+      icon: icon,
+      tone: tone,
+      onPressed: onPressed,
     );
   }
 }

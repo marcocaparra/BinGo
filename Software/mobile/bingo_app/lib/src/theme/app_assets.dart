@@ -6,6 +6,14 @@ class AppAssets {
   static const b1nIcon = 'assets/images/b1n_icon.png';
   static const b3nTioB1n = 'assets/images/b3n_tio_b1n_transparent.png';
   static const b1nCoin = 'assets/images/b1n_coin_transparent.png';
+  static const b1nIdeaInstruction =
+      'assets/images/b1n_ideia_instrucao_web.png';
+  static const b1nPinPrivacy =
+      'assets/images/b1n_privacidade_pin_olhos_fechados_web.png';
+  static const b1nThumbsUp = 'assets/images/b1n_joinha_confirmacao_web.png';
+  static const b1nReward =
+      'assets/images/b1n_segurando_bincoin_recompensa_web.png';
+  static const b1nQuestion = 'assets/images/b1n_duvida_pergunta_web.png';
   static const scr4pPose = 'assets/images/scr4p_pose_transparent.png';
   static const scr4pIcon = 'assets/images/scr4p_icon.png';
   static const bincoin = 'assets/images/bincoin_transparent.png';

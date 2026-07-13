@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bingo_app/src/app.dart';
 
 void main() {
   Future<void> pumpAtSize(WidgetTester tester, Size size) async {
+    SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -33,9 +35,9 @@ void main() {
     await tester.tap(find.text('Começar missão'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Entrar no BinGo!'), findsOneWidget);
+    expect(find.text('Criar meu PIN'), findsOneWidget);
 
-    await tester.tap(find.text('Entrar no piloto'));
+    await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
 
     expect(find.text('Olá, Marco!'), findsOneWidget);
@@ -49,7 +51,7 @@ void main() {
 
     await tester.tap(find.text('Começar missão'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Entrar no piloto'));
+    await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView), const Offset(0, -520));
     await tester.pumpAndSettle();
@@ -77,7 +79,7 @@ void main() {
 
     await tester.tap(find.text('Começar missão'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Entrar no piloto'));
+    await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Alerta SCR4P'));
@@ -94,7 +96,7 @@ void main() {
 
     await tester.tap(find.text('Começar missão'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Entrar no piloto'));
+    await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Carteira'));

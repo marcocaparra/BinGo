@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bingo_widgets.dart';
-import 'login_screen.dart';
+import 'access_flow_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -95,7 +95,7 @@ class OnboardingScreen extends StatelessWidget {
                             color: AppColors.green,
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) => const LoginScreen(),
+                                builder: (_) => const AccessFlowScreen(),
                               ),
                             ),
                           ),
