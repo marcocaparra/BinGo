@@ -17,7 +17,17 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(const BingoApp());
+    await tester.pumpWidget(
+      KeyedSubtree(key: ValueKey(size), child: const BingoApp()),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> enterPilot(WidgetTester tester) async {
+    await tester.tap(find.text('Começar missão'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Entrar no modo piloto'));
+    await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
   }
 
@@ -51,6 +61,45 @@ void main() {
 
     expect(find.text('Olá, Marco!'), findsOneWidget);
     expect(find.text('Praça Central'), findsOneWidget);
+  });
+
+  testWidgets('home presents one clear path', (WidgetTester tester) async {
+    for (final size in const [Size(390, 844), Size(430, 932)]) {
+      tester.platformDispatcher.textScaleFactorTestValue = 1;
+      await pumpAtSize(tester, size);
+      await enterPilot(tester);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Praça Central'), findsOneWidget);
+      expect(find.text('Missão ativa'), findsOneWidget);
+      expect(find.text('2 descartes para o próximo setor'), findsOneWidget);
+      expect(find.text('Começar no Totem'), findsOneWidget);
+      expect(find.text('Como funciona o BinGo'), findsOneWidget);
+      expect(find.byTooltip('Como funciona'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await tester.ensureVisible(find.text('Como funciona o BinGo'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Como funciona o BinGo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Prepare'), findsOneWidget);
+      expect(find.text('Vá ao Totem'), findsOneWidget);
+      expect(find.text('Valide'), findsOneWidget);
+      expect(find.text('Gere impacto'), findsOneWidget);
+      expect(find.text('Segurança primeiro'), findsOneWidget);
+      expect(find.text('Pontos e recompensas'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Como funciona'), findsNothing);
+      expect(find.text('Como funciona o BinGo'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
   });
 
   testWidgets('mission reaches totem guidance and impact', (
@@ -96,6 +145,8 @@ void main() {
     await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Alerta SCR4P'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Alerta SCR4P'));
     await tester.pumpAndSettle();
 

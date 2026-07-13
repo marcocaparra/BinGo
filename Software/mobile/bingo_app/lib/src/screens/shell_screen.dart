@@ -57,40 +57,21 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Olá, Marco!',
-      subtitle: 'Faltam 2 descartes para recuperar outro setor da Praça.',
+      subtitle: 'Sua turma está recuperando a Praça Central.',
       showBackButton: false,
-      actions: [
-        IconButton(
-          tooltip: 'Como funciona',
-          onPressed: () => _push(context, const HowItWorksScreen()),
-          icon: const Icon(Icons.help_outline),
-        ),
-      ],
       child: Column(
         children: [
-          ImageHeroCard(
-            image: AppAssets.sceneClean,
-            badge: 'Praça Central',
-            title: '68% restaurada',
-            subtitle: 'Descarte certo, seguro e validado recupera setores.',
-            progress: 0.68,
-          ),
-          const SizedBox(height: 18),
-          B1nTipCard(
-            title: 'Alerta SCR4P',
-            message:
-                'SCR4P avança quando itens eletrônicos ficam no lixo comum.',
-            tone: AppColors.scr4p,
-            asset: AppAssets.scr4pIcon,
-            onTap: () => _push(context, const Scr4pInfoScreen()),
-          ),
-          const SizedBox(height: 18),
-          MissionCard(
-            mission: activeMission,
-            onTap: () => _push(
+          _HomeScenarioOverview(
+            onOpenMission: () => _push(
               context,
               const MissionDetailScreen(mission: activeMission),
             ),
+          ),
+          const SizedBox(height: 18),
+          const B1nContextMessage(
+            asset: AppAssets.b1nIcon,
+            message: 'Separe um eletrônico seguro e eu guio o próximo passo.',
+            compact: true,
           ),
           const SizedBox(height: 18),
           PrimaryButton(
@@ -103,30 +84,20 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              const Expanded(
-                child: StatTile(
-                  value: '120',
-                  label: 'BinCoins',
-                  icon: Icons.bolt,
-                ),
-              ),
-              const SizedBox(width: 14),
-              const Expanded(
-                child: StatTile(
-                  value: '8',
-                  label: 'Descartes',
-                  icon: Icons.recycling,
-                ),
-              ),
-            ],
+          _SoftAction(
+            label: 'Alerta SCR4P',
+            icon: Icons.warning_amber_rounded,
+            onTap: () => _push(context, const Scr4pInfoScreen()),
           ),
-          const SizedBox(height: 18),
           _SoftAction(
             label: 'Ver impacto da turma',
             icon: Icons.auto_graph,
             onTap: () => _push(context, const ImpactScreen()),
+          ),
+          TextButton.icon(
+            onPressed: () => _push(context, const HowItWorksScreen()),
+            icon: const Icon(Icons.info_outline),
+            label: const Text('Como funciona o BinGo'),
           ),
         ],
       ),
@@ -923,41 +894,61 @@ class HowItWorksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Como funciona',
-      subtitle: 'Bem simples: Totem físico + app.',
+      subtitle: 'Do item separado ao impacto da sua turma.',
       child: Column(
         children: const [
+          B1nContextMessage(
+            asset: AppAssets.b1nIcon,
+            message: 'O app orienta; o descarte acontece no Totem da escola.',
+            compact: true,
+          ),
+          SizedBox(height: 18),
           SurfaceCard(
             child: Column(
               children: [
                 _StepRow(
                   number: '1',
-                  title: 'Vá até o Totem físico',
-                  text: 'Ele fica em um ponto combinado da escola.',
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Prepare',
+                  text: 'Separe um eletrônico pequeno, sem uso e seguro.',
                 ),
                 _StepRow(
                   number: '2',
-                  title: 'Escolha sua turma no Totem',
-                  text: 'Assim os pontos vão para você e sua sala.',
+                  icon: Icons.directions_walk,
+                  title: 'Vá ao Totem',
+                  text: 'Encontre o ponto de coleta combinado pela escola.',
                 ),
                 _StepRow(
                   number: '3',
-                  title: 'Descarte corretamente',
-                  text: 'Coloque o eletrônico no local indicado.',
+                  icon: Icons.verified_outlined,
+                  title: 'Valide',
+                  text: 'Escolha sua turma e siga a orientação do Totem.',
                 ),
                 _StepRow(
                   number: '4',
-                  title: 'Veja pontos e impacto no app',
+                  icon: Icons.auto_graph,
+                  title: 'Gere impacto',
                   text:
-                      'BinCoins, pontos e cenário atualizam depois da validação.',
+                      'A validação atualiza o cenário e o progresso coletivo.',
                 ),
               ],
             ),
           ),
           SizedBox(height: 18),
-          B1nTipCard(
-            title: 'Importante',
+          _InfoSection(
+            icon: Icons.health_and_safety_outlined,
+            title: 'Segurança primeiro',
             message:
-                'As telas do Totem serão feitas depois. Por enquanto, o app já deixa claro o caminho físico.',
+                'Bateria inchada, item quente, molhado ou quebrado deve ficar com um adulto responsável.',
+            color: AppColors.warning,
+          ),
+          SizedBox(height: 12),
+          _InfoSection(
+            icon: Icons.stars_outlined,
+            title: 'Pontos e recompensas',
+            message:
+                'BinCoins e pontos entram somente depois que o Totem confirma o descarte.',
+            color: AppColors.green,
           ),
         ],
       ),
@@ -1211,12 +1202,14 @@ class _StepRow extends StatelessWidget {
     required this.number,
     required this.title,
     required this.text,
+    this.icon,
     this.color = AppColors.blue,
   });
 
   final String number;
   final String title;
   final String text;
+  final IconData? icon;
   final Color color;
 
   @override
@@ -1235,13 +1228,15 @@ class _StepRow extends StatelessWidget {
               fit: BoxFit.scaleDown,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: Text(
-                  number,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                child: icon == null
+                    ? Text(
+                        number,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      )
+                    : Icon(icon, color: Colors.white, size: 22),
               ),
             ),
           ),
@@ -1253,6 +1248,123 @@ class _StepRow extends StatelessWidget {
                 Text(title, style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 4),
                 Text(text),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeScenarioOverview extends StatelessWidget {
+  const _HomeScenarioOverview({required this.onOpenMission});
+
+  final VoidCallback onOpenMission;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.asset(AppAssets.sceneClean, fit: BoxFit.cover),
+                ),
+                const Positioned(
+                  left: 14,
+                  top: 14,
+                  child: BadgeLabel(label: 'Praça Central'),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '68% restaurada',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 10),
+                const AnimatedProgressPill(value: 0.68),
+                const SizedBox(height: 18),
+                Text(
+                  'Missão ativa',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: AppColors.green,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  activeMission.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(activeMission.subtitle),
+                const SizedBox(height: 12),
+                const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.map_outlined, color: AppColors.blue),
+                    SizedBox(width: 8),
+                    Expanded(child: Text('2 descartes para o próximo setor')),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: onOpenMission,
+                    child: const Text('Ver detalhes da missão'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoSection extends StatelessWidget {
+  const _InfoSection({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      color: color.withValues(alpha: 0.08),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(message),
               ],
             ),
           ),
