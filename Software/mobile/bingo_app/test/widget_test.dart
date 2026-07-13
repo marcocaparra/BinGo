@@ -6,6 +6,11 @@ import 'package:bingo_app/src/app.dart';
 
 void main() {
   Future<void> pumpAtSize(WidgetTester tester, Size size) async {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
@@ -24,6 +29,10 @@ void main() {
 
       expect(find.text('Ajude BinGópolis'), findsOneWidget);
       expect(find.text('Começar missão'), findsOneWidget);
+      expect(find.text('Prepare'), findsOneWidget);
+      expect(find.text('Vá ao Totem'), findsOneWidget);
+      expect(find.text('Valide'), findsOneWidget);
+      expect(find.text('Impacte'), findsOneWidget);
     });
   }
 

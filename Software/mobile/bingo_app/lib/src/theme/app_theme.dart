@@ -18,8 +18,8 @@ class AppMotion {
 }
 
 class AppElevation {
-  static const buttonBlur = 14.0;
-  static const buttonOffset = Offset(0, 7);
+  static const buttonBlur = 10.0;
+  static const buttonOffset = Offset(0, 4);
 }
 
 class AppTheme {

@@ -42,9 +42,18 @@ class _SessionRepository implements ProfileRepository {
 }
 
 void main() {
+  void reduceMotion(WidgetTester tester) {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
+  }
+
   testWidgets('saved profile opens the shell without onboarding', (
     WidgetTester tester,
   ) async {
+    reduceMotion(tester);
     await tester.pumpWidget(
       MaterialApp(
         home: SessionGate(
@@ -59,6 +68,7 @@ void main() {
   });
 
   testWidgets('empty device opens onboarding', (WidgetTester tester) async {
+    reduceMotion(tester);
     await tester.pumpWidget(
       MaterialApp(
         home: SessionGate(

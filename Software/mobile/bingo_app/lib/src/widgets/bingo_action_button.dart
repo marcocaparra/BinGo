@@ -26,8 +26,51 @@ class BingoActionButton extends StatefulWidget {
   State<BingoActionButton> createState() => _BingoActionButtonState();
 }
 
-class _BingoActionButtonState extends State<BingoActionButton> {
+class _BingoActionButtonState extends State<BingoActionButton>
+    with SingleTickerProviderStateMixin {
   var _pressed = false;
+  late final AnimationController _energyController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1900),
+  );
+  late final Animation<Offset> _energyPosition = Tween<Offset>(
+    begin: const Offset(-1.35, 0),
+    end: const Offset(1.35, 0),
+  ).animate(
+    CurvedAnimation(parent: _energyController, curve: Curves.easeInOutSine),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncEnergyAnimation();
+  }
+
+  @override
+  void didUpdateWidget(covariant BingoActionButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncEnergyAnimation();
+  }
+
+  void _syncEnergyAnimation() {
+    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final shouldAnimate = !reduceMotion &&
+        widget.onPressed != null &&
+        widget.style == BingoActionStyle.primary;
+    if (shouldAnimate && !_energyController.isAnimating) {
+      _energyController.repeat(reverse: true);
+    } else if (!shouldAnimate) {
+      _energyController
+        ..stop()
+        ..value = 0.5;
+    }
+  }
+
+  @override
+  void dispose() {
+    _energyController.dispose();
+    super.dispose();
+  }
 
   Color get _toneColor {
     return switch (widget.tone) {
@@ -63,6 +106,7 @@ class _BingoActionButtonState extends State<BingoActionButton> {
           scale: _pressed && enabled ? 0.975 : 1,
           child: AnimatedContainer(
             duration: Duration(milliseconds: reduceMotion ? 0 : AppMotion.fast),
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: enabled ? background : AppColors.line,
               borderRadius: BorderRadius.circular(16),
@@ -93,25 +137,15 @@ class _BingoActionButtonState extends State<BingoActionButton> {
                   fit: StackFit.expand,
                   children: [
                     if (isPrimary && enabled)
-                      Positioned(
-                        top: 2,
-                        left: 14,
-                        right: 14,
-                        height: 17,
+                      Positioned.fill(
                         child: IgnorePointer(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(99),
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.30),
-                                  Colors.white.withValues(alpha: 0.02),
-                                ],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                            ),
-                          ),
+                          child: reduceMotion
+                              ? _EnergyHighlight(tone: _toneColor)
+                              : SlideTransition(
+                                  key: const Key('bingo-action-energy-slide'),
+                                  position: _energyPosition,
+                                  child: _EnergyHighlight(tone: _toneColor),
+                                ),
                         ),
                       ),
                     Center(
@@ -137,6 +171,38 @@ class _BingoActionButtonState extends State<BingoActionButton> {
                   ],
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EnergyHighlight extends StatelessWidget {
+  const _EnergyHighlight({required this.tone});
+
+  final Color tone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      key: const Key('bingo-action-energy-highlight'),
+      child: FractionallySizedBox(
+        widthFactor: 0.42,
+        heightFactor: 1,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                tone.withValues(alpha: 0),
+                Colors.white.withValues(alpha: 0.24),
+                const Color(0xFFB9FFDF).withValues(alpha: 0.32),
+                tone.withValues(alpha: 0),
+              ],
+              stops: const [0, 0.38, 0.56, 1],
             ),
           ),
         ),

@@ -51,9 +51,18 @@ class _FakeProfileRepository implements ProfileRepository {
 }
 
 void main() {
+  void reduceMotion(WidgetTester tester) {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
+  }
+
   testWidgets('access hub offers creation, login, and pilot mode', (
     WidgetTester tester,
   ) async {
+    reduceMotion(tester);
     await tester.pumpWidget(
       MaterialApp(home: AccessFlowScreen(repository: _FakeProfileRepository())),
     );
@@ -66,6 +75,7 @@ void main() {
   testWidgets('back from sign in returns to the access hub', (
     WidgetTester tester,
   ) async {
+    reduceMotion(tester);
     await tester.pumpWidget(
       MaterialApp(home: AccessFlowScreen(repository: _FakeProfileRepository())),
     );
@@ -83,6 +93,7 @@ void main() {
   testWidgets('student creates and confirms a four digit PIN', (
     WidgetTester tester,
   ) async {
+    reduceMotion(tester);
     final repository = _FakeProfileRepository();
 
     await tester.pumpWidget(

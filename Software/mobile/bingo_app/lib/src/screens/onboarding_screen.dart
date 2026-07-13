@@ -124,40 +124,87 @@ class _FlowSteps extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const steps = [
-      ('1', 'Separe'),
-      ('2', 'Vá ao Totem'),
-      ('3', 'Descarte'),
-      ('4', 'Ganhe'),
+      (Icons.devices_other_rounded, 'Prepare', AppColors.blue),
+      (Icons.directions_walk_rounded, 'Vá ao Totem', AppColors.green),
+      (Icons.verified_rounded, 'Valide', AppColors.scr4p),
+      (Icons.bolt_rounded, 'Impacte', AppColors.warning),
     ];
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
 
-    return Row(
+    return Column(
       children: [
-        for (final step in steps)
-          Expanded(
-            child: Column(
+        Text(
+          'Rota do descarte',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: AppColors.navy,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Stack(
+          children: [
+            Positioned(
+              left: 32,
+              right: 32,
+              top: 23,
+              child: Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  gradient: const LinearGradient(
+                    colors: [AppColors.blue, AppColors.green, AppColors.scr4p],
+                  ),
+                ),
+              ),
+            ),
+            Row(
               children: [
-                CircleAvatar(
-                  radius: 17,
-                  backgroundColor: AppColors.blue,
-                  child: Text(
-                    step.$1,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
+                for (var index = 0; index < steps.length; index++)
+                  Expanded(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.78, end: 1),
+                      duration: Duration(
+                        milliseconds: reduceMotion ? 0 : 360 + (index * 90),
+                      ),
+                      curve: Curves.easeOutBack,
+                      builder: (context, value, child) => Transform.scale(
+                        scale: value,
+                        child: child,
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: steps[index].$3, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: steps[index].$3.withValues(alpha: 0.18),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Icon(steps[index].$1, color: steps[index].$3),
+                          ),
+                          const SizedBox(height: 8),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              steps[index].$2,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 7),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    step.$2,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
               ],
             ),
-          ),
+          ],
+        ),
       ],
     );
   }
