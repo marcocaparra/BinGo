@@ -19,12 +19,10 @@ class BinCoinAmount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = '$value BinCoins';
-    final formattedValue = _formatBinCoins(value);
+    final formattedValue = _formatVisualBinCoins(value);
     final icon = BinCoinIcon(size: size);
     final valueText = Text(
       formattedValue,
-      maxLines: 1,
-      softWrap: false,
       style:
           style ??
           Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -37,27 +35,11 @@ class BinCoinAmount extends StatelessWidget {
       label: label,
       container: true,
       child: ExcludeSemantics(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final text = constraints.hasBoundedWidth
-                ? Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: valueText,
-                    ),
-                  )
-                : valueText;
-
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                icon,
-                SizedBox(width: size * 0.3),
-                text,
-              ],
-            );
-          },
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: size * 0.3,
+          runSpacing: 4,
+          children: [icon, valueText],
         ),
       ),
     );
@@ -100,4 +82,21 @@ String _formatBinCoins(int value) {
   }
 
   return groups.join('.');
+}
+
+String _formatVisualBinCoins(int value) {
+  if (value >= 1000000000) {
+    return '${_formatDecimal(value / 1000000000)} bi';
+  }
+  if (value >= 1000000) {
+    return '${_formatDecimal(value / 1000000)} mi';
+  }
+  if (value >= 100000) {
+    return '${_formatDecimal(value / 1000)} mil';
+  }
+  return _formatBinCoins(value);
+}
+
+String _formatDecimal(double value) {
+  return value.toStringAsFixed(1).replaceFirst('.', ',');
 }

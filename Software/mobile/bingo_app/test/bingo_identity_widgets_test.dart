@@ -53,7 +53,7 @@ void main() {
     expect(() => BinCoinAmount(value: -1), throwsAssertionError);
   });
 
-  testWidgets('large BinCoin value scales without losing semantics', (
+  testWidgets('large BinCoin value abbreviates without losing semantics', (
     tester,
   ) async {
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -77,8 +77,39 @@ void main() {
         ),
       );
 
-      expect(find.text('123.456.789'), findsOneWidget);
+      expect(find.text('123,5 mi'), findsOneWidget);
       expect(find.bySemanticsLabel('123456789 BinCoins'), findsOneWidget);
+      expect(find.byType(FittedBox), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('BinCoin typography grows with text scale', (tester) async {
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    const amount = Align(
+      alignment: Alignment.topLeft,
+      child: SizedBox(
+        width: 104,
+        child: BinCoinAmount(value: 123456789, size: 32),
+      ),
+    );
+    const viewports = [(390.0, 844.0), (430.0, 932.0), (1024.0, 768.0)];
+
+    for (final viewport in viewports) {
+      _setViewport(tester, viewport.$1, viewport.$2);
+      await tester.pumpWidget(
+        _testApp(amount, width: viewport.$1, height: viewport.$2),
+      );
+      final baseHeight = tester.getSize(find.text('123,5 mi')).height;
+
+      await tester.pumpWidget(
+        _testApp(amount, width: viewport.$1, height: viewport.$2, textScale: 2),
+      );
+      final scaledHeight = tester.getSize(find.text('123,5 mi')).height;
+
+      expect(scaledHeight, greaterThanOrEqualTo(baseHeight * 2));
+      expect(find.byType(FittedBox), findsNothing);
       expect(tester.takeException(), isNull);
     }
   });
@@ -207,6 +238,44 @@ void main() {
 
       expect(find.text('Antes da mobilizacao escolar'), findsOneWidget);
       expect(find.text('Agora com o descarte correto'), findsOneWidget);
+      expect(find.byType(FittedBox), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('impact labels grow with text scale and can wrap', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    const beforeLabel = 'Antes da mobilizacao escolar';
+    const comparison = ImpactComparison(
+      beforeImage: AppAssets.sceneCorrupt,
+      nowImage: AppAssets.sceneClean,
+      beforeLabel: beforeLabel,
+      nowLabel: 'Agora com o descarte correto',
+    );
+    const viewports = [(390.0, 844.0), (430.0, 932.0), (1024.0, 768.0)];
+
+    for (final viewport in viewports) {
+      _setViewport(tester, viewport.$1, viewport.$2);
+      await tester.pumpWidget(
+        _testApp(comparison, width: viewport.$1, height: viewport.$2),
+      );
+      final baseHeight = tester.getSize(find.text(beforeLabel)).height;
+
+      await tester.pumpWidget(
+        _testApp(
+          comparison,
+          width: viewport.$1,
+          height: viewport.$2,
+          textScale: 2,
+        ),
+      );
+      final scaledHeight = tester.getSize(find.text(beforeLabel)).height;
+
+      expect(scaledHeight, greaterThan(baseHeight));
+      expect(find.byType(FittedBox), findsNothing);
       expect(tester.takeException(), isNull);
     }
   });
