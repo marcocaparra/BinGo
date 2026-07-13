@@ -157,10 +157,10 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
     _openApp();
   }
 
-  void _openApp() {
+  void _openApp({bool pilot = false}) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
-        builder: (_) => ShellScreen(repository: _repository),
+        builder: (_) => ShellScreen(repository: pilot ? null : _repository),
       ),
       (_) => false,
     );
@@ -263,7 +263,7 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
           label: 'Entrar no modo piloto',
           style: BingoActionStyle.quiet,
           icon: Icons.science_outlined,
-          onPressed: _openApp,
+          onPressed: () => _openApp(pilot: true),
         ),
       ],
     );

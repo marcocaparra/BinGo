@@ -6,6 +6,7 @@ import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bingo_navigation_bar.dart';
 import '../widgets/bingo_widgets.dart';
+import 'profile_screen.dart';
 
 class ShellScreen extends StatefulWidget {
   const ShellScreen({this.initialIndex = 0, this.repository, super.key});
@@ -27,7 +28,10 @@ class _ShellScreenState extends State<ShellScreen> {
       const WalletScreen(),
       const MissionsScreen(),
       const RankingScreen(),
-      const ProfileScreen(),
+      ProfileScreen(
+        repository: widget.repository,
+        onGoHome: () => _selectTab(0),
+      ),
     ];
 
     return Scaffold(
@@ -261,9 +265,8 @@ class TotemTrackingScreen extends StatelessWidget {
             label: 'Ver impacto',
             color: AppColors.green,
             icon: Icons.auto_graph,
-            onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+            onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const ImpactScreen()),
-              (_) => false,
             ),
           ),
         ],
@@ -850,188 +853,6 @@ class StoryScreen extends StatelessWidget {
             title: 'B1N protege',
             message:
                 'O descarte correto fortalece a cidade. O descarte errado alimenta a corrupção.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Perfil',
-      subtitle: 'Seu progresso, turma e conquistas.',
-      showBackButton: false,
-      child: Column(
-        children: [
-          SurfaceCard(
-            child: Row(
-              children: [
-                Image.asset(AppAssets.b1nIcon, height: 92, width: 92),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Marco Caparra',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 6),
-                      const BadgeLabel(
-                        label: 'Nível 3 · Restaurador',
-                        color: Color(0xFFE9FBEA),
-                      ),
-                      const SizedBox(height: 10),
-                      const AnimatedProgressPill(value: 0.62, height: 10),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: const [
-              Expanded(
-                child: StatTile(value: 'Nível 3', label: 'Restaurador'),
-              ),
-              SizedBox(width: 14),
-              Expanded(
-                child: StatTile(value: '760', label: 'Pts pessoais'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const SurfaceCard(
-            child: Column(
-              children: [
-                _StepRow(
-                  number: '1',
-                  title: 'Pontos da turma',
-                  text: 'Valem no ciclo do cenário.',
-                ),
-                _StepRow(
-                  number: '2',
-                  title: 'Pontos pessoais',
-                  text: 'Sobem seu nível e mostram sua evolução.',
-                ),
-                _StepRow(
-                  number: '3',
-                  title: 'BinCoins',
-                  text: 'São moedas para trocar no BinBazar.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          SurfaceCard(
-            color: AppColors.blue.withValues(alpha: 0.08),
-            child: Row(
-              children: [
-                const Icon(Icons.workspace_premium, color: AppColors.warning),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Conquista ativa: 5 descartes validados em BinGópolis',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          const SurfaceCard(
-            child: Column(
-              children: [
-                _StepRow(
-                  number: '1',
-                  title: 'Aprendiz',
-                  text: 'Começa a validar descartes e entender os cenários.',
-                ),
-                _StepRow(
-                  number: '2',
-                  title: 'Explorador',
-                  text: 'Ganha acesso antecipado a dicas de missões.',
-                ),
-                _StepRow(
-                  number: '3',
-                  title: 'Restaurador',
-                  text: 'Você está aqui: já ajuda a recuperar setores.',
-                ),
-                _StepRow(
-                  number: '4',
-                  title: 'Guardião',
-                  text: 'Protege a turma com descartes seguros e validados.',
-                ),
-                _StepRow(
-                  number: '5',
-                  title: 'Herói',
-                  text: 'Topo do ciclo: destaque visual pela responsabilidade.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          _SoftAction(
-            label: 'Meus dados',
-            icon: Icons.badge_outlined,
-            onTap: () => _push(
-              context,
-              const InfoScreen(
-                title: 'Meus dados',
-                subtitle: 'Identificação usada pela escola.',
-                icon: Icons.badge_outlined,
-                lines: [
-                  ('Aluno', 'Marco Caparra'),
-                  ('Turma', '9ºA'),
-                  ('Escola', 'ENIAC'),
-                ],
-              ),
-            ),
-          ),
-          _SoftAction(
-            label: 'Minha turma',
-            icon: Icons.groups_outlined,
-            onTap: () => _push(
-              context,
-              const InfoScreen(
-                title: 'Minha turma',
-                subtitle: 'Progresso coletivo da sala.',
-                icon: Icons.groups_outlined,
-                lines: [
-                  ('Posição da turma', '4º lugar'),
-                  ('Hoje', '+210 pontos'),
-                  ('Meta', '50 pts para subir posição'),
-                ],
-              ),
-            ),
-          ),
-          _SoftAction(
-            label: 'Meus resgates',
-            icon: Icons.redeem_outlined,
-            onTap: () => _push(
-              context,
-              const InfoScreen(
-                title: 'Meus resgates',
-                subtitle: 'Histórico de recompensas.',
-                icon: Icons.redeem_outlined,
-                lines: [
-                  ('Suco natural', 'Retirado hoje'),
-                  ('Vale cantina', 'Disponível'),
-                  ('Prêmio surpresa', 'Faltam 60 BinCoins'),
-                ],
-              ),
-            ),
-          ),
-          _SoftAction(
-            label: 'Como funciona',
-            icon: Icons.help_outline,
-            onTap: () => _push(context, const HowItWorksScreen()),
           ),
         ],
       ),

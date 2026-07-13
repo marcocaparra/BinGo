@@ -79,6 +79,11 @@ void main() {
 
     expect(find.text('Impacto'), findsOneWidget);
     expect(find.text('Setor liberado!'), findsNothing);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Ver impacto'), findsOneWidget);
+    expect(find.text('Impacto'), findsNothing);
   });
 
   testWidgets('scr4p alert opens explanation from home', (
@@ -130,8 +135,9 @@ void main() {
     await tester.tap(find.text('Perfil'));
     await tester.pumpAndSettle();
     expect(find.text('760'), findsOneWidget);
-    expect(find.text('Pts pessoais'), findsOneWidget);
-    expect(find.textContaining('5 descartes validados'), findsOneWidget);
+    expect(find.text('Pontos pessoais'), findsOneWidget);
+    expect(find.text('Pontos da turma'), findsOneWidget);
+    expect(find.text('BinCoins'), findsOneWidget);
     await tester.ensureVisible(find.text('Guardião'));
     expect(find.text('Herói'), findsOneWidget);
   });
