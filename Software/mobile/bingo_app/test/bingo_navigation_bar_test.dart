@@ -68,4 +68,37 @@ void main() {
       expect(tappedIndex, 1);
     },
   );
+
+  testWidgets('uses zero duration when animations are disabled', (
+    tester,
+  ) async {
+    await pumpNavigationBar(
+      tester,
+      selectedIndex: 2,
+      onSelected: (_) {},
+      disableAnimations: true,
+    );
+
+    final positionedAnimations = tester.widgetList<AnimatedPositioned>(
+      find.byType(AnimatedPositioned),
+    );
+    final slideAnimations = tester.widgetList<AnimatedSlide>(
+      find.byType(AnimatedSlide),
+    );
+    final scaleAnimations = tester.widgetList<AnimatedScale>(
+      find.byType(AnimatedScale),
+    );
+
+    expect(positionedAnimations, hasLength(6));
+    expect(slideAnimations, hasLength(5));
+    expect(scaleAnimations, hasLength(5));
+    expect(
+      [
+        ...positionedAnimations,
+        ...slideAnimations,
+        ...scaleAnimations,
+      ].map((animation) => animation.duration),
+      everyElement(Duration.zero),
+    );
+  });
 }
