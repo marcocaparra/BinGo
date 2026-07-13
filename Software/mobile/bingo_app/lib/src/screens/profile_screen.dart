@@ -219,7 +219,7 @@ class _ResourceTile extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerLeft,
             child: amount != null
-                ? const BinCoinIcon(size: 26)
+                ? const ExcludeSemantics(child: BinCoinIcon(size: 26))
                 : Icon(icon, color: color, size: 26),
           ),
         ),
@@ -228,21 +228,32 @@ class _ResourceTile extends StatelessWidget {
           height: 32,
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text(
-              amount?.toString() ?? value!,
-              maxLines: 1,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontSize: 16, height: 1),
-            ),
+            child: amount != null
+                ? BinCoinAmount(
+                    value: amount,
+                    showIcon: false,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleLarge?.copyWith(fontSize: 16, height: 1),
+                  )
+                : Text(
+                    value!,
+                    maxLines: 1,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleLarge?.copyWith(fontSize: 16, height: 1),
+                  ),
           ),
         ),
         const SizedBox(height: 2),
         Expanded(
-          child: Text(
-            label,
-            maxLines: 2,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(height: 1),
+          child: ExcludeSemantics(
+            excluding: amount != null,
+            child: Text(
+              label,
+              maxLines: 2,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(height: 1),
+            ),
           ),
         ),
       ],
@@ -257,13 +268,7 @@ class _ResourceTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
-      child: amount == null
-          ? content
-          : Semantics(
-              label: '$amount BinCoins',
-              container: true,
-              child: ExcludeSemantics(child: content),
-            ),
+      child: content,
     );
   }
 }

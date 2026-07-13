@@ -53,6 +53,18 @@ void main() {
     expect(() => BinCoinAmount(value: -1), throwsAssertionError);
   });
 
+  testWidgets('BinCoin amount can hide its icon without losing its contract', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testApp(const BinCoinAmount(value: 1190, showIcon: false)),
+    );
+
+    expect(find.byType(BinCoinIcon), findsNothing);
+    expect(find.text('1.190'), findsOneWidget);
+    expect(find.bySemanticsLabel('1190 BinCoins'), findsOneWidget);
+  });
+
   testWidgets('large BinCoin value abbreviates without losing semantics', (
     tester,
   ) async {

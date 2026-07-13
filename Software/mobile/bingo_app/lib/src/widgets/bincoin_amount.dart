@@ -8,6 +8,7 @@ class BinCoinAmount extends StatelessWidget {
     required this.value,
     this.size = 24,
     this.style,
+    this.showIcon = true,
     super.key,
   }) : assert(value >= 0),
        assert(size > 0);
@@ -15,12 +16,12 @@ class BinCoinAmount extends StatelessWidget {
   final int value;
   final double size;
   final TextStyle? style;
+  final bool showIcon;
 
   @override
   Widget build(BuildContext context) {
     final label = '$value BinCoins';
     final formattedValue = _formatVisualBinCoins(value);
-    final icon = BinCoinIcon(size: size);
     final valueText = Text(
       formattedValue,
       style:
@@ -39,7 +40,10 @@ class BinCoinAmount extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: size * 0.3,
           runSpacing: 4,
-          children: [icon, valueText],
+          children: [
+            if (showIcon) BinCoinIcon(size: size),
+            valueText,
+          ],
         ),
       ),
     );

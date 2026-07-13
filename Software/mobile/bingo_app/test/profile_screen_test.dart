@@ -119,6 +119,12 @@ void main() {
         );
         expect(coinIcon, findsOneWidget);
         expect(tester.getSize(coinIcon), const Size.square(26));
+        final coinAmount = find.descendant(
+          of: find.byKey(const ValueKey<String>('profile-resource-bincoins')),
+          matching: find.byType(BinCoinAmount),
+        );
+        expect(coinAmount, findsOneWidget);
+        expect(tester.widget<BinCoinAmount>(coinAmount).showIcon, isFalse);
 
         final leadingTops = <double>[
           tester.getTopLeft(find.byIcon(Icons.person_rounded)).dy,
