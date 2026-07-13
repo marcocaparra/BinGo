@@ -14,7 +14,11 @@ class BingoNavigationBar extends StatelessWidget {
 
   static const _destinations = [
     (Icons.home_outlined, Icons.home_rounded, 'Início'),
-    (Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded, 'Carteira'),
+    (
+      Icons.account_balance_wallet_outlined,
+      Icons.account_balance_wallet_rounded,
+      'Carteira',
+    ),
     (Icons.verified_outlined, Icons.verified_rounded, 'Missões'),
     (Icons.emoji_events_outlined, Icons.emoji_events_rounded, 'Ranking'),
     (Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
@@ -23,6 +27,16 @@ class BingoNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final duration = Duration(
+      milliseconds: reduceMotion ? 0 : AppMotion.standard,
+    );
+    final circularOrder = [
+      (selectedIndex + 3) % _destinations.length,
+      (selectedIndex + 4) % _destinations.length,
+      selectedIndex,
+      (selectedIndex + 1) % _destinations.length,
+      (selectedIndex + 2) % _destinations.length,
+    ];
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -48,11 +62,9 @@ class BingoNavigationBar extends StatelessWidget {
                 children: [
                   AnimatedPositioned(
                     key: Key('bingo-nav-indicator-$selectedIndex'),
-                    duration: Duration(
-                      milliseconds: reduceMotion ? 0 : AppMotion.standard,
-                    ),
+                    duration: duration,
                     curve: Curves.easeOutCubic,
-                    left: (segmentWidth * selectedIndex) + 6,
+                    left: (segmentWidth * 2) + 6,
                     top: 7,
                     width: segmentWidth - 12,
                     height: 54,
@@ -73,22 +85,32 @@ class BingoNavigationBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Row(
-                    children: [
-                      for (var index = 0; index < _destinations.length; index++)
-                        Expanded(
-                          child: _NavigationDestination(
-                            key: Key('bingo-nav-destination-$index'),
-                            icon: _destinations[index].$1,
-                            selectedIcon: _destinations[index].$2,
-                            label: _destinations[index].$3,
-                            selected: selectedIndex == index,
-                            reduceMotion: reduceMotion,
-                            onTap: () => onSelected(index),
-                          ),
+                  for (var index = 0; index < _destinations.length; index++)
+                    AnimatedPositioned(
+                      key: Key('bingo-nav-positioned-$index'),
+                      duration: duration,
+                      curve: Curves.easeInOutCubic,
+                      left: segmentWidth * circularOrder.indexOf(index),
+                      top: 0,
+                      width: segmentWidth,
+                      height: 72,
+                      child: SizedBox(
+                        key: Key(
+                          'bingo-nav-slot-${circularOrder.indexOf(index)}',
                         ),
-                    ],
-                  ),
+                        width: segmentWidth,
+                        height: 72,
+                        child: _NavigationDestination(
+                          key: Key('bingo-nav-destination-$index'),
+                          icon: _destinations[index].$1,
+                          selectedIcon: _destinations[index].$2,
+                          label: _destinations[index].$3,
+                          selected: selectedIndex == index,
+                          reduceMotion: reduceMotion,
+                          onTap: () => onSelected(index),
+                        ),
+                      ),
+                    ),
                 ],
               );
             },
@@ -155,8 +177,12 @@ class _NavigationDestination extends StatelessWidget {
                         label,
                         maxLines: 1,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: selected ? AppColors.navy : AppColors.textMuted,
-                          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                          color: selected
+                              ? AppColors.navy
+                              : AppColors.textMuted,
+                          fontWeight: selected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
                           fontSize: 10.5,
                         ),
                       ),

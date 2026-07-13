@@ -3,36 +3,69 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('keeps destinations fixed while selection changes', (
-    WidgetTester tester,
-  ) async {
-    var selected = 0;
-
-    await tester.pumpWidget(
+  Future<void> pumpNavigationBar(
+    WidgetTester tester, {
+    required int selectedIndex,
+    required ValueChanged<int> onSelected,
+    bool disableAnimations = false,
+  }) {
+    return tester.pumpWidget(
       MaterialApp(
-        home: StatefulBuilder(
-          builder: (context, setState) => Scaffold(
+        home: MediaQuery(
+          data: MediaQueryData(disableAnimations: disableAnimations),
+          child: Scaffold(
             bottomNavigationBar: BingoNavigationBar(
-              selectedIndex: selected,
-              onSelected: (value) => setState(() => selected = value),
+              selectedIndex: selectedIndex,
+              onSelected: onSelected,
             ),
           ),
         ),
       ),
     );
+  }
 
-    const labels = ['Início', 'Carteira', 'Missões', 'Ranking', 'Perfil'];
-    for (final label in labels) {
-      expect(find.text(label), findsOneWidget);
-    }
+  for (var selectedIndex = 0; selectedIndex < 5; selectedIndex++) {
+    testWidgets('centers logical destination $selectedIndex in slot 2', (
+      tester,
+    ) async {
+      await pumpNavigationBar(
+        tester,
+        selectedIndex: selectedIndex,
+        onSelected: (_) {},
+      );
 
-    await tester.tap(find.text('Perfil'));
-    await tester.pump();
+      final centerSlot = find.byKey(const Key('bingo-nav-slot-2'));
+      expect(centerSlot, findsOneWidget);
+      expect(
+        find.descendant(
+          of: centerSlot,
+          matching: find.byKey(Key('bingo-nav-destination-$selectedIndex')),
+        ),
+        findsOneWidget,
+      );
 
-    expect(selected, 4);
-    for (final label in labels) {
-      expect(find.text(label), findsOneWidget);
-    }
-    expect(find.byKey(const Key('bingo-nav-indicator-4')), findsOneWidget);
-  });
+      for (var originalIndex = 0; originalIndex < 5; originalIndex++) {
+        expect(
+          find.byKey(Key('bingo-nav-destination-$originalIndex')),
+          findsOneWidget,
+        );
+      }
+    });
+  }
+
+  testWidgets(
+    'reports the original logical index when a destination is tapped',
+    (tester) async {
+      int? tappedIndex;
+      await pumpNavigationBar(
+        tester,
+        selectedIndex: 3,
+        onSelected: (value) => tappedIndex = value,
+      );
+
+      await tester.tap(find.byKey(const Key('bingo-nav-destination-1')));
+
+      expect(tappedIndex, 1);
+    },
+  );
 }
