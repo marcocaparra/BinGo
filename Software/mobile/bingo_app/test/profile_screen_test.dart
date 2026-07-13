@@ -99,22 +99,57 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        for (final key in <String>[
+        final resourceKeys = <String>[
           'profile-resource-personal',
           'profile-resource-class',
           'profile-resource-bincoins',
-        ]) {
+        ];
+        for (final key in resourceKeys) {
           final tile = find.byKey(ValueKey<String>(key));
           expect(tile, findsOneWidget);
           expect(tester.getSize(tile).height, inInclusiveRange(112, 120));
         }
+
+        expect(tester.takeException(), isNull);
+        expect(find.byIcon(Icons.bolt_rounded), findsNothing);
+
+        final coinIcon = find.descendant(
+          of: find.byKey(const ValueKey<String>('profile-resource-bincoins')),
+          matching: find.byType(BinCoinIcon),
+        );
+        expect(coinIcon, findsOneWidget);
+        expect(tester.getSize(coinIcon), const Size.square(26));
+
+        final leadingTops = <double>[
+          tester.getTopLeft(find.byIcon(Icons.person_rounded)).dy,
+          tester.getTopLeft(find.byIcon(Icons.groups_rounded)).dy,
+          tester.getTopLeft(coinIcon).dy,
+        ];
+        final valueTops = <double>[
+          tester.getTopLeft(find.text('760')).dy,
+          tester.getTopLeft(find.text('1.190')).dy,
+          tester.getTopLeft(find.text('120')).dy,
+        ];
+        final labelTops = <double>[
+          tester.getTopLeft(find.text('Pontos pessoais')).dy,
+          tester.getTopLeft(find.text('Pontos da turma')).dy,
+          tester.getTopLeft(find.text('BinCoins')).dy,
+        ];
+        for (final tops in [leadingTops, valueTops, labelTops]) {
+          expect(tops.toSet(), hasLength(1));
+        }
+
+        for (final label in ['Pontos pessoais', 'Pontos da turma', 'BinCoins']) {
+          final text = tester.widget<Text>(find.text(label));
+          expect(text.maxLines, 2);
+          expect(text.overflow, isNot(TextOverflow.ellipsis));
+          expect(text.style?.fontSize ?? 11, greaterThanOrEqualTo(10));
+        }
         expect(
-          find.descendant(
-            of: find.byKey(const ValueKey<String>('profile-resource-bincoins')),
-            matching: find.byType(BinCoinAmount),
-          ),
+          find.bySemanticsLabel('120 BinCoins'),
           findsOneWidget,
         );
+        expect(find.bySemanticsLabel('BinCoins'), findsNothing);
       },
     );
   }

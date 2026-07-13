@@ -210,49 +210,60 @@ class _ResourceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final amount = binCoinValue;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 28,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: amount != null
+                ? const BinCoinIcon(size: 26)
+                : Icon(icon, color: color, size: 26),
+          ),
+        ),
+        const SizedBox(height: 2),
+        SizedBox(
+          height: 32,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              amount?.toString() ?? value!,
+              maxLines: 1,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontSize: 16, height: 1),
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 2,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(height: 1),
+          ),
+        ),
+      ],
+    );
+
     return Container(
       width: width,
-      height: 116,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      height: 120,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (binCoinValue case final amount?)
-            BinCoinAmount(
-              value: amount,
-              size: 14,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontSize: 12, height: 1),
-            )
-          else ...[
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 2),
-            Text(
-              value!,
-              maxLines: 1,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontSize: 14, height: 1),
+      child: amount == null
+          ? content
+          : Semantics(
+              label: '$amount BinCoins',
+              container: true,
+              child: ExcludeSemantics(child: content),
             ),
-          ],
-          const SizedBox(height: 2),
-          Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(fontSize: 8, height: 1),
-          ),
-        ],
-      ),
     );
   }
 }
