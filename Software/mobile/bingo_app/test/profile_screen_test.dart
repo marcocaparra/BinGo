@@ -1,6 +1,7 @@
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/change_pin_screen.dart';
 import 'package:bingo_app/src/screens/profile_screen.dart';
+import 'package:bingo_app/src/widgets/bincoin_amount.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -75,6 +76,48 @@ void main() {
       expect(find.text(level), findsOneWidget);
     }
   });
+
+  for (final viewport in <Size>[const Size(390, 844), const Size(430, 932)]) {
+    testWidgets(
+      'profile resources stay compact at ${viewport.width.toInt()} with text scale 2',
+      (WidgetTester tester) async {
+        reduceMotion(tester);
+        tester.view.physicalSize = viewport;
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ProfileScreen(
+              repository: _ProfileRepository(),
+              onGoHome: () {},
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final key in <String>[
+          'profile-resource-personal',
+          'profile-resource-class',
+          'profile-resource-bincoins',
+        ]) {
+          final tile = find.byKey(ValueKey<String>(key));
+          expect(tile, findsOneWidget);
+          expect(tester.getSize(tile).height, inInclusiveRange(112, 120));
+        }
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey<String>('profile-resource-bincoins')),
+            matching: find.byType(BinCoinAmount),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+  }
 
   testWidgets('profile opens PIN redefinition', (WidgetTester tester) async {
     reduceMotion(tester);

@@ -158,6 +158,7 @@ class _ResourceSummary extends StatelessWidget {
           runSpacing: 10,
           children: [
             _ResourceTile(
+              key: const ValueKey('profile-resource-personal'),
               width: width,
               value: '760',
               label: 'Pontos pessoais',
@@ -165,6 +166,7 @@ class _ResourceSummary extends StatelessWidget {
               color: AppColors.green,
             ),
             _ResourceTile(
+              key: const ValueKey('profile-resource-class'),
               width: width,
               value: '1.190',
               label: 'Pontos da turma',
@@ -172,11 +174,11 @@ class _ResourceSummary extends StatelessWidget {
               color: AppColors.blue,
             ),
             _ResourceTile(
+              key: const ValueKey('profile-resource-bincoins'),
               width: width,
-              value: '120',
               label: 'BinCoins',
-              icon: Icons.bolt_rounded,
               color: AppColors.warning,
+              binCoinValue: 120,
             ),
           ],
         );
@@ -188,24 +190,30 @@ class _ResourceSummary extends StatelessWidget {
 class _ResourceTile extends StatelessWidget {
   const _ResourceTile({
     required this.width,
-    required this.value,
     required this.label,
-    required this.icon,
     required this.color,
-  });
+    this.value,
+    this.icon,
+    this.binCoinValue,
+    super.key,
+  }) : assert(
+         binCoinValue != null || (value != null && icon != null),
+         'Resource tiles need either BinCoins or a value and icon.',
+       );
 
   final double width;
-  final String value;
+  final String? value;
   final String label;
-  final IconData icon;
+  final IconData? icon;
   final Color color;
+  final int? binCoinValue;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: width,
-      height: 136,
-      padding: const EdgeInsets.all(12),
+      height: 116,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(18),
@@ -213,11 +221,36 @@ class _ResourceTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 22),
-          const Spacer(),
-          Text(value, style: Theme.of(context).textTheme.titleLarge),
-          Text(label, maxLines: 2, style: Theme.of(context).textTheme.labelSmall),
+          if (binCoinValue case final amount?)
+            BinCoinAmount(
+              value: amount,
+              size: 14,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontSize: 12, height: 1),
+            )
+          else ...[
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 2),
+            Text(
+              value!,
+              maxLines: 1,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontSize: 14, height: 1),
+            ),
+          ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(fontSize: 8, height: 1),
+          ),
         ],
       ),
     );
