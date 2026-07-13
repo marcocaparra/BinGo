@@ -159,7 +159,9 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
 
   void _openApp() {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const ShellScreen()),
+      MaterialPageRoute<void>(
+        builder: (_) => ShellScreen(repository: _repository),
+      ),
       (_) => false,
     );
   }

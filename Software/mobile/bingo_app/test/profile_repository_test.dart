@@ -71,4 +71,17 @@ void main() {
       isTrue,
     );
   });
+
+  test('deletes the local profile and its PIN', () async {
+    final repository = await repositoryWithEmptyStorage();
+    await repository.save(
+      profile: const StudentProfile(school: 'ENIAC', identifier: '2026001'),
+      pin: '4826',
+    );
+
+    await repository.deleteProfile();
+
+    expect(await repository.hasProfile(), isFalse);
+    expect(await repository.loadProfile(), isNull);
+  });
 }

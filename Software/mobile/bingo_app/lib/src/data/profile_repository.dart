@@ -18,6 +18,8 @@ class StudentProfile {
 }
 
 abstract class ProfileRepository {
+  Future<void> deleteProfile();
+
   Future<bool> hasProfile();
 
   Future<StudentProfile?> loadProfile();
@@ -45,6 +47,13 @@ class LocalProfileRepository implements ProfileRepository {
   static const _pinKey = 'bingo.profile.pin';
 
   final SharedPreferences _preferences;
+
+  @override
+  Future<void> deleteProfile() async {
+    await _preferences.remove(_schoolKey);
+    await _preferences.remove(_identifierKey);
+    await _preferences.remove(_pinKey);
+  }
 
   @override
   Future<bool> hasProfile() async {

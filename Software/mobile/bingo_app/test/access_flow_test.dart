@@ -8,6 +8,12 @@ class _FakeProfileRepository implements ProfileRepository {
   String? pin;
 
   @override
+  Future<void> deleteProfile() async {
+    profile = null;
+    pin = null;
+  }
+
+  @override
   Future<bool> hasProfile() async => profile != null;
 
   @override

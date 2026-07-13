@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bingo_widgets.dart';
 import 'access_flow_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({this.repository, super.key});
+
+  final ProfileRepository? repository;
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +98,9 @@ class OnboardingScreen extends StatelessWidget {
                             color: AppColors.green,
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) => const AccessFlowScreen(),
+                                builder: (_) => AccessFlowScreen(
+                                  repository: repository,
+                                ),
                               ),
                             ),
                           ),

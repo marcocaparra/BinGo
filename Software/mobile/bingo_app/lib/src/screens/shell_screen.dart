@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../data/demo_data.dart';
+import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bingo_widgets.dart';
 
 class ShellScreen extends StatefulWidget {
-  const ShellScreen({this.initialIndex = 0, super.key});
+  const ShellScreen({this.initialIndex = 0, this.repository, super.key});
 
   final int initialIndex;
+  final ProfileRepository? repository;
 
   @override
   State<ShellScreen> createState() => _ShellScreenState();
