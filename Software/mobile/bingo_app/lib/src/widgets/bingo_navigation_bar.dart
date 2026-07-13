@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../theme/app_theme.dart';
 
@@ -56,62 +57,88 @@ class BingoNavigationBar extends StatelessWidget {
           height: 72,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final segmentWidth = constraints.maxWidth / _destinations.length;
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AnimatedPositioned(
-                    key: Key('bingo-nav-indicator-$selectedIndex'),
-                    duration: duration,
-                    curve: Curves.easeOutCubic,
-                    left: (segmentWidth * 2) + 6,
-                    top: 7,
-                    width: segmentWidth - 12,
-                    height: 54,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: AppColors.blue.withValues(alpha: 0.24),
-                        ),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.blue.withValues(alpha: 0.14),
-                            AppColors.green.withValues(alpha: 0.12),
+              final contentWidth = constraints.maxWidth < 240
+                  ? 240.0
+                  : constraints.maxWidth;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: contentWidth),
+                  child: SizedBox(
+                    width: contentWidth,
+                    height: 72,
+                    child: LayoutBuilder(
+                      builder: (context, contentConstraints) {
+                        final segmentWidth =
+                            contentConstraints.maxWidth / _destinations.length;
+                        return Stack(
+                          clipBehavior: Clip.hardEdge,
+                          children: [
+                            AnimatedPositioned(
+                              key: Key('bingo-nav-indicator-$selectedIndex'),
+                              duration: duration,
+                              curve: Curves.easeOutCubic,
+                              left: (segmentWidth * 2) + 6,
+                              top: 7,
+                              width: segmentWidth - 12,
+                              height: 54,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: AppColors.blue.withValues(
+                                      alpha: 0.24,
+                                    ),
+                                  ),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      AppColors.blue.withValues(alpha: 0.14),
+                                      AppColors.green.withValues(alpha: 0.12),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            for (
+                              var index = 0;
+                              index < _destinations.length;
+                              index++
+                            )
+                              AnimatedPositioned(
+                                key: Key('bingo-nav-positioned-$index'),
+                                duration: duration,
+                                curve: Curves.easeInOutCubic,
+                                left:
+                                    segmentWidth * circularOrder.indexOf(index),
+                                top: 0,
+                                width: segmentWidth,
+                                height: 72,
+                                child: SizedBox(
+                                  key: Key(
+                                    'bingo-nav-slot-${circularOrder.indexOf(index)}',
+                                  ),
+                                  width: segmentWidth,
+                                  height: 72,
+                                  child: _NavigationDestination(
+                                    key: Key('bingo-nav-destination-$index'),
+                                    icon: _destinations[index].$1,
+                                    selectedIcon: _destinations[index].$2,
+                                    label: _destinations[index].$3,
+                                    selected: selectedIndex == index,
+                                    sortOrder: circularOrder.indexOf(index),
+                                    reduceMotion: reduceMotion,
+                                    onTap: () => onSelected(index),
+                                  ),
+                                ),
+                              ),
                           ],
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ),
-                  for (var index = 0; index < _destinations.length; index++)
-                    AnimatedPositioned(
-                      key: Key('bingo-nav-positioned-$index'),
-                      duration: duration,
-                      curve: Curves.easeInOutCubic,
-                      left: segmentWidth * circularOrder.indexOf(index),
-                      top: 0,
-                      width: segmentWidth,
-                      height: 72,
-                      child: SizedBox(
-                        key: Key(
-                          'bingo-nav-slot-${circularOrder.indexOf(index)}',
-                        ),
-                        width: segmentWidth,
-                        height: 72,
-                        child: _NavigationDestination(
-                          key: Key('bingo-nav-destination-$index'),
-                          icon: _destinations[index].$1,
-                          selectedIcon: _destinations[index].$2,
-                          label: _destinations[index].$3,
-                          selected: selectedIndex == index,
-                          reduceMotion: reduceMotion,
-                          onTap: () => onSelected(index),
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               );
             },
           ),
@@ -127,6 +154,7 @@ class _NavigationDestination extends StatelessWidget {
     required this.selectedIcon,
     required this.label,
     required this.selected,
+    required this.sortOrder,
     required this.reduceMotion,
     required this.onTap,
     super.key,
@@ -136,6 +164,7 @@ class _NavigationDestination extends StatelessWidget {
   final IconData selectedIcon;
   final String label;
   final bool selected;
+  final int sortOrder;
   final bool reduceMotion;
   final VoidCallback onTap;
 
@@ -146,6 +175,9 @@ class _NavigationDestination extends StatelessWidget {
     );
 
     return Semantics(
+      container: true,
+      excludeSemantics: true,
+      sortKey: OrdinalSortKey(sortOrder.toDouble()),
       button: true,
       selected: selected,
       label: label,
