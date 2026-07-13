@@ -8,8 +8,12 @@ class ImpactComparison extends StatelessWidget {
     required this.nowImage,
     this.beforeLabel = 'Antes',
     this.nowLabel = 'Agora',
-    this.aspectRatio = 4 / 3,
+    this.aspectRatio = 16 / 9,
     this.alignment = Alignment.center,
+    this.beforeFit = BoxFit.contain,
+    this.nowFit = BoxFit.contain,
+    this.beforeAlignment,
+    this.nowAlignment,
     super.key,
   });
 
@@ -19,6 +23,10 @@ class ImpactComparison extends StatelessWidget {
   final String nowLabel;
   final double aspectRatio;
   final Alignment alignment;
+  final BoxFit beforeFit;
+  final BoxFit nowFit;
+  final Alignment? beforeAlignment;
+  final Alignment? nowAlignment;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +38,8 @@ class ImpactComparison extends StatelessWidget {
             image: beforeImage,
             label: beforeLabel,
             aspectRatio: aspectRatio,
-            alignment: alignment,
+            fit: beforeFit,
+            alignment: beforeAlignment ?? alignment,
           ),
         ),
         const SizedBox(width: 8),
@@ -39,7 +48,8 @@ class ImpactComparison extends StatelessWidget {
             image: nowImage,
             label: nowLabel,
             aspectRatio: aspectRatio,
-            alignment: alignment,
+            fit: nowFit,
+            alignment: nowAlignment ?? alignment,
           ),
         ),
       ],
@@ -52,12 +62,14 @@ class _ImpactFrame extends StatelessWidget {
     required this.image,
     required this.label,
     required this.aspectRatio,
+    required this.fit,
     required this.alignment,
   });
 
   final String image;
   final String label;
   final double aspectRatio;
+  final BoxFit fit;
   final Alignment alignment;
 
   @override
@@ -70,34 +82,42 @@ class _ImpactFrame extends StatelessWidget {
           aspectRatio: aspectRatio,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.asset(image, fit: BoxFit.cover, alignment: alignment),
-                Align(
-                  alignment: Alignment.bottomLeft,
-                  child: Container(
-                    margin: const EdgeInsets.all(8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.navy,
-                        fontWeight: FontWeight.w800,
+            child: ColoredBox(
+              color: AppColors.surface,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(image, fit: fit, alignment: alignment),
+                  Positioned(
+                    left: 8,
+                    right: 8,
+                    bottom: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: AppColors.navy,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

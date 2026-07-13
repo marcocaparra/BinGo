@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../data/demo_data.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
+import 'bincoin_amount.dart';
 import 'bingo_action_button.dart';
 
 class AppPage extends StatelessWidget {
@@ -276,12 +277,7 @@ class CoinIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      AppAssets.bincoinV2,
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
-    );
+    return BinCoinIcon(size: size);
   }
 }
 
