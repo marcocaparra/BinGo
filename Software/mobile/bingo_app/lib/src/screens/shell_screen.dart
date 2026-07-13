@@ -4,6 +4,7 @@ import '../data/demo_data.dart';
 import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
+import '../widgets/bingo_navigation_bar.dart';
 import '../widgets/bingo_widgets.dart';
 
 class ShellScreen extends StatefulWidget {
@@ -31,39 +32,9 @@ class _ShellScreenState extends State<ShellScreen> {
 
     return Scaffold(
       body: pages[_index],
-      bottomNavigationBar: NavigationBar(
-        height: 72,
+      bottomNavigationBar: BingoNavigationBar(
         selectedIndex: _index,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        indicatorColor: AppColors.blue.withValues(alpha: 0.14),
-        onDestinationSelected: _selectTab,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Início',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
-            label: 'Carteira',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.verified_outlined),
-            selectedIcon: Icon(Icons.verified),
-            label: 'Missões',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.emoji_events_outlined),
-            selectedIcon: Icon(Icons.emoji_events),
-            label: 'Ranking',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
+        onSelected: _selectTab,
       ),
     );
   }
