@@ -170,27 +170,73 @@ http://localhost:8080
 | Mecânica | Gustavo Borrego | Estrutura física e montagem |
 | Apoio pontual | Guilherme Albano | Apoio não operacional |
 
-## 🌿 Branches E Commits
+## 🌿 Branches, Commits E Pull Requests
 
-Fluxo recomendado:
+> Fonte oficial: [Organização do GitHub — BinGo](https://github.com/marcocaparra/BinGo/blob/develop/Software/docs/github-workflow.md).
+
+### Fluxo Desta Branch
+
+A `main` representa a versão estável. Não desenvolva funcionalidades diretamente nela.
 
 ```text
-develop -> feature/* -> Pull Request -> develop -> promoção planejada para main
+develop -> Pull Request de promoção -> main
 ```
 
-Padrão de commit usado no projeto:
+- Trabalho comum parte da `develop` em uma branch própria e retorna para a `develop` por Pull Request.
+- A `main` recebe apenas alterações aprovadas e prontas para uma versão estável.
+- Correções urgentes usam `hotfix/*`; mudanças exclusivas de documentação usam `docs/*`.
+- Não use force push nem reescreva o histórico compartilhado.
+
+### Nomes De Branch
+
+| Prefixo | Quando usar | Exemplo |
+|---|---|---|
+| `feature/` | nova funcionalidade | `feature/admin-lite` |
+| `fix/` | correção pontual | `fix/login-pin` |
+| `docs/` | somente documentação | `docs/readme-workflow` |
+| `hotfix/` | correção urgente da versão estável | `hotfix/api-crash` |
+
+### Padrão De Commit
 
 ```text
 tipo(escopo): descrição curta
 ```
 
-Exemplos:
+Use commits pequenos, com uma única alteração lógica. O histórico atual usa descrições curtas em inglês, minúsculas e sem ponto final.
 
 ```text
-feat(totem): add kiosk wireframe prototype
-docs(status): map mobile UI v2 snapshot
-fix(api, cors): finalize CORS configuration for Codespaces with regex
+docs(readme): document release contribution workflow
+fix(api): correct production authentication regression
+test(api): cover stable release behavior
 ```
+
+Tipos usuais: `feat`, `fix`, `docs`, `refactor`, `test`, `chore` e `seed`.
+
+Evite mensagens vagas como `update`, `alterações`, `teste` ou `corrigindo`.
+
+### Padrão De Pull Request
+
+O PR para a `main` deve explicar a promoção ou correção estável e conter:
+
+```markdown
+## Objetivo
+
+Explique o resultado esperado.
+
+## Alterações
+
+- Liste as mudanças relevantes.
+
+## Testes
+
+- [x] Informe os testes realmente executados.
+
+## Observações
+
+Registre riscos, migrações ou pontos de atenção.
+```
+
+Antes do merge, confirme que o PR está atualizado, revisado e com os testes aplicáveis aprovados. Depois do merge, exclua a branch concluída.
 
 ## 🧩 Onde Mexer
 
