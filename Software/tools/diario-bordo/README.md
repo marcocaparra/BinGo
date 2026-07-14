@@ -1,28 +1,29 @@
 # Diário de Bordo Coletivo do BinGo
 
-Ferramenta interna para registrar as atividades diárias dos integrantes do
-BinGo. O sistema manterá um histórico por integrante, permitirá consultar
-pendências e, em uma etapa futura, exportará os registros para planilha.
+Ferramenta interna para registrar, consultar e acompanhar as atividades diárias dos integrantes do BinGo. Esta frente é isolada do produto principal: não compartilha código, banco ou configuração com o backend do totem.
 
-Este diretório é um mini projeto independente. Ele não deve compartilhar
-código, configuração ou banco de dados com o backend principal do BinGo.
+## Estado Atual
 
-## Estado atual
+Esta branch já possui a base funcional do V0:
 
-O backend Spring Boot foi inicializado e a documentação funcional básica foi
-definida. Entidades, migrations e endpoints ainda não foram implementados.
+| Frente | Estado | Onde olhar |
+|---|---:|---|
+| Backend | Spring Boot com controllers, service, repository, DTOs e tratamento de erro | `backend/src/main/java/com/bingo/diario` |
+| Autenticação | PIN coletivo/admin por variáveis de ambiente | `AuthController`, `AuthService`, `.env.example` |
+| Banco | Migrations e seeds próprias do Diário | `database/migrations` e `database/seeds` |
+| Frontend | React/Vite com login, relatório do dia, histórico e exportação | `frontend/src` |
+| Documentação técnica | Arquitetura, contrato, modelo e fluxo | `docs/` |
 
-## Funcionalidades previstas para a V1
+## Escopo Da V0
 
-- acesso por senha coletiva, armazenada em variável de ambiente;
-- cadastro e seleção de integrantes;
-- registro de uma atividade por integrante e por dia;
-- opção de registrar que não houve atividade;
-- consulta por integrante, área, data e status;
-- identificação de relatórios pendentes;
-- evidências armazenadas como links.
+- acesso por PIN coletivo e PIN admin;
+- seleção de integrante ativo;
+- criação/atualização do relatório do dia;
+- registro de atividade, ausência de atividade, pendências e evidências por link;
+- consulta de histórico e relatórios;
+- base para exportação dos registros.
 
-Upload de arquivos e exportação para `.xlsx` ficam fora da primeira etapa.
+Upload de arquivos e integração com o produto principal continuam fora desta etapa.
 
 ## Tecnologias
 
@@ -31,16 +32,17 @@ Upload de arquivos e exportação para `.xlsx` ficam fora da primeira etapa.
 - Spring Web MVC;
 - Spring Data JPA;
 - Bean Validation;
-- PostgreSQL.
+- PostgreSQL;
+- React + Vite + TypeScript.
 
 ## Estrutura
 
 ```text
 diario-bordo/
 |-- backend/   # API Spring Boot
-|-- database/  # migrations SQL
+|-- database/  # migrations SQL e seeds
 |-- docs/      # arquitetura e contratos
-|-- frontend/  # aplicação web futura
+|-- frontend/  # app React/Vite
 `-- README.md
 ```
 
@@ -51,16 +53,58 @@ diario-bordo/
 - [Contrato da API](docs/api-contract.md)
 - [Fluxo do frontend](docs/frontend-flow.md)
 
-## Executar o backend
+## Configuração
 
-O projeto ainda precisa da configuração de conexão com o PostgreSQL antes de
-iniciar com JPA. Depois dessa etapa, no Windows, a execução será feita a partir
-de `backend/`:
+Use `.env.example` como referência. As credenciais reais não devem ser versionadas.
+
+Variáveis principais:
+
+```text
+DATABASE_URL=jdbc:postgresql://host:5432/database
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=change_me
+DIARY_TEAM_PIN=2610
+DIARY_ADMIN_PIN=6262
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://[::1]:5173
+```
+
+## Executar Backend
+
+A partir de `backend/`:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-As credenciais e a senha coletiva não devem ser versionadas. Elas serão
-fornecidas por variáveis de ambiente documentadas em `.env.example` quando a
-configuração correspondente for implementada.
+Rodar testes:
+
+```powershell
+.\mvnw.cmd test
+```
+
+## Executar Frontend
+
+A partir de `frontend/`:
+
+```powershell
+npm install
+npm run dev
+```
+
+Build:
+
+```powershell
+npm run build
+```
+
+## Onde Mexer
+
+| Se você vai mexer em... | Comece por |
+|---|---|
+| Rotas HTTP | `backend/src/main/java/com/bingo/diario/controller` |
+| Regras de relatório | `backend/src/main/java/com/bingo/diario/service/DailyReportService.java` |
+| Autenticação | `backend/src/main/java/com/bingo/diario/service/AuthService.java` |
+| Modelo e persistência | `backend/src/main/java/com/bingo/diario/model` e `repository` |
+| Contratos frontend/backend | `frontend/src/types` e `frontend/src/api` |
+| Telas | `frontend/src/pages` |
+| Banco | `database/migrations` e `database/seeds` |

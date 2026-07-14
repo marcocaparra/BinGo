@@ -6,15 +6,15 @@
   **Totem inteligente + gamificação + educação ambiental para escolas.**
 
   <p>
-    <img alt="Branch" src="https://img.shields.io/badge/branch-develop-2563eb?style=for-the-badge" />
-    <img alt="Status" src="https://img.shields.io/badge/status-MVP%20em%20desenvolvimento-f59e0b?style=for-the-badge" />
-    <img alt="Totem" src="https://img.shields.io/badge/totem-HTML%2FCSS%2FJS-22c55e?style=for-the-badge" />
+    <img alt="Branch" src="https://img.shields.io/badge/branch-feature%2Fdiario--bordo--v0-2563eb?style=for-the-badge" />
+    <img alt="Status" src="https://img.shields.io/badge/status-di%C3%A1rio%20de%20bordo%20V0-f59e0b?style=for-the-badge" />
+    <img alt="Diário" src="https://img.shields.io/badge/di%C3%A1rio-Spring%20Boot%20%2B%20React-22c55e?style=for-the-badge" />
     <img alt="Mobile" src="https://img.shields.io/badge/mobile-Flutter-38bdf8?style=for-the-badge" />
     <img alt="Backend alvo" src="https://img.shields.io/badge/backend%20alvo-Supabase%20Edge%20Functions-3ecf8e?style=for-the-badge" />
   </p>
 </div>
 
-> Você está lendo o README da branch `develop`, a branch mais atual do MVP. Este README é um guia interno de engenharia: foco em arquitetura, pastas, comandos e decisões técnicas.
+> Você está lendo o README da branch `feature/diario-bordo-v0`. Esta branch nasce da `develop` e concentra a primeira versão do Diário de Bordo coletivo em `Software/tools/diario-bordo/`.
 
 ## 🌱 O Que É
 
@@ -30,13 +30,30 @@ Aluno -> Totem físico -> Backend/Banco -> Pontos -> Ranking/App -> Recompensa
 
 | Frente | Estado | Onde olhar |
 |---|---:|---|
-| Totem kiosk visual | Em revisão visual | `Software/apps/totem_kiosk_wireframe` |
-| Totem simulator técnico | Funcional para testar backend | `Software/apps/totem_simulator` |
-| App mobile | Protótipo Flutter visual | `Software/mobile/bingo_app` |
-| Backend atual | FastAPI temporário | `Software/backend` |
-| Backend alvo | Supabase Edge Functions | `Software/supabase` |
-| Banco | Supabase/PostgreSQL local | `Software/database` e `Software/supabase` |
-| Visão computacional | Protótipo inicial | `Hardware/BinGoVision` |
+| Diário de Bordo V0 | Foco desta branch; API, frontend e banco em integração | `Software/tools/diario-bordo` |
+| Backend do diário | Spring Boot + PostgreSQL | `Software/tools/diario-bordo/backend` |
+| Frontend do diário | React + Vite | `Software/tools/diario-bordo/frontend` |
+| Banco do diário | Migrations e seeds próprias | `Software/tools/diario-bordo/database` |
+| Totem kiosk visual | Herdado da `develop` | `Software/apps/totem_kiosk_wireframe` |
+| App mobile | Herdado da `develop` | `Software/mobile/bingo_app` |
+| Backend principal do BinGo | Herdado da `develop`; FastAPI temporário/Supabase alvo | `Software/backend` e `Software/supabase` |
+
+### Escopo Desta Branch
+
+Esta branch existe para desenvolver o Diário de Bordo coletivo sem misturar essa ferramenta operacional com o fluxo principal do totem.
+
+O que pode ser alterado aqui:
+
+- API Spring Boot do Diário de Bordo;
+- frontend React/Vite do Diário;
+- migrations, seeds e documentação do Diário;
+- autenticação simples por PIN coletivo/admin e fluxo de relatório diário.
+
+O que deve evitar nesta branch:
+
+- alterações no fluxo visual do totem V1;
+- regras centrais de pontuação/descarte do BinGo;
+- mudanças no app Flutter sem relação direta com o Diário.
 
 ### ⚠️ Atenção Técnica
 
@@ -102,6 +119,8 @@ BinGo/
 │   ├── mobile/
 │   │   └── bingo_app/                # App Flutter
 │   ├── supabase/                     # Configuração Supabase local
+│   ├── tools/
+│   │   └── diario-bordo/              # Ferramenta interna desta branch
 │   └── docker-compose.yml            # Serviço backend-dev
 └── README.md
 ```
@@ -268,6 +287,7 @@ No V1, resgate é feito pelo **totem físico**. O app mobile é apenas consulta.
 |---|---|
 | `main` | referência estável/histórica |
 | `develop` | integração atual do MVP |
+| `feature/diario-bordo-v0` | primeira versão do Diário de Bordo coletivo |
 | `feature/*` | novas frentes a partir de `develop` |
 | `fix/*` | correções pontuais |
 
@@ -291,6 +311,10 @@ fix(api, cors): finalize CORS configuration for Codespaces with regex
 
 | Se você vai mexer em... | Comece por |
 |---|---|
+| Diário de Bordo coletivo | `Software/tools/diario-bordo` |
+| API do Diário | `Software/tools/diario-bordo/backend/src/main/java/com/bingo/diario` |
+| Frontend do Diário | `Software/tools/diario-bordo/frontend/src` |
+| Banco do Diário | `Software/tools/diario-bordo/database` |
 | Fluxo visual do totem | `Software/apps/totem_kiosk_wireframe` |
 | Teste técnico de depósito/ranking | `Software/apps/totem_simulator` |
 | Regras temporárias do backend | `Software/backend/src/domain` |
