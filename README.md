@@ -262,30 +262,77 @@ No V1, resgate é feito pelo **totem físico**. O app mobile é apenas consulta.
 | Mecânica | Gustavo Borrego | MDF, montagem e estrutura física |
 | Apoio pontual | Guilherme Albano | Apoio não operacional |
 
-## 🌿 Branches E Commits
+## 🌿 Branches, Commits E Pull Requests
 
-| Branch | Uso |
-|---|---|
-| `main` | referência estável/histórica |
-| `develop` | integração atual do MVP |
-| `feature/*` | novas frentes a partir de `develop` |
-| `fix/*` | correções pontuais |
+> Fonte oficial: [Organização do GitHub — BinGo](Software/docs/github-workflow.md).
 
-Padrão de commit:
+### Fluxo Desta Branch
+
+A `develop` integra o trabalho atual do MVP. Não desenvolva diretamente nela.
+
+```text
+develop -> branch de trabalho -> commits -> push -> Pull Request -> revisão -> develop
+```
+
+- Atualize a `develop` antes de criar a branch de trabalho.
+- Use uma branch por tarefa e não misture funcionalidades sem relação.
+- Abra o Pull Request de volta para a `develop`.
+- Não use force push nem reescreva o histórico compartilhado.
+- A promoção para a `main` acontece somente quando o conjunto estiver aprovado e estável.
+
+### Nomes De Branch
+
+| Prefixo | Quando usar | Exemplo |
+|---|---|---|
+| `feature/` | nova funcionalidade | `feature/admin-lite` |
+| `fix/` | correção pontual | `fix/login-pin` |
+| `docs/` | somente documentação | `docs/github-workflow` |
+| `hotfix/` | correção urgente da versão estável | `hotfix/api-crash` |
+
+### Padrão De Commit
 
 ```text
 tipo(escopo): descrição curta
 ```
 
-Exemplos reais:
+Use commits pequenos, com uma única alteração lógica. O histórico atual usa descrições curtas em inglês, minúsculas e sem ponto final.
 
 ```text
 feat(totem): add kiosk wireframe prototype
-docs(status): map mobile UI v2 snapshot
-feat(mobile): add current Flutter UI snapshot
-seed(database): add updated demo school dataset
-fix(api, cors): finalize CORS configuration for Codespaces with regex
+feat(diario-bordo): add evidence upload flow
+fix(api): prevent duplicate deposits
+docs(workflow): clarify pull request standard
+test(api): cover student authentication
+seed(database): update demo school dataset
 ```
+
+Tipos usuais: `feat`, `fix`, `docs`, `refactor`, `test`, `chore` e `seed`.
+
+Evite mensagens vagas como `update`, `alterações`, `teste` ou `corrigindo`.
+
+### Padrão De Pull Request
+
+Use um título direto, preferencialmente no mesmo formato dos commits, e preencha:
+
+```markdown
+## Objetivo
+
+Explique o resultado esperado.
+
+## Alterações
+
+- Liste as mudanças relevantes.
+
+## Testes
+
+- [x] Informe os testes realmente executados.
+
+## Observações
+
+Registre riscos, migrações ou pontos de atenção.
+```
+
+O PR deve estar atualizado com a `develop`, passar pelos testes aplicáveis e receber revisão antes do merge. Depois do merge, exclua a branch concluída.
 
 ## 🧩 Onde Mexer
 
