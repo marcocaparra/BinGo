@@ -6,15 +6,15 @@
   **Totem inteligente + gamificação + educação ambiental para escolas.**
 
   <p>
-    <img alt="Branch" src="https://img.shields.io/badge/branch-develop-2563eb?style=for-the-badge" />
-    <img alt="Status" src="https://img.shields.io/badge/status-MVP%20em%20desenvolvimento-f59e0b?style=for-the-badge" />
-    <img alt="Totem" src="https://img.shields.io/badge/totem-HTML%2FCSS%2FJS-22c55e?style=for-the-badge" />
+    <img alt="Branch" src="https://img.shields.io/badge/branch-feature%2Ftotem--v1-2563eb?style=for-the-badge" />
+    <img alt="Status" src="https://img.shields.io/badge/status-totem%20V1%20em%20revis%C3%A3o-f59e0b?style=for-the-badge" />
+    <img alt="Totem" src="https://img.shields.io/badge/totem-kiosk%20HTML%2FCSS%2FJS-22c55e?style=for-the-badge" />
     <img alt="Mobile" src="https://img.shields.io/badge/mobile-Flutter-38bdf8?style=for-the-badge" />
     <img alt="Backend alvo" src="https://img.shields.io/badge/backend%20alvo-Supabase%20Edge%20Functions-3ecf8e?style=for-the-badge" />
   </p>
 </div>
 
-> Você está lendo o README da branch `develop`, a branch mais atual do MVP. Este README é um guia interno de engenharia: foco em arquitetura, pastas, comandos e decisões técnicas.
+> Você está lendo o README da branch `feature/totem-v1`. Esta branch nasce da `develop` e concentra a evolução visual/navegável do totem V1 em `Software/apps/totem_kiosk_wireframe/`.
 
 ## 🌱 O Que É
 
@@ -30,13 +30,30 @@ Aluno -> Totem físico -> Backend/Banco -> Pontos -> Ranking/App -> Recompensa
 
 | Frente | Estado | Onde olhar |
 |---|---:|---|
-| Totem kiosk visual | Em revisão visual | `Software/apps/totem_kiosk_wireframe` |
-| Totem simulator técnico | Funcional para testar backend | `Software/apps/totem_simulator` |
-| App mobile | Protótipo Flutter visual | `Software/mobile/bingo_app` |
-| Backend atual | FastAPI temporário | `Software/backend` |
-| Backend alvo | Supabase Edge Functions | `Software/supabase` |
-| Banco | Supabase/PostgreSQL local | `Software/database` e `Software/supabase` |
-| Visão computacional | Protótipo inicial | `Hardware/BinGoVision` |
+| Totem kiosk visual | Foco desta branch; protótipo V1 em refinamento | `Software/apps/totem_kiosk_wireframe` |
+| Favicon/guia do navegador | Ajustado para `BinGo \| Totem` | `Software/apps/totem_kiosk_wireframe/assets/brand` |
+| Totem simulator técnico | Herdado da `develop` | `Software/apps/totem_simulator` |
+| App mobile | Herdado da `develop` | `Software/mobile/bingo_app` |
+| Backend atual | Herdado da `develop`; FastAPI temporário | `Software/backend` |
+| Backend alvo | Herdado da `develop`; Supabase Edge Functions | `Software/supabase` |
+| Banco | Herdado da `develop`; Supabase/PostgreSQL local | `Software/database` e `Software/supabase` |
+
+### Escopo Desta Branch
+
+Esta branch existe para o Alencar e o Marco continuarem o desenho navegável do totem físico sem travar a `develop`.
+
+O que pode ser alterado aqui:
+
+- fluxo visual do kiosk em HTML/CSS/JS;
+- hierarquia, espaçamento, legibilidade e estados das telas do totem;
+- textos curtos com voz do B1N;
+- assets específicos do protótipo visual do totem.
+
+O que deve evitar nesta branch:
+
+- backend real, banco e regras de pontuação definitivas;
+- mudanças no app Flutter;
+- refatorações gerais fora de `Software/apps/totem_kiosk_wireframe/`.
 
 ### ⚠️ Atenção Técnica
 
@@ -268,6 +285,7 @@ No V1, resgate é feito pelo **totem físico**. O app mobile é apenas consulta.
 |---|---|
 | `main` | referência estável/histórica |
 | `develop` | integração atual do MVP |
+| `feature/totem-v1` | protótipo visual/navegável do totem V1 |
 | `feature/*` | novas frentes a partir de `develop` |
 | `fix/*` | correções pontuais |
 
@@ -291,7 +309,8 @@ fix(api, cors): finalize CORS configuration for Codespaces with regex
 
 | Se você vai mexer em... | Comece por |
 |---|---|
-| Fluxo visual do totem | `Software/apps/totem_kiosk_wireframe` |
+| Fluxo visual do totem nesta branch | `Software/apps/totem_kiosk_wireframe` |
+| Favicon, logo e assets do kiosk | `Software/apps/totem_kiosk_wireframe/assets` |
 | Teste técnico de depósito/ranking | `Software/apps/totem_simulator` |
 | Regras temporárias do backend | `Software/backend/src/domain` |
 | Rotas da API temporária | `Software/backend/src/app/api/routes` |
