@@ -279,31 +279,75 @@ No V1, resgate é feito pelo **totem físico**. O app mobile é apenas consulta.
 | Mecânica | Gustavo Borrego | MDF, montagem e estrutura física |
 | Apoio pontual | Guilherme Albano | Apoio não operacional |
 
-## 🌿 Branches E Commits
+## 🌿 Branches, Commits E Pull Requests
 
-| Branch | Uso |
-|---|---|
-| `main` | referência estável/histórica |
-| `develop` | integração atual do MVP |
-| `feature/totem-v1` | protótipo visual/navegável do totem V1 |
-| `feature/*` | novas frentes a partir de `develop` |
-| `fix/*` | correções pontuais |
+> Fonte oficial: [Organização do GitHub — BinGo](Software/docs/github-workflow.md).
 
-Padrão de commit:
+### Fluxo Desta Branch
+
+A `feature/totem-v1` concentra apenas o protótipo visual e navegável do totem.
+
+```text
+develop -> feature/totem-v1 -> commits -> push -> Pull Request -> develop
+```
+
+- Antes de trabalhar, atualize sua cópia desta branch para preservar os commits do Marco e do Alencar.
+- Mantenha aqui somente mudanças relacionadas ao totem V1 e à documentação diretamente associada.
+- Mudanças sem relação devem partir da `develop` em outra `feature/*`, `fix/*` ou `docs/*`.
+- Não use force push nem reescreva o histórico compartilhado.
+- Quando o fluxo estiver pronto para integração, abra o PR de `feature/totem-v1` para `develop`.
+
+### Nomes De Branch
+
+| Prefixo | Quando usar | Exemplo |
+|---|---|---|
+| `feature/` | nova funcionalidade | `feature/totem-v1` |
+| `fix/` | correção pontual | `fix/totem-pin-layout` |
+| `docs/` | somente documentação | `docs/totem-flow` |
+| `hotfix/` | correção urgente da versão estável | `hotfix/totem-startup` |
+
+### Padrão De Commit
 
 ```text
 tipo(escopo): descrição curta
 ```
 
-Exemplos reais:
+Use commits pequenos, com uma única alteração lógica. O histórico atual usa descrições curtas em inglês, minúsculas e sem ponto final.
 
 ```text
-feat(totem): add kiosk wireframe prototype
-docs(status): map mobile UI v2 snapshot
-feat(mobile): add current Flutter UI snapshot
-seed(database): add updated demo school dataset
-fix(api, cors): finalize CORS configuration for Codespaces with regex
+feat(totem): refine student selection flow
+fix(totem): prevent PIN keypad overlap
+docs(totem): update kiosk review notes
+test(totem): cover discard navigation flow
 ```
+
+Tipos usuais nesta branch: `feat`, `fix`, `docs`, `refactor`, `test` e `chore`. Use o escopo `totem` para o protótipo e outro escopo somente quando a alteração realmente atingir outra área.
+
+Evite mensagens vagas como `update`, `alterações`, `teste` ou `corrigindo`.
+
+### Padrão De Pull Request
+
+O PR para a `develop` deve usar um título direto e conter:
+
+```markdown
+## Objetivo
+
+Explique qual parte do fluxo do totem foi concluída.
+
+## Alterações
+
+- Liste telas, interações e assets alterados.
+
+## Testes
+
+- [x] Informe navegadores, resoluções e fluxos percorridos.
+
+## Observações
+
+Registre limitações de assets, integrações pendentes ou decisões de UX.
+```
+
+Antes do merge, confirme que o protótipo abre sem erros, que os fluxos alterados foram percorridos e que o PR recebeu revisão. Depois do merge, exclua a branch concluída.
 
 ## 🧩 Onde Mexer
 
