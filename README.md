@@ -281,31 +281,76 @@ No V1, resgate é feito pelo **totem físico**. O app mobile é apenas consulta.
 | Mecânica | Gustavo Borrego | MDF, montagem e estrutura física |
 | Apoio pontual | Guilherme Albano | Apoio não operacional |
 
-## 🌿 Branches E Commits
+## 🌿 Branches, Commits E Pull Requests
 
-| Branch | Uso |
-|---|---|
-| `main` | referência estável/histórica |
-| `develop` | integração atual do MVP |
-| `feature/diario-bordo-v0` | primeira versão do Diário de Bordo coletivo |
-| `feature/*` | novas frentes a partir de `develop` |
-| `fix/*` | correções pontuais |
+> Fonte oficial: [Organização do GitHub — BinGo](Software/docs/github-workflow.md).
 
-Padrão de commit:
+### Fluxo Desta Branch
+
+A `feature/diario-bordo-v0` concentra somente a primeira versão do Diário de Bordo coletivo.
+
+```text
+develop -> feature/diario-bordo-v0 -> commits -> push -> Pull Request -> develop
+```
+
+- Antes de trabalhar, atualize sua cópia desta branch para preservar os commits do restante do time.
+- Mantenha aqui apenas frontend, backend, banco, documentação e testes do Diário de Bordo.
+- Mudanças sem relação devem partir da `develop` em outra `feature/*`, `fix/*` ou `docs/*`.
+- Não versione `.env`, credenciais, bancos locais, builds ou arquivos enviados como evidência.
+- Não use force push nem reescreva o histórico compartilhado.
+- Quando a ferramenta estiver pronta para integração, abra o PR de `feature/diario-bordo-v0` para `develop`.
+
+### Nomes De Branch
+
+| Prefixo | Quando usar | Exemplo |
+|---|---|---|
+| `feature/` | nova funcionalidade | `feature/diario-bordo-v0` |
+| `fix/` | correção pontual | `fix/diario-attachment-download` |
+| `docs/` | somente documentação | `docs/diario-api-contract` |
+| `hotfix/` | correção urgente da versão estável | `hotfix/diario-auth` |
+
+### Padrão De Commit
 
 ```text
 tipo(escopo): descrição curta
 ```
 
-Exemplos reais:
+Use commits pequenos, com uma única alteração lógica. O histórico atual usa descrições curtas em inglês, minúsculas e sem ponto final.
 
 ```text
-feat(totem): add kiosk wireframe prototype
-docs(status): map mobile UI v2 snapshot
-feat(mobile): add current Flutter UI snapshot
-seed(database): add updated demo school dataset
-fix(api, cors): finalize CORS configuration for Codespaces with regex
+feat(diario-bordo): add evidence upload flow
+fix(diario-bordo): prevent future report dates
+docs(diario-bordo): clarify local setup
+test(diario-bordo): cover attachment download
 ```
+
+Tipos usuais nesta branch: `feat`, `fix`, `docs`, `refactor`, `test`, `chore` e `seed`. Use o escopo `diario-bordo` para mudanças completas; use `frontend`, `backend` ou `database` quando a alteração estiver restrita a uma camada.
+
+Evite mensagens vagas como `update`, `alterações`, `teste` ou `corrigindo`.
+
+### Padrão De Pull Request
+
+O PR para a `develop` deve usar um título direto e conter:
+
+```markdown
+## Objetivo
+
+Explique qual resultado do Diário de Bordo foi concluído.
+
+## Alterações
+
+- Liste mudanças de frontend, backend, banco ou documentação.
+
+## Testes
+
+- [x] Informe testes automatizados, lint, build e fluxos manuais executados.
+
+## Observações
+
+Registre migrations, variáveis de ambiente, limites de upload ou riscos conhecidos.
+```
+
+Antes do merge, confirme que frontend e backend foram validados, que migrations necessárias estão documentadas e que o PR recebeu revisão. Depois do merge, exclua a branch concluída.
 
 ## 🧩 Onde Mexer
 
