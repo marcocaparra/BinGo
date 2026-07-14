@@ -2,6 +2,7 @@ package com.bingo.diario.repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -15,4 +16,10 @@ public interface DailyReportRepository extends JpaRepository<DailyReport, UUID> 
 
     @EntityGraph(attributePaths = "member")
     List<DailyReport> findAllByOrderByReportDateDescSubmittedAtDesc();
+
+    @EntityGraph(attributePaths = "member")
+    List<DailyReport> findAllByReportDateOrderBySubmittedAtDesc(LocalDate reportDate);
+
+    @EntityGraph(attributePaths = "member")
+    Optional<DailyReport> findByMember_IdAndReportDate(UUID memberId, LocalDate reportDate);
 }

@@ -23,6 +23,17 @@ spring:
   jackson:
     time-zone: America/Sao_Paulo
 
+  servlet:
+    multipart:
+      max-file-size: 64MB
+      max-request-size: 96MB
+
 app:
+  public-base-url: "${DIARY_PUBLIC_BASE_URL:http://127.0.0.1:8080}"
   cors:
-    allowed-origins: "${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}"
+    allowed-origins: "${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://[::1]:5173}"
+  auth:
+    team-pin: "${DIARY_TEAM_PIN:${DIARY_TEAM_PASSWORD:${DIARY_ACCESS_PASSWORD:2610}}}"
+    admin-pin: "${DIARY_ADMIN_PIN:${DIARY_ADMIN_PASSWORD:6262}}"
+  attachments:
+    storage-path: "${DIARY_ATTACHMENTS_PATH:uploads/diario-bordo}"

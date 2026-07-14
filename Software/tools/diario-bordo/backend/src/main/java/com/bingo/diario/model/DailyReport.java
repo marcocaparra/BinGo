@@ -2,6 +2,8 @@ package com.bingo.diario.model;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -19,7 +21,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.CascadeType;
 
 @Entity
 @Table(name = "diary_reports")
@@ -60,6 +64,39 @@ public class DailyReport {
     @Column(name = "time_spent_minutes")
     private Integer timeSpentMinutes;
 
+    @Column(name = "approximate_time", length = 40)
+    private String approximateTime;
+
+    @Column(columnDefinition = "text")
+    private String participants;
+
+    @Column(length = 120)
+    private String environment;
+
+    @Column(name = "record_type", length = 80)
+    private String recordType;
+
+    @Column(columnDefinition = "text")
+    private String decisions;
+
+    @Column(name = "tests_and_observations", columnDefinition = "text")
+    private String testsAndObservations;
+
+    @Column(name = "tools_used", columnDefinition = "text")
+    private String toolsUsed;
+
+    @Column(name = "pending_items", columnDefinition = "text")
+    private String pendingItems;
+
+    @Column(name = "next_step_owner", length = 120)
+    private String nextStepOwner;
+
+    @Column(name = "next_step_due_date")
+    private LocalDate nextStepDueDate;
+
+    @Column(name = "final_notes", columnDefinition = "text")
+    private String finalNotes;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "diary_report_status")
@@ -76,6 +113,9 @@ public class DailyReport {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ReportAttachment> attachments = new ArrayList<>();
+
     protected DailyReport() {
     }
 
@@ -90,6 +130,17 @@ public class DailyReport {
             String nextSteps,
             String evidenceLinks,
             Integer timeSpentMinutes,
+            String approximateTime,
+            String participants,
+            String environment,
+            String recordType,
+            String decisions,
+            String testsAndObservations,
+            String toolsUsed,
+            String pendingItems,
+            String nextStepOwner,
+            LocalDate nextStepDueDate,
+            String finalNotes,
             ReportStatus status,
             Instant submittedAt) {
         this.member = member;
@@ -102,6 +153,17 @@ public class DailyReport {
         this.nextSteps = nextSteps;
         this.evidenceLinks = evidenceLinks;
         this.timeSpentMinutes = timeSpentMinutes;
+        this.approximateTime = approximateTime;
+        this.participants = participants;
+        this.environment = environment;
+        this.recordType = recordType;
+        this.decisions = decisions;
+        this.testsAndObservations = testsAndObservations;
+        this.toolsUsed = toolsUsed;
+        this.pendingItems = pendingItems;
+        this.nextStepOwner = nextStepOwner;
+        this.nextStepDueDate = nextStepDueDate;
+        this.finalNotes = finalNotes;
         this.status = status;
         this.submittedAt = submittedAt;
     }
@@ -150,6 +212,50 @@ public class DailyReport {
         return timeSpentMinutes;
     }
 
+    public String getApproximateTime() {
+        return approximateTime;
+    }
+
+    public String getParticipants() {
+        return participants;
+    }
+
+    public String getEnvironment() {
+        return environment;
+    }
+
+    public String getRecordType() {
+        return recordType;
+    }
+
+    public String getDecisions() {
+        return decisions;
+    }
+
+    public String getTestsAndObservations() {
+        return testsAndObservations;
+    }
+
+    public String getToolsUsed() {
+        return toolsUsed;
+    }
+
+    public String getPendingItems() {
+        return pendingItems;
+    }
+
+    public String getNextStepOwner() {
+        return nextStepOwner;
+    }
+
+    public LocalDate getNextStepDueDate() {
+        return nextStepDueDate;
+    }
+
+    public String getFinalNotes() {
+        return finalNotes;
+    }
+
     public ReportStatus getStatus() {
         return status;
     }
@@ -164,5 +270,38 @@ public class DailyReport {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public List<ReportAttachment> getAttachments() {
+        return attachments;
+    }
+
+    public void updateContent(
+            String area,
+            String title,
+            String description,
+            String problems,
+            String evidenceLinks,
+            String participants,
+            String environment,
+            String recordType,
+            String decisions,
+            String testsAndObservations,
+            String toolsUsed,
+            String pendingItems,
+            String finalNotes) {
+        this.area = area;
+        this.title = title;
+        this.description = description;
+        this.problems = problems;
+        this.evidenceLinks = evidenceLinks;
+        this.participants = participants;
+        this.environment = environment;
+        this.recordType = recordType;
+        this.decisions = decisions;
+        this.testsAndObservations = testsAndObservations;
+        this.toolsUsed = toolsUsed;
+        this.pendingItems = pendingItems;
+        this.finalNotes = finalNotes;
     }
 }
