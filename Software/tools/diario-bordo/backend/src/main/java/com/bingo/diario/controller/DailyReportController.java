@@ -61,55 +61,55 @@ public class DailyReportController {
 
     @GetMapping
     public List<DailyReportResponse> listReports(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestParam(required = false) LocalDate date) {
-        authService.requireAdminAccess(password);
+        authService.requireAdminAccess(authorization);
         return dailyReportService.listReports(date);
     }
 
     @PostMapping(value = "/today", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public DailyReportResponse createTodayReport(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody CreateTodayReportRequest request) {
-        authService.requireTeamAccess(password);
+        authService.requireTeamAccess(authorization);
         return dailyReportService.createTodayReport(request);
     }
 
     @PostMapping(value = "/today", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public DailyReportResponse createTodayReportWithAttachments(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestPart("report") CreateTodayReportRequest request,
             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
-        authService.requireTeamAccess(password);
+        authService.requireTeamAccess(authorization);
         return dailyReportService.createTodayReport(request, files);
     }
 
     @GetMapping("/exists")
     public ReportExistenceResponse checkReportExists(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestParam UUID memberId,
             @RequestParam LocalDate date) {
-        authService.requireTeamAccess(password);
+        authService.requireTeamAccess(authorization);
         return dailyReportService.checkReportExists(memberId, date);
     }
 
     @PutMapping("/{id}")
     public DailyReportResponse updateReport(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @PathVariable UUID id,
             @Valid @RequestBody UpdateDailyReportRequest request) {
-        authService.requireAdminAccess(password);
+        authService.requireAdminAccess(authorization);
         return dailyReportService.updateReport(id, request);
     }
 
     @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public DailyReportResponse addAttachments(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @PathVariable UUID id,
             @RequestPart(value = "files", required = false) List<MultipartFile> files) {
-        authService.requireAdminAccess(password);
+        authService.requireAdminAccess(authorization);
         return dailyReportService.addAttachments(id, files);
     }
 
@@ -132,34 +132,34 @@ public class DailyReportController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteReport(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @PathVariable UUID id) {
-        authService.requireAdminAccess(password);
+        authService.requireAdminAccess(authorization);
         dailyReportService.deleteReport(id);
     }
 
     @PostMapping("/no-activity")
     @ResponseStatus(HttpStatus.CREATED)
     public DailyReportResponse createNoActivityReport(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @Valid @RequestBody CreateNoActivityReportRequest request) {
-        authService.requireTeamAccess(password);
+        authService.requireTeamAccess(authorization);
         return dailyReportService.createNoActivityReport(request);
     }
 
     @GetMapping("/pending")
     public List<MemberResponse> listPendingReports(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestParam(required = false) LocalDate date) {
-        authService.requireAdminAccess(password);
+        authService.requireAdminAccess(authorization);
         return dailyReportService.listPendingReports(date);
     }
 
     @GetMapping(value = "/export", produces = "text/markdown;charset=UTF-8")
     public ResponseEntity<String> exportReports(
-            @RequestHeader(value = AuthService.PASSWORD_HEADER, required = false) String password,
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestParam(required = false) LocalDate date) {
-        authService.requireAdminAccess(password);
+        authService.requireAdminAccess(authorization);
         LocalDate selectedDate = date == null ? LocalDate.now(clock) : date;
         String filename = "diario-bordo-" + selectedDate + ".md";
         return ResponseEntity.ok()

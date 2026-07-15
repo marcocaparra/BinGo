@@ -9,6 +9,6 @@ public record AuthRequest(
         AuthRole role,
 
         @NotBlank(message = "PIN é obrigatório")
-        @Pattern(regexp = "\\d{4}", message = "PIN deve ter 4 dígitos")
+        @Pattern(regexp = "\\d{6}", message = "PIN deve ter 6 dígitos")
         String pin) {
 }

@@ -40,12 +40,15 @@ public class ReportAttachmentService {
 
     private final ReportAttachmentRepository attachmentRepository;
     private final Path storageRoot;
+    private final boolean attachmentsEnabled;
 
     public ReportAttachmentService(
             ReportAttachmentRepository attachmentRepository,
-            @Value("${app.attachments.storage-path:uploads/diario-bordo}") String storagePath) {
+            @Value("${app.attachments.storage-path:uploads/diario-bordo}") String storagePath,
+            @Value("${app.attachments.enabled:true}") boolean attachmentsEnabled) {
         this.attachmentRepository = attachmentRepository;
         this.storageRoot = Path.of(storagePath).toAbsolutePath().normalize();
+        this.attachmentsEnabled = attachmentsEnabled;
     }
 
     public List<ReportAttachment> storeAttachments(DailyReport report, List<MultipartFile> files) {
@@ -59,6 +62,7 @@ public class ReportAttachmentService {
         if (usableFiles.isEmpty()) {
             return List.of();
         }
+        requireAttachmentsEnabled();
         if (usableFiles.size() > MAX_FILES_PER_REPORT) {
             throw new InvalidRequestException("Envie no máximo " + MAX_FILES_PER_REPORT + " arquivos por registro.");
         }
@@ -90,6 +94,7 @@ public class ReportAttachmentService {
     }
 
     public ReportAttachment findDownloadableAttachment(UUID reportId, UUID attachmentId, String token) {
+        requireAttachmentsEnabled();
         ReportAttachment attachment = attachmentRepository.findByIdAndReport_Id(attachmentId, reportId)
                 .orElseThrow(() -> new ResourceNotFoundException("Anexo não encontrado."));
         if (token == null || token.isBlank() || !attachment.getDownloadToken().equals(token)) {
@@ -99,6 +104,7 @@ public class ReportAttachmentService {
     }
 
     public Resource loadAttachmentResource(ReportAttachment attachment) {
+        requireAttachmentsEnabled();
         Path filePath = storageRoot.resolve(attachment.getStoragePath()).normalize();
         ensureInsideStorageRoot(filePath);
 
@@ -150,6 +156,12 @@ public class ReportAttachmentService {
     private void ensureInsideStorageRoot(Path path) {
         if (!path.toAbsolutePath().normalize().startsWith(storageRoot)) {
             throw new InvalidRequestException("Caminho de anexo inválido.");
+        }
+    }
+
+    private void requireAttachmentsEnabled() {
+        if (!attachmentsEnabled) {
+            throw new InvalidRequestException("Anexos estão desativados. Use links de evidência.");
         }
     }
 

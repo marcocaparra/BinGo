@@ -1,59 +1,46 @@
-# Contrato inicial da API
-
-Documento de planejamento. Os endpoints serão implementados por etapas e
-podem receber pequenos ajustes durante a definição dos DTOs.
+# Contrato da API
 
 ## Convenções
 
-- Base da API: `/` nesta fase.
-- Corpo e resposta: `application/json`.
-- Datas civis: formato ISO `YYYY-MM-DD`.
-- Instantes: ISO 8601 com offset.
-- A data corrente é calculada no backend em `America/Sao_Paulo`.
-- Entidades JPA não fazem parte do contrato público.
+- Base pública definida por `VITE_API_BASE_URL` no frontend.
+- Corpo e resposta: `application/json`, exceto exportação Markdown.
+- Datas civis: `YYYY-MM-DD`; a data oficial usa `America/Sao_Paulo`.
+- Rotas protegidas recebem `Authorization: Bearer <token>`.
+- O token expira em oito horas e não contém o PIN.
+- Erros usam o formato JSON padronizado pelo `GlobalExceptionHandler`.
 
-Erros de validação e de regra de negócio terão uma estrutura JSON comum,
-definida junto ao `GlobalExceptionHandler`.
+## Autenticação
 
-## Endpoints da V1
+`POST /auth/access` recebe `{ "role": "TEAM|ADMIN", "pin": "000000" }` e
+devolve `{ "role", "token", "expiresAt" }`. Depois de dez falhas no mesmo IP,
+novas tentativas ficam bloqueadas por quinze minutos.
 
-| Método | Rota | Objetivo | Estado |
+## Endpoints
+
+| Método | Rota | Acesso | Objetivo |
 | --- | --- | --- | --- |
-| `GET` | `/health` | verificar disponibilidade da API | planejado |
-| `GET` | `/members` | listar integrantes | planejado |
-| `POST` | `/members` | cadastrar integrante | planejado |
-| `GET` | `/reports` | listar e filtrar relatórios | planejado |
-| `POST` | `/reports/today` | registrar atividade de hoje | planejado |
-| `PUT` | `/reports/{id}` | editar relatório existente | planejado |
-| `GET` | `/reports/pending` | calcular relatórios pendentes | planejado |
-| `POST` | `/reports/no-activity` | registrar ausência de atividade | planejado |
+| `GET` | `/health` | Público | Verificar disponibilidade da API |
+| `POST` | `/auth/access` | Público | Abrir uma sessão temporária |
+| `GET` | `/members` | Equipe ou coordenação | Listar integrantes ativos |
+| `GET` | `/reports` | Equipe ou coordenação | Listar e filtrar registros |
+| `POST` | `/reports/today` | Equipe ou coordenação | Registrar o diário do dia |
+| `GET` | `/reports/exists` | Equipe ou coordenação | Verificar registro por integrante e data |
+| `PUT` | `/reports/{id}` | Coordenação | Editar um registro |
+| `DELETE` | `/reports/{id}` | Coordenação | Excluir um registro para permitir novo preenchimento |
+| `POST` | `/reports/no-activity` | Equipe ou coordenação | Registrar ausência de atividade |
+| `GET` | `/reports/pending` | Coordenação | Listar pendências do dia |
+| `GET` | `/reports/export` | Coordenação | Baixar o relatório em Markdown |
 
-Filtros previstos em `GET /reports`: `memberId`, `area`, `date` e `status`.
+Uploads e downloads de anexos permanecem no contrato para uma futura etapa com
+armazenamento externo, mas retornam erro quando `ATTACHMENTS_ENABLED=false`.
+No lançamento gratuito, evidências devem ser informadas como texto e links.
 
-### Campos essenciais de criação
+## Regras observáveis
 
-Um relatório de atividade receberá, no mínimo:
-
-- `memberId`;
-- `area`;
-- `title`;
-- `description`.
-
-O cliente não enviará a data para `/reports/today`; o backend preencherá a
-data oficial. Problemas, solução, próximos passos e links de evidência serão
-opcionais.
-
-## Regras observáveis pela API
-
-- membro inexistente resulta em erro de recurso não encontrado;
-- campos inválidos resultam em erro de validação;
-- segundo relatório para o mesmo integrante e data resulta em conflito;
-- editar um relatório não cria uma nova linha;
-- `NO_ACTIVITY` ocupa o registro diário do integrante e impede duplicidade.
-
-## Endpoints futuros
-
-| Método | Rota | Objetivo |
-| --- | --- | --- |
-| `POST` | `/auth/access` | validar a senha coletiva |
-| `GET` | `/exports/xlsx` | exportar os registros para planilha |
+- integrante inexistente resulta em `404`;
+- campos inválidos resultam em `400`;
+- segundo registro para integrante e data resulta em `409`;
+- data futura é recusada mesmo quando enviada diretamente à API;
+- token ausente, inválido ou expirado resulta em `401`;
+- permissão insuficiente resulta em `403`;
+- limite de tentativas de login resulta em `429`.

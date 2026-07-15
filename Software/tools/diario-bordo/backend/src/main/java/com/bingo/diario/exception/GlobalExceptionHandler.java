@@ -26,6 +26,12 @@ public class GlobalExceptionHandler {
         return new ErrorResponse(exception.getMessage());
     }
 
+    @ExceptionHandler(TooManyRequestsException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    ErrorResponse handleTooManyRequests(TooManyRequestsException exception) {
+        return new ErrorResponse(exception.getMessage());
+    }
+
     @ExceptionHandler(InvalidRequestException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     ErrorResponse handleInvalidRequest(InvalidRequestException exception) {

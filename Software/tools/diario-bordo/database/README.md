@@ -11,20 +11,15 @@ esse limite e reduzir o risco de colisão com outros sistemas.
 
 ### Migrations
 
-- `migrations/001_create_diary_schema.sql`: cria a extensão de UUID, o enum de
-  status, a função de auditoria, as tabelas, constraints, triggers e índices.
-
-### Seeds
-
-- `seeds/001_initial_diary_members.sql`: cadastra os seis integrantes iniciais
-  sem duplicar nomes existentes. Nenhum relatório mockado é inserido.
+- `V1` cria a estrutura inicial;
+- `V2` a `V5` evoluem relatórios e anexos;
+- `V6` cadastra os integrantes iniciais sem inserir relatórios fictícios.
 
 ## Ordem de execução
 
-1. Execute `migrations/001_create_diary_schema.sql`.
-2. Verifique a criação de `diary_members` e `diary_reports`.
-3. Execute `seeds/001_initial_diary_members.sql`.
-4. Confira os integrantes com uma consulta somente de leitura:
+O Spring Boot aplica automaticamente as migrations `V1` a `V6` com Flyway ao
+iniciar. Em um banco vazio, não execute esses arquivos manualmente. Depois do
+primeiro início, confira os integrantes com uma consulta somente de leitura:
 
 ```sql
 SELECT id, name, default_area, role, is_active
@@ -32,26 +27,8 @@ FROM diary_members
 ORDER BY name;
 ```
 
-## Aplicar pelo Supabase SQL Editor
-
-No projeto Supabase exclusivo do Diário de Bordo:
-
-1. abra o SQL Editor;
-2. copie todo o conteúdo da migration e execute;
-3. copie todo o conteúdo do seed e execute;
-4. confirme o resultado da consulta de verificação acima.
-
-## Aplicar com um cliente PostgreSQL
-
-Com `psql` e uma URL de conexão fornecida apenas no ambiente local:
-
-```bash
-psql "$POSTGRES_URL" -v ON_ERROR_STOP=1 -f migrations/001_create_diary_schema.sql
-psql "$POSTGRES_URL" -v ON_ERROR_STOP=1 -f seeds/001_initial_diary_members.sql
-```
-
-Execute os comandos a partir desta pasta. Não coloque a URL ou a senha real em
-scripts, documentação, commits ou arquivos versionados.
+O histórico fica na tabela `flyway_schema_history`. Não coloque URL ou senha
+real em scripts, documentação, commits ou arquivos versionados.
 
 ## RLS e acesso
 
@@ -66,5 +43,5 @@ obrigatório ativar RLS e definir policies antes de expor as tabelas.
 
 - Nunca execute reset, drop ou limpeza de dados sem autorização explícita.
 - Nunca versione credenciais reais.
-- Aplique migrations na ordem numérica e apenas uma vez por ambiente.
+- Nunca edite uma migration já aplicada; crie a próxima versão `Vn__descricao.sql`.
 - Faça backup antes de alterar um ambiente que já contenha dados reais.

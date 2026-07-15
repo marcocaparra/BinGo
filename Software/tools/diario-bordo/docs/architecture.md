@@ -3,7 +3,7 @@
 ## Visão geral
 
 ```text
-Frontend (React/Vite na Vercel)
+Frontend (React/Vite no Cloudflare Pages)
         |
         | HTTP/REST com JSON
         v
@@ -38,10 +38,11 @@ validados com Bean Validation e responses usarão DTOs.
 ## Decisões da V1
 
 - A data oficial usa o fuso `America/Sao_Paulo`.
-- A senha coletiva virá de variável de ambiente, sem Spring Security nesta fase.
-- O esquema será controlado por migrations SQL em `database/migrations/`.
+- Os PINs vêm de variáveis de ambiente e são usados somente no login; as demais requisições usam token assinado com validade de oito horas.
+- Dez falhas de login pelo mesmo IP bloqueiam novas tentativas por quinze minutos.
+- O esquema é controlado por migrations Flyway em `database/migrations/`.
 - O Hibernate validará o esquema com `ddl-auto=validate` depois da migration inicial.
-- Evidências serão URLs; arquivos e imagens não serão salvos no banco.
+- Na publicação gratuita inicial, evidências serão textos e URLs; uploads ficam desativados.
 - Relatórios não serão removidos fisicamente na V1.
 
 ## Limites

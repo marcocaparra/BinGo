@@ -25,8 +25,8 @@ export async function request<T>(
   }
 
   const session = getStoredSession()
-  if (session && !headers.has('X-Diary-Password')) {
-    headers.set('X-Diary-Password', session.pin)
+  if (session && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${session.token}`)
   }
 
   let response: Response
@@ -61,8 +61,8 @@ export async function requestText(
 ): Promise<string> {
   const headers = new Headers(options.headers)
   const session = getStoredSession()
-  if (session && !headers.has('X-Diary-Password')) {
-    headers.set('X-Diary-Password', session.pin)
+  if (session && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${session.token}`)
   }
 
   let response: Response
@@ -97,8 +97,8 @@ export async function requestVoid(
 ): Promise<void> {
   const headers = new Headers(options.headers)
   const session = getStoredSession()
-  if (session && !headers.has('X-Diary-Password')) {
-    headers.set('X-Diary-Password', session.pin)
+  if (session && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${session.token}`)
   }
 
   let response: Response

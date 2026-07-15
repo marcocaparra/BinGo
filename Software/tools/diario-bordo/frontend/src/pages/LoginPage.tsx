@@ -39,10 +39,6 @@ const roleOptions: Array<{
   },
 ]
 
-function currentSessionTimestamp() {
-  return Date.now()
-}
-
 function EyeIcon({ visible }: { visible: boolean }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -64,7 +60,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [isErrorLeaving, setIsErrorLeaving] = useState(false)
   const [isPinVisible, setIsPinVisible] = useState(false)
 
-  const canSubmitPin = pin.length === 4 && !isSubmitting
+  const canSubmitPin = pin.length === 6 && !isSubmitting
   const roleLabel = role === 'ADMIN' ? 'Coordenação' : 'Equipe'
 
   function showError(message: string) {
@@ -140,8 +136,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!/^\d{4}$/.test(pin)) {
-      showError('Digite um PIN de 4 dígitos.')
+    if (!/^\d{6}$/.test(pin)) {
+      showError('Digite um PIN de 6 dígitos.')
       return
     }
 
@@ -150,7 +146,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
     try {
       const response = await accessWithPin(role, pin)
-      const session = { role: response.role, pin, expiresAt: currentSessionTimestamp() }
+      const session = {
+        role: response.role,
+        token: response.token,
+        expiresAt: Date.parse(response.expiresAt),
+      }
       storeSession(session)
       onLogin(session)
     } catch (requestError: unknown) {
@@ -214,7 +214,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <div className="access-security-note">
               <span className="security-mark" aria-hidden="true">🔒</span>
               <div>
-                <strong>2 níveis de acesso · sessão salva por 7 dias</strong>
+                <strong>2 níveis de acesso · sessão válida por 8 horas</strong>
                 <p>Equipe registra o dia. Coordenação acompanha, edita e exporta.</p>
               </div>
             </div>
@@ -223,21 +223,21 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           <>
             <form className="login-form pin-form" onKeyDown={handleConfirmKey} onSubmit={handleSubmit}>
               <label>
-                <span>PIN de quatro dígitos</span>
+                <span>PIN de seis dígitos</span>
                 <span className="pin-input-shell">
                   <input
                     autoFocus
                     className="pin-input"
                     inputMode="numeric"
-                    maxLength={4}
-                    pattern="\d{4}"
+                    maxLength={6}
+                    pattern="\d{6}"
                     type={isPinVisible ? 'text' : 'password'}
                   value={pin}
                   onChange={(event) => {
-                    setPin(event.target.value.replace(/\D/g, '').slice(0, 4))
+                    setPin(event.target.value.replace(/\D/g, '').slice(0, 6))
                     hideErrorSmoothly()
                   }}
-                    placeholder="0000"
+                    placeholder="000000"
                     required
                   />
                   <button

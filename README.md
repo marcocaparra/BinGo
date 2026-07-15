@@ -46,8 +46,8 @@ O que pode ser alterado aqui:
 
 - API Spring Boot do Diário de Bordo;
 - frontend React/Vite do Diário;
-- migrations, seeds e documentação do Diário;
-- autenticação simples por PIN coletivo/admin e fluxo de relatório diário.
+- migrations Flyway e documentação do Diário;
+- autenticação por PIN no login, token temporário e fluxo de relatório diário.
 
 O que deve evitar nesta branch:
 

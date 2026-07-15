@@ -35,9 +35,9 @@ import org.springframework.test.context.DynamicPropertySource;
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 class DiarioBordoApiApplicationTests {
 
-    private static final String TEAM_PIN = "2610";
-    private static final String ADMIN_PIN = "6262";
-    private static final String DIARY_PASSWORD_HEADER = "X-Diary-Password";
+    private static final String TEAM_PIN = "261026";
+    private static final String ADMIN_PIN = "626262";
+    private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String ADMIN_DATABASE_URL = "jdbc:postgresql://127.0.0.1:54324/postgres";
     private static final String DATABASE_URL = "jdbc:postgresql://127.0.0.1:54324/bingo_diario_test";
     private static final String DATABASE_USERNAME = "diario";
@@ -51,15 +51,20 @@ class DiarioBordoApiApplicationTests {
     int port;
 
     HttpClient httpClient = HttpClient.newHttpClient();
+    String teamToken;
+    String adminToken;
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", () -> DATABASE_URL);
         registry.add("spring.datasource.username", () -> DATABASE_USERNAME);
         registry.add("spring.datasource.password", () -> DATABASE_PASSWORD);
+        registry.add("spring.flyway.enabled", () -> "false");
         registry.add("app.auth.team-pin", () -> TEAM_PIN);
         registry.add("app.auth.admin-pin", () -> ADMIN_PIN);
+        registry.add("app.auth.signing-secret", () -> "integration-test-signing-secret-with-32-characters");
         registry.add("app.attachments.storage-path", () -> "target/test-uploads");
+        registry.add("app.attachments.enabled", () -> "false");
     }
 
     @BeforeEach
@@ -70,6 +75,8 @@ class DiarioBordoApiApplicationTests {
             statement.execute("TRUNCATE diary_reports, diary_members RESTART IDENTITY CASCADE");
             statement.execute(readClasspath("test-seed.sql"));
         }
+        teamToken = login("TEAM", TEAM_PIN);
+        adminToken = login("ADMIN", ADMIN_PIN);
     }
 
     @Test
@@ -77,12 +84,18 @@ class DiarioBordoApiApplicationTests {
         TestResponse teamResponse = post("/auth/access", Map.of("role", "TEAM", "pin", TEAM_PIN), null);
         TestResponse adminResponse = post("/auth/access", Map.of("role", "ADMIN", "pin", ADMIN_PIN), null);
         TestResponse wrongRoleResponse = post("/auth/access", Map.of("role", "ADMIN", "pin", TEAM_PIN), null);
-        TestResponse invalidFormatResponse = post("/auth/access", Map.of("role", "TEAM", "pin", "12"), null);
+        TestResponse invalidFormatResponse = post("/auth/access", Map.of("role", "TEAM", "pin", "2610"), null);
 
         assertThat(teamResponse.status()).isEqualTo(HttpStatus.OK.value());
-        assertThat(teamResponse.body()).contains("\"role\":\"TEAM\"");
+        assertThat(teamResponse.body())
+                .contains("\"role\":\"TEAM\"")
+                .contains("\"token\":")
+                .contains("\"expiresAt\":");
         assertThat(adminResponse.status()).isEqualTo(HttpStatus.OK.value());
-        assertThat(adminResponse.body()).contains("\"role\":\"ADMIN\"");
+        assertThat(adminResponse.body())
+                .contains("\"role\":\"ADMIN\"")
+                .contains("\"token\":")
+                .contains("\"expiresAt\":");
         assertThat(wrongRoleResponse.status()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
         assertThat(invalidFormatResponse.status()).isEqualTo(HttpStatus.BAD_REQUEST.value());
     }
@@ -94,8 +107,8 @@ class DiarioBordoApiApplicationTests {
 
         TestResponse unauthorizedCreate = post("/reports/today", validReport(memberId, yesterday), null);
         TestResponse unauthorizedRead = get("/reports", null);
-        TestResponse authorizedCreate = post("/reports/today", validReport(memberId, yesterday), TEAM_PIN);
-        TestResponse authorizedRead = get("/reports?date=" + yesterday, ADMIN_PIN);
+        TestResponse authorizedCreate = post("/reports/today", validReport(memberId, yesterday), teamToken);
+        TestResponse authorizedRead = get("/reports?date=" + yesterday, adminToken);
 
         assertThat(unauthorizedCreate.status()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
         assertThat(unauthorizedRead.status()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
@@ -109,6 +122,22 @@ class DiarioBordoApiApplicationTests {
     }
 
     @Test
+    void protectsMemberDirectoryAndRejectsLegacyPinHeader() throws Exception {
+        TestResponse withoutToken = get("/members", null);
+        HttpRequest legacyRequest = HttpRequest.newBuilder(uri("/members"))
+                .header("X-Diary-Password", TEAM_PIN)
+                .GET()
+                .build();
+        TestResponse withLegacyPin = send(legacyRequest);
+        TestResponse withToken = get("/members", teamToken);
+
+        assertThat(withoutToken.status()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+        assertThat(withLegacyPin.status()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
+        assertThat(withToken.status()).isEqualTo(HttpStatus.OK.value());
+        assertThat(withToken.body()).contains("Marco Caparra");
+    }
+
+    @Test
     void requiresExpandedDailyFieldsAndCalculatesTodayStatusAutomatically() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
         LocalDate today = LocalDate.now();
@@ -119,8 +148,8 @@ class DiarioBordoApiApplicationTests {
                 "title", "Objetivo do dia",
                 "description", "O que foi feito");
 
-        TestResponse invalidResponse = post("/reports/today", invalidReport, TEAM_PIN);
-        TestResponse validResponse = post("/reports/today", validReport(memberId, today), TEAM_PIN);
+        TestResponse invalidResponse = post("/reports/today", invalidReport, teamToken);
+        TestResponse validResponse = post("/reports/today", validReport(memberId, today), teamToken);
 
         assertThat(invalidResponse.status()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(validResponse.status()).isEqualTo(HttpStatus.CREATED.value());
@@ -132,14 +161,14 @@ class DiarioBordoApiApplicationTests {
         UUID memberId = memberIdByName("Marco Caparra");
         LocalDate futureDate = LocalDate.now().plusDays(1);
 
-        TestResponse response = post("/reports/today", validReport(memberId, futureDate), TEAM_PIN);
+        TestResponse response = post("/reports/today", validReport(memberId, futureDate), teamToken);
 
         assertThat(response.status()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(response.body()).contains("datas futuras");
     }
 
     @Test
-    void acceptsEvidenceAttachmentsAndExportsThemInMarkdown() throws Exception {
+    void rejectsEvidenceAttachmentsWhenStorageIsDisabled() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
         LocalDate reportDate = LocalDate.now();
 
@@ -149,37 +178,19 @@ class DiarioBordoApiApplicationTests {
                 "evidencia-teste.pdf",
                 "application/pdf",
                 "%PDF-1.4 diario de bordo".getBytes(StandardCharsets.UTF_8),
-                TEAM_PIN);
-        TestResponse exported = get("/reports/export?date=" + reportDate, ADMIN_PIN);
+                teamToken);
 
-        assertThat(created.status()).isEqualTo(HttpStatus.CREATED.value());
-        assertThat(created.body())
-                .contains("\"originalFilename\":\"evidencia-teste.pdf\"")
-                .contains("\"category\":\"documento\"")
-                .contains("\"downloadUrl\":\"/reports/");
-        assertThat(exported.status()).isEqualTo(HttpStatus.OK.value());
-        assertThat(exported.body())
-                .contains("Arquivos anexados")
-                .contains("evidencia-teste.pdf")
-                .contains("documento")
-                .contains("/download?token=");
-
-        String downloadUrl = extractJsonString(created.body(), "downloadUrl");
-        TestResponse downloaded = get(downloadUrl, null);
-
-        assertThat(downloaded.status()).isEqualTo(HttpStatus.OK.value());
-        assertThat(downloaded.header(HttpHeaders.CONTENT_DISPOSITION.toLowerCase()))
-                .contains("evidencia-teste.pdf");
-        assertThat(downloaded.body()).contains("%PDF-1.4 diario de bordo");
+        assertThat(created.status()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(created.body()).contains("Anexos").contains("desativados");
     }
 
     @Test
     void returnsPendingMembersForSelectedDate() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
         LocalDate reportDate = LocalDate.now();
-        post("/reports/today", validReport(memberId, reportDate), TEAM_PIN);
+        post("/reports/today", validReport(memberId, reportDate), teamToken);
 
-        TestResponse response = get("/reports/pending?date=" + reportDate, ADMIN_PIN);
+        TestResponse response = get("/reports/pending?date=" + reportDate, adminToken);
 
         assertThat(response.status()).isEqualTo(HttpStatus.OK.value());
         assertThat(countObjects(response.body())).isEqualTo(4);
@@ -192,10 +203,10 @@ class DiarioBordoApiApplicationTests {
     void letsTeamCheckWhetherMemberAlreadySubmittedForDate() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
         LocalDate reportDate = LocalDate.now();
-        post("/reports/today", validReport(memberId, reportDate), TEAM_PIN);
+        post("/reports/today", validReport(memberId, reportDate), teamToken);
 
-        TestResponse existingResponse = get("/reports/exists?memberId=" + memberId + "&date=" + reportDate, TEAM_PIN);
-        TestResponse emptyResponse = get("/reports/exists?memberId=" + memberId + "&date=" + reportDate.minusDays(1), TEAM_PIN);
+        TestResponse existingResponse = get("/reports/exists?memberId=" + memberId + "&date=" + reportDate, teamToken);
+        TestResponse emptyResponse = get("/reports/exists?memberId=" + memberId + "&date=" + reportDate.minusDays(1), teamToken);
 
         assertThat(existingResponse.status()).isEqualTo(HttpStatus.OK.value());
         assertThat(existingResponse.body())
@@ -210,7 +221,7 @@ class DiarioBordoApiApplicationTests {
     void letsAdminUpdateReportContent() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
         LocalDate reportDate = LocalDate.now();
-        TestResponse created = post("/reports/today", validReport(memberId, reportDate), TEAM_PIN);
+        TestResponse created = post("/reports/today", validReport(memberId, reportDate), teamToken);
         UUID reportId = extractId(created.body());
 
         TestResponse updated = put("/reports/" + reportId, Map.ofEntries(
@@ -226,7 +237,7 @@ class DiarioBordoApiApplicationTests {
                 Map.entry("evidenceLinks", "Drive interno"),
                 Map.entry("toolsUsed", "ChatGPT"),
                 Map.entry("pendingItems", "Validar depois"),
-                Map.entry("finalNotes", "Nota revisada")), ADMIN_PIN);
+                Map.entry("finalNotes", "Nota revisada")), adminToken);
 
         assertThat(updated.status()).isEqualTo(HttpStatus.OK.value());
         assertThat(updated.body())
@@ -239,13 +250,13 @@ class DiarioBordoApiApplicationTests {
     void letsAdminDeleteReportAndReleaseMemberForSameDate() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
         LocalDate reportDate = LocalDate.now();
-        TestResponse created = post("/reports/today", validReport(memberId, reportDate), TEAM_PIN);
+        TestResponse created = post("/reports/today", validReport(memberId, reportDate), teamToken);
         UUID reportId = extractId(created.body());
 
         TestResponse unauthorizedDelete = delete("/reports/" + reportId, null);
-        TestResponse deleted = delete("/reports/" + reportId, ADMIN_PIN);
-        TestResponse existenceAfterDelete = get("/reports/exists?memberId=" + memberId + "&date=" + reportDate, TEAM_PIN);
-        TestResponse recreated = post("/reports/today", validReport(memberId, reportDate), TEAM_PIN);
+        TestResponse deleted = delete("/reports/" + reportId, adminToken);
+        TestResponse existenceAfterDelete = get("/reports/exists?memberId=" + memberId + "&date=" + reportDate, teamToken);
+        TestResponse recreated = post("/reports/today", validReport(memberId, reportDate), teamToken);
 
         assertThat(unauthorizedDelete.status()).isEqualTo(HttpStatus.UNAUTHORIZED.value());
         assertThat(deleted.status()).isEqualTo(HttpStatus.NO_CONTENT.value());
@@ -260,7 +271,7 @@ class DiarioBordoApiApplicationTests {
                 .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
                 .header(HttpHeaders.ORIGIN, "http://127.0.0.1:5173")
                 .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "PUT")
-                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type,x-diary-password")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type,authorization")
                 .build();
 
         TestResponse response = send(request);
@@ -268,7 +279,7 @@ class DiarioBordoApiApplicationTests {
         assertThat(response.status()).isEqualTo(HttpStatus.OK.value());
         assertThat(response.header(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS.toLowerCase())).contains("PUT");
         assertThat(response.header(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS.toLowerCase()).toLowerCase())
-                .contains("x-diary-password");
+                .contains("authorization");
     }
 
     @Test
@@ -276,12 +287,12 @@ class DiarioBordoApiApplicationTests {
         UUID firstMemberId = memberIdByName("Marco Caparra");
         UUID secondMemberId = memberIdByName("Gustavo Bretas");
         LocalDate reportDate = LocalDate.now();
-        post("/reports/today", validReport(firstMemberId, reportDate), TEAM_PIN);
+        post("/reports/today", validReport(firstMemberId, reportDate), teamToken);
         post("/reports/no-activity", Map.of(
                 "memberId", secondMemberId,
-                "reportDate", reportDate.toString()), TEAM_PIN);
+                "reportDate", reportDate.toString()), teamToken);
 
-        TestResponse response = get("/reports/export?date=" + reportDate, ADMIN_PIN);
+        TestResponse response = get("/reports/export?date=" + reportDate, adminToken);
 
         assertThat(response.status()).isEqualTo(HttpStatus.OK.value());
         assertThat(response.header("content-type")).contains(MediaType.valueOf("text/markdown;charset=UTF-8").toString());
@@ -301,8 +312,16 @@ class DiarioBordoApiApplicationTests {
     }
 
     private UUID memberIdByName(String name) throws Exception {
-        TestResponse response = get("/members", null);
+        TestResponse response = get("/members", teamToken);
         return extractMemberIdByName(response.body(), name);
+    }
+
+    private String login(String role, String pin) throws Exception {
+        TestResponse response = post("/auth/access", Map.of("role", role, "pin", pin), null);
+        if (response.status() != HttpStatus.OK.value()) {
+            throw new IllegalStateException("Login failed: " + response.body());
+        }
+        return extractJsonString(response.body(), "token");
     }
 
     private Map<String, Object> validReport(UUID memberId, LocalDate reportDate) {
@@ -354,20 +373,20 @@ class DiarioBordoApiApplicationTests {
         return new String(new ClassPathResource(path).getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     }
 
-    private TestResponse get(String path, String pin) throws Exception {
+    private TestResponse get(String path, String token) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri(path)).GET();
-        if (pin != null) {
-            builder.header(DIARY_PASSWORD_HEADER, pin);
+        if (token != null) {
+            builder.header(AUTHORIZATION_HEADER, "Bearer " + token);
         }
         return send(builder.build());
     }
 
-    private TestResponse post(String path, Object body, String pin) throws Exception {
+    private TestResponse post(String path, Object body, String token) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri(path))
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .POST(HttpRequest.BodyPublishers.ofString(toJson(body), StandardCharsets.UTF_8));
-        if (pin != null) {
-            builder.header(DIARY_PASSWORD_HEADER, pin);
+        if (token != null) {
+            builder.header(AUTHORIZATION_HEADER, "Bearer " + token);
         }
         return send(builder.build());
     }
@@ -378,7 +397,7 @@ class DiarioBordoApiApplicationTests {
             String filename,
             String contentType,
             byte[] fileContent,
-            String pin) throws Exception {
+            String token) throws Exception {
         String boundary = "----BinGoBoundary" + UUID.randomUUID();
         BodyPublisher bodyPublisher = BodyPublishers.ofByteArrays(List.of(
                 ("--" + boundary + "\r\n"
@@ -394,27 +413,27 @@ class DiarioBordoApiApplicationTests {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri(path))
                 .header(HttpHeaders.CONTENT_TYPE, "multipart/form-data; boundary=" + boundary)
                 .POST(bodyPublisher);
-        if (pin != null) {
-            builder.header(DIARY_PASSWORD_HEADER, pin);
+        if (token != null) {
+            builder.header(AUTHORIZATION_HEADER, "Bearer " + token);
         }
         return send(builder.build());
     }
 
-    private TestResponse put(String path, Object body, String pin) throws Exception {
+    private TestResponse put(String path, Object body, String token) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri(path))
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .PUT(HttpRequest.BodyPublishers.ofString(toJson(body), StandardCharsets.UTF_8));
-        if (pin != null) {
-            builder.header(DIARY_PASSWORD_HEADER, pin);
+        if (token != null) {
+            builder.header(AUTHORIZATION_HEADER, "Bearer " + token);
         }
         return send(builder.build());
     }
 
-    private TestResponse delete(String path, String pin) throws Exception {
+    private TestResponse delete(String path, String token) throws Exception {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri(path))
                 .DELETE();
-        if (pin != null) {
-            builder.header(DIARY_PASSWORD_HEADER, pin);
+        if (token != null) {
+            builder.header(AUTHORIZATION_HEADER, "Bearer " + token);
         }
         return send(builder.build());
     }

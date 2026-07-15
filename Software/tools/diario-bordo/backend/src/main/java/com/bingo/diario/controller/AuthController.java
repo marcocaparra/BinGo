@@ -10,6 +10,7 @@ import com.bingo.diario.dto.AuthResponse;
 import com.bingo.diario.service.AuthService;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/auth")
@@ -22,7 +23,9 @@ public class AuthController {
     }
 
     @PostMapping("/access")
-    public AuthResponse access(@Valid @RequestBody AuthRequest request) {
-        return new AuthResponse(authService.validateAccess(request.role(), request.pin()));
+    public AuthResponse access(
+            @Valid @RequestBody AuthRequest request,
+            HttpServletRequest httpRequest) {
+        return authService.authenticate(request.role(), request.pin(), httpRequest.getRemoteAddr());
     }
 }

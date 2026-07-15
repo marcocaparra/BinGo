@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { waitForApiReady } from './api/healthApi'
 import { clearSession, getStoredSession } from './auth/session'
+import { ApiStartupScreen } from './components/ApiStartupScreen'
 import { LoadingScreen } from './components/LoadingScreen'
 import { AppSidebar } from './components/Navbar'
 import { ExportPage } from './pages/ExportPage'
@@ -40,6 +42,26 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => getCurrentPage(storedSession))
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => isCompactViewport())
   const [transition, setTransition] = useState<{ title: string; subtitle: string } | null>(null)
+  const [apiStatus, setApiStatus] = useState<'checking' | 'ready' | 'unavailable'>('checking')
+
+  const retryApi = useCallback(() => {
+    setApiStatus('checking')
+    void waitForApiReady().then((ready) => {
+      setApiStatus(ready ? 'ready' : 'unavailable')
+    })
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    void waitForApiReady().then((ready) => {
+      if (active) {
+        setApiStatus(ready ? 'ready' : 'unavailable')
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     const compactViewport = window.matchMedia('(max-width: 980px)')
@@ -184,6 +206,10 @@ function App() {
     if (isCompactViewport()) {
       setIsSidebarCollapsed(true)
     }
+  }
+
+  if (apiStatus !== 'ready') {
+    return <ApiStartupScreen unavailable={apiStatus === 'unavailable'} onRetry={retryApi} />
   }
 
   if (transition) {

@@ -1,50 +1,40 @@
-# Fluxo previsto do frontend
-
-O frontend será implementado depois da base do backend. Este fluxo define
-apenas as telas e interações necessárias para a V1.
+# Fluxo do frontend
 
 ## Fluxo principal
 
 ```text
-Acesso com senha coletiva
-        |
-        v
-Seleção do integrante
-        |
-        v
-Relatório do dia
-   |             |
-   v             v
-Registrar      Marcar "não fiz
-atividade      atividade hoje"
-   |             |
-   +------v------+
-          |
-          v
-Confirmação e histórico
+Preparação da API -> Perfil -> PIN de seis dígitos -> Seleção do integrante
+                                                     |
+                                                     v
+                                              Relatório do dia
+                                              |              |
+                                              v              v
+                                       Registrar         Sem atividade
+                                              |              |
+                                              +------v-------+
+                                                     |
+                                                     v
+                                             Confirmação e histórico
 ```
 
-## Telas mínimas
-
-1. **Acesso:** solicita a senha coletiva e informa quando ela for inválida.
-2. **Seleção de integrante:** exibe apenas integrantes ativos e você seleciona seu usuário.
-3. **Relatório do dia:** coleta área, título, descrição e campos opcionais.
-4. **Histórico:** lista relatórios e oferece filtros por integrante, área,
-   data e status.
-5. **Pendências:** mostra integrantes os relatórios de certos dias que não foram preenchidos.
-6. **Configurações:** inicial onde o usuário pode adicionar integrantes (futuramente podem haver novas alterações).
+Se o backend gratuito estiver suspenso, a abertura mostra `Preparando o Diário
+de Bordo...` e repete o health check em intervalos progressivos. Depois de 45
+segundos, a pessoa pode tentar novamente sem recarregar a página.
 
 ## Regras de interface
 
-- A data de hoje deve ser exibida, mas não editada pelo usuário.
-- O envio precisa de confirmação visual e proteção contra cliques repetidos.
-- Ao receber conflito de duplicidade, a interface deve orientar a editar o
-  relatório existente.
-- O registro de `NO_ACTIVITY` deve pedir confirmação.
-- Links de evidência devem ser validados como URLs.
+- A sessão fica apenas no `sessionStorage` e termina ao fechar o navegador ou após oito horas.
+- A data máxima de preenchimento e filtros é o dia atual.
+- O envio tem confirmação visual e proteção contra cliques repetidos.
+- A equipe registra evidências como texto e links na publicação inicial.
+- A coordenação pode filtrar, editar, excluir e exportar registros em Markdown.
+- Excluir um registro permite que o integrante preencha novamente aquela data.
+- Uploads ficam ocultos enquanto `VITE_ATTACHMENTS_ENABLED=false`.
 
-## Fora da primeira etapa
+## Permissões
 
-- upload de imagens ou arquivos;
-- exportação para `.xlsx`;
-- gerenciamento avançado de usuários ou permissões.
+- **Equipe:** integrantes, preenchimento e histórico permitido pela API.
+- **Coordenação:** painel, pendências, edição, exclusão e exportação.
+
+Anexos persistentes poderão ser reativados em uma segunda etapa com um storage
+externo; o disco temporário do Koyeb não deve ser usado para arquivos.

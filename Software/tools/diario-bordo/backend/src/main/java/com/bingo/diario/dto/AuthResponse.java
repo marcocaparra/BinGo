@@ -1,4 +1,6 @@
 package com.bingo.diario.dto;
 
-public record AuthResponse(AuthRole role) {
+import java.time.Instant;
+
+public record AuthResponse(AuthRole role, String token, Instant expiresAt) {
 }

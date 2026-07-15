@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { checkReportExists, createNoActivityReport, createTodayReport } from '../api/reportsApi'
 import { getMembers } from '../api/membersApi'
+import { ATTACHMENTS_ENABLED } from '../config/api'
 import type { AuthRole } from '../types/auth'
 import type { Member } from '../types/member'
 import type { CreateTodayReportRequest, ReportExistence } from '../types/report'
@@ -260,7 +261,8 @@ export function TodayReportPage({ role }: TodayReportPageProps) {
     const requiredFieldsAreFilled = requiredReportFields.every((field) =>
       Boolean(formData.get(field)?.toString().trim()),
     )
-    const hasEvidence = Boolean(formData.get('evidenceLinks')?.toString().trim()) || evidenceFiles.length > 0
+    const hasEvidence = Boolean(formData.get('evidenceLinks')?.toString().trim())
+      || (ATTACHMENTS_ENABLED && evidenceFiles.length > 0)
 
     setIsReportReady(Boolean(selectedMemberId && area.trim() && requiredFieldsAreFilled && hasEvidence && !fileError))
   }, [area, evidenceFiles.length, existingReport, fileError, isLoadingMembers, membersError, selectedMemberId])
@@ -300,7 +302,7 @@ export function TodayReportPage({ role }: TodayReportPageProps) {
     const form = event.currentTarget
     const formData = new FormData(form)
     const selectedMember = members.find((member) => member.id === selectedMemberId)
-    const validationMessage = validateEvidenceFiles(evidenceFiles)
+    const validationMessage = ATTACHMENTS_ENABLED ? validateEvidenceFiles(evidenceFiles) : ''
 
     if (validationMessage) {
       setFileError(validationMessage)
@@ -330,7 +332,7 @@ export function TodayReportPage({ role }: TodayReportPageProps) {
     setFeedback(null)
 
     try {
-      await createTodayReport(payload, evidenceFiles)
+      await createTodayReport(payload, ATTACHMENTS_ENABLED ? evidenceFiles : [])
       form.reset()
       setEvidenceFiles([])
       setFileError('')
@@ -617,10 +619,12 @@ export function TodayReportPage({ role }: TodayReportPageProps) {
                 <textarea
                   name="evidenceLinks"
                   rows={4}
-                  placeholder="Cole links, explique evidências ou descreva arquivos importantes. Também dá para anexar prints, vídeos, PDFs, DOCs, DXF e planilhas abaixo."
+                  placeholder={ATTACHMENTS_ENABLED
+                    ? 'Cole links, explique evidências ou descreva arquivos importantes. Também dá para anexar arquivos abaixo.'
+                    : 'Cole links compartilháveis do Google Drive, OneDrive, GitHub ou outra fonte de evidência.'}
                 />
               </label>
-              <div className="evidence-upload-card">
+              {ATTACHMENTS_ENABLED && <div className="evidence-upload-card">
                 <div>
                   <strong>Anexar arquivos</strong>
                   <p>Imagens até 10 MB, documentos até 25 MB e vídeos até 64 MB. Máximo de 8 arquivos.</p>
@@ -646,7 +650,7 @@ export function TodayReportPage({ role }: TodayReportPageProps) {
                     ))}
                   </ul>
                 )}
-              </div>
+              </div>}
               <div className="form-grid two-columns">
                 <label>
                   <span className="label-line">Uso de IA/ferramentas <OptionalTag /></span>
