@@ -9,16 +9,14 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Export database
         env:
           DIARY_DATABASE_URL: ${{ secrets.DIARY_DATABASE_URL }}
         run: |
           test -n "$DIARY_DATABASE_URL"
           mkdir -p backup
-          pg_dump --format=custom --no-owner --no-privileges "$DIARY_DATABASE_URL" > "backup/diario-bordo-$(date -u +%F).dump"
-          pg_restore --list backup/*.dump > backup/restore-manifest.txt
+          docker run --rm -e DATABASE_URL="$DIARY_DATABASE_URL" postgres:17-alpine sh -c 'pg_dump --format=custom --no-owner --no-privileges "$DATABASE_URL"' > "backup/diario-bordo-$(date -u +%F).dump"
+          docker run --rm -i postgres:17-alpine pg_restore --list < backup/*.dump > backup/restore-manifest.txt
       - name: Store private backup
         uses: actions/upload-artifact@v4
         with:
