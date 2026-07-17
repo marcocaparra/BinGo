@@ -1,0 +1,28 @@
+name: Diario de Bordo Backup
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Export database
+        env:
+          DIARY_DATABASE_URL: ${{ secrets.DIARY_DATABASE_URL }}
+        run: |
+          test -n "$DIARY_DATABASE_URL"
+          mkdir -p backup
+          pg_dump --format=custom --no-owner --no-privileges "$DIARY_DATABASE_URL" > "backup/diario-bordo-$(date -u +%F).dump"
+          pg_restore --list backup/*.dump > backup/restore-manifest.txt
+      - name: Store private backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: diario-bordo-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 14
+          if-no-files-found: error
