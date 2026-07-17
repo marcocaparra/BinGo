@@ -5,6 +5,7 @@ import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bingo_navigation_bar.dart';
+import '../widgets/bingo_action_button.dart';
 import '../widgets/bingo_widgets.dart';
 import 'profile_screen.dart';
 
@@ -126,18 +127,56 @@ class MissionDetailScreen extends StatelessWidget {
       subtitle: 'O app orienta. O descarte acontece no Totem físico.',
       child: Column(
         children: [
-          ImageHeroCard(
-            image: mission.image,
-            title: mission.detailTitle,
-            subtitle: mission.detailText,
-            height: 188,
-            progress: mission.progress,
-            progressColor: mission.color,
+          B1nContextMessage(
+            asset: AppAssets.b1nIcon,
+            message: mission.detailText,
+            tone: mission.color,
+            compact: true,
           ),
           const SizedBox(height: 18),
           SurfaceCard(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  'Objetivo',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(mission.subtitle),
+                const SizedBox(height: 16),
+                Text('Cuidado', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                const Text(
+                  'Leve apenas eletrônicos pequenos, secos e seguros. Em caso de bateria, peça ajuda a um adulto.',
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Recompensa',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    if (mission.reward.contains('BinCoins'))
+                      BinCoinIcon(size: 24)
+                    else
+                      const Icon(Icons.map_outlined, color: AppColors.blue),
+                    const SizedBox(width: 8),
+                    Text(
+                      mission.reward,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Como fazer',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 14),
                 for (var i = 0; i < mission.steps.length; i++)
                   _StepRow(
                     number: '${i + 1}',
@@ -149,7 +188,7 @@ class MissionDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           PrimaryButton(
-            label: 'Entendi, vou ao Totem',
+            label: 'Ir ao Totem',
             color: AppColors.green,
             icon: Icons.directions_walk,
             onPressed: () =>
@@ -274,19 +313,24 @@ class WalletScreen extends StatelessWidget {
             color: const Color(0xFFFFF4C7),
             child: Row(
               children: [
-                Image.asset(AppAssets.bincoinV2, height: 64, width: 64),
+                const BinCoinIcon(size: 64),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$userBinCoins BinCoins',
+                        'Saldo disponível',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      BinCoinAmount(
+                        value: userBinCoins,
+                        size: 30,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      Text(
-                        'Você já pode resgatar $redeemableRewards recompensas.',
-                      ),
+                      const SizedBox(height: 4),
+                      Text('$redeemableRewards resgates disponíveis'),
                     ],
                   ),
                 ),
@@ -301,15 +345,18 @@ class WalletScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           const _HistoryTile(
-            title: '+10 BinCoins',
+            verb: 'Ganhou',
+            amount: 10,
             subtitle: 'Missão rápida concluída',
           ),
           const _HistoryTile(
-            title: '-30 BinCoins',
+            verb: 'Usou',
+            amount: 30,
             subtitle: 'Suco natural resgatado',
           ),
           const _HistoryTile(
-            title: '+20 BinCoins',
+            verb: 'Ganhou',
+            amount: 20,
             subtitle: 'Bônus de setor liberado',
           ),
         ],
@@ -323,13 +370,9 @@ class RewardsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final redeemableRewards = rewards
-        .where((reward) => reward.available)
-        .length;
-
     return AppPage(
       title: 'BinBazar',
-      subtitle: 'O balcão de recompensas do Tio B3N.',
+      subtitle: 'Escolha uma recompensa para reservar.',
       child: Column(
         children: [
           SurfaceCard(
@@ -351,9 +394,7 @@ class RewardsScreen extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        'Você tem $userBinCoins BinCoins e $redeemableRewards resgates disponíveis.',
-                      ),
+                      const Text('Escolha uma recompensa e reserve pelo app.'),
                     ],
                   ),
                 ),
@@ -365,13 +406,6 @@ class RewardsScreen extends StatelessWidget {
             _RewardTile(reward: reward),
             const SizedBox(height: 12),
           ],
-          const B1nTipCard(
-            title: 'Recado do Tio B3N',
-            message:
-                'Reserve no app e confirme a retirada com a escola antes de pegar o prêmio.',
-            tone: AppColors.green,
-            asset: AppAssets.b3nTioB1n,
-          ),
         ],
       ),
     );
@@ -389,22 +423,37 @@ class MissionsScreen extends StatelessWidget {
       showBackButton: false,
       child: Column(
         children: [
-          ImageHeroCard(
-            image: AppAssets.sceneConfrontation,
-            title: 'B1N vs SCR4P',
-            subtitle: 'Cada descarte enfraquece a corrupção.',
-            height: 178,
+          _MissionStateCard(
+            mission: activeMission,
+            state: 'Ativa',
+            objective: 'Objetivo: recicle 1 item',
+            onTap: () =>
+                _push(context, MissionDetailScreen(mission: activeMission)),
           ),
           const SizedBox(height: 18),
-          for (final mission in missions) ...[
-            MissionCard(
-              mission: mission,
-              onTap: () => mission.color == AppColors.scr4p
-                  ? _push(context, const Scr4pAlertScreen())
-                  : _push(context, MissionDetailScreen(mission: mission)),
-            ),
-            const SizedBox(height: 12),
-          ],
+          _MissionStateCard(
+            mission: missions[2],
+            state: 'Evento',
+            objective: 'Objetivo: ajude a turma com 5 descartes',
+            onTap: () => _push(context, const Scr4pAlertScreen()),
+          ),
+          const SizedBox(height: 12),
+          _MissionStateCard(
+            mission: missions[0],
+            state: 'Concluída',
+            objective: 'Objetivo concluído: 3 eletrônicos',
+            progress: 1,
+            onTap: () =>
+                _push(context, MissionDetailScreen(mission: missions[0])),
+          ),
+          const SizedBox(height: 12),
+          _MissionStateCard(
+            mission: missions[1],
+            state: 'Futura',
+            objective: 'Objetivo: subir sua turma no ranking',
+            onTap: () =>
+                _push(context, MissionDetailScreen(mission: missions[1])),
+          ),
         ],
       ),
     );
@@ -421,16 +470,16 @@ class Scr4pAlertScreen extends StatelessWidget {
       subtitle: 'Evento de turma com recompensa extra.',
       child: Column(
         children: [
-          ImageHeroCard(
-            image: AppAssets.sceneCorruptScr4p,
-            badge: 'Evento ativo',
-            title: 'Defesa da Praça',
-            subtitle: 'Descarte 5 itens em turma até sexta.',
-            height: 180,
-            alignment: Alignment.centerRight,
+          B1nContextMessage(
+            asset: AppAssets.b1nIdeaInstruction,
+            message:
+                'SCR4P cresce quando o eletrônico vai para o lixo comum. A defesa só conta com descarte validado no Totem.',
+            tone: AppColors.scr4p,
+            compact: true,
           ),
           const SizedBox(height: 18),
           SurfaceCard(
+            color: const Color(0xFFFBF8FF),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -456,34 +505,8 @@ class Scr4pAlertScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          const SurfaceCard(
-            color: Color(0xFFF4ECFF),
-            child: Column(
-              children: [
-                _StepRow(
-                  number: '+20',
-                  title: 'Participou da defesa',
-                  text: 'Todo aluno com descarte validado ganha bônus.',
-                  color: AppColors.scr4p,
-                ),
-                _StepRow(
-                  number: '+35',
-                  title: 'Contribuição forte',
-                  text: 'Quem validar 3 itens no evento recebe bônus maior.',
-                  color: AppColors.scr4p,
-                ),
-                _StepRow(
-                  number: '+50',
-                  title: 'Herói contra SCR4P',
-                  text: 'Os maiores contribuidores ganham bônus de defesa.',
-                  color: AppColors.scr4p,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
           PrimaryButton(
-            label: 'Ver passo a passo',
+            label: 'Ver objetivo da defesa',
             color: AppColors.scr4p,
             icon: Icons.shield,
             onPressed: () => _push(
@@ -582,45 +605,10 @@ class RankingScreen extends StatelessWidget {
       showBackButton: false,
       child: Column(
         children: [
+          const _ClassRankCard(),
+          const SizedBox(height: 18),
           const _PodiumCard(),
-          const SizedBox(height: 18),
-          const SurfaceCard(
-            color: Color(0xFFE9FBEA),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.green,
-                  child: Text(
-                    '4º',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Sua turma · 9ºA',
-                        style: TextStyle(
-                          color: AppColors.navy,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text('Faltam 50 pts para entrar no top 3.'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           B1nTipCard(
             title: 'Cenário atual: Praça Central',
             message:
@@ -629,7 +617,7 @@ class RankingScreen extends StatelessWidget {
             asset: AppAssets.b1nIcon,
             onTap: () => _push(context, const CurrentScenarioScreen()),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           const SurfaceCard(
             color: Color(0xFFFFF8E6),
             child: Row(
@@ -638,7 +626,7 @@ class RankingScreen extends StatelessWidget {
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Prêmios do ciclo: top 3 turmas e participação segura ganham bônus.',
+                    'Ciclo: 12 dias · top 3 e participação segura recebem bônus.',
                   ),
                 ),
               ],
@@ -659,8 +647,15 @@ class CurrentScenarioScreen extends StatelessWidget {
       title: 'Cenário atual',
       subtitle: 'Onde o ciclo do ranking está acontecendo.',
       child: Column(
-        children: const [
-          ImageHeroCard(
+        children: [
+          B1nContextMessage(
+            asset: AppAssets.b1nIcon,
+            message:
+                'A Praça Central é o cenário deste ciclo: cada ponto da turma ajuda a recuperar um setor.',
+            compact: true,
+          ),
+          const SizedBox(height: 18),
+          const ImageHeroCard(
             image: AppAssets.sceneConfrontation,
             badge: 'Praça Central',
             title: '86% em disputa',
@@ -669,8 +664,8 @@ class CurrentScenarioScreen extends StatelessWidget {
             progress: 0.86,
             progressColor: AppColors.warning,
           ),
-          SizedBox(height: 18),
-          SurfaceCard(
+          const SizedBox(height: 18),
+          const SurfaceCard(
             color: Color(0xFFEAF7FF),
             child: Column(
               children: [
@@ -693,6 +688,16 @@ class CurrentScenarioScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+          const SurfaceCard(
+            color: Color(0xFFE9FBEA),
+            child: _StepRow(
+              number: '2',
+              title: 'Próxima meta',
+              text: 'Faltam 2 descartes para liberar o próximo setor da Praça.',
+              color: AppColors.green,
+            ),
+          ),
         ],
       ),
     );
@@ -709,48 +714,33 @@ class ImpactScreen extends StatelessWidget {
       subtitle: 'Veja como sua turma mudou a cidade.',
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _BeforeAfter(image: impactImages[0], label: 'Antes'),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _BeforeAfter(image: impactImages[1], label: 'Agora'),
-              ),
-            ],
+          const ImpactComparison(
+            beforeImage: AppAssets.sceneCorrupt,
+            nowImage: AppAssets.sceneClean,
+            beforeLabel: 'Antes',
+            nowLabel: 'Depois',
+            beforeFit: BoxFit.cover,
+            nowFit: BoxFit.cover,
           ),
           const SizedBox(height: 18),
           SurfaceCard(
-            color: AppColors.navy,
+            color: const Color(0xFFE9FBEA),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '68%',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.displaySmall?.copyWith(color: Colors.white),
+                  'Próxima meta',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 Text(
-                  'da Praça Central recuperada',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(color: Colors.white),
+                  '2 descartes para liberar um novo setor da Praça Central.',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 const AnimatedProgressPill(
                   value: 0.68,
                   color: AppColors.green,
-                  backgroundColor: Colors.white24,
+                  backgroundColor: Colors.white,
                   height: 14,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Faltam 2 descartes para liberar um setor.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
                 ),
               ],
             ),
@@ -1003,23 +993,13 @@ class _RewardTile extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const CoinIcon(size: 18),
-                        const SizedBox(width: 5),
-                        Flexible(
-                          child: Text(
-                            '${reward.cost} BinCoins',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.labelMedium
-                                ?.copyWith(
-                                  color: AppColors.navy,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                        ),
-                      ],
+                    BinCoinAmount(
+                      value: reward.cost,
+                      size: 18,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.navy,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
                 ),
@@ -1027,24 +1007,138 @@ class _RewardTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: reward.available
-                  ? () => _showSnack(
-                      context,
-                      '${reward.title} reservado. Confirme a retirada na escola.',
-                    )
-                  : null,
-              style: FilledButton.styleFrom(
-                backgroundColor: reward.available
-                    ? AppColors.green
-                    : AppColors.line,
-                foregroundColor: reward.available
-                    ? Colors.white
-                    : AppColors.textMuted,
+          BingoActionButton(
+            label: reward.status,
+            icon: reward.available
+                ? Icons.bookmark_add_outlined
+                : Icons.lock_outline,
+            tone: reward.available
+                ? BingoActionTone.green
+                : BingoActionTone.blue,
+            style: reward.available
+                ? BingoActionStyle.primary
+                : BingoActionStyle.secondary,
+            onPressed: reward.available
+                ? () => _showSnack(
+                    context,
+                    '${reward.title} reservado. Confirme a retirada na escola.',
+                  )
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionStateCard extends StatelessWidget {
+  const _MissionStateCard({
+    required this.mission,
+    required this.state,
+    required this.objective,
+    required this.onTap,
+    this.progress,
+  });
+
+  final Mission mission;
+  final String state;
+  final String objective;
+  final VoidCallback onTap;
+  final double? progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveProgress = progress ?? mission.progress;
+    return SurfaceCard(
+      color: state == 'Ativa' ? const Color(0xFFE9FBEA) : Colors.white,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                BadgeLabel(
+                  label: state,
+                  color: state == 'Evento'
+                      ? const Color(0xFFF4ECFF)
+                      : state == 'Concluída'
+                      ? const Color(0xFFEAF7FF)
+                      : const Color(0xFFE9FBEA),
+                ),
+                const Spacer(),
+                Icon(Icons.chevron_right, color: mission.color),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(mission.title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(objective),
+            const SizedBox(height: 12),
+            AnimatedProgressPill(
+              value: effectiveProgress,
+              color: mission.color,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (mission.reward.contains('BinCoins'))
+                  const BinCoinIcon(size: 18),
+                if (mission.reward.contains('BinCoins'))
+                  const SizedBox(width: 6),
+                Text(
+                  mission.reward,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.navy,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassRankCard extends StatelessWidget {
+  const _ClassRankCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SurfaceCard(
+      color: Color(0xFFE9FBEA),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: AppColors.green,
+            child: Text(
+              '4º',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
               ),
-              child: Text(reward.status),
+            ),
+          ),
+          SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sua turma · 9ºA',
+                  style: TextStyle(
+                    color: AppColors.navy,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text('Faltam 50 pts para entrar no top 3.'),
+              ],
             ),
           ),
         ],
@@ -1111,10 +1205,6 @@ class _PodiumCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          const Text(
-            'Sua turma está em 4º e faltam 50 pts para entrar no top 3.',
-          ),
         ],
       ),
     );
@@ -1180,9 +1270,14 @@ class _PodiumPlace extends StatelessWidget {
 }
 
 class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({required this.title, required this.subtitle});
+  const _HistoryTile({
+    required this.verb,
+    required this.amount,
+    required this.subtitle,
+  });
 
-  final String title;
+  final String verb;
+  final int amount;
   final String subtitle;
 
   @override
@@ -1192,17 +1287,18 @@ class _HistoryTile extends StatelessWidget {
       child: SurfaceCard(
         child: Row(
           children: [
-            const CoinIcon(size: 30),
+            BinCoinIcon(size: 30),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  Text(verb, style: Theme.of(context).textTheme.titleMedium),
                   Text(subtitle),
                 ],
               ),
             ),
+            BinCoinAmount(value: amount, size: 18),
           ],
         ),
       ),
@@ -1412,33 +1508,6 @@ class _InfoSection extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BeforeAfter extends StatelessWidget {
-  const _BeforeAfter({required this.image, required this.label});
-
-  final String image;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: Stack(
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Image.asset(
-              image,
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-            ),
-          ),
-          Positioned(left: 10, top: 10, child: BadgeLabel(label: label)),
         ],
       ),
     );

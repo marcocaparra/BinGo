@@ -240,15 +240,15 @@ void main() {
     expect(find.text('Suco natural'), findsOneWidget);
     expect(find.text('Ticket cantina'), findsOneWidget);
 
-    Navigator.of(tester.element(find.text('BinBazar'))).pop();
+    await tester.pageBack();
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Ranking'));
     await tester.pumpAndSettle();
     expect(find.text('Top turmas da Praça'), findsOneWidget);
     expect(find.text('Cenário atual: Praça Central'), findsOneWidget);
-    await tester.ensureVisible(find.textContaining('Prêmios do ciclo'));
-    expect(find.textContaining('Prêmios do ciclo'), findsOneWidget);
+    await tester.ensureVisible(find.textContaining('Ciclo:'));
+    expect(find.textContaining('Ciclo:'), findsOneWidget);
 
     await tester.tap(find.text('Perfil'));
     await tester.pumpAndSettle();
@@ -259,4 +259,100 @@ void main() {
     await tester.ensureVisible(find.text('Guardião'));
     expect(find.text('Herói'), findsOneWidget);
   });
+
+  testWidgets(
+    'wallet presents BinCoin balance, history verbs and focused bazaar',
+    (WidgetTester tester) async {
+      await pumpAtSize(tester, const Size(390, 844));
+      await enterPilot(tester);
+
+      await tester.tap(find.text('Carteira'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Saldo disponível'), findsOneWidget);
+      expect(find.text('3 resgates disponíveis'), findsOneWidget);
+      expect(find.text('Ganhou'), findsNWidgets(2));
+      expect(find.text('Usou'), findsOneWidget);
+
+      await tester.tap(find.text('Abrir BinBazar'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Escolha uma recompensa'), findsAtLeastNWidgets(1));
+      expect(find.text('Tio B3N cuida do balcão'), findsOneWidget);
+      expect(find.bySemanticsLabel('120 BinCoins'), findsOneWidget);
+      expect(find.text('Reservar'), findsNWidgets(3));
+      expect(find.text('Faltam 60'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'missions prioritize stateful progress and keep Totem as subflow',
+    (WidgetTester tester) async {
+      await pumpAtSize(tester, const Size(390, 844));
+      await enterPilot(tester);
+
+      await tester.tap(find.text('Missões'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ativa'), findsOneWidget);
+      expect(find.text('Evento'), findsOneWidget);
+      expect(find.text('Concluída'), findsOneWidget);
+      expect(find.text('Futura'), findsOneWidget);
+      expect(find.text('Objetivo: recicle 1 item'), findsOneWidget);
+
+      await tester.tap(find.text('Recicle 1 item'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Objetivo'), findsOneWidget);
+      expect(find.text('Cuidado'), findsOneWidget);
+      expect(find.text('Recompensa'), findsOneWidget);
+      expect(find.text('Ir ao Totem'), findsOneWidget);
+
+      await tester.drag(find.byType(ListView).last, const Offset(0, -900));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(BingoActionButton, 'Ir ao Totem'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No Totem'), findsOneWidget);
+      expect(find.text('Carteira'), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Ir ao Totem'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'ranking leads with class distance and connects scenario to impact',
+    (WidgetTester tester) async {
+      await pumpAtSize(tester, const Size(390, 844));
+      await enterPilot(tester);
+
+      await tester.tap(find.text('Ranking'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sua turma · 9ºA'), findsOneWidget);
+      expect(find.text('Faltam 50 pts para entrar no top 3.'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Sua turma · 9ºA')).dy,
+        lessThan(tester.getTopLeft(find.text('Top turmas da Praça')).dy),
+      );
+
+      await tester.ensureVisible(find.text('Cenário atual: Praça Central'));
+      await tester.tap(find.text('Cenário atual: Praça Central'));
+      await tester.pumpAndSettle();
+      expect(find.text('Próxima meta'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Início'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Ver impacto da turma'));
+      await tester.tap(find.text('Ver impacto da turma'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Antes'), findsOneWidget);
+      expect(find.text('Depois'), findsOneWidget);
+      expect(find.text('Próxima meta'), findsOneWidget);
+    },
+  );
 }
