@@ -290,7 +290,7 @@ No V1, resgate é feito pelo **totem físico**. O app mobile é apenas consulta.
 A `feature/diario-bordo-v0` concentra somente a primeira versão do Diário de Bordo coletivo.
 
 ```text
-develop -> feature/diario-bordo-v0 -> commits -> push -> Pull Request -> develop
+develop -> feature/diario-bordo-v0 -> commits -> push -> Pull Request -> revisão -> develop
 ```
 
 - Antes de trabalhar, atualize sua cópia desta branch para preservar os commits do restante do time.
@@ -298,7 +298,8 @@ develop -> feature/diario-bordo-v0 -> commits -> push -> Pull Request -> develop
 - Mudanças sem relação devem partir da `develop` em outra `feature/*`, `fix/*` ou `docs/*`.
 - Não versione `.env`, credenciais, bancos locais, builds ou arquivos enviados como evidência.
 - Não use force push nem reescreva o histórico compartilhado.
-- Quando a ferramenta estiver pronta para integração, abra o PR de `feature/diario-bordo-v0` para `develop`.
+- O PR deve estar atualizado com a `develop`, passar pelos testes aplicáveis e receber revisão.
+- A promoção para a `main` acontece somente quando o conjunto estiver aprovado e estável.
 
 ### Nomes De Branch
 
@@ -330,7 +331,7 @@ Evite mensagens vagas como `update`, `alterações`, `teste` ou `corrigindo`.
 
 ### Padrão De Pull Request
 
-O PR para a `develop` deve usar um título direto e conter:
+O PR para a `develop` deve usar um título direto, preferencialmente no mesmo formato dos commits, e conter:
 
 ```markdown
 ## Objetivo
