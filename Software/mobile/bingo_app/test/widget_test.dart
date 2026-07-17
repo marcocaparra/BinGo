@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bingo_app/src/app.dart';
+import 'package:bingo_app/src/widgets/bingo_action_button.dart';
 
 void main() {
   Future<void> pumpAtSize(WidgetTester tester, Size size) async {
@@ -100,6 +101,72 @@ void main() {
       expect(find.text('Como funciona o BinGo'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  for (final size in const [Size(390, 844), Size(430, 932)]) {
+    testWidgets('home keeps the Totem CTA visible and tappable at 2x on '
+        '${size.width}x${size.height}', (WidgetTester tester) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1;
+      await pumpAtSize(tester, size);
+      await enterPilot(tester);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpAndSettle();
+
+      final cta = find.widgetWithText(BingoActionButton, 'Começar no Totem');
+      final ctaRect = tester.getRect(cta);
+
+      expect(cta, findsOneWidget);
+      expect(ctaRect.top, greaterThanOrEqualTo(0));
+      expect(
+        ctaRect.bottom,
+        lessThanOrEqualTo(size.height),
+        reason: 'CTA rect: $ctaRect',
+      );
+      expect(cta.hitTestable(), findsOneWidget, reason: 'CTA rect: $ctaRect');
+      expect(tester.getSize(cta).height, greaterThanOrEqualTo(48));
+      expect(find.text('Ver detalhes da missão'), findsNothing);
+
+      final scr4p = find.text('Alerta SCR4P');
+      final impact = find.text('Ver impacto da turma');
+      final help = find.text('Como funciona o BinGo');
+      expect(scr4p, findsOneWidget);
+      expect(impact, findsOneWidget);
+      expect(help, findsOneWidget);
+      expect(tester.getTopLeft(cta).dy, lessThan(tester.getTopLeft(scr4p).dy));
+      expect(
+        tester.getTopLeft(scr4p).dy,
+        lessThan(tester.getTopLeft(impact).dy),
+      );
+      expect(
+        tester.getTopLeft(impact).dy,
+        lessThan(tester.getTopLeft(help).dy),
+      );
+
+      await tester.tap(cta);
+      await tester.pumpAndSettle();
+      expect(find.text('No Totem'), findsOneWidget);
+    });
+  }
+
+  testWidgets('icon steps keep their visual and semantic position', (
+    WidgetTester tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pumpAtSize(tester, const Size(390, 844));
+    await enterPilot(tester);
+    await tester.ensureVisible(find.text('Como funciona o BinGo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Como funciona o BinGo'));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.inventory_2_outlined), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+    expect(find.bySemanticsLabel('1 de 4'), findsOneWidget);
+    expect(find.bySemanticsLabel('2 de 4'), findsOneWidget);
+    expect(find.bySemanticsLabel('3 de 4'), findsOneWidget);
+    expect(find.bySemanticsLabel('4 de 4'), findsOneWidget);
+    semantics.dispose();
   });
 
   testWidgets('mission reaches totem guidance and impact', (

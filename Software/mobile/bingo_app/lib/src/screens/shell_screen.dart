@@ -55,34 +55,43 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    const scenario = _HomeScenarioOverview();
+    const prompt = B1nContextMessage(
+      asset: AppAssets.b1nIcon,
+      message: 'Leve um eletrônico seguro ao Totem.',
+      compact: true,
+    );
+    final cta = PrimaryButton(
+      label: 'Começar no Totem',
+      color: AppColors.green,
+      icon: Icons.directions_walk,
+      onPressed: () =>
+          _push(context, const TotemTrackingScreen(mission: activeMission)),
+    );
+    final primaryFlow = usesLargeText
+        ? <Widget>[
+            prompt,
+            const SizedBox(height: 12),
+            cta,
+            const SizedBox(height: 12),
+            scenario,
+          ]
+        : <Widget>[
+            scenario,
+            const SizedBox(height: 12),
+            prompt,
+            const SizedBox(height: 12),
+            cta,
+          ];
+
     return AppPage(
       title: 'Olá, Marco!',
       subtitle: 'Sua turma está recuperando a Praça Central.',
       showBackButton: false,
       child: Column(
         children: [
-          _HomeScenarioOverview(
-            onOpenMission: () => _push(
-              context,
-              const MissionDetailScreen(mission: activeMission),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const B1nContextMessage(
-            asset: AppAssets.b1nIcon,
-            message: 'Separe um eletrônico seguro e eu guio o próximo passo.',
-            compact: true,
-          ),
-          const SizedBox(height: 18),
-          PrimaryButton(
-            label: 'Começar no Totem',
-            color: AppColors.green,
-            icon: Icons.directions_walk,
-            onPressed: () => _push(
-              context,
-              const TotemTrackingScreen(mission: activeMission),
-            ),
-          ),
+          ...primaryFlow,
           const SizedBox(height: 18),
           _SoftAction(
             label: 'Alerta SCR4P',
@@ -908,24 +917,28 @@ class HowItWorksScreen extends StatelessWidget {
               children: [
                 _StepRow(
                   number: '1',
+                  stepCount: 4,
                   icon: Icons.inventory_2_outlined,
                   title: 'Prepare',
                   text: 'Separe um eletrônico pequeno, sem uso e seguro.',
                 ),
                 _StepRow(
                   number: '2',
+                  stepCount: 4,
                   icon: Icons.directions_walk,
                   title: 'Vá ao Totem',
                   text: 'Encontre o ponto de coleta combinado pela escola.',
                 ),
                 _StepRow(
                   number: '3',
+                  stepCount: 4,
                   icon: Icons.verified_outlined,
                   title: 'Valide',
                   text: 'Escolha sua turma e siga a orientação do Totem.',
                 ),
                 _StepRow(
                   number: '4',
+                  stepCount: 4,
                   icon: Icons.auto_graph,
                   title: 'Gere impacto',
                   text:
@@ -1203,6 +1216,7 @@ class _StepRow extends StatelessWidget {
     required this.title,
     required this.text,
     this.icon,
+    this.stepCount,
     this.color = AppColors.blue,
   });
 
@@ -1210,6 +1224,7 @@ class _StepRow extends StatelessWidget {
   final String title;
   final String text;
   final IconData? icon;
+  final int? stepCount;
   final Color color;
 
   @override
@@ -1219,24 +1234,59 @@ class _StepRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
+          Semantics(
+            container: true,
+            label: stepCount == null ? number : '$number de $stepCount',
+            child: ExcludeSemantics(
+              child: Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                 child: icon == null
-                    ? Text(
-                        number,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          child: Text(
+                            number,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       )
-                    : Icon(icon, color: Colors.white, size: 22),
+                    : Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(icon, color: Colors.white, size: 21),
+                          Positioned(
+                            right: -3,
+                            bottom: -3,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: color, width: 2),
+                              ),
+                              child: Text(
+                                number,
+                                style: TextStyle(
+                                  color: color,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ),
@@ -1258,9 +1308,7 @@ class _StepRow extends StatelessWidget {
 }
 
 class _HomeScenarioOverview extends StatelessWidget {
-  const _HomeScenarioOverview({required this.onOpenMission});
-
-  final VoidCallback onOpenMission;
+  const _HomeScenarioOverview();
 
   @override
   Widget build(BuildContext context) {
@@ -1273,9 +1321,14 @@ class _HomeScenarioOverview extends StatelessWidget {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             child: Stack(
               children: [
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.asset(AppAssets.sceneClean, fit: BoxFit.cover),
+                SizedBox(
+                  height: 92,
+                  width: double.infinity,
+                  child: Image.asset(
+                    AppAssets.sceneClean,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  ),
                 ),
                 const Positioned(
                   left: 14,
@@ -1286,17 +1339,17 @@ class _HomeScenarioOverview extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '68% restaurada',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 const AnimatedProgressPill(value: 0.68),
-                const SizedBox(height: 18),
+                const SizedBox(height: 10),
                 Text(
                   'Missão ativa',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -1304,28 +1357,19 @@ class _HomeScenarioOverview extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   activeMission.title,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 4),
-                Text(activeMission.subtitle),
-                const SizedBox(height: 12),
+                const SizedBox(height: 6),
                 const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.map_outlined, color: AppColors.blue),
-                    SizedBox(width: 8),
+                    Icon(Icons.map_outlined, color: AppColors.blue, size: 20),
+                    SizedBox(width: 6),
                     Expanded(child: Text('2 descartes para o próximo setor')),
                   ],
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: onOpenMission,
-                    child: const Text('Ver detalhes da missão'),
-                  ),
                 ),
               ],
             ),
