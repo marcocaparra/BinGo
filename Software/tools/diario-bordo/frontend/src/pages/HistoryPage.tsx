@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from
 import { deleteReport, getReports, updateReport } from '../api/reportsApi'
 import { API_BASE_URL } from '../config/api'
 import type { DailyReport, ReportStatus, UpdateDailyReportRequest } from '../types/report'
+import { filterHistoryReports } from './historyFilters'
 
 const statusLabels: Record<ReportStatus, string> = {
   SUBMITTED: 'Enviado',
@@ -113,12 +114,7 @@ export function HistoryPage() {
   )
 
   const filteredReports = useMemo(
-    () => reports.filter((report) =>
-      report.status !== 'NO_ACTIVITY' &&
-      (!member || report.memberName === member) &&
-      (!area || report.area === area) &&
-      (!status || report.status === status),
-    ),
+    () => filterHistoryReports(reports, { member, area, status }),
     [reports, member, area, status],
   )
 
@@ -236,6 +232,7 @@ export function HistoryPage() {
             <option value="">Todos</option>
             <option value="SUBMITTED">Enviado</option>
             <option value="SUBMITTED_LATE">Enviado com atraso</option>
+            <option value="NO_ACTIVITY">Sem atividade</option>
           </select>
         </label>
         <button className="clear-button" type="button" onClick={() => {
