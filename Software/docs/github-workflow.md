@@ -1,292 +1,120 @@
-# Organização do GitHub — BinGo
+# Organização do GitHub - BinGo
 
 ## Objetivo
 
-Este documento define o padrão oficial de organização do repositório do BinGo.
+Este documento define o fluxo oficial de branches, commits e Pull Requests do BinGo. A meta é manter uma única linha atual do projeto, preservar o histórico antigo sem confundi-lo com desenvolvimento ativo e permitir que cada frente avance isoladamente.
 
-Seu objetivo é manter o desenvolvimento organizado, facilitar revisões de código, evitar conflitos entre integrantes e permitir que qualquer pessoa compreenda rapidamente como o projeto está estruturado.
-
-Este documento descreve:
-
-- organização das branches;
-- fluxo de desenvolvimento;
-- padrão de commits;
-- Pull Requests;
-- estrutura do repositório;
-- boas práticas.
-
-## Estrutura de branches
-
-O projeto utiliza uma estratégia simples baseada em uma branch principal de desenvolvimento.
-
-```text
-main
-│
-└── develop
-    │
-    ├── feature/backend-v1
-    ├── feature/mobile-v0
-    ├── feature/admin-auth
-    ├── feature/database-seeds
-    ├── fix/login-pin
-    ├── docs/backend-status
-```
-
-Cada branch possui um objetivo específico.
+## Branches permanentes
 
 ### `main`
 
-Representa a versão estável do projeto.
+É a branch principal e padrão do repositório.
 
-Características:
+- Todo trabalho novo parte dela.
+- Toda integração volta para ela por Pull Request.
+- Não recebe desenvolvimento direto nem force push.
+- Deve permanecer executável e com os testes aplicáveis aprovados.
 
-- somente código aprovado;
-- nunca desenvolver diretamente nela;
-- utilizada para releases;
-- histórico limpo.
+### `legacy`
 
-### `develop`
+Preserva a arquitetura que antes ocupava a antiga `main`.
 
-É a branch principal de desenvolvimento.
+- Serve apenas para consulta e recuperação histórica.
+- Não recebe novas funcionalidades.
+- Uma correção que ainda seja útil deve ser reaplicada na `main`, não desenvolvida aqui.
 
-Todo novo trabalho deve partir dela.
+### `release/diario-bordo-v0`
 
-Fluxo:
+É a fonte acompanhada pelo ambiente publicado do Diário de Bordo.
 
-```text
-develop
-   ↓
-feature
-   ↓
-Pull Request
-   ↓
-develop
-```
+- Recebe apenas promoções ou correções deliberadas do Diário.
+- Não substitui a `main` como origem de trabalho.
+- Deve permanecer enquanto o provedor de hospedagem estiver conectado a ela.
 
-## Tipos de branch
+## Branches de trabalho
 
-### `feature/`
+| Prefixo | Uso | Exemplo |
+| --- | --- | --- |
+| `feature/` | Nova funcionalidade | `feature/totem-v1` |
+| `fix/` | Correção pontual | `fix/diario-auth` |
+| `docs/` | Apenas documentação | `docs/api-contract` |
+| `hotfix/` | Correção urgente de produção | `hotfix/diario-login` |
 
-Utilizada para novas funcionalidades.
+Cada branch deve representar uma frente clara. Totem, mobile e Diário não devem dividir a mesma branch quando as alterações puderem ser revisadas separadamente.
 
-Exemplos:
-
-- `feature/backend-v1`
-- `feature/mobile-dashboard`
-- `feature/admin-lite`
-- `feature/database-v2`
-
-### `fix/`
-
-Utilizada para correções.
-
-Exemplos:
-
-- `fix/login-pin`
-- `fix/deposit-validation`
-- `fix/student-search`
-
-### `docs/`
-
-Utilizada exclusivamente para alterações em documentação.
-
-Exemplos:
-
-- `docs/backend-status`
-- `docs/github-workflow`
-- `docs/database-contract`
-
-### `hotfix/`
-
-Utilizada para correções urgentes em produção.
-
-Exemplos:
-
-- `hotfix/api-crash`
-- `hotfix/auth-error`
-
-## Fluxo de desenvolvimento
-
-Todo desenvolvimento segue o fluxo abaixo:
+## Fluxo oficial
 
 ```text
-develop
-   ↓
-criar nova branch
-   ↓
-desenvolver
-   ↓
-commits
-   ↓
-push
-   ↓
-Pull Request
-   ↓
-revisão
-   ↓
-merge em develop
+main
+  -> feature/fix/docs/hotfix
+  -> commits
+  -> push
+  -> Pull Request para main
+  -> revisão e testes
+  -> merge
+  -> exclusão da branch concluída
 ```
 
-> **Importante:** nunca desenvolver diretamente na branch `develop`.
+Use PR em rascunho quando a interface ou a lógica ainda estiver em construção. Marque-o como pronto somente quando o escopo estiver completo e os testes relevantes tiverem sido executados.
 
 ## Commits
 
-Os commits devem ser pequenos e representar uma única alteração lógica.
+Use Conventional Commits com escopo quando ele ajudar a localizar a mudança:
+
+```text
+tipo(escopo): descrição curta
+```
+
+Tipos usuais: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`, `ci` e `seed`.
 
 Exemplos:
 
 ```text
-feat: implement student PIN authentication
-feat: add reward redemption endpoint
-fix: correct login validation
-fix: prevent duplicate deposits
-docs: update backend status
-refactor: simplify deposit service
-test: add deposit integration tests
+feat(totem): add disposal confirmation flow
+fix(diario-bordo): show no-activity records in history
+docs(repo): clarify main branch workflow
+test(mobile): cover PIN validation
 ```
 
-Evitar commits como:
-
-```text
-update
-alterações
-teste
-aaaa
-corrigindo
-```
+Cada commit deve representar uma alteração lógica. Evite mensagens vagas como `update`, `alterações`, `teste` ou `corrigindo`.
 
 ## Pull Requests
 
-Todo código deve entrar através de Pull Request.
-
-O PR deve conter:
-
-- objetivo;
-- alterações realizadas;
-- testes executados;
-- observações.
-
-Modelo:
+O título deve resumir o resultado, preferencialmente no mesmo formato dos commits. A descrição deve conter:
 
 ```markdown
 ## Objetivo
 
-Implementar autenticação por PIN.
+Explique o resultado entregue.
 
 ## Alterações
 
-- Login por PIN
-- Busca de aluno
-- Validação
-- Testes
+- Liste as mudanças relevantes.
 
-## Testado
+## Testes
 
-- [x] API
-- [x] Banco
-- [x] Integração Totem
+- [x] Informe testes automatizados, lint, build e validações manuais.
+
+## Observações
+
+Registre migrations, variáveis de ambiente, dependências e riscos conhecidos.
 ```
 
-## Organização do repositório
+Antes do merge:
 
-Estrutura principal:
+- atualize a branch com a `main`;
+- resolva conflitos sem apagar trabalho de outras frentes;
+- confirme que arquivos locais, segredos e builds não entraram no commit;
+- obtenha revisão de outra pessoa quando a mudança afetar produção;
+- confirme os checks do GitHub.
 
-```text
-Software/
-├── apps/
-├── backend/
-├── database/
-├── mobile/
-├── infra/
-└── docs/
-```
+## Regras de segurança do histórico
 
-Cada diretório possui responsabilidade própria.
+- Não fazer force push em branches compartilhadas.
+- Não reescrever ou apagar commits de outras pessoas.
+- Não desenvolver diretamente na `main`.
+- Não misturar uma atualização de README com código sem relação.
+- Não excluir `legacy` nem `release/diario-bordo-v0` sem confirmar dependências externas.
+- Excluir branches de feature apenas depois de confirmar que foram integradas.
 
-### `apps/`
-
-Contém as interfaces do sistema:
-
-- `admin_web`;
-- `totem_ui`.
-
-### `backend/`
-
-Contém a API do sistema.
-
-É responsável por:
-
-- regras de negócio;
-- autenticação;
-- integração com banco;
-- endpoints.
-
-### `database/`
-
-Contém os recursos relacionados ao banco de dados:
-
-- migrations;
-- seeds;
-- documentação do modelo.
-
-### `mobile/`
-
-Contém a aplicação Flutter, responsável pela experiência do aluno.
-
-### `infra/`
-
-Contém os recursos de infraestrutura, como:
-
-- Docker;
-- Compose;
-- scripts.
-
-### `docs/`
-
-Contém a documentação técnica.
-
-Exemplos:
-
-- `database-model.md`;
-- `backend-status.md`;
-- `github-workflow.md`;
-- `contracts.md`.
-
-## Boas práticas
-
-Sempre:
-
-- criar uma branch para cada tarefa;
-- realizar commits frequentes;
-- escrever mensagens claras;
-- revisar antes do merge;
-- manter a documentação atualizada;
-- excluir branches concluídas após o merge.
-
-Evitar:
-
-- commits gigantes;
-- múltiplas funcionalidades na mesma branch;
-- alterar código diretamente na `main`;
-- abrir Pull Requests sem testes;
-- misturar documentação e implementação na mesma branch sem necessidade.
-
-## Fluxo resumido
-
-```text
-develop
-   ↓
-feature/minha-feature
-   ↓
-commits
-   ↓
-push
-   ↓
-Pull Request
-   ↓
-review
-   ↓
-merge
-   ↓
-deletar branch
-```
+Documentos históricos podem citar a antiga `develop`; isso registra o contexto da época e não altera o fluxo atual.

@@ -1,0 +1,14 @@
+package com.bingo.diario.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+
+public record AuthRequest(
+        @NotNull(message = "tipo de acesso é obrigatório")
+        AuthRole role,
+
+        @NotBlank(message = "PIN é obrigatório")
+        @Pattern(regexp = "\\d{6}", message = "PIN deve ter 6 dígitos")
+        String pin) {
+}
