@@ -7,6 +7,7 @@ on:
       - ".github/workflows/diario-bordo-ci.yml"
   push:
     branches:
+      - main
       - release/diario-bordo-v0
     paths:
       - "Software/tools/diario-bordo/**"
