@@ -4,7 +4,7 @@ O BinGo transforma o descarte de resíduos eletrônicos em uma experiência gami
 
 ## Estado do repositório
 
-Esta é a branch principal de integração do projeto. Todo trabalho novo deve partir da `main` e voltar para ela por Pull Request.
+Esta é a branch principal de integração do projeto. Todo trabalho novo deve partir da `develop` e voltar para ela por Pull Request.
 
 | Frente | Situação | Local |
 | --- | --- | --- |
@@ -53,24 +53,24 @@ BinGo/
 
 | Branch | Uso |
 | --- | --- |
-| `main` | Integração atual e origem de todo trabalho novo |
+| `develop` | Branch padrão, integração atual e origem de todo trabalho novo |
 | `legacy` | Arquitetura antiga preservada apenas para consulta |
 | `release/diario-bordo-v0` | Fonte do serviço publicado do Diário de Bordo |
 | `feature/totem-v1` | Evolução ainda em revisão do totem |
 | `feature/mobile-pin-refresh` | Evolução ainda em revisão do aplicativo |
 
-A `legacy` não deve receber novas funcionalidades. A branch de release existe porque o serviço publicado acompanha esse nome; mudanças normais do Diário continuam partindo da `main`.
+A `legacy` não deve receber novas funcionalidades. A branch de release existe porque o serviço publicado acompanha esse nome; mudanças normais do Diário continuam partindo da `develop`.
 
 ## Fluxo de contribuição
 
 ```text
-main -> feature/fix/docs -> commits -> Pull Request -> revisão -> main
+develop -> feature/fix/docs -> commits -> Pull Request -> revisão -> develop
 ```
 
-1. Atualize a `main`.
+1. Atualize a `develop`.
 2. Crie uma branch com escopo claro.
 3. Faça commits pequenos e relacionados.
-4. Abra um Pull Request para `main`.
+4. Abra um Pull Request para `develop`.
 5. Registre os testes executados.
 6. Exclua a branch depois do merge.
 
