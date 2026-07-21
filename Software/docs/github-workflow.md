@@ -6,7 +6,7 @@ Este documento define o fluxo oficial de branches, commits e Pull Requests do Bi
 
 ## Branches permanentes
 
-### `main`
+### `develop`
 
 É a branch principal e padrão do repositório.
 
@@ -21,14 +21,14 @@ Preserva a arquitetura que antes ocupava a antiga `main`.
 
 - Serve apenas para consulta e recuperação histórica.
 - Não recebe novas funcionalidades.
-- Uma correção que ainda seja útil deve ser reaplicada na `main`, não desenvolvida aqui.
+- Uma correção que ainda seja útil deve ser reaplicada na `develop`, não desenvolvida aqui.
 
 ### `release/diario-bordo-v0`
 
 É a fonte acompanhada pelo ambiente publicado do Diário de Bordo.
 
 - Recebe apenas promoções ou correções deliberadas do Diário.
-- Não substitui a `main` como origem de trabalho.
+- Não substitui a `develop` como origem de trabalho.
 - Deve permanecer enquanto o provedor de hospedagem estiver conectado a ela.
 
 ## Branches de trabalho
@@ -45,11 +45,11 @@ Cada branch deve representar uma frente clara. Totem, mobile e Diário não deve
 ## Fluxo oficial
 
 ```text
-main
+develop
   -> feature/fix/docs/hotfix
   -> commits
   -> push
-  -> Pull Request para main
+  -> Pull Request para develop
   -> revisão e testes
   -> merge
   -> exclusão da branch concluída
@@ -72,7 +72,7 @@ Exemplos:
 ```text
 feat(totem): add disposal confirmation flow
 fix(diario-bordo): show no-activity records in history
-docs(repo): clarify main branch workflow
+docs(repo): clarify develop branch workflow
 test(mobile): cover PIN validation
 ```
 
@@ -102,7 +102,7 @@ Registre migrations, variáveis de ambiente, dependências e riscos conhecidos.
 
 Antes do merge:
 
-- atualize a branch com a `main`;
+- atualize a branch com a `develop`;
 - resolva conflitos sem apagar trabalho de outras frentes;
 - confirme que arquivos locais, segredos e builds não entraram no commit;
 - obtenha revisão de outra pessoa quando a mudança afetar produção;
@@ -112,7 +112,7 @@ Antes do merge:
 
 - Não fazer force push em branches compartilhadas.
 - Não reescrever ou apagar commits de outras pessoas.
-- Não desenvolver diretamente na `main`.
+- Não desenvolver diretamente na `develop`.
 - Não misturar uma atualização de README com código sem relação.
 - Não excluir `legacy` nem `release/diario-bordo-v0` sem confirmar dependências externas.
 - Excluir branches de feature apenas depois de confirmar que foram integradas.
