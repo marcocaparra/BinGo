@@ -1,0 +1,65 @@
+name: Diario de Bordo CI
+
+on:
+  pull_request:
+    paths:
+      - "Software/tools/diario-bordo/**"
+      - ".github/workflows/diario-bordo-ci.yml"
+  push:
+    branches:
+      - main
+      - release/diario-bordo-v0
+    paths:
+      - "Software/tools/diario-bordo/**"
+      - ".github/workflows/diario-bordo-ci.yml"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: diario
+          POSTGRES_PASSWORD: diario_dev
+        ports:
+          - 54324:5432
+        options: >-
+          --health-cmd "pg_isready -U diario"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: Software/tools/diario-bordo/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: chmod +x mvnw && ./mvnw -B test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Software/tools/diario-bordo/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Software/tools/diario-bordo/frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t bingo-diario-bordo:ci Software/tools/diario-bordo
