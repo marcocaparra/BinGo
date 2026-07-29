@@ -1578,6 +1578,28 @@ function selectItem(id) {
   render();
 }
 
+const DEVICE_WIDTH = 390;
+const DEVICE_HEIGHT = 669;
+
+function syncDeviceScale() {
+  const stage = document.querySelector(".stage");
+  const viewport = document.querySelector(".device-viewport");
+  const shell = document.querySelector(".device-shell");
+  if (!stage || !viewport || !shell) {
+    return;
+  }
+
+  const stageStyle = getComputedStyle(stage);
+  const horizontalPadding =
+    Number.parseFloat(stageStyle.paddingLeft) + Number.parseFloat(stageStyle.paddingRight);
+  const availableWidth = Math.max(0, window.innerWidth - horizontalPadding);
+  const scale = Math.min(1, availableWidth / DEVICE_WIDTH);
+
+  viewport.style.width = `${DEVICE_WIDTH * scale}px`;
+  viewport.style.height = `${DEVICE_HEIGHT * scale}px`;
+  shell.style.setProperty("--device-scale", String(scale));
+}
+
 document.querySelector("#nextBtn")?.addEventListener("click", next);
 document.querySelector("#prevBtn")?.addEventListener("click", previous);
 document.addEventListener("dragstart", (event) => {
@@ -1585,4 +1607,6 @@ document.addEventListener("dragstart", (event) => {
     event.preventDefault();
   }
 });
+window.addEventListener("resize", syncDeviceScale);
+syncDeviceScale();
 render();

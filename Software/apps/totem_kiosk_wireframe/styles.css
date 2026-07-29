@@ -143,14 +143,23 @@ p {
   box-shadow: 0 12px 24px rgba(18, 104, 255, 0.22);
 }
 
+.device-viewport {
+  position: relative;
+  width: 390px;
+  height: 669px;
+  margin: 0 auto;
+}
+
 .device-shell {
   position: relative;
-  width: min(100%, 420px);
-  aspect-ratio: 7 / 12;
+  width: 390px;
+  height: 669px;
   padding: 12px;
   border-radius: 38px;
   background: linear-gradient(145deg, #111827, #030711);
   box-shadow: 0 30px 90px rgba(5, 18, 45, 0.28);
+  transform: scale(var(--device-scale, 1));
+  transform-origin: top left;
 }
 
 .device-shell::before {
@@ -1228,15 +1237,6 @@ p {
   --action-stack-h: 140px;
 }
 
-.screen--safety {
-  --action-stack-h: 134px;
-  --tap-action: 62px;
-}
-
-.screen--safety .action-zone--stack {
-  gap: 10px;
-}
-
 .screen--safety .b1n-talk--corner {
   min-height: 116px;
   grid-template-columns: 1fr 110px;
@@ -1313,7 +1313,7 @@ p {
 
 .safety-checks {
   display: grid;
-  gap: 7px;
+  gap: 9px;
 }
 
 .safety-check {
@@ -1321,7 +1321,7 @@ p {
   grid-template-columns: 38px 1fr;
   align-items: center;
   gap: 12px;
-  min-height: 28px;
+  min-height: 42px;
   border-bottom: 1px solid #dfeafa;
 }
 
@@ -1332,8 +1332,8 @@ p {
 .safety-check-icon {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 2px solid #aee4bf;
   border-radius: 50%;
   color: #258c4e;
@@ -1353,7 +1353,7 @@ p {
 
 .safety-check-copy {
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .safety-check-copy small {
@@ -2523,7 +2523,6 @@ p {
   }
 
   .device-shell {
-    width: min(100%, 390px);
-    margin: 0 auto;
+    margin: 0;
   }
 }
