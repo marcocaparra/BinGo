@@ -306,12 +306,20 @@ class _WalletScreenState extends State<WalletScreen> {
                 segments: const [
                   ButtonSegment(
                     value: WalletSection.transactions,
-                    label: Text('Movimentações'),
+                    label: Text(
+                      'Extrato',
+                      maxLines: 1,
+                      softWrap: false,
+                    ),
                     icon: Icon(Icons.swap_vert_rounded),
                   ),
                   ButtonSegment(
                     value: WalletSection.discards,
-                    label: Text('Descartes'),
+                    label: Text(
+                      'Descartes',
+                      maxLines: 1,
+                      softWrap: false,
+                    ),
                     icon: Icon(Icons.recycling_rounded),
                   ),
                 ],

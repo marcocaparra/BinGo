@@ -397,8 +397,13 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Movimentações'), findsOneWidget);
-      expect(find.text('Descartes'), findsOneWidget);
+      final extrato = tester.widget<Text>(find.text('Extrato'));
+      final descartes = tester.widget<Text>(find.text('Descartes'));
+
+      expect(extrato.maxLines, 1);
+      expect(extrato.softWrap, isFalse);
+      expect(descartes.maxLines, 1);
+      expect(descartes.softWrap, isFalse);
       expect(tester.takeException(), isNull);
     });
   }
