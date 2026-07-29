@@ -1,11 +1,11 @@
 {
-    "name": "bingo_app",
-    "short_name": "bingo_app",
+    "name": "BinGo!",
+    "short_name": "BinGo!",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#005BEA",
+    "theme_color": "#005BEA",
+    "description": "Acompanhe missões, BinCoins e o impacto da sua turma.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
