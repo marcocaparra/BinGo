@@ -27,8 +27,8 @@
   --tap-compact-list: 60px;
   --tap-key: 64px;
   --tap-alpha: 40px;
-  --b1n-corner-w: 118px;
-  --b1n-corner-h: 126px;
+  --b1n-corner-w: 110px;
+  --b1n-corner-h: 116px;
   --b1n-big-w: 314px;
   --b1n-big-h: 268px;
   --b1n-big-img-h: 268px;
@@ -495,7 +495,7 @@ p {
 }
 
 .b1n-talk--corner.character-doubt img {
-  transform: translateX(-5px);
+  transform: none;
 }
 
 .b1n-talk--corner.character-idea img {
@@ -1228,7 +1228,7 @@ p {
 .screen--safety .content-zone--corner {
   justify-content: start;
   gap: 2px;
-  padding: 0 2px 4px;
+  padding: 0 0 4px;
   padding-top: 8px;
 }
 
@@ -2386,30 +2386,32 @@ p {
   text-align: center;
 }
 
-.screen--category .b1n-talk--corner,
-.screen--safety .b1n-talk--corner,
-.screen--safety-stop .b1n-talk--corner,
-.screen--physical .b1n-talk--corner,
-.screen--capture .b1n-talk--corner,
-.content-zone--item-focus .b1n-talk--corner,
-.content-zone--correction .b1n-talk--corner,
-.content-zone--compact-list .b1n-talk--corner,
-.content-zone--quantity .b1n-talk--corner {
+/* Every corner screen shares one B1N rail. Poses may change, geometry may not. */
+.screen--corner > .content-zone {
+  justify-content: start;
+  padding-top: 8px;
+}
+
+.screen--corner > .content-zone > .b1n-talk--corner {
+  flex: 0 0 116px;
+  width: 100%;
   min-height: 116px;
   grid-template-columns: minmax(0, 1fr) 110px;
 }
 
-.screen--category .b1n-avatar,
-.screen--safety .b1n-avatar,
-.screen--safety-stop .b1n-avatar,
-.screen--physical .b1n-avatar,
-.screen--capture .b1n-avatar,
-.content-zone--item-focus .b1n-avatar,
-.content-zone--correction .b1n-avatar,
-.content-zone--compact-list .b1n-avatar,
-.content-zone--quantity .b1n-avatar {
+.screen--corner > .content-zone > .b1n-talk--corner .b1n-avatar {
   width: 110px;
   height: 116px;
+}
+
+.screen--corner > .content-zone > .b1n-talk--corner img {
+  transform: none;
+}
+
+/* Student search keeps its wider keyboard gutter without moving B1N. */
+.screen--student-search > .content-zone > .b1n-talk--corner {
+  width: calc(100% - 8px);
+  margin-inline: 4px;
 }
 
 @keyframes statusScan {
