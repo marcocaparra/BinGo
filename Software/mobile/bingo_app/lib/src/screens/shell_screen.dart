@@ -21,11 +21,25 @@ class ShellScreen extends StatefulWidget {
 
 class _ShellScreenState extends State<ShellScreen> {
   late int _index = widget.initialIndex;
+  String _firstName = 'Marco';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFirstName();
+  }
+
+  Future<void> _loadFirstName() async {
+    final profile = await widget.repository?.loadProfile();
+    final identifier = profile?.identifier.trim();
+    if (!mounted || identifier == null || identifier.isEmpty) return;
+    setState(() => _firstName = identifier.split(RegExp(r'\s+')).first);
+  }
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomeScreen(onOpenTab: _selectTab),
+      HomeScreen(firstName: _firstName, onOpenTab: _selectTab),
       const WalletScreen(),
       const MissionsScreen(),
       const RankingScreen(),
@@ -50,22 +64,25 @@ class _ShellScreenState extends State<ShellScreen> {
 }
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({required this.onOpenTab, super.key});
+  const HomeScreen({
+    required this.firstName,
+    required this.onOpenTab,
+    super.key,
+  });
 
+  final String firstName;
   final ValueChanged<int> onOpenTab;
 
   @override
   Widget build(BuildContext context) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     const scenario = _HomeScenarioOverview();
-    const prompt = B1nContextMessage(
-      asset: AppAssets.b1nIcon,
+    const prompt = B1nDialogueStrip(
       message: 'Leve um eletrônico seguro ao Totem.',
-      compact: true,
     );
-    final cta = PrimaryButton(
+    final cta = BingoActionButton(
       label: 'Começar no Totem',
-      color: AppColors.green,
+      tone: BingoActionTone.green,
       icon: Icons.directions_walk,
       onPressed: () =>
           _push(context, const TotemTrackingScreen(mission: activeMission)),
@@ -73,22 +90,22 @@ class HomeScreen extends StatelessWidget {
     final primaryFlow = usesLargeText
         ? <Widget>[
             prompt,
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             cta,
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             scenario,
           ]
         : <Widget>[
             scenario,
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             prompt,
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             cta,
           ];
 
     return AppPage(
-      title: 'Olá, Marco!',
-      subtitle: 'Sua turma está recuperando a Praça Central.',
+      title: 'Olá, $firstName!',
+      subtitle: 'Sua turma está recuperando a ${currentScenario.name}.',
       showBackButton: false,
       child: Column(
         children: [
@@ -104,10 +121,11 @@ class HomeScreen extends StatelessWidget {
             icon: Icons.auto_graph,
             onTap: () => _push(context, const ImpactScreen()),
           ),
-          TextButton.icon(
+          BingoActionButton(
             onPressed: () => _push(context, const HowItWorksScreen()),
-            icon: const Icon(Icons.info_outline),
-            label: const Text('Como funciona o BinGo'),
+            icon: Icons.info_outline,
+            label: 'Como funciona o BinGo',
+            style: BingoActionStyle.quiet,
           ),
         ],
       ),
@@ -123,76 +141,36 @@ class MissionDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppPage(
-      title: 'Missão: ${mission.title.toLowerCase()}',
-      subtitle: 'O app orienta. O descarte acontece no Totem físico.',
+      title: 'Missão',
+      subtitle: 'Prepare o item e avance com segurança.',
       child: Column(
         children: [
-          B1nContextMessage(
-            asset: AppAssets.b1nIcon,
-            message: mission.detailText,
-            tone: mission.color,
-            compact: true,
-          ),
+          _MissionHero(mission: mission),
           const SizedBox(height: 18),
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Objetivo',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 4),
-                Text(mission.subtitle),
-                const SizedBox(height: 16),
-                Text('Cuidado', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                const Text(
-                  'Leve apenas eletrônicos pequenos, secos e seguros. Em caso de bateria, peça ajuda a um adulto.',
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Recompensa',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    if (mission.reward.contains('BinCoins'))
-                      BinCoinIcon(size: 24)
-                    else
-                      const Icon(Icons.map_outlined, color: AppColors.blue),
-                    const SizedBox(width: 8),
-                    Text(
-                      mission.reward,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Como fazer',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 14),
-                for (var i = 0; i < mission.steps.length; i++)
-                  _StepRow(
-                    number: '${i + 1}',
-                    title: mission.steps[i].$1,
-                    text: mission.steps[i].$2,
-                  ),
-              ],
+          _MissionObjective(mission: mission),
+          if (mission.state == MissionState.event) ...[
+            const SizedBox(height: 14),
+            const _MissionEventStatus(),
+          ],
+          const SizedBox(height: 14),
+          B1nDialogueStrip(message: mission.detailText, tone: mission.color),
+          const SizedBox(height: 22),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Como completar',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
-          const SizedBox(height: 18),
-          PrimaryButton(
-            label: 'Ir ao Totem',
-            color: AppColors.green,
-            icon: Icons.directions_walk,
-            onPressed: () =>
-                _push(context, TotemTrackingScreen(mission: mission)),
+          const SizedBox(height: 14),
+          _MissionTimeline(mission: mission),
+          const SizedBox(height: 8),
+          const _SafetyAlert(
+            icon: Icons.health_and_safety_outlined,
+            title: 'Segurança antes dos pontos',
+            message:
+                'Leve itens pequenos, secos e seguros. Em caso de bateria, peça ajuda a um adulto.',
+            color: AppColors.warning,
           ),
         ],
       ),
@@ -209,93 +187,64 @@ class TotemTrackingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'No Totem',
-      subtitle: 'Acompanhe a validação do descarte físico.',
+      subtitle: 'O equipamento valida. O app acompanha.',
       child: Column(
         children: [
-          SurfaceCard(
-            color: AppColors.blue.withValues(alpha: 0.08),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Image.asset(AppAssets.b1nIcon, height: 54, width: 54),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        mission.title,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const _StepRow(
-                  number: '1',
-                  title: 'Item autorizado',
-                  text: 'Use apenas item sem uso, com autorização e sem risco.',
-                ),
-                const _StepRow(
-                  number: '2',
-                  title: 'Aguardando Totem',
-                  text: 'Escolha sua turma e descarte no local indicado.',
-                ),
-                _StepRow(
-                  number: '3',
-                  title: 'Validação no app',
-                  text: '${mission.reward} entram após confirmação.',
-                ),
-              ],
+          _TotemHero(mission: mission),
+          const SizedBox(height: 18),
+          const B1nDialogueStrip(
+            message: 'Escolha sua turma no Totem e siga a tela do equipamento.',
+          ),
+          const SizedBox(height: 22),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Seu caminho no Totem',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
+          const SizedBox(height: 14),
+          const _TotemProcess(),
+          const SizedBox(height: 8),
+          const _ResponsibilityNotice(),
           const SizedBox(height: 18),
-          const B1nTipCard(
-            title: 'BinGo recompensa responsabilidade',
-            message:
-                'Não compre, quebre ou pegue item de outra pessoa para ganhar pontos.',
-            tone: AppColors.warning,
-          ),
-          const SizedBox(height: 18),
-          const SurfaceCard(
-            child: Column(
-              children: [
-                _StepRow(
-                  number: '✓',
-                  title: 'Pode descartar',
-                  text:
-                      'Cabos, mouse, fone, controle pequeno e acessórios secos.',
-                ),
-                _StepRow(
-                  number: '!',
-                  title: 'Chame um professor',
-                  text:
-                      'Celular, bateria solta, item trincado ou peça com ponta exposta.',
-                ),
-                _StepRow(
-                  number: '×',
-                  title: 'Não toque',
-                  text: 'Bateria inchada, vazando, molhada ou quente.',
-                ),
-              ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Antes de levar',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
+          const SizedBox(height: 12),
+          const _TotemSafetyGuide(),
           const SizedBox(height: 18),
-          PrimaryButton(
-            label: 'Ver impacto',
-            color: AppColors.green,
-            icon: Icons.auto_graph,
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const ImpactScreen()),
-            ),
-          ),
+          const _TotemResultSummary(),
         ],
       ),
     );
   }
 }
 
-class WalletScreen extends StatelessWidget {
-  const WalletScreen({super.key});
+enum WalletSection { transactions, discards }
+
+class WalletScreen extends StatefulWidget {
+  const WalletScreen({
+    this.transactions = binCoinTransactions,
+    this.discards = discardHistory,
+    this.isLoading = false,
+    super.key,
+  });
+
+  final List<BinCoinTransaction> transactions;
+  final List<DiscardRecord> discards;
+  final bool isLoading;
+
+  @override
+  State<WalletScreen> createState() => _WalletScreenState();
+}
+
+class _WalletScreenState extends State<WalletScreen> {
+  WalletSection _section = WalletSection.transactions;
 
   @override
   Widget build(BuildContext context) {
@@ -305,60 +254,104 @@ class WalletScreen extends StatelessWidget {
 
     return AppPage(
       title: 'Carteira',
-      subtitle: 'Seus BinCoins e resgates.',
+      subtitle: 'Seu saldo e o histórico do ecossistema.',
       showBackButton: false,
       child: Column(
         children: [
           SurfaceCard(
             color: const Color(0xFFFFF4C7),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const BinCoinIcon(size: 64),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
                         'Saldo disponível',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      const SizedBox(height: 6),
-                      BinCoinAmount(
-                        value: userBinCoins,
-                        size: 30,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 4),
-                      Text('$redeemableRewards resgates disponíveis'),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: AppColors.navy,
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
+                BinCoinAmount(
+                  value: userBinCoins,
+                  size: 32,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.displaySmall?.copyWith(fontSize: 36),
+                ),
+                const SizedBox(height: 10),
+                Text('$redeemableRewards recompensas no Totem'),
               ],
             ),
           ),
           const SizedBox(height: 18),
-          PrimaryButton(
+          BingoActionButton(
             label: 'Abrir BinBazar',
             icon: Icons.storefront,
             onPressed: () => _push(context, const RewardsScreen()),
           ),
           const SizedBox(height: 18),
-          const _HistoryTile(
-            verb: 'Ganhou',
-            amount: 10,
-            subtitle: 'Missão rápida concluída',
+          SizedBox(
+            width: double.infinity,
+            child: MediaQuery.withClampedTextScaling(
+              maxScaleFactor: 1.25,
+              child: SegmentedButton<WalletSection>(
+                segments: const [
+                  ButtonSegment(
+                    value: WalletSection.transactions,
+                    label: Text('Movimentações'),
+                    icon: Icon(Icons.swap_vert_rounded),
+                  ),
+                  ButtonSegment(
+                    value: WalletSection.discards,
+                    label: Text('Descartes'),
+                    icon: Icon(Icons.recycling_rounded),
+                  ),
+                ],
+                selected: {_section},
+                showSelectedIcon: false,
+                onSelectionChanged: (selection) {
+                  setState(() => _section = selection.single);
+                },
+              ),
+            ),
           ),
-          const _HistoryTile(
-            verb: 'Usou',
-            amount: 30,
-            subtitle: 'Suco natural resgatado',
-          ),
-          const _HistoryTile(
-            verb: 'Ganhou',
-            amount: 20,
-            subtitle: 'Bônus de setor liberado',
-          ),
+          const SizedBox(height: 14),
+          if (widget.isLoading)
+            const BingoDataState(
+              kind: BingoDataStateKind.loading,
+              title: 'Carregando histórico',
+              message: 'Organizando as informações do Totem.',
+            )
+          else if (_section == WalletSection.transactions)
+            if (widget.transactions.isEmpty)
+              const BingoDataState(
+                kind: BingoDataStateKind.empty,
+                title: 'Nenhuma movimentação',
+                message:
+                    'Seus BinCoins aparecerão após uma validação no Totem.',
+                icon: Icons.account_balance_wallet_outlined,
+              )
+            else
+              for (final transaction in widget.transactions)
+                _HistoryTile(transaction: transaction)
+          else if (widget.discards.isEmpty)
+            const BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: 'Nenhum descarte validado',
+              message: 'Os descartes confirmados pelo Totem aparecerão aqui.',
+              icon: Icons.recycling_outlined,
+            )
+          else
+            for (final discard in widget.discards)
+              _DiscardHistoryTile(discard: discard),
         ],
       ),
     );
@@ -366,13 +359,15 @@ class WalletScreen extends StatelessWidget {
 }
 
 class RewardsScreen extends StatelessWidget {
-  const RewardsScreen({super.key});
+  const RewardsScreen({this.items = rewards, super.key});
+
+  final List<RewardItem> items;
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
       title: 'BinBazar',
-      subtitle: 'Escolha uma recompensa para reservar.',
+      subtitle: 'Consulte recompensas antes de ir ao Totem.',
       child: Column(
         children: [
           SurfaceCard(
@@ -394,7 +389,9 @@ class RewardsScreen extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 6),
-                      const Text('Escolha uma recompensa e reserve pelo app.'),
+                      const Text(
+                        'O resgate e a retirada acontecem no Totem fisico.',
+                      ),
                     ],
                   ),
                 ),
@@ -402,10 +399,19 @@ class RewardsScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          for (final reward in rewards) ...[
-            _RewardTile(reward: reward),
-            const SizedBox(height: 12),
-          ],
+          if (items.isEmpty)
+            const BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: 'BinBazar sem recompensas',
+              message:
+                  'Novas opções aparecerão quando a escola atualizar o Totem.',
+              icon: Icons.storefront_outlined,
+            )
+          else
+            for (final reward in items) ...[
+              _RewardTile(reward: reward),
+              const SizedBox(height: 12),
+            ],
         ],
       ),
     );
@@ -413,113 +419,79 @@ class RewardsScreen extends StatelessWidget {
 }
 
 class MissionsScreen extends StatelessWidget {
-  const MissionsScreen({super.key});
+  const MissionsScreen({this.items = missions, super.key});
+
+  final List<Mission> items;
 
   @override
   Widget build(BuildContext context) {
+    final eventItems = items
+        .where((mission) => mission.state == MissionState.event)
+        .toList();
+    final compactItems = items
+        .where(
+          (mission) =>
+              mission.state == MissionState.completed ||
+              mission.state == MissionState.upcoming,
+        )
+        .toList();
+
     return AppPage(
       title: 'Missões',
-      subtitle: 'Sua trilha de recuperação.',
+      subtitle: 'Escolha seu próximo passo em BinGópolis.',
       showBackButton: false,
-      child: Column(
-        children: [
-          _MissionStateCard(
-            mission: activeMission,
-            state: 'Ativa',
-            objective: 'Objetivo: recicle 1 item',
-            onTap: () =>
-                _push(context, MissionDetailScreen(mission: activeMission)),
-          ),
-          const SizedBox(height: 18),
-          _MissionStateCard(
-            mission: missions[2],
-            state: 'Evento',
-            objective: 'Objetivo: ajude a turma com 5 descartes',
-            onTap: () => _push(context, const Scr4pAlertScreen()),
-          ),
-          const SizedBox(height: 12),
-          _MissionStateCard(
-            mission: missions[0],
-            state: 'Concluída',
-            objective: 'Objetivo concluído: 3 eletrônicos',
-            progress: 1,
-            onTap: () =>
-                _push(context, MissionDetailScreen(mission: missions[0])),
-          ),
-          const SizedBox(height: 12),
-          _MissionStateCard(
-            mission: missions[1],
-            state: 'Futura',
-            objective: 'Objetivo: subir sua turma no ranking',
-            onTap: () =>
-                _push(context, MissionDetailScreen(mission: missions[1])),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class Scr4pAlertScreen extends StatelessWidget {
-  const Scr4pAlertScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Alerta SCR4P',
-      subtitle: 'Evento de turma com recompensa extra.',
-      child: Column(
-        children: [
-          B1nContextMessage(
-            asset: AppAssets.b1nIdeaInstruction,
-            message:
-                'SCR4P cresce quando o eletrônico vai para o lixo comum. A defesa só conta com descarte validado no Totem.',
-            tone: AppColors.scr4p,
-            compact: true,
-          ),
-          const SizedBox(height: 18),
-          SurfaceCard(
-            color: const Color(0xFFFBF8FF),
-            child: Column(
+      child: items.isEmpty
+          ? const BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: 'Nenhuma missão disponível',
+              message:
+                  'As próximas missões aparecerão depois da atualização do Totem.',
+              icon: Icons.verified_outlined,
+            )
+          : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Image.asset(AppAssets.scr4pIcon, height: 50, width: 50),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'SCR4P ainda controla 58% do setor',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                _MissionFeaturedHero(
+                  mission: activeMission,
+                  onTap: () => _push(
+                    context,
+                    MissionDetailScreen(mission: activeMission),
+                  ),
+                ),
+                if (eventItems.isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  Text(
+                    'Evento em destaque',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  for (final mission in eventItems) ...[
+                    _MissionEventBanner(
+                      mission: mission,
+                      onTap: () =>
+                          _push(context, MissionDetailScreen(mission: mission)),
                     ),
+                    const SizedBox(height: 10),
                   ],
-                ),
-                const SizedBox(height: 12),
-                const AnimatedProgressPill(value: 0.58, color: AppColors.scr4p),
-                const SizedBox(height: 10),
-                const Text(
-                  'Faltam 3 descartes para ganhar +20 BinCoins por aluno participante.',
-                ),
+                ],
+                if (compactItems.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Outras missões',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 12),
+                  for (final mission in compactItems) ...[
+                    _MissionCompactTile(
+                      mission: mission,
+                      onTap: () =>
+                          _push(context, MissionDetailScreen(mission: mission)),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ],
               ],
             ),
-          ),
-          const SizedBox(height: 18),
-          PrimaryButton(
-            label: 'Ver objetivo da defesa',
-            color: AppColors.scr4p,
-            icon: Icons.shield,
-            onPressed: () => _push(
-              context,
-              MissionDetailScreen(
-                mission: missions.firstWhere(
-                  (mission) => mission.id == 'scr4p-defense',
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -566,27 +538,37 @@ class Scr4pInfoScreen extends StatelessWidget {
                   title: 'Ele ataca cenários',
                   text:
                       'Praças, parques e lugares sazonais podem ficar corrompidos.',
+                  color: AppColors.scr4p,
                 ),
                 _StepRow(
                   number: '2',
                   title: 'A turma limpa setores',
                   text: 'Cada descarte validado recupera uma parte do cenário.',
+                  color: AppColors.scr4p,
                 ),
                 _StepRow(
                   number: '3',
                   title: 'Quem ajuda mais ganha mais',
                   text:
                       'Eventos SCR4P dão bônus por participação e contribuição.',
+                  color: AppColors.scr4p,
                 ),
               ],
             ),
           ),
           const SizedBox(height: 18),
-          PrimaryButton(
+          BingoActionButton(
             label: 'Ver defesa ativa',
-            color: AppColors.scr4p,
+            tone: BingoActionTone.purple,
             icon: Icons.shield,
-            onPressed: () => _push(context, const Scr4pAlertScreen()),
+            onPressed: () => _push(
+              context,
+              MissionDetailScreen(
+                mission: missions.firstWhere(
+                  (mission) => mission.state == MissionState.event,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -595,7 +577,9 @@ class Scr4pInfoScreen extends StatelessWidget {
 }
 
 class RankingScreen extends StatelessWidget {
-  const RankingScreen({super.key});
+  const RankingScreen({this.rows = classRows, super.key});
+
+  final List<(String, String, String, String)> rows;
 
   @override
   Widget build(BuildContext context) {
@@ -603,37 +587,26 @@ class RankingScreen extends StatelessWidget {
       title: 'Ranking da turma',
       subtitle: 'Veja quem está perto de recuperar mais setores.',
       showBackButton: false,
-      child: Column(
-        children: [
-          const _ClassRankCard(),
-          const SizedBox(height: 18),
-          const _PodiumCard(),
-          const SizedBox(height: 14),
-          B1nTipCard(
-            title: 'Cenário atual: Praça Central',
-            message:
-                'A disputa deste mês acontece na Praça. Toque para ver setores e progresso.',
-            tone: AppColors.blue,
-            asset: AppAssets.b1nIcon,
-            onTap: () => _push(context, const CurrentScenarioScreen()),
-          ),
-          const SizedBox(height: 14),
-          const SurfaceCard(
-            color: Color(0xFFFFF8E6),
-            child: Row(
+      child: rows.isEmpty
+          ? const BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: 'Ranking ainda sem dados',
+              message:
+                  'A classificação aparecerá após as primeiras validações no Totem.',
+              icon: Icons.emoji_events_outlined,
+            )
+          : Column(
               children: [
-                Icon(Icons.card_giftcard, color: AppColors.warning),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Ciclo: 12 dias · top 3 e participação segura recebem bônus.',
-                  ),
+                const _RankingHero(),
+                const SizedBox(height: 18),
+                const _PodiumCard(),
+                const SizedBox(height: 18),
+                _ScenarioAccessCard(
+                  onPressed: () =>
+                      _push(context, const CurrentScenarioScreen()),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -643,60 +616,84 @@ class CurrentScenarioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     return AppPage(
       title: 'Cenário atual',
       subtitle: 'Onde o ciclo do ranking está acontecendo.',
       child: Column(
         children: [
-          B1nContextMessage(
-            asset: AppAssets.b1nIcon,
+          const B1nDialogueStrip(
             message:
                 'A Praça Central é o cenário deste ciclo: cada ponto da turma ajuda a recuperar um setor.',
-            compact: true,
           ),
           const SizedBox(height: 18),
-          const ImageHeroCard(
+          ImageHeroCard(
             image: AppAssets.sceneConfrontation,
-            badge: 'Praça Central',
-            title: '86% em disputa',
+            badge: currentScenario.name,
+            title: '${currentScenario.restoredPercent}% restaurada',
             subtitle: 'Setores restaurados pela soma de pontos das turmas.',
-            height: 178,
-            progress: 0.86,
-            progressColor: AppColors.warning,
+            height: usesLargeText ? 384 : 220,
+            progress: currentScenario.restoredProgress,
+            progressColor: AppColors.green,
           ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _ScenarioMetric(
+                  icon: Icons.recycling_rounded,
+                  value: '${currentScenario.nextSectorDiscards}',
+                  label: 'descartes para o setor',
+                  color: AppColors.green,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ScenarioMetric(
+                  icon: Icons.schedule_rounded,
+                  value: '${currentScenario.cycleDays}',
+                  label: 'dias neste ciclo',
+                  color: AppColors.warning,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const _RestorationScale(),
           const SizedBox(height: 18),
           const SurfaceCard(
-            color: Color(0xFFEAF7FF),
             child: Column(
               children: [
-                _StepRow(
-                  number: '1',
+                _ScenarioInfoLine(
+                  icon: Icons.location_city_rounded,
                   title: 'Cenário',
                   text: 'É o lugar grande que o SCR4P está atacando agora.',
+                  color: AppColors.scr4p,
                 ),
-                _StepRow(
-                  number: '2',
+                Divider(height: 24, color: AppColors.line),
+                _ScenarioInfoLine(
+                  icon: Icons.grid_view_rounded,
                   title: 'Setores',
                   text: 'São as partes recuperadas quando a turma descarta.',
+                  color: AppColors.blue,
                 ),
-                _StepRow(
-                  number: '12',
+                Divider(height: 24, color: AppColors.line),
+                _ScenarioInfoLine(
+                  icon: Icons.restart_alt_rounded,
                   title: 'Ciclo',
                   text:
                       'Quando acaba, os pontos da turma reiniciam e os prêmios saem.',
+                  color: AppColors.warning,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          const SurfaceCard(
-            color: Color(0xFFE9FBEA),
-            child: _StepRow(
-              number: '2',
-              title: 'Próxima meta',
-              text: 'Faltam 2 descartes para liberar o próximo setor da Praça.',
-              color: AppColors.green,
-            ),
+          const SizedBox(height: 18),
+          BingoActionButton(
+            label: 'Ver impacto da turma',
+            icon: Icons.auto_graph_rounded,
+            tone: BingoActionTone.green,
+            onPressed: () => _push(context, const ImpactScreen()),
           ),
         ],
       ),
@@ -723,107 +720,11 @@ class ImpactScreen extends StatelessWidget {
             nowFit: BoxFit.cover,
           ),
           const SizedBox(height: 18),
-          SurfaceCard(
-            color: const Color(0xFFE9FBEA),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Próxima meta',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                Text(
-                  '2 descartes para liberar um novo setor da Praça Central.',
-                ),
-                const SizedBox(height: 14),
-                const AnimatedProgressPill(
-                  value: 0.68,
-                  color: AppColors.green,
-                  backgroundColor: Colors.white,
-                  height: 14,
-                ),
-              ],
-            ),
-          ),
+          const _ImpactHeadline(),
           const SizedBox(height: 18),
-          Row(
-            children: const [
-              Expanded(
-                child: StatTile(value: '8', label: 'Descartes'),
-              ),
-              SizedBox(width: 14),
-              Expanded(
-                child: StatTile(value: '12', label: 'Alunos ativos'),
-              ),
-            ],
-          ),
+          const _ImpactMetricsGrid(),
           const SizedBox(height: 18),
-          const SurfaceCard(
-            child: Column(
-              children: [
-                _StepRow(
-                  number: '1',
-                  title: '3,2 kg fora do lixo comum',
-                  text: 'Cabos, mouses e acessórios enviados para triagem.',
-                ),
-                _StepRow(
-                  number: '2',
-                  title: '12 alunos participaram',
-                  text: 'O impacto é da turma, não só de quem lidera.',
-                ),
-                _StepRow(
-                  number: '3',
-                  title: '2 descartes para novo setor',
-                  text: 'Quando bater a meta, a cidade muda visualmente.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          PrimaryButton(
-            label: 'Ver história da praça',
-            icon: Icons.auto_stories,
-            onPressed: () => _push(context, const StoryScreen()),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class StoryScreen extends StatelessWidget {
-  const StoryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppPage(
-      title: 'História',
-      subtitle: 'Os estados da Praça Central.',
-      child: Column(
-        children: const [
-          ImageHeroCard(
-            image: AppAssets.sceneClean,
-            title: 'Limpa',
-            subtitle: 'A cidade protegida por descartes corretos.',
-          ),
-          SizedBox(height: 12),
-          ImageHeroCard(
-            image: AppAssets.sceneTransition,
-            title: 'Transição',
-            subtitle: 'A turma está recuperando o setor.',
-          ),
-          SizedBox(height: 12),
-          ImageHeroCard(
-            image: AppAssets.sceneConfrontation,
-            title: 'Confronto',
-            subtitle: 'B1N e SCR4P disputam a praça.',
-          ),
-          SizedBox(height: 18),
-          B1nTipCard(
-            title: 'B1N protege',
-            message:
-                'O descarte correto fortalece a cidade. O descarte errado alimenta a corrupção.',
-          ),
+          const _NextTransformationCard(),
         ],
       ),
     );
@@ -893,65 +794,36 @@ class HowItWorksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Como funciona',
-      subtitle: 'Do item separado ao impacto da sua turma.',
+      subtitle: 'Uma ação física, dois resultados no app.',
       child: Column(
-        children: const [
-          B1nContextMessage(
-            asset: AppAssets.b1nIcon,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _HowItWorksHero(),
+          const SizedBox(height: 16),
+          const B1nDialogueStrip(
             message: 'O app orienta; o descarte acontece no Totem da escola.',
-            compact: true,
           ),
-          SizedBox(height: 18),
-          SurfaceCard(
-            child: Column(
-              children: [
-                _StepRow(
-                  number: '1',
-                  stepCount: 4,
-                  icon: Icons.inventory_2_outlined,
-                  title: 'Prepare',
-                  text: 'Separe um eletrônico pequeno, sem uso e seguro.',
-                ),
-                _StepRow(
-                  number: '2',
-                  stepCount: 4,
-                  icon: Icons.directions_walk,
-                  title: 'Vá ao Totem',
-                  text: 'Encontre o ponto de coleta combinado pela escola.',
-                ),
-                _StepRow(
-                  number: '3',
-                  stepCount: 4,
-                  icon: Icons.verified_outlined,
-                  title: 'Valide',
-                  text: 'Escolha sua turma e siga a orientação do Totem.',
-                ),
-                _StepRow(
-                  number: '4',
-                  stepCount: 4,
-                  icon: Icons.auto_graph,
-                  title: 'Gere impacto',
-                  text:
-                      'A validação atualiza o cenário e o progresso coletivo.',
-                ),
-              ],
-            ),
+          const SizedBox(height: 22),
+          Text(
+            'Do eletrônico ao resultado',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          SizedBox(height: 18),
-          _InfoSection(
+          const SizedBox(height: 14),
+          const _HowItWorksPath(),
+          const SizedBox(height: 12),
+          Text(
+            'O que aparece no app',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          const _HowItWorksOutcomes(),
+          const SizedBox(height: 14),
+          const _SafetyAlert(
             icon: Icons.health_and_safety_outlined,
             title: 'Segurança primeiro',
             message:
                 'Bateria inchada, item quente, molhado ou quebrado deve ficar com um adulto responsável.',
             color: AppColors.warning,
-          ),
-          SizedBox(height: 12),
-          _InfoSection(
-            icon: Icons.stars_outlined,
-            title: 'Pontos e recompensas',
-            message:
-                'BinCoins e pontos entram somente depois que o Totem confirma o descarte.',
-            color: AppColors.green,
           ),
         ],
       ),
@@ -1010,7 +882,7 @@ class _RewardTile extends StatelessWidget {
           BingoActionButton(
             label: reward.status,
             icon: reward.available
-                ? Icons.bookmark_add_outlined
+                ? Icons.storefront_outlined
                 : Icons.lock_outline,
             tone: reward.available
                 ? BingoActionTone.green
@@ -1021,7 +893,7 @@ class _RewardTile extends StatelessWidget {
             onPressed: reward.available
                 ? () => _showSnack(
                     context,
-                    '${reward.title} reservado. Confirme a retirada na escola.',
+                    'Consulte ${reward.title} com o Tio B3N no Totem.',
                   )
                 : null,
           ),
@@ -1031,70 +903,202 @@ class _RewardTile extends StatelessWidget {
   }
 }
 
-class _MissionStateCard extends StatelessWidget {
-  const _MissionStateCard({
-    required this.mission,
-    required this.state,
-    required this.objective,
-    required this.onTap,
-    this.progress,
-  });
-
-  final Mission mission;
-  final String state;
-  final String objective;
-  final VoidCallback onTap;
-  final double? progress;
+class _HowItWorksHero extends StatelessWidget {
+  const _HowItWorksHero();
 
   @override
   Widget build(BuildContext context) {
-    final effectiveProgress = progress ?? mission.progress;
-    return SurfaceCard(
-      color: state == 'Ativa' ? const Color(0xFFE9FBEA) : Colors.white,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                BadgeLabel(
-                  label: state,
-                  color: state == 'Evento'
-                      ? const Color(0xFFF4ECFF)
-                      : state == 'Concluída'
-                      ? const Color(0xFFEAF7FF)
-                      : const Color(0xFFE9FBEA),
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    return Semantics(
+      container: true,
+      label:
+          'Do eletrônico ao impacto. O Totem recebe o item e o app mostra o resultado.',
+      child: ExcludeSemantics(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  AppAssets.sceneTransition,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
                 ),
-                const Spacer(),
-                Icon(Icons.chevron_right, color: mission.color),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(mission.title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(objective),
-            const SizedBox(height: 12),
-            AnimatedProgressPill(
-              value: effectiveProgress,
-              color: mission.color,
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                if (mission.reward.contains('BinCoins'))
-                  const BinCoinIcon(size: 18),
-                if (mission.reward.contains('BinCoins'))
-                  const SizedBox(width: 6),
-                Text(
-                  mission.reward,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.navy,
-                    fontWeight: FontWeight.w800,
+              ),
+              Positioned.fill(
+                right: -34,
+                left: usesLargeText ? 150 : 170,
+                top: 14,
+                bottom: 14,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.asset(
+                    AppAssets.totemConceptFull,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.centerRight,
                   ),
                 ),
-              ],
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        AppColors.navy.withValues(alpha: 0.94),
+                        AppColors.navy.withValues(alpha: 0.72),
+                        AppColors.navy.withValues(alpha: 0.12),
+                      ],
+                      stops: const [0, 0.58, 1],
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                constraints: BoxConstraints(
+                  minHeight: usesLargeText ? 340 : 230,
+                ),
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  width: usesLargeText ? double.infinity : 210,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const BadgeLabel(
+                        label: 'Totem + app',
+                        color: AppColors.blue,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Do eletrônico ao impacto',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'O Totem confirma a ação. O app acompanha a mudança.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.90),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HowItWorksPath extends StatelessWidget {
+  const _HowItWorksPath();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        _HowItWorksStep(
+          number: 1,
+          icon: Icons.inventory_2_outlined,
+          title: 'Prepare com segurança',
+          text: 'Separe um eletrônico pequeno, sem uso, seco e autorizado.',
+          color: AppColors.green,
+        ),
+        _HowItWorksStep(
+          number: 2,
+          icon: Icons.precision_manufacturing_outlined,
+          title: 'Use o Totem',
+          text: 'Escolha sua turma e siga as instruções do equipamento físico.',
+          color: AppColors.blue,
+        ),
+        _HowItWorksStep(
+          number: 3,
+          icon: Icons.phone_android_outlined,
+          title: 'Acompanhe no app',
+          text:
+              'Depois da validação, consulte BinCoins, pontos e a recuperação da cidade.',
+          color: AppColors.warning,
+          isLast: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _HowItWorksStep extends StatelessWidget {
+  const _HowItWorksStep({
+    required this.number,
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.color,
+    this.isLast = false,
+  });
+
+  final int number;
+  final IconData icon;
+  final String title;
+  final String text;
+  final Color color;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: 'Etapa $number de 3. $title. $text',
+      child: ExcludeSemantics(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 46,
+              child: Column(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: Colors.white, size: 22),
+                  ),
+                  if (!isLast)
+                    Container(
+                      width: 3,
+                      height: 58,
+                      color: color.withValues(alpha: 0.24),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: isLast ? 8 : 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$number. $title',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(text),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -1103,46 +1107,505 @@ class _MissionStateCard extends StatelessWidget {
   }
 }
 
-class _ClassRankCard extends StatelessWidget {
-  const _ClassRankCard();
+class _HowItWorksOutcomes extends StatelessWidget {
+  const _HowItWorksOutcomes();
 
   @override
   Widget build(BuildContext context) {
-    return const SurfaceCard(
-      color: Color(0xFFE9FBEA),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.green,
-            child: Text(
-              '4º',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-              ),
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cards = <Widget>[
+          const Expanded(
+            child: _HowItWorksOutcome(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Resultado pessoal',
+              text: 'BinCoins entram na sua Carteira.',
+              color: AppColors.blue,
             ),
           ),
-          SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const Expanded(
+            child: _HowItWorksOutcome(
+              icon: Icons.groups_2_outlined,
+              title: 'Resultado coletivo',
+              text: 'Pontos recuperam setores da cidade.',
+              color: AppColors.green,
+            ),
+          ),
+        ];
+
+        if (usesLargeText || constraints.maxWidth < 340) {
+          return const Column(
+            children: [
+              _HowItWorksOutcome(
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Resultado pessoal',
+                text: 'BinCoins entram na sua Carteira.',
+                color: AppColors.blue,
+              ),
+              SizedBox(height: 10),
+              _HowItWorksOutcome(
+                icon: Icons.groups_2_outlined,
+                title: 'Resultado coletivo',
+                text: 'Pontos recuperam setores da cidade.',
+                color: AppColors.green,
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [cards[0], const SizedBox(width: 10), cards[1]],
+        );
+      },
+    );
+  }
+}
+
+class _HowItWorksOutcome extends StatelessWidget {
+  const _HowItWorksOutcome({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 25),
+          const SizedBox(height: 10),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(text),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionFeaturedHero extends StatelessWidget {
+  const _MissionFeaturedHero({required this.mission, required this.onTap});
+
+  final Mission mission;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    return Semantics(
+      button: true,
+      label:
+          'Missão ativa. ${mission.title}. ${mission.subtitle}. '
+          'Recompensa ${mission.reward}.',
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Material(
+          color: AppColors.navy,
+          child: InkWell(
+            onTap: onTap,
+            child: Stack(
               children: [
-                Text(
-                  'Sua turma · 9ºA',
-                  style: TextStyle(
-                    color: AppColors.navy,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
+                Positioned.fill(
+                  child: Image.asset(
+                    mission.image,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text('Faltam 50 pts para entrar no top 3.'),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          AppColors.navy.withValues(alpha: 0.10),
+                          AppColors.navy.withValues(alpha: 0.64),
+                          AppColors.navy.withValues(alpha: 0.94),
+                        ],
+                        stops: const [0, 0.42, 1],
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  constraints: BoxConstraints(
+                    minHeight: usesLargeText ? 350 : 250,
+                  ),
+                  padding: const EdgeInsets.all(18),
+                  alignment: Alignment.bottomLeft,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const BadgeLabel(
+                            label: 'Missão ativa',
+                            color: AppColors.green,
+                          ),
+                          const Spacer(),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        mission.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        mission.subtitle,
+                        maxLines: usesLargeText ? 3 : 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.90),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      AnimatedProgressPill(
+                        value: mission.progress,
+                        color: AppColors.green,
+                        backgroundColor: Colors.white.withValues(alpha: 0.72),
+                        height: 10,
+                      ),
+                      const SizedBox(height: 12),
+                      _MissionRewardBadge(mission: mission),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionEventBanner extends StatelessWidget {
+  const _MissionEventBanner({required this.mission, required this.onTap});
+
+  final Mission mission;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label:
+          'Evento. ${mission.title}. ${mission.subtitle}. '
+          'Recompensa ${mission.reward}.',
+      child: Material(
+        color: const Color(0xFFFBF8FF),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: mission.color.withValues(alpha: 0.30),
+                width: 2,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Image.asset(AppAssets.scr4pIcon, width: 58, height: 58),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'EVENTO ATIVO',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: mission.color,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        mission.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(mission.subtitle),
+                      const SizedBox(height: 10),
+                      AnimatedProgressPill(
+                        value: mission.progress,
+                        color: mission.color,
+                        height: 9,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        mission.reward,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: mission.color,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.chevron_right_rounded, color: mission.color),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionCompactTile extends StatelessWidget {
+  const _MissionCompactTile({required this.mission, required this.onTap});
+
+  final Mission mission;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = mission.state == MissionState.completed;
+    final tone = isCompleted ? AppColors.green : AppColors.blue;
+    final stateLabel = isCompleted ? 'Concluída' : 'Em breve';
+
+    return Semantics(
+      button: true,
+      label:
+          '$stateLabel. ${mission.title}. ${mission.subtitle}. '
+          'Recompensa ${mission.reward}.',
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: tone.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isCompleted
+                        ? Icons.check_rounded
+                        : Icons.lock_clock_outlined,
+                    color: tone,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        stateLabel,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: tone,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        mission.title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(mission.subtitle),
+                      const SizedBox(height: 7),
+                      Text(
+                        mission.reward,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: AppColors.navy,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionEventStatus extends StatelessWidget {
+  const _MissionEventStatus();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.scr4p.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.scr4p.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Image.asset(AppAssets.scr4pIcon, width: 42, height: 42),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'SCR4P ainda controla 58% do setor',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const AnimatedProgressPill(
+            value: 0.58,
+            color: AppColors.scr4p,
+            height: 10,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Faltam 3 descartes validados para liberar o bônus do evento.',
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _RankingHero extends StatelessWidget {
+  const _RankingHero();
+
+  @override
+  Widget build(BuildContext context) {
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    return Semantics(
+      container: true,
+      label:
+          'Sua turma, 9ºA, está em quarto lugar com 760 pontos. '
+          'Faltam 50 pontos para o top 3.',
+      child: ExcludeSemantics(
+        child: SurfaceCard(
+          color: const Color(0xFFEAF6FF),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (usesLargeText) ...[
+                const BadgeLabel(label: '4º lugar', color: AppColors.warning),
+                const SizedBox(height: 10),
+                const _RankingScore(),
+              ] else
+                const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _RankingScore()),
+                    SizedBox(width: 12),
+                    BadgeLabel(label: '4º lugar', color: AppColors.warning),
+                  ],
+                ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.trending_up_rounded,
+                    color: AppColors.green,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Faltam 50 pts para entrar no top 3',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.navy,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const AnimatedProgressPill(
+                value: 760 / 810,
+                color: AppColors.green,
+                backgroundColor: Colors.white,
+                height: 12,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RankingScore extends StatelessWidget {
+  const _RankingScore();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Sua turma · 9ºA', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 4),
+        Text(
+          '760 pts',
+          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            color: AppColors.blue,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1153,22 +1616,29 @@ class _PodiumCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SurfaceCard(
-      color: const Color(0xFFEAF7FF),
+      color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Icon(Icons.emoji_events, color: AppColors.warning),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Top turmas da Praça',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
+              Text(
+                'Top turmas da Praça',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-              const BadgeLabel(label: '12 dias'),
+              BadgeLabel(label: '${currentScenario.cycleDays} dias'),
             ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Top 3 e participação segura recebem bônus ao fim do ciclo.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
           ),
           const SizedBox(height: 16),
           Row(
@@ -1228,38 +1698,744 @@ class _PodiumPlace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: color,
-          child: Text(
-            position,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Colors.white,
+    return Semantics(
+      container: true,
+      label: '$position lugar, turma $room, $points',
+      child: ExcludeSemantics(
+        child: Column(
+          children: [
+            Icon(Icons.workspace_premium_rounded, color: color, size: 30),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                position,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
+              height: height,
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: color.withValues(alpha: 0.48)),
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.bottomCenter,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(room, style: Theme.of(context).textTheme.titleMedium),
+                    Text(points, style: Theme.of(context).textTheme.labelSmall),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioAccessCard extends StatelessWidget {
+  const _ScenarioAccessCard({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: SizedBox(
+              height: 112,
+              width: double.infinity,
+              child: Image.asset(
+                AppAssets.sceneConfrontation,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Cenário atual · ${currentScenario.name}',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    const Icon(
+                      Icons.location_city_rounded,
+                      color: AppColors.blue,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${currentScenario.restoredPercent}% restaurada · '
+                  '${currentScenario.nextSectorDiscards} descartes para o '
+                  'próximo setor',
+                ),
+                const SizedBox(height: 12),
+                AnimatedProgressPill(
+                  value: currentScenario.restoredProgress,
+                  color: AppColors.green,
+                ),
+                const SizedBox(height: 14),
+                BingoActionButton(
+                  label: 'Ver cenário atual',
+                  icon: Icons.map_outlined,
+                  style: BingoActionStyle.secondary,
+                  onPressed: onPressed,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScenarioMetric extends StatelessWidget {
+  const _ScenarioMetric({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: AppColors.navy,
               fontWeight: FontWeight.w900,
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          height: height,
-          width: double.infinity,
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.42)),
+          const SizedBox(height: 2),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _RestorationScale extends StatelessWidget {
+  const _RestorationScale();
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      color: const Color(0xFFF4FAFF),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.timeline_rounded, color: AppColors.blue),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Régua de restauração',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              Text(
+                '${currentScenario.restoredPercent}%',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: AppColors.green),
+              ),
+            ],
           ),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.bottomCenter,
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final markerX =
+                  (constraints.maxWidth - 18) *
+                  currentScenario.restoredProgress;
+              return SizedBox(
+                height: 22,
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: AppColors.scr4p.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: currentScenario.restoredProgress,
+                      child: Container(
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: AppColors.green,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: markerX,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.green, width: 4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: Text('Corrompida')),
+              Expanded(
+                child: Text('Em recuperação', textAlign: TextAlign.center),
+              ),
+              Expanded(child: Text('Restaurada', textAlign: TextAlign.end)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScenarioInfoLine extends StatelessWidget {
+  const _ScenarioInfoLine({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 21),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 3),
+              Text(text),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ImpactHeadline extends StatelessWidget {
+  const _ImpactHeadline();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.blue.withValues(alpha: 0.20)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.blue.withValues(alpha: 0.12),
+            Colors.white,
+            AppColors.green.withValues(alpha: 0.14),
+          ],
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.green,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.location_city_rounded, color: Colors.white),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(room, style: Theme.of(context).textTheme.titleMedium),
-                Text(points, style: Theme.of(context).textTheme.labelSmall),
+                Text(
+                  '${currentScenario.restoredPercent}% restaurada',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: AppColors.navy,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('Sua turma está transformando a ${currentScenario.name}.'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImpactMetricsGrid extends StatelessWidget {
+  const _ImpactMetricsGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 12) / 2;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _ImpactMetric(
+              width: itemWidth,
+              icon: Icons.scale_rounded,
+              value: '3,2 kg',
+              label: 'fora do lixo comum',
+              color: AppColors.green,
+            ),
+            _ImpactMetric(
+              width: itemWidth,
+              icon: Icons.recycling_rounded,
+              value: '8',
+              label: 'descartes validados',
+              color: AppColors.blue,
+            ),
+            _ImpactMetric(
+              width: itemWidth,
+              icon: Icons.groups_2_rounded,
+              value: '12',
+              label: 'alunos ativos',
+              color: AppColors.warning,
+            ),
+            _ImpactMetric(
+              width: itemWidth,
+              icon: Icons.flag_rounded,
+              value: '${currentScenario.nextSectorDiscards}',
+              label: 'para o próximo setor',
+              color: AppColors.scr4p,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ImpactMetric extends StatelessWidget {
+  const _ImpactMetric({
+    required this.width,
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  final double width;
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: AppColors.navy,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(label),
+        ],
+      ),
+    );
+  }
+}
+
+class _NextTransformationCard extends StatelessWidget {
+  const _NextTransformationCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            child: Stack(
+              children: [
+                SizedBox(
+                  height: 118,
+                  width: double.infinity,
+                  child: Image.asset(
+                    AppAssets.sceneTransition,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const Positioned(
+                  left: 14,
+                  top: 14,
+                  child: BadgeLabel(label: 'Próxima transformação'),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Um novo setor está perto',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Faltam ${currentScenario.nextSectorDiscards} descartes '
+                  'validados no Totem para a cidade mudar novamente.',
+                ),
+                const SizedBox(height: 14),
+                AnimatedProgressPill(
+                  value: currentScenario.restoredProgress,
+                  color: AppColors.green,
+                  backgroundColor: Color(0xFFE8EEF5),
+                  height: 12,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionHero extends StatelessWidget {
+  const _MissionHero({required this.mission});
+
+  final Mission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    return Semantics(
+      container: true,
+      label:
+          '${mission.detailTitle}. ${mission.title}. Recompensa ${mission.reward}.',
+      child: ExcludeSemantics(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  mission.image,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                ),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppColors.navy.withValues(alpha: 0.04),
+                        AppColors.navy.withValues(alpha: 0.58),
+                        AppColors.navy.withValues(alpha: 0.92),
+                      ],
+                      stops: const [0, 0.30, 1],
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                constraints: BoxConstraints(
+                  minHeight: usesLargeText ? 280 : 204,
+                ),
+                alignment: Alignment.bottomLeft,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    BadgeLabel(
+                      label: mission.detailTitle,
+                      color: mission.color,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      mission.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    _MissionRewardBadge(mission: mission),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionRewardBadge extends StatelessWidget {
+  const _MissionRewardBadge({required this.mission});
+
+  final Mission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (mission.reward.contains('BinCoins'))
+            const BinCoinIcon(size: 20)
+          else
+            Icon(Icons.map_outlined, size: 20, color: mission.color),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              mission.reward,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: AppColors.navy,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionObjective extends StatelessWidget {
+  const _MissionObjective({required this.mission});
+
+  final Mission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: mission.color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(8),
+        border: Border(left: BorderSide(color: mission.color, width: 4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.flag_outlined, color: mission.color, size: 23),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Objetivo',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 3),
+                Text(mission.subtitle),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MissionTimeline extends StatelessWidget {
+  const _MissionTimeline({required this.mission});
+
+  final Mission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var i = 0; i < mission.steps.length; i++)
+          _MissionTimelineStep(
+            number: i + 1,
+            title: mission.steps[i].$1,
+            text: mission.steps[i].$2,
+            color: mission.color,
+            isLast: i == mission.steps.length - 1,
+          ),
+      ],
+    );
+  }
+}
+
+class _MissionTimelineStep extends StatelessWidget {
+  const _MissionTimelineStep({
+    required this.number,
+    required this.title,
+    required this.text,
+    required this.color,
+    required this.isLast,
+  });
+
+  final int number;
+  final String title;
+  final String text;
+  final Color color;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 42,
+          child: Column(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                child: Text(
+                  '$number',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (!isLast)
+                Container(
+                  width: 3,
+                  height: 52,
+                  color: color.withValues(alpha: 0.24),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 14 : 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(text),
               ],
             ),
           ),
@@ -1269,36 +2445,619 @@ class _PodiumPlace extends StatelessWidget {
   }
 }
 
-class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({
-    required this.verb,
-    required this.amount,
-    required this.subtitle,
+class _TotemHero extends StatelessWidget {
+  const _TotemHero({required this.mission});
+
+  final Mission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    return Semantics(
+      container: true,
+      label:
+          'Totem físico do BinGo. Missão ${mission.title}. O equipamento valida o descarte.',
+      child: ExcludeSemantics(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                children: [
+                  const Positioned.fill(
+                    child: ColoredBox(color: Color(0xFFE8F8FF)),
+                  ),
+                  Positioned.fill(
+                    left: 110,
+                    child: Transform.scale(
+                      scale: 1.25,
+                      alignment: Alignment.centerRight,
+                      child: Image.asset(
+                        AppAssets.totemConceptFull,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.centerRight,
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            const Color(0xFFF7FCFF),
+                            const Color(0xFFF7FCFF).withValues(alpha: 0.96),
+                            const Color(
+                              0xFFF7FCFF,
+                            ).withValues(alpha: usesLargeText ? 0.86 : 0.12),
+                          ],
+                          stops: const [0, 0.50, 0.82],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    constraints: BoxConstraints(
+                      minHeight: usesLargeText ? 300 : 222,
+                    ),
+                    padding: const EdgeInsets.all(18),
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: usesLargeText
+                          ? constraints.maxWidth
+                          : constraints.maxWidth * 0.60,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const BadgeLabel(
+                            label: 'Equipamento físico',
+                            color: AppColors.blue,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'O Totem confirma o descarte',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: AppColors.navy,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            mission.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.navy,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+enum TotemStepState { ready, current, upcoming }
+
+class _TotemProcess extends StatelessWidget {
+  const _TotemProcess();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        _TotemProcessStep(
+          number: 1,
+          title: 'Item preparado',
+          text: 'Eletrônico sem uso, autorizado, seco e sem risco.',
+          state: TotemStepState.ready,
+        ),
+        _TotemProcessStep(
+          number: 2,
+          title: 'Use o Totem',
+          text: 'Escolha sua turma e siga a tela do equipamento.',
+          state: TotemStepState.current,
+        ),
+        _TotemProcessStep(
+          number: 3,
+          title: 'Resultado no app',
+          text: 'Após o Totem validar, BinCoins e pontos aparecem no app.',
+          state: TotemStepState.upcoming,
+          isLast: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _TotemProcessStep extends StatelessWidget {
+  const _TotemProcessStep({
+    required this.number,
+    required this.title,
+    required this.text,
+    required this.state,
+    this.isLast = false,
   });
 
-  final String verb;
-  final int amount;
-  final String subtitle;
+  final int number;
+  final String title;
+  final String text;
+  final TotemStepState state;
+  final bool isLast;
+
+  Color get color => switch (state) {
+    TotemStepState.ready => AppColors.green,
+    TotemStepState.current => AppColors.blue,
+    TotemStepState.upcoming => AppColors.warning,
+  };
+
+  String get stateLabel => switch (state) {
+    TotemStepState.ready => 'Concluído',
+    TotemStepState.current => 'Etapa atual',
+    TotemStepState.upcoming => 'Próxima etapa',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final isCurrent = state == TotemStepState.current;
+    return Semantics(
+      container: true,
+      label: '$stateLabel: $title. $text',
+      child: Container(
+        width: double.infinity,
+        margin: EdgeInsets.only(bottom: isLast ? 0 : 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isCurrent ? color.withValues(alpha: 0.10) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isCurrent ? color : AppColors.line,
+            width: isCurrent ? 2 : 1,
+          ),
+        ),
+        child: ExcludeSemantics(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                child: state == TotemStepState.ready
+                    ? const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 21,
+                      )
+                    : Text(
+                        '$number',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stateLabel,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 3),
+                    Text(text),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResponsibilityNotice extends StatelessWidget {
+  const _ResponsibilityNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.volunteer_activism_outlined,
+            color: AppColors.warning,
+            size: 22,
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Text(
+              'Use somente item sem uso e autorizado. Nunca compre, quebre ou pegue algo de outra pessoa para ganhar pontos.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.navy,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TotemSafetyGuide extends StatelessWidget {
+  const _TotemSafetyGuide();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: const Column(
+        children: [
+          _TotemSafetyRow(
+            icon: Icons.check_circle_outline_rounded,
+            title: 'Pode levar',
+            text: 'Cabos, mouse, fone, controle pequeno e acessórios secos.',
+            color: AppColors.green,
+          ),
+          Divider(height: 24, color: AppColors.line),
+          _TotemSafetyRow(
+            icon: Icons.supervisor_account_outlined,
+            title: 'Peça ajuda',
+            text:
+                'Celular, bateria solta, item trincado ou peça com ponta exposta.',
+            color: AppColors.warning,
+          ),
+          Divider(height: 24, color: AppColors.line),
+          _TotemSafetyRow(
+            icon: Icons.dangerous_outlined,
+            title: 'Não toque',
+            text: 'Bateria inchada, vazando, molhada ou quente.',
+            color: AppColors.danger,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TotemResultSummary extends StatelessWidget {
+  const _TotemResultSummary();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label:
+          'Depois da validação. BinCoins aparecem na Carteira. '
+          'Pontos e recuperação aparecem no Impacto.',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F8FD),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.blue.withValues(alpha: 0.18)),
+        ),
+        child: ExcludeSemantics(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Depois da validação',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'O Totem envia os resultados e o app atualiza as áreas de consulta.',
+              ),
+              const SizedBox(height: 12),
+              const _TotemResultRow(
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Carteira',
+                text: 'BinCoins recebidos',
+                color: AppColors.blue,
+              ),
+              const SizedBox(height: 10),
+              const _TotemResultRow(
+                icon: Icons.auto_graph_outlined,
+                title: 'Impacto',
+                text: 'Pontos e recuperação da turma',
+                color: AppColors.green,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TotemResultRow extends StatelessWidget {
+  const _TotemResultRow({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '$title · ',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                TextSpan(text: text),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TotemSafetyRow extends StatelessWidget {
+  const _TotemSafetyRow({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color, size: 23),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 3),
+              Text(text),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SafetyAlert extends StatelessWidget {
+  const _SafetyAlert({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 23),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 3),
+                Text(message),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryTile extends StatelessWidget {
+  const _HistoryTile({required this.transaction});
+
+  final BinCoinTransaction transaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCredit = transaction.kind == TransactionKind.credit;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SurfaceCard(
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: (isCredit ? AppColors.green : AppColors.danger)
+                    .withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isCredit ? Icons.add_rounded : Icons.remove_rounded,
+                color: isCredit ? AppColors.green : AppColors.danger,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    transaction.title,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text(transaction.subtitle),
+                ],
+              ),
+            ),
+            BinCoinAmount(
+              value: transaction.amount,
+              size: 18,
+              style: Theme.of(
+                context,
+              ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscardHistoryTile extends StatelessWidget {
+  const _DiscardHistoryTile({required this.discard});
+
+  final DiscardRecord discard;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: SurfaceCard(
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BinCoinIcon(size: 30),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(verb, style: Theme.of(context).textTheme.titleMedium),
-                  Text(subtitle),
-                ],
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.blue.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(discard.icon, color: AppColors.blue, size: 21),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        discard.item,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(discard.dateLabel),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  Icons.verified_rounded,
+                  size: 20,
+                  color: AppColors.green,
+                ),
+              ],
             ),
-            BinCoinAmount(value: amount, size: 18),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.line),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: BinCoinAmount(
+                    value: discard.binCoins,
+                    size: 18,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
+                  ),
+                ),
+                const Icon(
+                  Icons.groups_2_outlined,
+                  size: 18,
+                  color: AppColors.blue,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  '+${discard.classPoints} pts turma',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.blue,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Validado no Totem',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+            ),
           ],
         ),
       ),
@@ -1311,16 +3070,12 @@ class _StepRow extends StatelessWidget {
     required this.number,
     required this.title,
     required this.text,
-    this.icon,
-    this.stepCount,
     this.color = AppColors.blue,
   });
 
   final String number;
   final String title;
   final String text;
-  final IconData? icon;
-  final int? stepCount;
   final Color color;
 
   @override
@@ -1332,57 +3087,26 @@ class _StepRow extends StatelessWidget {
         children: [
           Semantics(
             container: true,
-            label: stepCount == null ? number : '$number de $stepCount',
+            label: number,
             child: ExcludeSemantics(
               child: Container(
                 width: 40,
                 height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                child: icon == null
-                    ? FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 5),
-                          child: Text(
-                            number,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      )
-                    : Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(icon, color: Colors.white, size: 21),
-                          Positioned(
-                            right: -3,
-                            bottom: -3,
-                            child: Container(
-                              width: 18,
-                              height: 18,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: color, width: 2),
-                              ),
-                              child: Text(
-                                number,
-                                style: TextStyle(
-                                  color: color,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    child: Text(
+                      number,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
                       ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -1426,10 +3150,10 @@ class _HomeScenarioOverview extends StatelessWidget {
                     alignment: Alignment.center,
                   ),
                 ),
-                const Positioned(
+                Positioned(
                   left: 14,
                   top: 14,
-                  child: BadgeLabel(label: 'Praça Central'),
+                  child: BadgeLabel(label: currentScenario.name),
                 ),
               ],
             ),
@@ -1440,11 +3164,11 @@ class _HomeScenarioOverview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '68% restaurada',
+                  '${currentScenario.restoredPercent}% restaurada',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 6),
-                const AnimatedProgressPill(value: 0.68),
+                AnimatedProgressPill(value: currentScenario.restoredProgress),
                 const SizedBox(height: 10),
                 Text(
                   'Missão ativa',
@@ -1459,52 +3183,23 @@ class _HomeScenarioOverview extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 6),
-                const Row(
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.map_outlined, color: AppColors.blue, size: 20),
-                    SizedBox(width: 6),
-                    Expanded(child: Text('2 descartes para o próximo setor')),
+                    const Icon(
+                      Icons.map_outlined,
+                      color: AppColors.blue,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        '${currentScenario.nextSectorDiscards} descartes '
+                        'para o próximo setor',
+                      ),
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoSection extends StatelessWidget {
-  const _InfoSection({
-    required this.icon,
-    required this.title,
-    required this.message,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SurfaceCard(
-      color: color.withValues(alpha: 0.08),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(message),
               ],
             ),
           ),

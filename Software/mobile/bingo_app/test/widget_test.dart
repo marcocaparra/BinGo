@@ -3,6 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bingo_app/src/app.dart';
+import 'package:bingo_app/src/data/demo_data.dart';
+import 'package:bingo_app/src/screens/shell_screen.dart';
+import 'package:bingo_app/src/theme/app_assets.dart';
+import 'package:bingo_app/src/theme/app_theme.dart';
+import 'package:bingo_app/src/widgets/b1n_dialogue_strip.dart';
+import 'package:bingo_app/src/widgets/bincoin_amount.dart';
 import 'package:bingo_app/src/widgets/bingo_action_button.dart';
 
 void main() {
@@ -86,12 +92,13 @@ void main() {
       await tester.tap(find.text('Como funciona o BinGo'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Prepare'), findsOneWidget);
-      expect(find.text('Vá ao Totem'), findsOneWidget);
-      expect(find.text('Valide'), findsOneWidget);
-      expect(find.text('Gere impacto'), findsOneWidget);
+      expect(find.text('1. Prepare com segurança'), findsOneWidget);
+      expect(find.text('2. Use o Totem'), findsOneWidget);
+      expect(find.text('3. Acompanhe no app'), findsOneWidget);
       expect(find.text('Segurança primeiro'), findsOneWidget);
-      expect(find.text('Pontos e recompensas'), findsOneWidget);
+      expect(find.text('Resultado pessoal'), findsOneWidget);
+      expect(find.text('Resultado coletivo'), findsOneWidget);
+      expect(find.text('Começar no Totem'), findsNothing);
       expect(tester.takeException(), isNull);
 
       await tester.pageBack();
@@ -149,7 +156,7 @@ void main() {
     });
   }
 
-  testWidgets('icon steps keep their visual and semantic position', (
+  testWidgets('how it works steps keep visual and semantic order', (
     WidgetTester tester,
   ) async {
     final semantics = tester.ensureSemantics();
@@ -161,15 +168,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.inventory_2_outlined), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
-    expect(find.bySemanticsLabel('1 de 4'), findsOneWidget);
-    expect(find.bySemanticsLabel('2 de 4'), findsOneWidget);
-    expect(find.bySemanticsLabel('3 de 4'), findsOneWidget);
-    expect(find.bySemanticsLabel('4 de 4'), findsOneWidget);
+    expect(find.byIcon(Icons.precision_manufacturing_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.phone_android_outlined), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'Etapa 1 de 3. Prepare com segurança. '
+        'Separe um eletrônico pequeno, sem uso, seco e autorizado.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(
+        'Etapa 2 de 3. Use o Totem. '
+        'Escolha sua turma e siga as instruções do equipamento físico.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel(
+        'Etapa 3 de 3. Acompanhe no app. Depois da validação, consulte '
+        'BinCoins, pontos e a recuperação da cidade.',
+      ),
+      findsOneWidget,
+    );
     semantics.dispose();
   });
 
-  testWidgets('mission reaches totem guidance and impact', (
+  testWidgets('home reaches Totem guidance without creating another flow', (
     WidgetTester tester,
   ) async {
     await pumpAtSize(tester, const Size(390, 844));
@@ -185,21 +210,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No Totem'), findsOneWidget);
-    expect(find.text('BinGo recompensa responsabilidade'), findsOneWidget);
+    expect(find.text('Seu caminho no Totem'), findsOneWidget);
+    expect(find.text('Resultado no app'), findsOneWidget);
+    expect(
+      find.text('Após o Totem validar, BinCoins e pontos aparecem no app.'),
+      findsOneWidget,
+    );
+    expect(find.text('Validação no app'), findsNothing);
+    expect(find.byType(B1nDialogueStrip), findsOneWidget);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -800));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Ver impacto'));
-    await tester.tap(find.text('Ver impacto'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Impacto'), findsOneWidget);
-    expect(find.text('Setor liberado!'), findsNothing);
-
-    await tester.tap(find.byType(BackButton));
-    await tester.pumpAndSettle();
-    expect(find.text('Ver impacto'), findsOneWidget);
-    expect(find.text('Impacto'), findsNothing);
+    expect(find.text('Depois da validação'), findsOneWidget);
+    expect(find.byIcon(Icons.account_balance_wallet_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.auto_graph_outlined), findsOneWidget);
+    expect(
+      find.widgetWithText(BingoActionButton, 'Ver impacto da turma'),
+      findsNothing,
+    );
   });
 
   testWidgets('scr4p alert opens explanation from home', (
@@ -246,9 +272,12 @@ void main() {
     await tester.tap(find.text('Ranking'));
     await tester.pumpAndSettle();
     expect(find.text('Top turmas da Praça'), findsOneWidget);
-    expect(find.text('Cenário atual: Praça Central'), findsOneWidget);
-    await tester.ensureVisible(find.textContaining('Ciclo:'));
-    expect(find.textContaining('Ciclo:'), findsOneWidget);
+    expect(find.text('Cenário atual · Praça Central'), findsOneWidget);
+    expect(find.text('Ver cenário atual'), findsOneWidget);
+    expect(
+      find.text('Top 3 e participação segura recebem bônus ao fim do ciclo.'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Perfil'));
     await tester.pumpAndSettle();
@@ -270,23 +299,140 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Saldo disponível'), findsOneWidget);
-      expect(find.text('3 resgates disponíveis'), findsOneWidget);
+      expect(find.text('3 recompensas no Totem'), findsOneWidget);
       expect(find.text('Ganhou'), findsNWidgets(2));
       expect(find.text('Usou'), findsOneWidget);
+      expect(find.byIcon(Icons.add_rounded), findsNWidgets(2));
+      expect(find.byIcon(Icons.remove_rounded), findsOneWidget);
+      expect(
+        tester
+            .widgetList<Icon>(find.byIcon(Icons.add_rounded))
+            .every((icon) => icon.color == AppColors.green),
+        isTrue,
+      );
+      expect(
+        tester.widget<Icon>(find.byIcon(Icons.remove_rounded)).color,
+        AppColors.danger,
+      );
+      expect(find.byType(BinCoinIcon), findsNWidgets(4));
+      expect(
+        find.descendant(
+          of: find.byType(BinCoinAmount),
+          matching: find.byType(BinCoinIcon),
+        ),
+        findsNWidgets(4),
+      );
+
+      await tester.tap(find.text('Descartes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mouse sem uso'), findsOneWidget);
+      expect(find.text('Cabo USB'), findsOneWidget);
+      expect(find.text('Fone de ouvido'), findsOneWidget);
+      expect(find.text('Validado no Totem'), findsNWidgets(3));
+      expect(find.text('+25 pts turma'), findsOneWidget);
 
       await tester.tap(find.text('Abrir BinBazar'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Escolha uma recompensa'), findsAtLeastNWidgets(1));
+      expect(
+        find.textContaining('Consulte recompensas'),
+        findsAtLeastNWidgets(1),
+      );
       expect(find.text('Tio B3N cuida do balcão'), findsOneWidget);
       expect(find.bySemanticsLabel('120 BinCoins'), findsOneWidget);
-      expect(find.text('Reservar'), findsNWidgets(3));
+      expect(find.text('Ver no Totem'), findsNWidgets(3));
       expect(find.text('Faltam 60'), findsOneWidget);
     },
   );
 
+  testWidgets('wallet exposes empty states for both history sections', (
+    WidgetTester tester,
+  ) async {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const WalletScreen(transactions: [], discards: []),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nenhuma movimentação'), findsOneWidget);
+    await tester.tap(find.text('Descartes'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nenhum descarte validado'), findsOneWidget);
+  });
+
+  for (final size in const [Size(390, 844), Size(430, 932)]) {
+    testWidgets('wallet remains usable at 2x on ${size.width}x${size.height}', (
+      WidgetTester tester,
+    ) async {
+      tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(
+        tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: const MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: WalletScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Movimentações'), findsOneWidget);
+      expect(find.text('Descartes'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('main simulated sections expose useful empty states', (
+    WidgetTester tester,
+  ) async {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
+
+    Future<void> expectEmpty(Widget screen, String title) async {
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light(), home: screen),
+      );
+      await tester.pump();
+      expect(find.text(title), findsOneWidget);
+    }
+
+    await expectEmpty(
+      const RewardsScreen(items: []),
+      'BinBazar sem recompensas',
+    );
+    await expectEmpty(
+      const MissionsScreen(items: []),
+      'Nenhuma missão disponível',
+    );
+    await expectEmpty(const RankingScreen(rows: []), 'Ranking ainda sem dados');
+  });
+
   testWidgets(
-    'missions prioritize stateful progress and keep Totem as subflow',
+    'missions prioritize stateful progress without opening the Totem',
     (WidgetTester tester) async {
       await pumpAtSize(tester, const Size(390, 844));
       await enterPilot(tester);
@@ -294,30 +440,42 @@ void main() {
       await tester.tap(find.text('Missões'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Ativa'), findsOneWidget);
-      expect(find.text('Evento'), findsOneWidget);
+      expect(find.text('Missão ativa'), findsOneWidget);
+      expect(find.text('Evento em destaque'), findsOneWidget);
+      expect(find.text('EVENTO ATIVO'), findsOneWidget);
       expect(find.text('Concluída'), findsOneWidget);
-      expect(find.text('Futura'), findsOneWidget);
-      expect(find.text('Objetivo: recicle 1 item'), findsOneWidget);
+      expect(find.text('Em breve'), findsOneWidget);
+      expect(find.text('Outras missões'), findsOneWidget);
+      expect(find.text('3 de 3 descartes concluídos'), findsOneWidget);
+      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.lock_clock_outlined), findsOneWidget);
 
       await tester.tap(find.text('Recicle 1 item'));
       await tester.pumpAndSettle();
 
       expect(find.text('Objetivo'), findsOneWidget);
-      expect(find.text('Cuidado'), findsOneWidget);
-      expect(find.text('Recompensa'), findsOneWidget);
-      expect(find.text('Ir ao Totem'), findsOneWidget);
+      expect(find.text('Segurança antes dos pontos'), findsOneWidget);
+      expect(find.text('Como completar'), findsOneWidget);
+      expect(find.text('Missão rápida'), findsOneWidget);
+      expect(find.text('+10 BinCoins'), findsOneWidget);
+      expect(find.byType(B1nDialogueStrip), findsOneWidget);
+      expect(find.text('Ir ao Totem'), findsNothing);
+      expect(find.text('Começar no Totem'), findsNothing);
 
-      await tester.drag(find.byType(ListView).last, const Offset(0, -900));
-      await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(BingoActionButton, 'Ir ao Totem'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('No Totem'), findsOneWidget);
-      expect(find.text('Carteira'), findsNothing);
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.text('Ir ao Totem'), findsOneWidget);
+      await tester.ensureVisible(find.text('Defesa contra SCR4P'));
+      await tester.tap(find.text('Defesa contra SCR4P'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Missão'), findsOneWidget);
+      expect(find.text('Defesa especial'), findsOneWidget);
+      expect(find.text('SCR4P ainda controla 58% do setor'), findsOneWidget);
+      expect(find.text('Ver objetivo da defesa'), findsNothing);
+      expect(find.text('Ir ao Totem'), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Missões'), findsOneWidget);
     },
   );
 
@@ -331,28 +489,222 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Sua turma · 9ºA'), findsOneWidget);
-      expect(find.text('Faltam 50 pts para entrar no top 3.'), findsOneWidget);
+      expect(find.text('760 pts'), findsOneWidget);
+      expect(find.text('Faltam 50 pts para entrar no top 3'), findsOneWidget);
+      final confrontationImages = tester
+          .widgetList<Image>(find.byType(Image))
+          .where(
+            (image) =>
+                image.image is AssetImage &&
+                (image.image as AssetImage).assetName ==
+                    AppAssets.sceneConfrontation,
+          );
+      expect(confrontationImages, hasLength(1));
       expect(
         tester.getTopLeft(find.text('Sua turma · 9ºA')).dy,
         lessThan(tester.getTopLeft(find.text('Top turmas da Praça')).dy),
       );
 
-      await tester.ensureVisible(find.text('Cenário atual: Praça Central'));
-      await tester.tap(find.text('Cenário atual: Praça Central'));
+      await tester.ensureVisible(find.text('Ver cenário atual'));
       await tester.pumpAndSettle();
-      expect(find.text('Próxima meta'), findsOneWidget);
+      await tester.tap(find.text('Ver cenário atual'));
+      await tester.pumpAndSettle();
+      expect(find.text('Régua de restauração'), findsOneWidget);
+      expect(find.text('68% restaurada'), findsOneWidget);
+      expect(find.text('2'), findsAtLeastNWidgets(1));
+      expect(find.text('12'), findsAtLeastNWidgets(1));
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Início'));
-      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('Ver impacto da turma'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Ver impacto da turma'));
       await tester.pumpAndSettle();
 
       expect(find.text('Antes'), findsOneWidget);
       expect(find.text('Depois'), findsOneWidget);
-      expect(find.text('Próxima meta'), findsOneWidget);
+      expect(find.text('68% restaurada'), findsOneWidget);
+      expect(find.text('3,2 kg'), findsOneWidget);
+      expect(find.text('Próxima transformação'), findsOneWidget);
+      expect(find.text('Ver evolução da Praça'), findsNothing);
+      expect(find.text('História'), findsNothing);
     },
   );
+
+  testWidgets('mission visuals follow each mission theme', (
+    WidgetTester tester,
+  ) async {
+    Future<void> expectMissionImage(Mission mission) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: MissionDetailScreen(mission: mission),
+        ),
+      );
+      await tester.pump();
+
+      final themedImages = tester
+          .widgetList<Image>(find.byType(Image))
+          .where(
+            (image) =>
+                image.image is AssetImage &&
+                (image.image as AssetImage).assetName == mission.image,
+          );
+      expect(themedImages, hasLength(1));
+      expect(find.byType(B1nDialogueStrip), findsOneWidget);
+      final b1nImages = tester
+          .widgetList<Image>(find.byType(Image))
+          .where(
+            (image) =>
+                image.image is AssetImage &&
+                (image.image as AssetImage).assetName == AppAssets.b1nIcon,
+          );
+      expect(b1nImages, hasLength(1));
+      expect(tester.takeException(), isNull);
+    }
+
+    await expectMissionImage(activeMission);
+    await expectMissionImage(missions[1]);
+    await expectMissionImage(missions[2]);
+  });
+
+  testWidgets('Totem is physical, stateful and does not reuse mission scenery', (
+    WidgetTester tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const TotemTrackingScreen(mission: activeMission),
+      ),
+    );
+    await tester.pump();
+
+    int countAsset(String asset) {
+      return tester
+          .widgetList<Image>(find.byType(Image))
+          .where(
+            (image) =>
+                image.image is AssetImage &&
+                (image.image as AssetImage).assetName == asset,
+          )
+          .length;
+    }
+
+    expect(countAsset(AppAssets.totemConceptFull), 1);
+    expect(countAsset(activeMission.image), 0);
+    expect(countAsset(AppAssets.b1nIcon), 1);
+    for (final state in const <(String, Color)>[
+      (
+        'Concluído: Item preparado. Eletrônico sem uso, autorizado, seco e sem risco.',
+        AppColors.green,
+      ),
+      (
+        'Etapa atual: Use o Totem. Escolha sua turma e siga a tela do equipamento.',
+        AppColors.blue,
+      ),
+      (
+        'Próxima etapa: Resultado no app. Após o Totem validar, BinCoins e pontos aparecem no app.',
+        AppColors.warning,
+      ),
+    ]) {
+      final step = find.bySemanticsLabel(state.$1);
+      expect(step, findsOneWidget);
+      final containers = tester.widgetList<Container>(
+        find.descendant(of: step, matching: find.byType(Container)),
+      );
+      expect(
+        containers.any(
+          (container) =>
+              container.decoration is BoxDecoration &&
+              (container.decoration! as BoxDecoration).color == state.$2,
+        ),
+        isTrue,
+      );
+    }
+    expect(find.text('Pode levar'), findsOneWidget);
+    expect(find.text('Peça ajuda'), findsOneWidget);
+    expect(find.text('Não toque'), findsOneWidget);
+    expect(find.text('Validação no app'), findsNothing);
+    expect(find.text('Depois da validação'), findsOneWidget);
+    expect(
+      find.widgetWithText(BingoActionButton, 'Ver impacto da turma'),
+      findsNothing,
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('SCR4P explanation uses purple numbered indicators', (
+    WidgetTester tester,
+  ) async {
+    await pumpAtSize(tester, const Size(390, 844));
+    await enterPilot(tester);
+
+    await tester.ensureVisible(find.text('Alerta SCR4P'));
+    await tester.tap(find.text('Alerta SCR4P'));
+    await tester.pumpAndSettle();
+
+    for (final title in const [
+      'Ele ataca cenários',
+      'A turma limpa setores',
+      'Quem ajuda mais ganha mais',
+    ]) {
+      final row = find.ancestor(
+        of: find.text(title),
+        matching: find.byType(Row),
+      );
+      final circles = tester.widgetList<Container>(
+        find.descendant(of: row, matching: find.byType(Container)),
+      );
+      expect(
+        circles.any(
+          (container) =>
+              container.decoration is BoxDecoration &&
+              (container.decoration! as BoxDecoration).shape ==
+                  BoxShape.circle &&
+              (container.decoration! as BoxDecoration).color == AppColors.scr4p,
+        ),
+        isTrue,
+      );
+    }
+  });
+
+  for (final size in const [Size(390, 844), Size(430, 932)]) {
+    for (final screen in const <(String, Widget)>[
+      ('ranking', RankingScreen()),
+      ('scenario', CurrentScenarioScreen()),
+      ('impact', ImpactScreen()),
+      ('mission detail', MissionDetailScreen(mission: activeMission)),
+      ('totem', TotemTrackingScreen(mission: activeMission)),
+    ]) {
+      testWidgets(
+        '${screen.$1} supports 2x text at ${size.width}x${size.height}',
+        (WidgetTester tester) async {
+          tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures(disableAnimations: true);
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(
+            tester
+                .binding
+                .platformDispatcher
+                .clearAccessibilityFeaturesTestValue,
+          );
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.light(),
+              home: MediaQuery(
+                data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+                child: screen.$2,
+              ),
+            ),
+          );
+          await tester.pump();
+
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
 }

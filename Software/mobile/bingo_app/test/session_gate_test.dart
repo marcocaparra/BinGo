@@ -18,11 +18,14 @@ class _SessionRepository implements ProfileRepository {
 
   @override
   Future<StudentProfile?> loadProfile() async => hasSavedProfile
-      ? const StudentProfile(school: 'ENIAC', identifier: 'Marco')
+      ? const StudentProfile(school: 'ENIAC', identifier: 'Gustavo Alencar')
       : null;
 
   @override
-  Future<void> save({required StudentProfile profile, required String pin}) async {
+  Future<void> save({
+    required StudentProfile profile,
+    required String pin,
+  }) async {
     hasSavedProfile = true;
   }
 
@@ -65,6 +68,7 @@ void main() {
 
     expect(find.byType(ShellScreen), findsOneWidget);
     expect(find.byType(OnboardingScreen), findsNothing);
+    expect(find.text('Olá, Gustavo!'), findsOneWidget);
   });
 
   testWidgets('empty device opens onboarding', (WidgetTester tester) async {

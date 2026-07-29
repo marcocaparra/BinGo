@@ -1,4 +1,5 @@
 export 'b1n_context_message.dart';
+export 'b1n_dialogue_strip.dart';
 export 'bincoin_amount.dart';
 export 'impact_comparison.dart';
 
@@ -8,7 +9,10 @@ import '../data/demo_data.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import 'bincoin_amount.dart';
-import 'bingo_action_button.dart';
+
+enum AppDataStatus { simulated, local }
+
+enum BingoDataStateKind { empty, loading }
 
 class AppPage extends StatelessWidget {
   const AppPage({
@@ -17,6 +21,7 @@ class AppPage extends StatelessWidget {
     required this.child,
     this.actions,
     this.showBackButton = true,
+    this.dataStatus = AppDataStatus.simulated,
     super.key,
   });
 
@@ -25,12 +30,16 @@ class AppPage extends StatelessWidget {
   final Widget child;
   final List<Widget>? actions;
   final bool showBackButton;
+  final AppDataStatus? dataStatus;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        actions: actions,
+        actions: [
+          if (dataStatus != null) _DataStatusNotice(status: dataStatus!),
+          ...?actions,
+        ],
         automaticallyImplyLeading: showBackButton,
       ),
       body: SafeArea(
@@ -55,35 +64,106 @@ class AppPage extends StatelessWidget {
   }
 }
 
-class PrimaryButton extends StatelessWidget {
-  const PrimaryButton({
-    required this.label,
-    required this.onPressed,
-    this.color = AppColors.blue,
-    this.icon,
-    super.key,
-  });
+class _DataStatusNotice extends StatelessWidget {
+  const _DataStatusNotice({required this.status});
 
-  final String label;
-  final VoidCallback onPressed;
-  final Color color;
-  final IconData? icon;
+  final AppDataStatus status;
 
   @override
   Widget build(BuildContext context) {
-    final tone = color == AppColors.green
-        ? BingoActionTone.green
-        : color == AppColors.scr4p
-        ? BingoActionTone.purple
-        : color == AppColors.warning
-        ? BingoActionTone.yellow
-        : BingoActionTone.blue;
+    return Tooltip(
+      message: status == AppDataStatus.simulated
+          ? 'Dados simulados. A atualização real acontecerá pelo Totem.'
+          : 'Dados salvos localmente neste aparelho.',
+      child: Semantics(
+        label: status == AppDataStatus.simulated
+            ? 'Dados simulados'
+            : 'Perfil local',
+        child: Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: SizedBox(
+            width: 118,
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      status == AppDataStatus.simulated
+                          ? 'Dados simulados'
+                          : 'Perfil local',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textMuted,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-    return BingoActionButton(
-      label: label,
-      icon: icon,
-      tone: tone,
-      onPressed: onPressed,
+class BingoDataState extends StatelessWidget {
+  const BingoDataState({
+    required this.kind,
+    required this.title,
+    required this.message,
+    this.icon = Icons.inbox_outlined,
+    this.action,
+    super.key,
+  });
+
+  final BingoDataStateKind kind;
+  final String title;
+  final String message;
+  final IconData icon;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      liveRegion: kind == BingoDataStateKind.loading,
+      label: '$title. $message',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        child: Column(
+          children: [
+            if (kind == BingoDataStateKind.loading)
+              const SizedBox.square(
+                dimension: 28,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              )
+            else
+              Icon(icon, size: 36, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            if (action != null) ...[const SizedBox(height: 16), action!],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -150,14 +230,19 @@ class ImageHeroCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final responsiveHeight = constraints.maxWidth * 0.54;
-        final effectiveHeight = height > responsiveHeight
+        final baseHeight = height > responsiveHeight
             ? height
             : responsiveHeight;
+        final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        final effectiveHeight = usesLargeText && baseHeight < 330
+            ? 330.0
+            : baseHeight;
+        final maximumHeight = usesLargeText ? 400.0 : 230.0;
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: SizedBox(
-            height: effectiveHeight.clamp(168.0, 230.0),
+            height: effectiveHeight.clamp(168.0, maximumHeight),
             child: Stack(
               fit: StackFit.expand,
               children: [

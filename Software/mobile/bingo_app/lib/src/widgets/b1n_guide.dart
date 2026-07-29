@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'b1n_dialogue_strip.dart';
 
 class B1nGuide extends StatelessWidget {
   const B1nGuide({
@@ -20,6 +21,10 @@ class B1nGuide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return B1nDialogueStrip(message: message, tone: tone);
+    }
+
     final image = Image.asset(asset, fit: BoxFit.contain);
     final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -38,21 +43,13 @@ class B1nGuide extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: tone.withValues(alpha: 0.20)),
       ),
-      child: compact
-          ? Row(
-              children: [
-                SizedBox(width: 62, height: 62, child: image),
-                const SizedBox(width: 13),
-                Expanded(child: text),
-              ],
-            )
-          : Column(
-              children: [
-                SizedBox(width: 132, height: 126, child: image),
-                const SizedBox(height: 4),
-                text,
-              ],
-            ),
+      child: Column(
+        children: [
+          SizedBox(width: 132, height: 126, child: image),
+          const SizedBox(height: 4),
+          text,
+        ],
+      ),
     );
   }
 }

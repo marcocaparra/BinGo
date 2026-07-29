@@ -10,11 +10,7 @@ import 'change_pin_screen.dart';
 import 'onboarding_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({
-    required this.onGoHome,
-    this.repository,
-    super.key,
-  });
+  const ProfileScreen({required this.onGoHome, this.repository, super.key});
 
   final ProfileRepository? repository;
   final VoidCallback onGoHome;
@@ -36,12 +32,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return FutureBuilder<StudentProfile>(
       future: _profile,
       builder: (context, snapshot) {
-        final profile = snapshot.data ??
+        final profile =
+            snapshot.data ??
             const StudentProfile(school: 'ENIAC', identifier: 'Marco Caparra');
         return AppPage(
           title: 'Seu caminho',
           subtitle: 'Progresso, conquistas e conta em um só lugar.',
           showBackButton: false,
+          dataStatus: AppDataStatus.local,
           child: Column(
             children: [
               _ProfileHeader(profile: profile),
@@ -65,10 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: widget.onGoHome,
               ),
               const SizedBox(height: 18),
-              _AccountPanel(
-                profile: profile,
-                repository: widget.repository,
-              ),
+              _AccountPanel(profile: profile, repository: widget.repository),
             ],
           ),
         );
@@ -114,7 +109,9 @@ class _ProfileHeader extends StatelessWidget {
             alignment: Alignment.center,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(colors: [AppColors.blue, AppColors.green]),
+              gradient: LinearGradient(
+                colors: [AppColors.blue, AppColors.green],
+              ),
             ),
             child: Text(
               _initials,
@@ -129,7 +126,10 @@ class _ProfileHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(profile.identifier, style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  profile.identifier,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 4),
                 Text('${profile.school} · 9ºA'),
                 const SizedBox(height: 10),
@@ -252,7 +252,9 @@ class _ResourceTile extends StatelessWidget {
             child: Text(
               label,
               maxLines: 2,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(height: 1),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(height: 1),
             ),
           ),
         ),
@@ -276,7 +278,13 @@ class _ResourceTile extends StatelessWidget {
 class _LevelPath extends StatelessWidget {
   const _LevelPath();
 
-  static const _levels = ['Aprendiz', 'Explorador', 'Restaurador', 'Guardião', 'Herói'];
+  static const _levels = [
+    'Aprendiz',
+    'Explorador',
+    'Restaurador',
+    'Guardião',
+    'Herói',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +292,10 @@ class _LevelPath extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Trilha do restaurador', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Trilha do restaurador',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,16 +312,24 @@ class _LevelPath extends StatelessWidget {
                           shape: BoxShape.circle,
                           color: index < 3 ? AppColors.green : Colors.white,
                           border: Border.all(
-                            color: index == 2 ? AppColors.blue : AppColors.green,
+                            color: index == 2
+                                ? AppColors.blue
+                                : AppColors.green,
                             width: index == 2 ? 3 : 2,
                           ),
                         ),
                         child: index < 2
-                            ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              )
                             : Text(
                                 '${index + 1}',
                                 style: TextStyle(
-                                  color: index == 2 ? Colors.white : AppColors.navy,
+                                  color: index == 2
+                                      ? Colors.white
+                                      : AppColors.navy,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -318,7 +337,10 @@ class _LevelPath extends StatelessWidget {
                       const SizedBox(height: 7),
                       FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(_levels[index], style: Theme.of(context).textTheme.labelSmall),
+                        child: Text(
+                          _levels[index],
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
                       ),
                     ],
                   ),
@@ -376,7 +398,8 @@ class _AccountPanel extends StatelessWidget {
   Future<void> _changePin(BuildContext context) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
-        builder: (_) => ChangePinScreen(repository: repository!, profile: profile),
+        builder: (_) =>
+            ChangePinScreen(repository: repository!, profile: profile),
       ),
     );
     if (changed == true && context.mounted) {
@@ -397,7 +420,10 @@ class _AccountPanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Dados da escola', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Dados da escola',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               Text('Aluno: ${profile.identifier}'),
               Text('Escola: ${profile.school}'),
@@ -413,7 +439,10 @@ class _AccountPanel extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(repository == null ? 'Sair do piloto?' : 'Trocar conta?'),
+        title: Text(
+          repository == null ? 'Sair do piloto?' : 'Trocar conta?',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         content: Text(
           repository == null
               ? 'Você voltará para o início da demonstração.'

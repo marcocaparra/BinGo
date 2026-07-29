@@ -70,6 +70,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
     return AppPage(
       title: _confirming ? 'Confirme seu novo PIN' : 'Crie seu novo PIN',
       subtitle: 'Ele continuará sendo usado para entrar no Totem.',
+      dataStatus: AppDataStatus.local,
       child: Column(
         children: [
           B1nGuide(
@@ -97,7 +98,9 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                 ? 'Atualizar PIN'
                 : 'Continuar',
             tone: BingoActionTone.green,
-            icon: _confirming ? Icons.check_rounded : Icons.arrow_forward_rounded,
+            icon: _confirming
+                ? Icons.check_rounded
+                : Icons.arrow_forward_rounded,
             onPressed: _pin.length != 4 || _saving
                 ? null
                 : _confirming

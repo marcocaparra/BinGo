@@ -1,13 +1,16 @@
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/change_pin_screen.dart';
 import 'package:bingo_app/src/screens/profile_screen.dart';
+import 'package:bingo_app/src/theme/app_theme.dart';
 import 'package:bingo_app/src/widgets/bincoin_amount.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _ProfileRepository implements ProfileRepository {
-  StudentProfile? profile =
-      const StudentProfile(school: 'ENIAC', identifier: 'Marco Caparra');
+  StudentProfile? profile = const StudentProfile(
+    school: 'ENIAC',
+    identifier: 'Marco Caparra',
+  );
   String pin = '4826';
 
   @override
@@ -20,7 +23,10 @@ class _ProfileRepository implements ProfileRepository {
   Future<StudentProfile?> loadProfile() async => profile;
 
   @override
-  Future<void> save({required StudentProfile profile, required String pin}) async {
+  Future<void> save({
+    required StudentProfile profile,
+    required String pin,
+  }) async {
     this.profile = profile;
     this.pin = pin;
   }
@@ -61,10 +67,7 @@ void main() {
     reduceMotion(tester);
     await tester.pumpWidget(
       MaterialApp(
-        home: ProfileScreen(
-          repository: _ProfileRepository(),
-          onGoHome: () {},
-        ),
+        home: ProfileScreen(repository: _ProfileRepository(), onGoHome: () {}),
       ),
     );
     await tester.pumpAndSettle();
@@ -72,7 +75,13 @@ void main() {
     expect(find.text('Pontos pessoais'), findsOneWidget);
     expect(find.text('Pontos da turma'), findsOneWidget);
     expect(find.text('BinCoins'), findsOneWidget);
-    for (final level in ['Aprendiz', 'Explorador', 'Restaurador', 'Guardião', 'Herói']) {
+    for (final level in [
+      'Aprendiz',
+      'Explorador',
+      'Restaurador',
+      'Guardião',
+      'Herói',
+    ]) {
       expect(find.text(level), findsOneWidget);
     }
   });
@@ -145,16 +154,17 @@ void main() {
           expect(tops.toSet(), hasLength(1));
         }
 
-        for (final label in ['Pontos pessoais', 'Pontos da turma', 'BinCoins']) {
+        for (final label in [
+          'Pontos pessoais',
+          'Pontos da turma',
+          'BinCoins',
+        ]) {
           final text = tester.widget<Text>(find.text(label));
           expect(text.maxLines, 2);
           expect(text.overflow, isNot(TextOverflow.ellipsis));
           expect(text.style?.fontSize ?? 11, greaterThanOrEqualTo(10));
         }
-        expect(
-          find.bySemanticsLabel('120 BinCoins'),
-          findsOneWidget,
-        );
+        expect(find.bySemanticsLabel('120 BinCoins'), findsOneWidget);
         expect(find.bySemanticsLabel('BinCoins'), findsNothing);
       },
     );
@@ -164,10 +174,7 @@ void main() {
     reduceMotion(tester);
     await tester.pumpWidget(
       MaterialApp(
-        home: ProfileScreen(
-          repository: _ProfileRepository(),
-          onGoHome: () {},
-        ),
+        home: ProfileScreen(repository: _ProfileRepository(), onGoHome: () {}),
       ),
     );
     await tester.pumpAndSettle();
@@ -186,7 +193,10 @@ void main() {
   ) async {
     reduceMotion(tester);
     await tester.pumpWidget(
-      MaterialApp(home: ProfileScreen(onGoHome: () {})),
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen(onGoHome: () {}),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView), const Offset(0, -720));
@@ -194,5 +204,11 @@ void main() {
 
     expect(find.text('Redefinir PIN'), findsNothing);
     expect(find.text('Sair do modo piloto'), findsOneWidget);
+
+    await tester.tap(find.text('Sair do modo piloto'));
+    await tester.pumpAndSettle();
+
+    final dialogTitle = tester.widget<Text>(find.text('Sair do piloto?'));
+    expect(dialogTitle.style?.fontFamily, 'Sora');
   });
 }

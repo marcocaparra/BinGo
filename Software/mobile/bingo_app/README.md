@@ -20,7 +20,8 @@ Protótipo Flutter criado a partir do wireframe `V7.1 B1N GUIDE`, já com os aju
 - Para feiras e testes supervisionados, o app usa `modo piloto`: demonstra a jornada sem coletar dados reais de alunos.
 - Toda validação simulada deve ser apresentada como demonstração. A validação real pertence ao fluxo Totem/professor/sensor.
 - Mensagem pedagógica central: BinGo! recompensa descarte correto, seguro e validado; não recompensa volume por volume.
-- O Totem ainda não tem telas próprias, mas o app já explica o fluxo físico.
+- O app possui uma tela de orientação para o Totem, sem executar descarte,
+  validação ou resgate.
 
 ## Assets No App
 

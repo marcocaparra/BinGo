@@ -1,6 +1,6 @@
 import 'package:bingo_app/src/theme/app_assets.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
-import 'package:bingo_app/src/widgets/b1n_context_message.dart';
+import 'package:bingo_app/src/widgets/b1n_dialogue_strip.dart';
 import 'package:bingo_app/src/widgets/bincoin_amount.dart';
 import 'package:bingo_app/src/widgets/impact_comparison.dart';
 import 'package:flutter/material.dart';
@@ -126,22 +126,29 @@ void main() {
     }
   });
 
-  testWidgets('context message renders one character and one message', (
+  testWidgets('dialogue strip renders one avatar, speaker and message', (
     tester,
   ) async {
     const message = 'Estamos perto de recuperar outro setor!';
 
-    await tester.pumpWidget(
-      _testApp(
-        const B1nContextMessage(
-          asset: AppAssets.b1nIdeaInstruction,
-          message: message,
-        ),
-      ),
-    );
+    await tester.pumpWidget(_testApp(const B1nDialogueStrip(message: message)));
 
     expect(find.byType(Image), findsOneWidget);
+    expect(find.text('B1N'), findsOneWidget);
     expect(find.text(message), findsOneWidget);
+    expect(find.bySemanticsLabel('B1N diz: $message'), findsOneWidget);
+    final avatar = tester.widget<Image>(find.byType(Image));
+    expect(avatar.fit, BoxFit.contain);
+    expect(avatar.alignment, Alignment.center);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Container &&
+            widget.decoration is BoxDecoration &&
+            (widget.decoration! as BoxDecoration).shape == BoxShape.circle,
+      ),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -156,12 +163,10 @@ void main() {
       _setViewport(tester, viewport.$1, viewport.$2);
       await tester.pumpWidget(
         _testApp(
-          const B1nContextMessage(
-            asset: AppAssets.b1nIdeaInstruction,
+          const B1nDialogueStrip(
             message:
                 'Cada descarte validado ajuda a escola a recuperar setores da cidade e construir um impacto coletivo duradouro.',
             tone: AppColors.green,
-            compact: true,
           ),
           width: viewport.$1,
           height: viewport.$2,

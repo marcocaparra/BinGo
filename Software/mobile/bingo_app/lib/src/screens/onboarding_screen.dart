@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
+import '../widgets/bingo_action_button.dart';
 import '../widgets/bingo_widgets.dart';
 import 'access_flow_screen.dart';
 
@@ -93,14 +94,13 @@ class OnboardingScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 18),
-                          PrimaryButton(
+                          BingoActionButton(
                             label: 'Começar missão',
-                            color: AppColors.green,
+                            tone: BingoActionTone.green,
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) => AccessFlowScreen(
-                                  repository: repository,
-                                ),
+                                builder: (_) =>
+                                    AccessFlowScreen(repository: repository),
                               ),
                             ),
                           ),
@@ -135,9 +135,9 @@ class _FlowSteps extends StatelessWidget {
       children: [
         Text(
           'Rota do descarte',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: AppColors.navy,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
         ),
         const SizedBox(height: 12),
         Stack(
@@ -166,10 +166,8 @@ class _FlowSteps extends StatelessWidget {
                         milliseconds: reduceMotion ? 0 : 360 + (index * 90),
                       ),
                       curve: Curves.easeOutBack,
-                      builder: (context, value, child) => Transform.scale(
-                        scale: value,
-                        child: child,
-                      ),
+                      builder: (context, value, child) =>
+                          Transform.scale(scale: value, child: child),
                       child: Column(
                         children: [
                           Container(
@@ -178,16 +176,24 @@ class _FlowSteps extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              border: Border.all(color: steps[index].$3, width: 3),
+                              border: Border.all(
+                                color: steps[index].$3,
+                                width: 3,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: steps[index].$3.withValues(alpha: 0.18),
+                                  color: steps[index].$3.withValues(
+                                    alpha: 0.18,
+                                  ),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: Icon(steps[index].$1, color: steps[index].$3),
+                            child: Icon(
+                              steps[index].$1,
+                              color: steps[index].$3,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           FittedBox(
