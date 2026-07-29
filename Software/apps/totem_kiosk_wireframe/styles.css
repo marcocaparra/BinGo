@@ -1228,6 +1228,15 @@ p {
   --action-stack-h: 140px;
 }
 
+.screen--safety {
+  --action-stack-h: 134px;
+  --tap-action: 62px;
+}
+
+.screen--safety .action-zone--stack {
+  gap: 10px;
+}
+
 .screen--safety .b1n-talk--corner {
   min-height: 116px;
   grid-template-columns: 1fr 110px;
@@ -1304,7 +1313,7 @@ p {
 
 .safety-checks {
   display: grid;
-  gap: 4px;
+  gap: 7px;
 }
 
 .safety-check {
