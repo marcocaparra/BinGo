@@ -13,8 +13,10 @@ class AppAssets {
   static const b1nReward =
       'assets/images/b1n_segurando_bincoin_recompensa_web.png';
   static const b1nQuestion = 'assets/images/b1n_duvida_pergunta_web.png';
+  static const b1nMissionReady = 'assets/images/b1n_mission_ready.png';
   static const scr4pPose = 'assets/images/scr4p_pose_transparent.png';
   static const scr4pIcon = 'assets/images/scr4p_icon.png';
+  static const scr4pDefense = 'assets/images/scr4p_defense.png';
   static const bincoin = 'assets/images/bincoin_transparent.png';
   static const bincoinV2 = 'assets/images/BinCoin - 3D v2.png';
   static const sceneClean = 'assets/images/Praça Central - Limpa.jpeg';

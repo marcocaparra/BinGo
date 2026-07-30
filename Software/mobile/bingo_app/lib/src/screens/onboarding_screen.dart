@@ -1,10 +1,11 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/bingo_action_button.dart';
-import '../widgets/bingo_widgets.dart';
 import 'access_flow_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
@@ -30,7 +31,7 @@ class OnboardingScreen extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.white.withValues(alpha: 0.10),
-                  Colors.white.withValues(alpha: 0.92),
+                  Colors.white.withValues(alpha: 0.58),
                 ],
               ),
             ),
@@ -49,32 +50,33 @@ class OnboardingScreen extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
+                          _GlassSurface(
+                            dark: true,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 10,
+                              horizontal: 22,
+                              vertical: 12,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.94),
-                              borderRadius: BorderRadius.circular(999),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.navy.withValues(alpha: 0.10),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: Image.asset(
-                              AppAssets.logoOfficialTransparent,
-                              height: 54,
+                            child: SizedBox(
+                              width: 248,
+                              height: 58,
+                              child: Image.asset(
+                                AppAssets.logoOfficialTransparent,
+                                fit: BoxFit.contain,
+                                color: Colors.white,
+                                colorBlendMode: BlendMode.srcIn,
+                                filterQuality: FilterQuality.high,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 28),
-                          SurfaceCard(
+                          _GlassSurface(
                             child: Column(
                               children: [
-                                Image.asset(AppAssets.b1nPose, height: 128),
+                                Image.asset(
+                                  AppAssets.b1nPose,
+                                  height: 128,
+                                  filterQuality: FilterQuality.high,
+                                ),
                                 Text(
                                   'Ajude BinGópolis',
                                   style: Theme.of(
@@ -113,6 +115,56 @@ class OnboardingScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GlassSurface extends StatelessWidget {
+  const _GlassSurface({
+    required this.child,
+    this.dark = false,
+    this.padding = const EdgeInsets.all(20),
+  });
+
+  final Widget child;
+  final bool dark;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = BorderRadius.all(Radius.circular(20));
+    final shadowColor = AppColors.navy.withValues(alpha: dark ? 0.20 : 0.10);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: dark
+                  ? AppColors.navy.withValues(alpha: 0.56)
+                  : Colors.white.withValues(alpha: 0.54),
+              borderRadius: radius,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: dark ? 0.42 : 0.78),
+              ),
+            ),
+            child: child,
+          ),
+        ),
       ),
     );
   }

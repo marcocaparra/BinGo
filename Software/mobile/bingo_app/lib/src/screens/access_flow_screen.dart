@@ -9,7 +9,15 @@ import '../widgets/bingo_action_button.dart';
 import '../widgets/pin_keypad.dart';
 import 'shell_screen.dart';
 
-enum _AccessStage { hub, identify, createPin, confirmPin, signIn, resetPin, success }
+enum _AccessStage {
+  hub,
+  identify,
+  createPin,
+  confirmPin,
+  signIn,
+  resetPin,
+  success,
+}
 
 enum _AccessIntent { create, reset }
 
@@ -191,7 +199,8 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
                 onPressed: () => setState(() {
                   _error = null;
                   _pin = '';
-                  _stage = _stage == _AccessStage.createPin ||
+                  _stage =
+                      _stage == _AccessStage.createPin ||
                           _stage == _AccessStage.resetPin
                       ? _AccessStage.identify
                       : _stage == _AccessStage.confirmPin
@@ -211,8 +220,9 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
               child: AnimatedSwitcher(
                 duration: Duration(
-                  milliseconds:
-                      MediaQuery.of(context).disableAnimations ? 0 : AppMotion.standard,
+                  milliseconds: MediaQuery.of(context).disableAnimations
+                      ? 0
+                      : AppMotion.standard,
                 ),
                 child: content,
               ),
@@ -226,8 +236,12 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
   Widget _buildHub() {
     return Column(
       key: const ValueKey('access-hub'),
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Vamos entrar em ação?', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          'Vamos entrar em ação?',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
         const SizedBox(height: 8),
         Text(
           'Seu PIN identifica você no Totem e acompanha seu caminho no BinGo.',
@@ -237,7 +251,8 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
         const B1nGuide(
           asset: AppAssets.b1nIdeaInstruction,
           title: 'B1N está pronto',
-          message: 'Crie seu PIN uma vez. Depois, ele abre seu caminho no Totem.',
+          message:
+              'Crie seu PIN uma vez. Depois, ele abre seu caminho no Totem.',
           tone: AppColors.blue,
         ),
         const SizedBox(height: 22),
@@ -276,7 +291,9 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isReset ? 'Vamos recuperar seu acesso' : 'Primeiro, me conta quem você é',
+          isReset
+              ? 'Vamos recuperar seu acesso'
+              : 'Primeiro, me conta quem você é',
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 8),
@@ -299,7 +316,10 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
         TextField(
           controller: _schoolController,
           textInputAction: TextInputAction.next,
-          decoration: const InputDecoration(labelText: 'Escola', hintText: 'ENIAC'),
+          decoration: const InputDecoration(
+            labelText: 'Escola',
+            hintText: 'ENIAC',
+          ),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 12),
@@ -334,7 +354,10 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 8),
-        Text('Ele será usado para entrar no Totem.', style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          'Ele será usado para entrar no Totem.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 20),
         const B1nGuide(
           asset: AppAssets.b1nPinPrivacy,
@@ -344,7 +367,10 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
           compact: true,
         ),
         const SizedBox(height: 22),
-        PinKeypad(value: _pin, onChanged: (value) => setState(() => _pin = value)),
+        PinKeypad(
+          value: _pin,
+          onChanged: (value) => setState(() => _pin = value),
+        ),
         const SizedBox(height: 20),
         BingoActionButton(
           label: 'Continuar',
@@ -360,9 +386,15 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
       key: const ValueKey('confirm-pin'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Confirme seu PIN', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          'Confirme seu PIN',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
         const SizedBox(height: 8),
-        Text('Digite os mesmos 4 números mais uma vez.', style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          'Digite os mesmos 4 números mais uma vez.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 20),
         const B1nGuide(
           asset: AppAssets.b1nPinPrivacy,
@@ -394,9 +426,15 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
       key: const ValueKey('sign-in'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Bom te ver de novo', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          'Bom te ver de novo',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
         const SizedBox(height: 8),
-        Text('Use os dados e o PIN deste aparelho.', style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          'Use os dados e o PIN deste aparelho.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 20),
         const B1nGuide(
           asset: AppAssets.b1nThumbsUp,
@@ -429,7 +467,9 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
         BingoActionButton(
           label: _submitting ? 'Entrando...' : 'Entrar no BinGo',
           icon: Icons.login_rounded,
-          onPressed: _hasIdentity && _pin.length == 4 && !_submitting ? _signIn : null,
+          onPressed: _hasIdentity && _pin.length == 4 && !_submitting
+              ? _signIn
+              : null,
         ),
         const SizedBox(height: 8),
         Center(

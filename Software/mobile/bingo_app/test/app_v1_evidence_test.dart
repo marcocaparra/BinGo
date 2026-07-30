@@ -66,7 +66,10 @@ void main() {
         home: Column(
           children: [
             Image.asset(AppAssets.b1nIcon),
+            Image.asset(AppAssets.b1nIdeaInstruction),
+            Image.asset(AppAssets.b1nMissionReady),
             Image.asset(AppAssets.scr4pIcon),
+            Image.asset(AppAssets.scr4pDefense),
             Image.asset(AppAssets.bincoinV2),
             Image.asset(AppAssets.sceneClean),
             Image.asset(AppAssets.sceneCorrupt),

@@ -48,7 +48,7 @@ class AppPage extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 430),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
               children: [
                 Text(title, style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 6),

@@ -271,13 +271,10 @@ void main() {
 
     await tester.tap(find.text('Ranking'));
     await tester.pumpAndSettle();
-    expect(find.text('Top turmas da Praça'), findsOneWidget);
+    expect(find.text('Turmas da Praça'), findsOneWidget);
     expect(find.text('Cenário atual · Praça Central'), findsOneWidget);
     expect(find.text('Ver cenário atual'), findsOneWidget);
-    expect(
-      find.text('Top 3 e participação segura recebem bônus ao fim do ciclo.'),
-      findsOneWidget,
-    );
+    expect(find.text('12 dias'), findsOneWidget);
 
     await tester.tap(find.text('Perfil'));
     await tester.pumpAndSettle();
@@ -507,7 +504,7 @@ void main() {
       expect(confrontationImages, hasLength(1));
       expect(
         tester.getTopLeft(find.text('Sua turma · 9ºA')).dy,
-        lessThan(tester.getTopLeft(find.text('Top turmas da Praça')).dy),
+        lessThan(tester.getTopLeft(find.text('Turmas da Praça')).dy),
       );
 
       await tester.ensureVisible(find.text('Ver cenário atual'));

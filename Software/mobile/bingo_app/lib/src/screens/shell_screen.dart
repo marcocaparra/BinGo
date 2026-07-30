@@ -251,6 +251,9 @@ class _WalletScreenState extends State<WalletScreen> {
     final redeemableRewards = rewards
         .where((reward) => reward.available)
         .length;
+    final sectionTone = _section == WalletSection.transactions
+        ? AppColors.green
+        : AppColors.blue;
 
     return AppPage(
       title: 'Carteira',
@@ -303,23 +306,35 @@ class _WalletScreenState extends State<WalletScreen> {
             child: MediaQuery.withClampedTextScaling(
               maxScaleFactor: 1.25,
               child: SegmentedButton<WalletSection>(
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    return states.contains(WidgetState.selected)
+                        ? sectionTone.withValues(alpha: 0.14)
+                        : Colors.transparent;
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    return states.contains(WidgetState.selected)
+                        ? sectionTone
+                        : AppColors.navy;
+                  }),
+                  side: WidgetStateProperty.resolveWith((states) {
+                    return BorderSide(
+                      color: states.contains(WidgetState.selected)
+                          ? sectionTone
+                          : AppColors.line,
+                      width: states.contains(WidgetState.selected) ? 1.6 : 1,
+                    );
+                  }),
+                ),
                 segments: const [
                   ButtonSegment(
                     value: WalletSection.transactions,
-                    label: Text(
-                      'Extrato',
-                      maxLines: 1,
-                      softWrap: false,
-                    ),
+                    label: Text('Extrato', maxLines: 1, softWrap: false),
                     icon: Icon(Icons.swap_vert_rounded),
                   ),
                   ButtonSegment(
                     value: WalletSection.discards,
-                    label: Text(
-                      'Descartes',
-                      maxLines: 1,
-                      softWrap: false,
-                    ),
+                    label: Text('Descartes', maxLines: 1, softWrap: false),
                     icon: Icon(Icons.recycling_rounded),
                   ),
                 ],
@@ -807,10 +822,6 @@ class HowItWorksScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _HowItWorksHero(),
-          const SizedBox(height: 16),
-          const B1nDialogueStrip(
-            message: 'O app orienta; o descarte acontece no Totem da escola.',
-          ),
           const SizedBox(height: 22),
           Text(
             'Do eletrônico ao resultado',
@@ -924,83 +935,103 @@ class _HowItWorksHero extends StatelessWidget {
       child: ExcludeSemantics(
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  AppAssets.sceneTransition,
-                  fit: BoxFit.cover,
-                  alignment: Alignment.center,
-                ),
-              ),
-              Positioned.fill(
-                right: -34,
-                left: usesLargeText ? 150 : 170,
-                top: 14,
-                bottom: 14,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: usesLargeText ? 470 : 310),
+            child: Stack(
+              children: [
+                Positioned.fill(
                   child: Image.asset(
-                    AppAssets.totemConceptFull,
+                    AppAssets.sceneTransition,
                     fit: BoxFit.cover,
-                    alignment: Alignment.centerRight,
+                    alignment: Alignment.center,
+                    filterQuality: FilterQuality.high,
                   ),
                 ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        AppColors.navy.withValues(alpha: 0.94),
-                        AppColors.navy.withValues(alpha: 0.72),
-                        AppColors.navy.withValues(alpha: 0.12),
-                      ],
-                      stops: const [0, 0.58, 1],
+                Positioned(
+                  top: 20,
+                  right: -46,
+                  width: 210,
+                  height: 220,
+                  child: ClipRect(
+                    child: Transform.scale(
+                      scale: 1.72,
+                      alignment: Alignment.centerRight,
+                      child: Image.asset(
+                        AppAssets.totemConceptFull,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.centerRight,
+                        filterQuality: FilterQuality.high,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Container(
-                constraints: BoxConstraints(
-                  minHeight: usesLargeText ? 340 : 230,
-                ),
-                width: double.infinity,
-                padding: const EdgeInsets.all(18),
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: usesLargeText ? double.infinity : 210,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const BadgeLabel(
-                        label: 'Totem + app',
-                        color: AppColors.blue,
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          AppColors.navy.withValues(alpha: 0.04),
+                          AppColors.navy.withValues(alpha: 0.18),
+                          AppColors.navy.withValues(alpha: 0.96),
+                        ],
+                        stops: const [0, 0.48, 1],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Do eletrônico ao impacto',
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'O Totem confirma a ação. O app acompanha a mudança.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.90),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                Positioned(
+                  left: -8,
+                  top: 22,
+                  width: 138,
+                  height: 170,
+                  child: Image.asset(
+                    AppAssets.b1nIdeaInstruction,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomCenter,
+                    filterQuality: FilterQuality.high,
+                  ),
+                ),
+                Container(
+                  constraints: BoxConstraints(
+                    minHeight: usesLargeText ? 470 : 310,
+                  ),
+                  width: double.infinity,
+                  alignment: Alignment.bottomLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const BadgeLabel(
+                          label: 'Totem + app',
+                          color: AppColors.blue,
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Do eletrônico ao impacto',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'O app orienta; o descarte acontece no Totem e o resultado aparece aqui.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.92),
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1207,6 +1238,47 @@ class _HowItWorksOutcome extends StatelessWidget {
   }
 }
 
+class _CharacterPortrait extends StatelessWidget {
+  const _CharacterPortrait({
+    required this.asset,
+    required this.tone,
+    required this.width,
+    required this.height,
+  });
+
+  final String asset;
+  final Color tone;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      padding: const EdgeInsets.fromLTRB(6, 6, 6, 3),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: 0.16),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Image.asset(
+        asset,
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
+        filterQuality: FilterQuality.high,
+      ),
+    );
+  }
+}
+
 class _MissionFeaturedHero extends StatelessWidget {
   const _MissionFeaturedHero({required this.mission, required this.onTap});
 
@@ -1252,6 +1324,16 @@ class _MissionFeaturedHero extends StatelessWidget {
                     ),
                   ),
                 ),
+                const Positioned(
+                  top: 14,
+                  right: 14,
+                  child: _CharacterPortrait(
+                    asset: AppAssets.b1nMissionReady,
+                    tone: AppColors.green,
+                    width: 82,
+                    height: 98,
+                  ),
+                ),
                 Container(
                   constraints: BoxConstraints(
                     minHeight: usesLargeText ? 350 : 250,
@@ -1262,18 +1344,12 @@ class _MissionFeaturedHero extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          const BadgeLabel(
-                            label: 'Missão ativa',
-                            color: AppColors.green,
-                          ),
-                          const Spacer(),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Colors.white,
-                          ),
-                        ],
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: BadgeLabel(
+                          label: 'Missão ativa',
+                          color: AppColors.green,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -1347,7 +1423,12 @@ class _MissionEventBanner extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Image.asset(AppAssets.scr4pIcon, width: 58, height: 58),
+                const _CharacterPortrait(
+                  asset: AppAssets.scr4pDefense,
+                  tone: AppColors.scr4p,
+                  width: 66,
+                  height: 78,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1505,7 +1586,19 @@ class _MissionEventStatus extends StatelessWidget {
         children: [
           Row(
             children: [
-              Image.asset(AppAssets.scr4pIcon, width: 42, height: 42),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.scr4p.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.shield_outlined,
+                  color: AppColors.scr4p,
+                  size: 24,
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -1623,25 +1716,40 @@ class _PodiumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final title = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.emoji_events, color: AppColors.warning),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            'Turmas da Praça',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+      ],
+    );
+
     return SurfaceCard(
       color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const Icon(Icons.emoji_events, color: AppColors.warning),
-              Text(
-                'Top turmas da Praça',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              BadgeLabel(label: '${currentScenario.cycleDays} dias'),
-            ],
-          ),
-          const SizedBox(height: 6),
+          if (usesLargeText) ...[
+            title,
+            const SizedBox(height: 10),
+            const _RankingCycleBadge(),
+          ] else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(child: title),
+                const SizedBox(width: 12),
+                const _RankingCycleBadge(),
+              ],
+            ),
+          const SizedBox(height: 10),
           Text(
             'Top 3 e participação segura recebem bônus ao fim do ciclo.',
             style: Theme.of(
@@ -1684,6 +1792,58 @@ class _PodiumCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RankingCycleBadge extends StatelessWidget {
+  const _RankingCycleBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '${currentScenario.cycleDays} dias no ciclo atual',
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppColors.warning.withValues(alpha: 0.42),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.calendar_today_rounded,
+                size: 17,
+                color: AppColors.navy,
+              ),
+              const SizedBox(width: 7),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${currentScenario.cycleDays} dias',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: AppColors.navy,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    'no ciclo',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -3185,10 +3345,33 @@ class _HomeScenarioOverview extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  activeMission.title,
-                  style: Theme.of(context).textTheme.titleMedium,
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.green.withValues(alpha: 0.13),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.recycling_rounded,
+                        color: AppColors.green,
+                        size: 21,
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        activeMission.title,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppColors.navy,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Row(
