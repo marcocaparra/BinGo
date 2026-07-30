@@ -54,12 +54,12 @@ BinGo/
 | Branch | Uso |
 | --- | --- |
 | `develop` | Branch padrão, integração atual e origem de todo trabalho novo |
-| `legacy` | Arquitetura antiga preservada apenas para consulta |
+| `main` (`legacy`) | Arquitetura antiga preservada apenas para consulta |
 | `release/diario-bordo-v0` | Fonte do serviço publicado do Diário de Bordo |
 | `feature/totem-v1` | Evolução ainda em revisão do totem |
 | `feature/mobile-pin-refresh` | Evolução ainda em revisão do aplicativo |
 
-A `legacy` não deve receber novas funcionalidades. A branch de release existe porque o serviço publicado acompanha esse nome; mudanças normais do Diário continuam partindo da `develop`.
+A `main` é a branch legada e não deve receber novas funcionalidades. A branch de release existe porque o serviço publicado acompanha esse nome; mudanças normais do Diário continuam partindo da `develop`.
 
 ## Fluxo de contribuição
 
