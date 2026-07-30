@@ -132,6 +132,35 @@ const keyboardRows = [
   ["Z", "X", "C", "V", "B", "N", "M"],
 ];
 
+const demoScenarios = [
+  { id: "success", label: "Sucesso", detail: "Fluxo aceito" },
+  { id: "low-confidence", label: "Baixa confiança", detail: "Três tentativas" },
+  { id: "rejected", label: "Item recusado", detail: "Devolução segura" },
+  { id: "unavailable", label: "Indisponível", detail: "Interrompe antes da câmera" },
+  { id: "mechanical", label: "Falha mecânica", detail: "Professor após confirmar" },
+];
+
+const helpReasons = {
+  unsafe: {
+    title: "Item com possível risco",
+    detail: "O item pode estar vazando, estufado ou danificado.",
+    instruction: "Não toque no item nem force a abertura.",
+    recoverable: false,
+  },
+  repeated: {
+    title: "Três leituras sem confiança",
+    detail: "A câmera não conseguiu identificar o item com segurança.",
+    instruction: "Aguarde ajuda ou peça a devolução segura do item.",
+    recoverable: true,
+  },
+  mechanical: {
+    title: "Falha no mecanismo",
+    detail: "O descarte não pôde ser concluído pelo compartimento.",
+    instruction: "Não toque no item nem force a abertura.",
+    recoverable: false,
+  },
+};
+
 function selectedSegment() {
   return schoolCatalog.find((segment) => segment.id === kioskState.session.segment) ?? null;
 }
@@ -467,6 +496,93 @@ const screens = [
     `,
   },
   {
+    id: "low-confidence",
+    label: "Baixa confiança",
+    render: () => `
+      <section class="screen screen--corner screen--stack-action screen--exception screen--low-confidence">
+        ${topbar(`Tentativa ${kioskState.session.recognitionAttempt} de 3`)}
+        <div class="content-zone content-zone--exception">
+          ${talk(assets.b1nDoubtCorner, "Ainda não consegui reconhecer com segurança.", "corner character-doubt")}
+          ${processSignal(
+            "warning",
+            "Leitura incerta",
+            "O item continua protegido e a porta permanece fechada.",
+            "IA simulada",
+          )}
+          <div class="attempt-dots" aria-label="Tentativas de reconhecimento">
+            ${[1, 2, 3].map((attempt) => `<span class="${attempt <= kioskState.session.recognitionAttempt ? "used" : ""}">${attempt}</span>`).join("")}
+          </div>
+        </div>
+        <div class="action-zone">
+          <button class="primary-action" data-retry-recognition>Tentar novamente</button>
+        </div>
+      </section>
+    `,
+  },
+  {
+    id: "recognition-failed",
+    label: "Três tentativas",
+    render: () => `
+      <section class="screen screen--corner screen--stack-action screen--exception screen--recognition-failed">
+        ${topbar("Não reconhecido")}
+        <div class="content-zone content-zone--exception">
+          ${talk(assets.b1nDoubtCorner, "Tentamos três vezes. Agora vamos encerrar com segurança.", "corner character-doubt")}
+          ${processSignal(
+            "warning",
+            "Não consegui identificar",
+            "Você pode chamar um professor ou receber o item de volta.",
+          )}
+        </div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-request-help="repeated">Chamar professor</button>
+          <button class="secondary-action" data-return-item="repeated">Devolver item</button>
+        </div>
+      </section>
+    `,
+  },
+  {
+    id: "rejected",
+    label: "Item recusado",
+    render: () => `
+      <section class="screen screen--corner screen--stack-action screen--exception screen--rejected">
+        ${topbar("Item não aceito")}
+        <div class="content-zone content-zone--exception">
+          ${talk(assets.b1nIdeaCorner, "Este eletrônico não pode ser recebido aqui.", "corner character-idea")}
+          ${processSignal(
+            "warning",
+            "Item recusado",
+            "Nenhum ponto será registrado. Vou devolver o item com segurança.",
+            "Resultado simulado",
+          )}
+        </div>
+        <div class="action-zone">
+          <button class="primary-action" data-return-item="rejected">Devolver meu item</button>
+        </div>
+      </section>
+    `,
+  },
+  {
+    id: "unavailable",
+    label: "Sistema indisponível",
+    render: () => `
+      <section class="screen screen--corner screen--stack-action screen--exception screen--unavailable">
+        ${topbar("Sistema indisponível")}
+        <div class="content-zone content-zone--exception">
+          ${talk(assets.b1nIdeaCorner, "Não consigo continuar agora. Tente novamente mais tarde.", "corner character-idea")}
+          ${processSignal(
+            "warning",
+            "Descarte interrompido",
+            "A câmera não foi iniciada e nenhum resultado foi registrado.",
+            "Falha simulada",
+          )}
+        </div>
+        <div class="action-zone">
+          <button class="primary-action" data-return-item="unavailable">Receber item de volta</button>
+        </div>
+      </section>
+    `,
+  },
+  {
     id: "recognized",
     label: "Reconhecido",
     render: () => `
@@ -611,23 +727,151 @@ const screens = [
     `,
   },
   {
-    id: "teacher",
-    label: "Professor",
+    id: "mechanical-failure",
+    label: "Falha mecânica",
     render: () => `
-      <section class="screen screen--big">
-        ${topbar("Professor")}
-        <div class="content-zone content-zone--big">
-          ${talk(assets.b1nIdea, "Esse item precisa de um professor responsável antes de continuar.", "big character-idea")}
-          <div class="teacher-card">
-            <strong>Aguardando ajuda</strong>
-            <span>O compartimento fica travado. Não force a abertura.</span>
-          </div>
+      <section class="screen screen--corner screen--stack-action screen--exception screen--mechanical-failure">
+        ${topbar("Mecanismo")}
+        <div class="content-zone content-zone--exception">
+          ${talk(assets.b1nIdeaCorner, "O mecanismo parou. Não toque no item.", "corner character-idea")}
+          ${processSignal(
+            "mechanism",
+            "Compartimento bloqueado",
+            "O descarte não foi registrado e precisa de um professor.",
+            "Falha simulada",
+          )}
         </div>
         <div class="action-zone">
-          <button class="primary-action" data-jump="sleep">Finalizar aviso</button>
+          <button class="primary-action" data-request-help="mechanical">Chamar professor</button>
         </div>
       </section>
     `,
+  },
+  {
+    id: "returning-item",
+    label: "Devolvendo item",
+    render: () => `
+      <section class="screen screen--corner screen--no-action screen--physical screen--checking screen--returning">
+        ${topbar("Devolução")}
+        <div class="content-zone content-zone--physical">
+          ${talk(assets.b1nIdeaCorner, "Aguarde. Estou liberando o item com segurança.", "corner character-idea")}
+          ${processSignal(
+            "door",
+            "Preparando a retirada",
+            "A porta será liberada somente quando estiver seguro.",
+            "Mecanismo simulado",
+            true,
+          )}
+        </div>
+      </section>
+    `,
+  },
+  {
+    id: "remove-item",
+    label: "Retirar item",
+    render: () => `
+      <section class="screen screen--corner screen--stack-action screen--exception screen--remove-item">
+        ${topbar("Retire o item")}
+        <div class="content-zone content-zone--exception">
+          ${talk(assets.b1nIdeaCorner, "Agora retire o item e deixe a abertura livre.", "corner character-idea")}
+          ${processSignal(
+            "hand",
+            "Item pronto para retirada",
+            "Nenhum descarte ou recompensa foi registrado.",
+            "Devolução simulada",
+          )}
+        </div>
+        <div class="action-zone">
+          <button class="primary-action" data-item-removed>Já retirei o item</button>
+        </div>
+      </section>
+    `,
+  },
+  {
+    id: "teacher-request",
+    label: "Solicitar professor",
+    render: () => {
+      const reason = currentHelpReason();
+      return `
+        <section class="screen screen--corner screen--stack-action screen--teacher screen--teacher-request">
+          ${topbar("Chamar professor")}
+          <div class="content-zone content-zone--teacher">
+            ${talk(assets.b1nIdeaCorner, reason.instruction, "corner character-idea")}
+            ${teacherContext(reason)}
+          </div>
+          <div class="action-zone action-zone--stack">
+            <button class="primary-action" data-send-help>Enviar solicitação</button>
+            ${reason.recoverable
+              ? `<button class="secondary-action" data-return-item="repeated">Devolver item</button>`
+              : `<button class="secondary-action" data-cancel-help>Cancelar</button>`}
+          </div>
+        </section>
+      `;
+    },
+  },
+  {
+    id: "teacher-wait",
+    label: "Aguardando professor",
+    render: () => {
+      const reason = currentHelpReason();
+      return `
+        <section class="screen screen--corner screen--stack-action screen--teacher screen--teacher-wait">
+          ${topbar("Ajuda solicitada")}
+          <div class="content-zone content-zone--teacher">
+            ${talk(
+              assets.b1nCorner,
+              kioskState.session.helpRequestCount > 1
+                ? "Pronto. Reenviei o aviso ao professor."
+                : "Pronto. Um professor já recebeu o aviso.",
+              "corner",
+            )}
+            <div class="teacher-status">
+              <span class="teacher-status-icon">${checkIcon()}</span>
+              <div><strong>${kioskState.session.helpRequestCount > 1 ? "Aviso reenviado" : "Solicitação enviada"}</strong><small>${reason.title}</small></div>
+              ${simulationBadge(kioskState.session.helpRequestCount > 1 ? "Reenvio simulado" : "Envio simulado")}
+            </div>
+            <p class="teacher-safe-note">${reason.instruction}</p>
+          </div>
+          <div class="action-zone action-zone--stack">
+            <button class="primary-action" data-resend-help>Reenviar aviso</button>
+            <button class="secondary-action" data-cancel-help>Cancelar solicitação</button>
+          </div>
+        </section>
+      `;
+    },
+  },
+  {
+    id: "teacher-cancelled",
+    label: "Solicitação cancelada",
+    render: () => {
+      const reason = currentHelpReason();
+      return `
+        <section class="screen screen--corner screen--stack-action screen--teacher screen--teacher-cancelled">
+          ${topbar("Aviso cancelado")}
+          <div class="content-zone content-zone--teacher">
+            ${talk(
+              assets.b1nDoubtCorner,
+              reason.recoverable
+                ? "O aviso foi cancelado. Posso devolver o item."
+                : "O aviso foi cancelado, mas o compartimento continua bloqueado.",
+              "corner character-doubt",
+            )}
+            <div class="teacher-cancel-card">
+              <strong>${reason.recoverable ? "Retirada disponível" : "Não toque no item"}</strong>
+              <span>${reason.recoverable
+                ? "Nenhum descarte foi registrado."
+                : "Procure um professor presencialmente ou envie o aviso novamente."}</span>
+            </div>
+          </div>
+          <div class="action-zone action-zone--stack">
+            <button class="primary-action" data-send-help>Enviar novamente</button>
+            ${reason.recoverable
+              ? `<button class="secondary-action" data-return-item="repeated">Devolver item</button>`
+              : `<button class="secondary-action" data-resume-wait>Continuar aguardando</button>`}
+          </div>
+        </section>
+      `;
+    },
   },
 ];
 
@@ -648,6 +892,9 @@ function createSession() {
     doorStatus: "idle",
     captureStatus: "idle",
     analysisStatus: "idle",
+    demoScenario: initialDemoScenario(),
+    recognitionAttempt: 0,
+    recognitionOutcome: "idle",
     recognizedItem: null,
     quantity: 1,
     draftRecognizedItem: null,
@@ -657,6 +904,11 @@ function createSession() {
     dropStatus: "idle",
     registrationStatus: "idle",
     processingStatus: "idle",
+    helpReason: null,
+    helpRequestStatus: "idle",
+    helpRequestCount: 0,
+    returnStatus: "idle",
+    returnReason: null,
     reward: {
       classPoints: 20,
       binCoins: 8,
@@ -669,6 +921,8 @@ const kioskState = {
   history: [],
   session: createSession(),
   transitionTimer: null,
+  demoHoldTimer: null,
+  demoPanelOpen: initialDemoPanelOpen(),
 };
 
 function screenIndex(id = kioskState.screenId) {
@@ -682,7 +936,20 @@ function activeScreen() {
 
 function topbar(step) {
   const currentIndex = screenIndex();
-  const lockedScreens = ["computing", "success"];
+  const lockedScreens = [
+    "computing",
+    "success",
+    "low-confidence",
+    "recognition-failed",
+    "rejected",
+    "unavailable",
+    "mechanical-failure",
+    "returning-item",
+    "remove-item",
+    "teacher-request",
+    "teacher-wait",
+    "teacher-cancelled",
+  ];
   const canGoBack = currentIndex > 1
     && activeScreen().id !== "sleep"
     && !lockedScreens.includes(activeScreen().id);
@@ -832,12 +1099,72 @@ function itemSummary(label) {
   `;
 }
 
+function currentHelpReason() {
+  return helpReasons[kioskState.session.helpReason] ?? helpReasons.unsafe;
+}
+
+function teacherContext(reason) {
+  const classroom = selectedClassroom()?.label ?? "Turma não identificada";
+  const participant = kioskState.session.mode === "student"
+    ? kioskState.session.student ?? "Aluno não identificado"
+    : "Pontuação somente para a turma";
+  return `
+    <div class="teacher-context">
+      <div class="teacher-context-heading">
+        <span class="teacher-context-icon">${statusIcon("warning")}</span>
+        <div><strong>${reason.title}</strong><small>${reason.detail}</small></div>
+      </div>
+      <dl>
+        <div><dt>Contexto</dt><dd>${participant}</dd></div>
+        <div><dt>Turma</dt><dd>${classroom}</dd></div>
+      </dl>
+    </div>
+  `;
+}
+
+function demoPanel() {
+  if (!kioskState.demoPanelOpen) {
+    return "";
+  }
+  return `
+    <div class="demo-overlay" data-demo-overlay>
+      <section class="demo-panel" role="dialog" aria-modal="true" aria-label="Cenário da demonstração">
+        <div class="demo-panel-heading">
+          <div><small>Somente demonstração</small><strong>Escolha o resultado</strong></div>
+          <button data-demo-close aria-label="Fechar painel">${closeIcon()}</button>
+        </div>
+        <div class="demo-scenarios">
+          ${demoScenarios.map((scenario) => `
+            <button class="${kioskState.session.demoScenario === scenario.id ? "selected" : ""}" data-demo-scenario="${scenario.id}">
+              <span><strong>${scenario.label}</strong><small>${scenario.detail}</small></span>
+              <i aria-hidden="true"></i>
+            </button>
+          `).join("")}
+        </div>
+        <p>O cenário será aplicado na próxima etapa correspondente.</p>
+      </section>
+    </div>
+  `;
+}
+
+function initialDemoScenario() {
+  const requestedScenario = new URLSearchParams(window.location.search).get("scenario");
+  return demoScenarios.some((scenario) => scenario.id === requestedScenario)
+    ? requestedScenario
+    : "success";
+}
+
+function initialDemoPanelOpen() {
+  return new URLSearchParams(window.location.search).get("demoPanel") === "open";
+}
+
 function render() {
   cancelActiveTransition();
+  cancelDemoHold();
   const kiosk = document.querySelector("#kiosk");
   const screenList = document.querySelector("#screenList");
   const currentIndex = screenIndex();
-  kiosk.innerHTML = activeScreen().render();
+  kiosk.innerHTML = `${activeScreen().render()}${demoPanel()}`;
   if (screenList) {
     screenList.innerHTML = screens
       .map((screen, index) => `
@@ -938,6 +1265,54 @@ function render() {
     button.addEventListener("click", confirmDiscard);
   });
 
+  document.querySelectorAll("[data-retry-recognition]").forEach((button) => {
+    button.addEventListener("click", retryRecognition);
+  });
+
+  document.querySelectorAll("[data-return-item]").forEach((button) => {
+    button.addEventListener("click", () => startItemReturn(button.dataset.returnItem));
+  });
+
+  document.querySelectorAll("[data-item-removed]").forEach((button) => {
+    button.addEventListener("click", finishItemReturn);
+  });
+
+  document.querySelectorAll("[data-request-help]").forEach((button) => {
+    button.addEventListener("click", () => openTeacherRequest(button.dataset.requestHelp));
+  });
+
+  document.querySelectorAll("[data-send-help]").forEach((button) => {
+    button.addEventListener("click", sendTeacherRequest);
+  });
+
+  document.querySelectorAll("[data-resend-help]").forEach((button) => {
+    button.addEventListener("click", resendTeacherRequest);
+  });
+
+  document.querySelectorAll("[data-cancel-help]").forEach((button) => {
+    button.addEventListener("click", cancelTeacherRequest);
+  });
+
+  document.querySelectorAll("[data-resume-wait]").forEach((button) => {
+    button.addEventListener("click", resumeTeacherWait);
+  });
+
+  document.querySelectorAll("[data-demo-scenario]").forEach((button) => {
+    button.addEventListener("click", () => selectDemoScenario(button.dataset.demoScenario));
+  });
+
+  document.querySelectorAll("[data-demo-close]").forEach((button) => {
+    button.addEventListener("click", closeDemoPanel);
+  });
+
+  document.querySelectorAll("[data-demo-overlay]").forEach((overlay) => {
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) {
+        closeDemoPanel();
+      }
+    });
+  });
+
   document.querySelectorAll("[data-next]:not([disabled])").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -978,6 +1353,7 @@ function render() {
     image.setAttribute("draggable", "false");
   });
 
+  bindDemoShortcut();
   scheduleActiveTransition();
 }
 
@@ -1053,8 +1429,27 @@ function canEnterScreen(id) {
   if (id === "door-progress") {
     return session.itemInserted && session.handConfirmed && session.safetyConfirmed;
   }
-  if (["capture", "analyzing", "recognized"].includes(id)) {
+  if (["capture", "analyzing"].includes(id)) {
     return session.doorStatus === "closed";
+  }
+  if (id === "low-confidence") {
+    return session.recognitionOutcome === "low-confidence"
+      && session.recognitionAttempt > 0
+      && session.recognitionAttempt < 3;
+  }
+  if (id === "recognition-failed") {
+    return session.recognitionOutcome === "low-confidence" && session.recognitionAttempt >= 3;
+  }
+  if (id === "rejected") {
+    return session.recognitionOutcome === "rejected";
+  }
+  if (id === "unavailable") {
+    return session.recognitionOutcome === "unavailable";
+  }
+  if (id === "recognized") {
+    return session.analysisStatus === "complete"
+      && session.recognitionOutcome === "recognized"
+      && Boolean(session.recognizedItem);
   }
   if (["correction-menu", "correct-item", "correct-quantity", "review"].includes(id)) {
     return session.analysisStatus === "complete" && Boolean(session.recognizedItem);
@@ -1064,6 +1459,24 @@ function canEnterScreen(id) {
   }
   if (id === "success") {
     return session.processingStatus === "complete" && session.registrationStatus === "complete";
+  }
+  if (id === "mechanical-failure") {
+    return session.helpReason === "mechanical" && session.registrationStatus !== "complete";
+  }
+  if (id === "returning-item") {
+    return session.returnStatus === "opening";
+  }
+  if (id === "remove-item") {
+    return session.returnStatus === "ready";
+  }
+  if (id === "teacher-request") {
+    return Boolean(session.helpReason);
+  }
+  if (id === "teacher-wait") {
+    return session.helpRequestStatus === "sent";
+  }
+  if (id === "teacher-cancelled") {
+    return session.helpRequestStatus === "cancelled";
   }
   return true;
 }
@@ -1081,6 +1494,11 @@ function scheduleActiveTransition() {
       delay: 3200,
       run: () => {
         kioskState.session.doorStatus = "closed";
+        if (kioskState.session.demoScenario === "unavailable") {
+          kioskState.session.recognitionOutcome = "unavailable";
+          replaceScreen("unavailable");
+          return;
+        }
         kioskState.session.captureStatus = "capturing";
         replaceScreen("capture");
       },
@@ -1097,19 +1515,50 @@ function scheduleActiveTransition() {
       delay: 2600,
       run: () => {
         kioskState.session.analysisStatus = "complete";
+        if (kioskState.session.demoScenario === "low-confidence") {
+          kioskState.session.recognitionAttempt += 1;
+          kioskState.session.recognitionOutcome = "low-confidence";
+          kioskState.session.recognizedItem = null;
+          replaceScreen(kioskState.session.recognitionAttempt >= 3 ? "recognition-failed" : "low-confidence");
+          return;
+        }
+        if (kioskState.session.demoScenario === "rejected") {
+          kioskState.session.recognitionOutcome = "rejected";
+          kioskState.session.recognizedItem = null;
+          replaceScreen("rejected");
+          return;
+        }
+        kioskState.session.recognitionOutcome = "recognized";
         kioskState.session.recognizedItem = itemOptions.find((item) => item.id === "cable") ?? itemOptions[0];
         kioskState.session.quantity = 1;
         replaceScreen("recognized");
       },
     },
     computing: {
-      delay: 4500,
+      delay: kioskState.session.demoScenario === "mechanical" ? 2200 : 4500,
       run: () => {
+        if (kioskState.session.demoScenario === "mechanical") {
+          kioskState.session.processingStatus = "failed";
+          kioskState.session.mechanismStatus = "failed";
+          kioskState.session.registrationStatus = "idle";
+          kioskState.session.helpReason = "mechanical";
+          replaceScreen("mechanical-failure");
+          return;
+        }
         kioskState.session.mechanismStatus = "complete";
         kioskState.session.dropStatus = "complete";
         kioskState.session.registrationStatus = "complete";
         kioskState.session.processingStatus = "complete";
         replaceScreen("success");
+      },
+    },
+    "returning-item": {
+      delay: 2400,
+      run: () => {
+        kioskState.session.returnStatus = "ready";
+        kioskState.session.doorStatus = "idle";
+        kioskState.session.captureStatus = "idle";
+        replaceScreen("remove-item");
       },
     },
     success: {
@@ -1206,6 +1655,8 @@ function resetPhysicalSession() {
   kioskState.session.doorStatus = "idle";
   kioskState.session.captureStatus = "idle";
   kioskState.session.analysisStatus = "idle";
+  kioskState.session.recognitionAttempt = 0;
+  kioskState.session.recognitionOutcome = "idle";
   kioskState.session.recognizedItem = null;
   kioskState.session.quantity = 1;
   discardCorrectionDraft();
@@ -1214,13 +1665,18 @@ function resetPhysicalSession() {
   kioskState.session.dropStatus = "idle";
   kioskState.session.registrationStatus = "idle";
   kioskState.session.processingStatus = "idle";
+  kioskState.session.helpReason = null;
+  kioskState.session.helpRequestStatus = "idle";
+  kioskState.session.helpRequestCount = 0;
+  kioskState.session.returnStatus = "idle";
+  kioskState.session.returnReason = null;
 }
 
 function handleSafety(result) {
   if (result === "unsafe") {
     kioskState.session.safetyConfirmed = false;
     kioskState.session.handConfirmed = false;
-    jump("teacher");
+    openTeacherRequest("unsafe");
     return;
   }
   kioskState.session.safetyConfirmed = true;
@@ -1233,6 +1689,86 @@ function confirmInsertion() {
   resetPhysicalSession();
   kioskState.session.itemInserted = true;
   jump("safety");
+}
+
+function retryRecognition() {
+  if (
+    kioskState.session.recognitionOutcome !== "low-confidence"
+    || kioskState.session.recognitionAttempt >= 3
+    || kioskState.session.doorStatus !== "closed"
+  ) {
+    return;
+  }
+  kioskState.session.captureStatus = "capturing";
+  kioskState.session.analysisStatus = "idle";
+  replaceScreen("capture");
+}
+
+function startItemReturn(reason) {
+  const allowedReasons = ["rejected", "unavailable", "repeated"];
+  if (!allowedReasons.includes(reason)) {
+    return;
+  }
+  if (reason === "repeated" && kioskState.session.recognitionAttempt < 3) {
+    return;
+  }
+  kioskState.session.returnReason = reason;
+  kioskState.session.returnStatus = "opening";
+  kioskState.session.helpRequestStatus = "idle";
+  replaceScreen("returning-item");
+}
+
+function finishItemReturn() {
+  if (kioskState.session.returnStatus !== "ready") {
+    return;
+  }
+  kioskState.session.returnStatus = "complete";
+  kioskState.session.itemInserted = false;
+  jump("sleep");
+}
+
+function openTeacherRequest(reason) {
+  if (!Object.hasOwn(helpReasons, reason)) {
+    return;
+  }
+  kioskState.session.helpReason = reason;
+  kioskState.session.helpRequestStatus = "idle";
+  kioskState.session.helpRequestCount = 0;
+  jump("teacher-request");
+}
+
+function sendTeacherRequest() {
+  if (!kioskState.session.helpReason) {
+    return;
+  }
+  kioskState.session.helpRequestStatus = "sent";
+  kioskState.session.helpRequestCount += 1;
+  jump("teacher-wait");
+}
+
+function resendTeacherRequest() {
+  if (!kioskState.session.helpReason) {
+    return;
+  }
+  kioskState.session.helpRequestStatus = "sent";
+  kioskState.session.helpRequestCount += 1;
+  replaceScreen("teacher-wait");
+}
+
+function cancelTeacherRequest() {
+  if (!kioskState.session.helpReason) {
+    return;
+  }
+  kioskState.session.helpRequestStatus = "cancelled";
+  jump("teacher-cancelled");
+}
+
+function resumeTeacherWait() {
+  if (!kioskState.session.helpReason) {
+    return;
+  }
+  kioskState.session.helpRequestStatus = "sent";
+  replaceScreen("teacher-wait");
 }
 
 function openReview() {
@@ -1309,6 +1845,43 @@ function handlePin(key) {
   } else {
     kioskState.session.pinDigits = `${kioskState.session.pinDigits}${key}`.slice(0, 4);
   }
+  render();
+}
+
+function cancelDemoHold() {
+  if (kioskState.demoHoldTimer !== null) {
+    clearTimeout(kioskState.demoHoldTimer);
+    kioskState.demoHoldTimer = null;
+  }
+}
+
+function bindDemoShortcut() {
+  document.querySelectorAll(".logo, .sleep-logo").forEach((logo) => {
+    logo.addEventListener("pointerdown", () => {
+      cancelDemoHold();
+      kioskState.demoHoldTimer = setTimeout(() => {
+        kioskState.demoHoldTimer = null;
+        kioskState.demoPanelOpen = true;
+        render();
+      }, 2000);
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
+      logo.addEventListener(eventName, cancelDemoHold);
+    });
+  });
+}
+
+function selectDemoScenario(scenarioId) {
+  if (!demoScenarios.some((scenario) => scenario.id === scenarioId)) {
+    return;
+  }
+  kioskState.session.demoScenario = scenarioId;
+  kioskState.demoPanelOpen = false;
+  render();
+}
+
+function closeDemoPanel() {
+  kioskState.demoPanelOpen = false;
   render();
 }
 

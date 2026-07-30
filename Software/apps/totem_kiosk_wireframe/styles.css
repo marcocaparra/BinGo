@@ -2768,3 +2768,367 @@ p {
     transform: translateY(154px);
   }
 }
+
+/* Notion exception flows */
+
+.content-zone--exception,
+.content-zone--teacher {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 12px;
+  padding-top: 8px;
+  padding-bottom: 6px;
+}
+
+.screen--exception .b1n-talk--corner,
+.screen--teacher .b1n-talk--corner {
+  flex: 0 0 116px;
+  min-height: 116px;
+  grid-template-columns: minmax(0, 1fr) 110px;
+}
+
+.screen--exception .b1n-avatar,
+.screen--teacher .b1n-avatar {
+  width: 110px;
+  height: 116px;
+}
+
+.screen--exception .process-signal {
+  flex: 1 1 auto;
+  min-height: 212px;
+  padding: 12px 18px;
+}
+
+.screen--exception .status-icon {
+  width: 92px;
+  height: 92px;
+}
+
+.screen--exception .status-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.screen--exception .process-signal strong {
+  font-size: 18px;
+}
+
+.screen--exception .process-detail {
+  max-width: 252px;
+  font-size: 12px;
+  line-height: 1.28;
+}
+
+.screen--low-confidence .process-signal {
+  min-height: 178px;
+}
+
+.attempt-dots {
+  display: grid;
+  flex: 0 0 42px;
+  width: 174px;
+  grid-template-columns: repeat(3, 42px);
+  justify-content: center;
+  gap: 14px;
+  margin: 0 auto;
+}
+
+.attempt-dots span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 2px solid #c7dcf4;
+  border-radius: 50%;
+  color: #69809f;
+  background: #f7fbff;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.attempt-dots span.used {
+  border-color: #f1c94a;
+  color: #765600;
+  background: #fff8d9;
+}
+
+.screen--returning .process-signal {
+  min-height: 246px;
+}
+
+.teacher-context,
+.teacher-status,
+.teacher-cancel-card {
+  display: grid;
+  border: 2px solid #cfe3fb;
+  border-radius: 8px;
+  background: #f7fbff;
+}
+
+.teacher-context {
+  gap: 10px;
+  padding: 12px;
+}
+
+.teacher-context-heading {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.teacher-context-icon {
+  display: grid;
+  place-items: center;
+}
+
+.teacher-context-icon .status-icon {
+  width: 48px;
+  height: 48px;
+  color: #9a6d00;
+  border-color: #f1c94a;
+  background: #fff8d9;
+  box-shadow: none;
+}
+
+.teacher-context-icon .status-icon svg {
+  width: 25px;
+  height: 25px;
+}
+
+.teacher-context-heading strong,
+.teacher-status strong,
+.teacher-cancel-card strong {
+  display: block;
+  color: var(--navy);
+  font-size: 15px;
+  line-height: 1.14;
+}
+
+.teacher-context-heading small,
+.teacher-status small,
+.teacher-cancel-card span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.teacher-context dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.teacher-context dl div {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 8px;
+  padding-top: 7px;
+  border-top: 1px solid #dbe9f8;
+}
+
+.teacher-context dt,
+.teacher-context dd {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.teacher-context dt {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.teacher-context dd {
+  overflow: hidden;
+  color: var(--navy);
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.teacher-status {
+  position: relative;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 112px;
+  padding: 12px;
+  border-color: #aee4bf;
+  background: #f2fcf5;
+}
+
+.teacher-status-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 2px solid #5bcf9c;
+  border-radius: 50%;
+  color: #087c57;
+  background: #dcf8ec;
+}
+
+.teacher-status-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.teacher-status .simulation-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+}
+
+.teacher-safe-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 4px solid #f1c94a;
+  color: var(--navy);
+  background: #fffdf4;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.28;
+}
+
+.teacher-cancel-card {
+  min-height: 128px;
+  align-content: center;
+  gap: 4px;
+  padding: 18px;
+  text-align: center;
+}
+
+.demo-overlay {
+  position: absolute;
+  z-index: 50;
+  display: flex;
+  inset: 0;
+  align-items: flex-end;
+  padding: 12px;
+  background: rgba(4, 20, 48, 0.58);
+  backdrop-filter: blur(3px);
+}
+
+.demo-panel {
+  display: grid;
+  width: 100%;
+  gap: 12px;
+  padding: 16px;
+  border: 2px solid #9ed5ff;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(3, 24, 56, 0.28);
+}
+
+.demo-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.demo-panel-heading small,
+.demo-panel-heading strong {
+  display: block;
+}
+
+.demo-panel-heading small {
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.demo-panel-heading strong {
+  margin-top: 2px;
+  color: var(--navy);
+  font-size: 18px;
+}
+
+.demo-panel-heading button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 2px solid #cfe3fb;
+  border-radius: 50%;
+  color: var(--navy);
+  background: #f7fbff;
+}
+
+.demo-panel-heading .control-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.demo-scenarios {
+  display: grid;
+  gap: 7px;
+}
+
+.demo-scenarios button {
+  display: grid;
+  min-height: 54px;
+  grid-template-columns: minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 2px solid #dce9f8;
+  border-radius: 8px;
+  color: var(--navy);
+  background: #ffffff;
+  text-align: left;
+}
+
+.demo-scenarios button span,
+.demo-scenarios button strong,
+.demo-scenarios button small {
+  display: block;
+}
+
+.demo-scenarios button strong {
+  font-size: 13px;
+}
+
+.demo-scenarios button small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.demo-scenarios button i {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #b9cee7;
+  border-radius: 50%;
+}
+
+.demo-scenarios button.selected {
+  border-color: var(--blue);
+  background: #eef6ff;
+}
+
+.demo-scenarios button.selected i {
+  border: 5px solid var(--blue);
+}
+
+.demo-panel > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
