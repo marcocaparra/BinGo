@@ -15,6 +15,10 @@
   --blue-2: #00a8ff;
   --cyan: #12c8ff;
   --green: #43d45f;
+  --coral: #e8324f;
+  --coral-deep: #b9233d;
+  --coral-line: #f2a6b3;
+  --coral-soft: #fff1f4;
   --ink: #142044;
   --muted: #667391;
   --line: #bddcff;
@@ -1324,13 +1328,13 @@ p {
   margin-top: 8px;
   padding: 10px;
   border-radius: 22px;
-  background: #fff8e5;
-  border: 2px solid #ffd36b;
+  background: var(--coral-soft);
+  border: 2px solid var(--coral-line);
 }
 
 .alert-card.strict {
-  background: #fff5e9;
-  border-color: #ffbd73;
+  background: #fff8fa;
+  border-color: var(--coral);
 }
 
 .alert-card strong {
@@ -1462,8 +1466,8 @@ p {
 }
 
 .status-icon--warning {
-  color: #c77a00;
-  border-color: #ffd36b;
+  color: var(--coral);
+  border-color: var(--coral-line);
 }
 
 .process-signal strong {
@@ -2588,9 +2592,9 @@ p {
   border-width: 2px;
   border-style: solid;
   border-radius: var(--radius-control);
-  border-color: #f1c94a;
-  color: #7b5900;
-  background: #fff8d9;
+  border-color: var(--coral-line);
+  color: var(--navy);
+  background: var(--coral-soft);
   font-size: 19px;
   font-weight: 900;
   cursor: pointer;
@@ -2849,9 +2853,9 @@ p {
 }
 
 .attempt-dots span.used {
-  border-color: #f1c94a;
-  color: #765600;
-  background: #fff8d9;
+  border-color: var(--coral-line);
+  color: var(--coral-deep);
+  background: var(--coral-soft);
 }
 
 .screen--returning .process-signal {
@@ -2887,9 +2891,9 @@ p {
 .teacher-context-icon .status-icon {
   width: 48px;
   height: 48px;
-  color: #9a6d00;
-  border-color: #f1c94a;
-  background: #fff8d9;
+  color: var(--coral);
+  border-color: var(--coral-line);
+  background: var(--coral-soft);
   box-shadow: none;
 }
 
@@ -2993,9 +2997,9 @@ p {
 .teacher-safe-note {
   margin: 0;
   padding: 10px 12px;
-  border-left: 4px solid #f1c94a;
+  border-left: 4px solid var(--coral);
   color: var(--navy);
-  background: #fffdf4;
+  background: #fff8fa;
   font-size: 12px;
   font-weight: 800;
   line-height: 1.28;

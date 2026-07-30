@@ -851,23 +851,17 @@ const screens = [
           <div class="content-zone content-zone--teacher">
             ${talk(
               assets.b1nDoubtCorner,
-              reason.recoverable
-                ? "O aviso foi cancelado. Posso devolver o item."
-                : "O aviso foi cancelado, mas o compartimento continua bloqueado.",
+              "O aviso foi cancelado. Vou devolver o item com segurança.",
               "corner character-doubt",
             )}
             <div class="teacher-cancel-card">
-              <strong>${reason.recoverable ? "Retirada disponível" : "Não toque no item"}</strong>
-              <span>${reason.recoverable
-                ? "Nenhum descarte foi registrado."
-                : "Procure um professor presencialmente ou envie o aviso novamente."}</span>
+              <strong>Devolução controlada</strong>
+              <span>Aguarde a liberação completa antes de tocar no item.</span>
             </div>
           </div>
           <div class="action-zone action-zone--stack">
-            <button class="primary-action" data-send-help>Enviar novamente</button>
-            ${reason.recoverable
-              ? `<button class="secondary-action" data-return-item="repeated">Devolver item</button>`
-              : `<button class="secondary-action" data-resume-wait>Continuar aguardando</button>`}
+            <button class="primary-action" data-return-item="${kioskState.session.helpReason}">Devolver item e encerrar</button>
+            <button class="secondary-action" data-send-help>Enviar novamente</button>
           </div>
         </section>
       `;
@@ -1293,10 +1287,6 @@ function render() {
     button.addEventListener("click", cancelTeacherRequest);
   });
 
-  document.querySelectorAll("[data-resume-wait]").forEach((button) => {
-    button.addEventListener("click", resumeTeacherWait);
-  });
-
   document.querySelectorAll("[data-demo-scenario]").forEach((button) => {
     button.addEventListener("click", () => selectDemoScenario(button.dataset.demoScenario));
   });
@@ -1705,7 +1695,7 @@ function retryRecognition() {
 }
 
 function startItemReturn(reason) {
-  const allowedReasons = ["rejected", "unavailable", "repeated"];
+  const allowedReasons = ["rejected", "unavailable", "repeated", "unsafe", "mechanical"];
   if (!allowedReasons.includes(reason)) {
     return;
   }
@@ -1761,14 +1751,6 @@ function cancelTeacherRequest() {
   }
   kioskState.session.helpRequestStatus = "cancelled";
   jump("teacher-cancelled");
-}
-
-function resumeTeacherWait() {
-  if (!kioskState.session.helpReason) {
-    return;
-  }
-  kioskState.session.helpRequestStatus = "sent";
-  replaceScreen("teacher-wait");
 }
 
 function openReview() {
