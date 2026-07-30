@@ -166,18 +166,15 @@ function normalizeSearch(value) {
 function filteredStudents() {
   const students = selectedClassroom()?.students ?? [];
   const query = normalizeSearch(kioskState.session.studentQuery);
-  if (!query) {
-    return [];
-  }
-  return students.filter((student) => normalizeSearch(student).includes(query)).slice(0, 3);
+  return students
+    .slice()
+    .sort((a, b) => a.localeCompare(b, "pt-BR"))
+    .filter((student) => !query || normalizeSearch(student).includes(query));
 }
 
 function studentResults(students) {
-  if (!kioskState.session.studentQuery) {
-    return `<div class="student-empty">O resultado aparece aqui.</div>`;
-  }
   if (!students.length) {
-    return `<div class="student-empty student-empty--missing">Nenhum aluno encontrado.</div>`;
+    return `<div class="student-empty student-empty--missing">Não achei esse nome. Tente apagar uma letra.</div>`;
   }
   return students.map((student) => `
     <button class="student-result ${kioskState.session.student === student ? "selected" : ""}" data-student="${student}">
@@ -198,6 +195,9 @@ function alphabetKeyboard() {
             : ""}
         </div>
       `).join("")}
+      <div class="alpha-row alpha-row--actions">
+        <button class="alpha-key alpha-key--space" data-search-key="Espaço">Espaço</button>
+      </div>
     </div>
   `;
 }
@@ -327,12 +327,12 @@ const screens = [
     render: () => {
       const students = filteredStudents();
       return `
-        <section class="screen screen--corner screen--no-action screen--student-search">
+        <section class="screen screen--corner screen--no-action screen--student-search ${kioskState.session.studentKeyboardOpen ? "is-searching" : ""}" data-search-screen>
           ${topbar("Aluno")}
           <div class="content-zone content-zone--corner">
-            ${talk(assets.b1nDoubtCorner, "Digite seu nome e toque nele.", "corner character-doubt")}
-            <div class="student-search-box ${kioskState.session.studentQuery ? "has-query" : ""}">
-              <span>${kioskState.session.studentQuery || "Digite seu nome"}</span>
+            ${talk(assets.b1nDoubtCorner, "Busque ou escolha seu nome.", "corner character-doubt")}
+            <div class="student-search-box ${kioskState.session.studentKeyboardOpen ? "active" : ""} ${kioskState.session.studentQuery ? "has-query" : ""}" data-search-toggle role="button" aria-label="Busca de aluno" tabindex="0">
+              <span>${kioskState.session.studentQuery || "Digite seu nome..."}</span>
               ${kioskState.session.studentQuery
                 ? `<button class="search-clear" data-search-clear aria-label="Limpar busca">${closeIcon()}</button>`
                 : `<span class="search-icon" aria-hidden="true">${searchIcon()}</span>`}
@@ -340,7 +340,7 @@ const screens = [
             <div class="student-results" aria-live="polite">
               ${studentResults(students)}
             </div>
-            ${alphabetKeyboard()}
+            ${kioskState.session.studentKeyboardOpen ? alphabetKeyboard() : ""}
           </div>
         </section>
       `;
@@ -368,90 +368,6 @@ const screens = [
     `,
   },
   {
-    id: "category",
-    label: "Categoria",
-    render: () => `
-      <section class="screen screen--corner screen--category">
-        ${topbar("Categoria")}
-        <div class="content-zone content-zone--corner">
-          ${talk(assets.b1nIdeaCorner, "Que tipo de eletrônico você trouxe?", "corner character-idea")}
-          <div class="choice-grid">
-            ${itemOptions.map(choice).join("")}
-          </div>
-        </div>
-        <div class="action-zone">
-          <button class="primary-action" data-category-confirm ${kioskState.session.selectedItem ? "" : "disabled"}>Continuar</button>
-        </div>
-      </section>
-    `,
-  },
-  {
-    id: "safety",
-    label: "Segurança",
-    render: () => {
-      const safety = safetyContent();
-      return `
-        <section class="screen screen--corner screen--stack-action screen--safety">
-          ${topbar("Segurança")}
-          <div class="content-zone content-zone--corner">
-            ${talk(
-              safety.strict ? assets.b1nDoubtCorner : assets.b1nIdeaCorner,
-              safety.speech,
-              `corner ${safety.strict ? "character-doubt" : "character-idea"}`,
-            )}
-            <div class="safety-guide ${safety.strict ? "strict" : ""}">
-              <div class="safety-heading">
-                <span class="safety-item-frame">
-                  <img src="${kioskState.session.selectedItem?.image ?? ""}" alt="" />
-                </span>
-                <div>
-                  <strong>${safety.title}</strong>
-                  <p>${safety.text}</p>
-                </div>
-              </div>
-              <div class="safety-checks">
-                ${safety.checks.map((check) => `
-                  <div class="safety-check">
-                    <span class="safety-check-icon" aria-hidden="true">${checkIcon()}</span>
-                    <span class="safety-check-copy">
-                      <strong>${check.label}</strong>
-                      <small>${check.detail}</small>
-                    </span>
-                  </div>
-                `).join("")}
-              </div>
-            </div>
-          </div>
-          <div class="action-zone action-zone--stack">
-            <button class="primary-action" data-safety="safe">Está tudo certo</button>
-            <button class="secondary-action" data-safety="unsafe">Tem algo errado</button>
-          </div>
-        </section>
-      `;
-    },
-  },
-  {
-    id: "safety-stop",
-    label: "Parada segura",
-    render: () => `
-      <section class="screen screen--corner screen--stack-action screen--safety-stop">
-        ${topbar("Segurança")}
-        <div class="content-zone content-zone--safety-stop">
-          ${talk(assets.b1nIdeaCorner, "Não coloque o item. Afaste-se e chame um professor.", "corner character-idea")}
-          ${processSignal(
-            "warning",
-            "Descarte interrompido",
-            "O compartimento continua fechado.",
-          )}
-        </div>
-        <div class="action-zone action-zone--stack">
-          <button class="primary-action" data-return-category>Escolher outro item</button>
-          <button class="secondary-action" data-jump="sleep">Encerrar descarte</button>
-        </div>
-      </section>
-    `,
-  },
-  {
     id: "insert",
     label: "Inserir",
     render: () => `
@@ -473,38 +389,40 @@ const screens = [
     `,
   },
   {
-    id: "hand-remove",
-    label: "Retire a mão",
+    id: "safety",
+    label: "Segurança e mão",
     render: () => `
-      <section class="screen screen--corner screen--physical screen--hand">
-        ${topbar("Abertura")}
-        <div class="content-zone content-zone--physical">
-          ${talk(assets.b1nIdeaCorner, "Agora, retire a mão da abertura.", "corner character-idea")}
-          ${processSignal(
-            "hand",
-            "Mão fora da abertura",
-            "Confirme somente quando estiver totalmente livre.",
-          )}
+      <section class="screen screen--corner screen--stack-action screen--safety screen--safety-combined">
+        ${topbar("Segurança")}
+        <div class="content-zone content-zone--corner content-zone--safety">
+          ${talk(assets.b1nIdeaCorner, "Antes de fechar: segurança primeiro.", "corner character-idea")}
+          <div class="safety-card">
+            <strong>Confirme comigo</strong>
+            <div class="safety-row"><span>1</span><p>Minha mão está fora da abertura.</p></div>
+            <div class="safety-row"><span>2</span><p>O item não está vazando nem estufado.</p></div>
+            <p class="safety-note">Se houver vazamento, inchaço ou dano, chame um professor.</p>
+          </div>
         </div>
-        <div class="action-zone">
-          <button class="primary-action" data-hand-confirm>Já retirei a mão</button>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-safety="safe">Tudo seguro</button>
+          <button class="alert-action" data-safety="unsafe">Chamar professor</button>
         </div>
       </section>
     `,
   },
   {
-    id: "hand-check",
-    label: "Verificando mão",
+    id: "door-progress",
+    label: "Preparando câmera",
     render: () => `
-      <section class="screen screen--corner screen--no-action screen--physical screen--checking screen--hand">
-        ${topbar("Verificando")}
+      <section class="screen screen--corner screen--no-action screen--physical screen--checking screen--door-progress">
+        ${topbar("Porta")}
         <div class="content-zone content-zone--physical">
-          ${talk(assets.b1nIdeaCorner, "Só um instante. Vou conferir.", "corner character-idea")}
+          ${talk(assets.b1nIdeaCorner, "Preparando para escanear.", "corner character-idea")}
           ${processSignal(
-            "hand",
-            "Abertura livre",
-            "Sua mão está fora da área.",
-            "Verificação simulada",
+            "door",
+            "Preparando a câmera",
+            "A porta fecha automaticamente. Aguarde um instante.",
+            "Mecanismo simulado",
             true,
           )}
         </div>
@@ -512,52 +430,22 @@ const screens = [
     `,
   },
   {
-    id: "door-check",
-    label: "Porta automática",
-    render: () => {
-      const door = doorContent();
-      return `
-        <section class="screen screen--corner screen--no-action screen--physical screen--checking screen--door screen--door-${kioskState.session.doorStatus}">
-          ${topbar("Porta")}
-          <div class="content-zone content-zone--physical">
-            ${talk(assets.b1nIdeaCorner, door.speech, "corner character-idea")}
-            ${processSignal(
-              "door",
-              door.title,
-              door.detail,
-              door.badge,
-              door.checking,
-            )}
-          </div>
-        </section>
-      `;
-    },
-  },
-  {
     id: "capture",
     label: "Captura",
     render: () => `
-      <section class="screen screen--corner screen--no-action screen--capture">
+      <section class="screen screen--camera screen--no-action">
         ${topbar("Câmera")}
         <div class="content-zone content-zone--capture">
-          ${talk(assets.b1nIdeaCorner, "Porta fechada. Vou tirar uma foto.", "corner character-idea")}
-          <div class="camera-frame" aria-label="Prévia simulada da câmera">
-            <span class="camera-focus camera-focus--one" aria-hidden="true"></span>
-            <span class="camera-focus camera-focus--two" aria-hidden="true"></span>
-            <div
-              class="camera-item camera-item--${kioskState.session.selectedItem?.id ?? "unknown"}"
-              style="--scan-mask: url('${kioskState.session.selectedItem?.cutout ?? ""}')"
-            >
-              <img
-                class="camera-item-image"
-                src="${kioskState.session.selectedItem?.cutout ?? ""}"
-                data-cutout-fallback="${kioskState.session.selectedItem?.image ?? ""}"
-                alt="${kioskState.session.selectedItem?.title ?? "Item"}"
-              />
-              <span class="camera-item-scan" aria-hidden="true"></span>
+          ${talk(assets.b1nAnalyze, "Vou olhar por dentro rapidinho.", "big camera-talk character-analyze")}
+          <div class="camera-preview" aria-label="Preview da câmera interna">
+            <div class="camera-bar"><span>Câmera interna</span><strong class="camera-live">AO VIVO</strong></div>
+            <div class="camera-frame">
+              <div class="camera-grid" aria-hidden="true"></div>
+              <img class="camera-item" src="${itemOptions.find((item) => item.id === "cable")?.cutout ?? itemOptions[0].image}" alt="Item dentro da câmera" />
+              <div class="scan-line" aria-hidden="true"></div>
+              <span class="camera-label">Item sendo identificado...</span>
             </div>
           </div>
-          ${simulationBadge("Câmera simulada")}
         </div>
       </section>
     `,
@@ -688,40 +576,14 @@ const screens = [
     `,
   },
   {
-    id: "trapdoor",
-    label: "Liberando alçapão",
+    id: "computing",
+    label: "Computando descarte",
     render: () => `
       <section class="screen screen--corner screen--no-action screen--physical screen--checking screen--mechanism">
         ${topbar("Descarte")}
         <div class="content-zone content-zone--physical">
-          ${talk(assets.b1nIdeaCorner, "Tudo certo. Vou liberar o descarte.", "corner character-idea")}
-          ${processSignal("mechanism", "Liberando alçapão", "Aguarde sem tocar na abertura.", "Mecanismo simulado", true)}
-        </div>
-      </section>
-    `,
-  },
-  {
-    id: "drop-check",
-    label: "Confirmando queda",
-    render: () => `
-      <section class="screen screen--corner screen--no-action screen--physical screen--checking screen--mechanism">
-        ${topbar("Descarte")}
-        <div class="content-zone content-zone--physical">
-          ${talk(assets.b1nIdeaCorner, "O item desceu. Só vou confirmar.", "corner character-idea")}
-          ${processSignal("drop", "Queda confirmada", "O compartimento está livre.", "Verificação simulada", true)}
-        </div>
-      </section>
-    `,
-  },
-  {
-    id: "registering",
-    label: "Registrando",
-    render: () => `
-      <section class="screen screen--corner screen--no-action screen--physical screen--checking screen--mechanism">
-        ${topbar("Registro")}
-        <div class="content-zone content-zone--physical">
-          ${talk(assets.b1nIdeaCorner, "Pronto. Estou registrando seu descarte.", "corner character-idea")}
-          ${processSignal("record", "Salvando resultado", "Pontos aparecem depois desta etapa.", "Registro simulado", true)}
+          ${talk(assets.b1nIdeaCorner, "Estamos computando seu descarte.", "corner character-idea")}
+          ${processSignal("record", "Só mais um instante", "O item está sendo confirmado e registrado.", "Processo simulado", true)}
         </div>
       </section>
     `,
@@ -776,10 +638,10 @@ function createSession() {
     grade: null,
     classroom: null,
     studentQuery: "",
+    studentKeyboardOpen: false,
     student: null,
     pinDigits: "",
     pinWarning: false,
-    selectedItem: null,
     safetyConfirmed: false,
     itemInserted: false,
     handConfirmed: false,
@@ -794,6 +656,7 @@ function createSession() {
     mechanismStatus: "idle",
     dropStatus: "idle",
     registrationStatus: "idle",
+    processingStatus: "idle",
     reward: {
       classPoints: 20,
       binCoins: 8,
@@ -819,7 +682,7 @@ function activeScreen() {
 
 function topbar(step) {
   const currentIndex = screenIndex();
-  const lockedScreens = ["trapdoor", "drop-check", "registering", "success"];
+  const lockedScreens = ["computing", "success"];
   const canGoBack = currentIndex > 1
     && activeScreen().id !== "sleep"
     && !lockedScreens.includes(activeScreen().id);
@@ -956,7 +819,7 @@ function talk(asset, text, variant = "corner") {
 }
 
 function itemSummary(label) {
-  const item = kioskState.session.recognizedItem ?? kioskState.session.selectedItem;
+  const item = kioskState.session.recognizedItem;
   return `
     <div class="item-focus">
       <span class="item-focus-label">${label}</span>
@@ -967,103 +830,6 @@ function itemSummary(label) {
       </div>
     </div>
   `;
-}
-
-function choice(option) {
-  const selected = kioskState.session.selectedItem?.id === option.id;
-  return `
-    <button class="choice-card ${selected ? "selected" : ""}" data-item="${option.id}">
-      <span class="choice-media"><img src="${option.image}" alt="" /></span>
-      <strong>${option.title}</strong>
-      <small>${option.subtitle}</small>
-    </button>
-  `;
-}
-
-function safetyContent() {
-  if (kioskState.session.selectedItem?.needsStrictSafety) {
-    return {
-      strict: true,
-      speech: "Esse tipo precisa de atenção. Vamos conferir juntos.",
-      title: "Pare se notar algo estranho.",
-      text: "Se estiver quente, estufado, quebrado ou vazando, não coloque.",
-      checks: [
-        { label: "Está frio", detail: "Sem calor" },
-        { label: "Está inteiro", detail: "Sem inchaço ou quebra" },
-        { label: "Está seco", detail: "Sem vazamento" },
-      ],
-    };
-  }
-
-  return {
-    strict: false,
-    speech: "Antes de colocar, vamos conferir rapidinho.",
-    title: "O item parece seguro?",
-    text: "Se houver dano, fio exposto ou cheiro estranho, não coloque.",
-    checks: [
-      { label: "Está inteiro", detail: "Sem trincas ou partes quebradas" },
-      { label: "Fio protegido", detail: "Sem metal exposto" },
-      { label: "Peças firmes", detail: "Nada solto" },
-    ],
-  };
-}
-
-function doorContent() {
-  switch (kioskState.session.doorStatus) {
-    case "checking":
-      return {
-        speech: "Agora vou conferir a posição.",
-        title: "Verificando a porta",
-        detail: "Confirmando se fechou por completo.",
-        badge: "Verificação simulada",
-        checking: true,
-      };
-    case "closed":
-      return {
-        speech: "Tudo certo. A porta está fechada.",
-        title: "Porta fechada",
-        detail: "A captura já pode começar.",
-        badge: "Mecanismo simulado",
-        checking: false,
-      };
-    case "closing":
-    default:
-      return {
-        speech: "Vou fechar a porta automaticamente.",
-        title: "Fechando a porta",
-        detail: "Mantenha as mãos afastadas.",
-        badge: "Mecanismo simulado",
-        checking: true,
-      };
-  }
-}
-
-function doorTransition() {
-  const phases = {
-    closing: {
-      delay: 900,
-      run: () => {
-        kioskState.session.doorStatus = "checking";
-        replaceScreen("door-check");
-      },
-    },
-    checking: {
-      delay: 900,
-      run: () => {
-        kioskState.session.doorStatus = "closed";
-        replaceScreen("door-check");
-      },
-    },
-    closed: {
-      delay: 700,
-      run: () => {
-        kioskState.session.captureStatus = "capturing";
-        replaceScreen("capture");
-      },
-    },
-  };
-
-  return phases[kioskState.session.doorStatus] ?? null;
 }
 
 function render() {
@@ -1104,8 +870,28 @@ function render() {
     button.addEventListener("click", () => handleSearchKey(button.dataset.searchKey));
   });
 
+  document.querySelectorAll("[data-search-toggle]").forEach((searchBox) => {
+    searchBox.addEventListener("click", (event) => {
+      if (event.target.closest("[data-search-clear]")) {
+        return;
+      }
+      kioskState.session.studentKeyboardOpen = true;
+      render();
+    });
+    searchBox.addEventListener("keydown", (event) => {
+      if (["Enter", " "].includes(event.key)) {
+        event.preventDefault();
+        kioskState.session.studentKeyboardOpen = true;
+        render();
+      }
+    });
+  });
+
   document.querySelectorAll("[data-search-clear]").forEach((button) => {
-    button.addEventListener("click", clearStudentSearch);
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      clearStudentSearch();
+    });
   });
 
   document.querySelectorAll("[data-student]").forEach((button) => {
@@ -1116,28 +902,12 @@ function render() {
     button.addEventListener("click", () => handlePin(button.dataset.pin));
   });
 
-  document.querySelectorAll("[data-item]").forEach((button) => {
-    button.addEventListener("click", () => selectItem(button.dataset.item));
-  });
-
-  document.querySelectorAll("[data-category-confirm]").forEach((button) => {
-    button.addEventListener("click", confirmCategory);
-  });
-
   document.querySelectorAll("[data-safety]").forEach((button) => {
     button.addEventListener("click", () => handleSafety(button.dataset.safety));
   });
 
-  document.querySelectorAll("[data-return-category]").forEach((button) => {
-    button.addEventListener("click", returnToCategory);
-  });
-
   document.querySelectorAll("[data-insert-confirm]").forEach((button) => {
     button.addEventListener("click", confirmInsertion);
-  });
-
-  document.querySelectorAll("[data-hand-confirm]").forEach((button) => {
-    button.addEventListener("click", confirmHandRemoved);
   });
 
   document.querySelectorAll("[data-recognition-confirm]").forEach((button) => {
@@ -1184,6 +954,19 @@ function render() {
     button.addEventListener("click", back);
   });
 
+  document.querySelectorAll("[data-search-screen]").forEach((screen) => {
+    screen.addEventListener("click", (event) => {
+      if (!kioskState.session.studentKeyboardOpen) {
+        return;
+      }
+      if (event.target.closest("[data-search-toggle], .alpha-keyboard, [data-student], [data-back]")) {
+        return;
+      }
+      kioskState.session.studentKeyboardOpen = false;
+      render();
+    });
+  });
+
   document.querySelectorAll("[data-screen]").forEach((button) => {
     button.addEventListener("click", () => {
       kioskState.screenId = screens[Number(button.dataset.screen)]?.id ?? "sleep";
@@ -1193,16 +976,6 @@ function render() {
 
   document.querySelectorAll("img").forEach((image) => {
     image.setAttribute("draggable", "false");
-  });
-
-  document.querySelectorAll("[data-cutout-fallback]").forEach((image) => {
-    image.addEventListener("error", () => {
-      const cameraItem = image.closest(".camera-item");
-      if (image.dataset.cutoutFallback && image.src !== image.dataset.cutoutFallback) {
-        image.src = image.dataset.cutoutFallback;
-      }
-      cameraItem?.classList.add("cutout-unavailable");
-    }, { once: true });
   });
 
   scheduleActiveTransition();
@@ -1250,7 +1023,7 @@ function replaceScreen(id) {
 }
 
 function back() {
-  if (["trapdoor", "drop-check", "registering", "success"].includes(kioskState.screenId)) {
+  if (["computing", "success"].includes(kioskState.screenId)) {
     return;
   }
   if (["correct-item", "correct-quantity"].includes(kioskState.screenId)) {
@@ -1260,7 +1033,7 @@ function back() {
   if (previousScreenId === undefined) {
     return;
   }
-  if (screenIndex(previousScreenId) <= screenIndex("hand-check")) {
+  if (screenIndex(previousScreenId) <= screenIndex("safety")) {
     kioskState.session.doorStatus = "idle";
     kioskState.session.captureStatus = "idle";
   }
@@ -1271,20 +1044,14 @@ function back() {
 
 function canEnterScreen(id) {
   const session = kioskState.session;
-  if (["safety", "safety-stop"].includes(id)) {
-    return Boolean(session.selectedItem);
-  }
   if (id === "insert") {
-    return Boolean(session.selectedItem && session.safetyConfirmed);
+    return Boolean(session.classroom);
   }
-  if (id === "hand-remove") {
+  if (id === "safety") {
     return session.itemInserted;
   }
-  if (id === "hand-check") {
-    return session.itemInserted && session.handConfirmed;
-  }
-  if (id === "door-check") {
-    return session.handConfirmed;
+  if (id === "door-progress") {
+    return session.itemInserted && session.handConfirmed && session.safetyConfirmed;
   }
   if (["capture", "analyzing", "recognized"].includes(id)) {
     return session.doorStatus === "closed";
@@ -1292,17 +1059,11 @@ function canEnterScreen(id) {
   if (["correction-menu", "correct-item", "correct-quantity", "review"].includes(id)) {
     return session.analysisStatus === "complete" && Boolean(session.recognizedItem);
   }
-  if (id === "trapdoor") {
+  if (id === "computing") {
     return session.reviewConfirmed;
   }
-  if (id === "drop-check") {
-    return session.mechanismStatus === "complete";
-  }
-  if (id === "registering") {
-    return session.dropStatus === "complete";
-  }
   if (id === "success") {
-    return session.registrationStatus === "complete";
+    return session.processingStatus === "complete" && session.registrationStatus === "complete";
   }
   return true;
 }
@@ -1316,11 +1077,12 @@ function cancelActiveTransition() {
 
 function scheduleActiveTransition() {
   const transitions = {
-    "hand-check": {
-      delay: 1200,
+    "door-progress": {
+      delay: 3200,
       run: () => {
-        kioskState.session.doorStatus = "closing";
-        replaceScreen("door-check");
+        kioskState.session.doorStatus = "closed";
+        kioskState.session.captureStatus = "capturing";
+        replaceScreen("capture");
       },
     },
     capture: {
@@ -1335,30 +1097,18 @@ function scheduleActiveTransition() {
       delay: 2600,
       run: () => {
         kioskState.session.analysisStatus = "complete";
-        kioskState.session.recognizedItem = kioskState.session.selectedItem;
+        kioskState.session.recognizedItem = itemOptions.find((item) => item.id === "cable") ?? itemOptions[0];
         kioskState.session.quantity = 1;
         replaceScreen("recognized");
       },
     },
-    trapdoor: {
-      delay: 1600,
+    computing: {
+      delay: 4500,
       run: () => {
         kioskState.session.mechanismStatus = "complete";
-        replaceScreen("drop-check");
-      },
-    },
-    "drop-check": {
-      delay: 1400,
-      run: () => {
         kioskState.session.dropStatus = "complete";
-        kioskState.session.registrationStatus = "registering";
-        replaceScreen("registering");
-      },
-    },
-    registering: {
-      delay: 1500,
-      run: () => {
         kioskState.session.registrationStatus = "complete";
+        kioskState.session.processingStatus = "complete";
         replaceScreen("success");
       },
     },
@@ -1367,9 +1117,7 @@ function scheduleActiveTransition() {
       run: () => jump("sleep"),
     },
   };
-  const transition = kioskState.screenId === "door-check"
-    ? doorTransition()
-    : transitions[kioskState.screenId];
+  const transition = transitions[kioskState.screenId];
   if (!transition) {
     return;
   }
@@ -1385,6 +1133,7 @@ function selectMode(mode) {
   kioskState.session.grade = null;
   kioskState.session.classroom = null;
   kioskState.session.studentQuery = "";
+  kioskState.session.studentKeyboardOpen = false;
   kioskState.session.student = null;
   kioskState.session.pinDigits = "";
   jump("segment");
@@ -1395,6 +1144,7 @@ function selectSegment(segmentId) {
   kioskState.session.grade = null;
   kioskState.session.classroom = null;
   kioskState.session.studentQuery = "";
+  kioskState.session.studentKeyboardOpen = false;
   kioskState.session.student = null;
   kioskState.session.pinDigits = "";
   jump("grade");
@@ -1404,6 +1154,7 @@ function selectGrade(gradeId) {
   kioskState.session.grade = gradeId;
   kioskState.session.classroom = null;
   kioskState.session.studentQuery = "";
+  kioskState.session.studentKeyboardOpen = false;
   kioskState.session.student = null;
   kioskState.session.pinDigits = "";
   jump("classroom");
@@ -1412,16 +1163,21 @@ function selectGrade(gradeId) {
 function selectClassroom(classroomId) {
   kioskState.session.classroom = classroomId;
   kioskState.session.studentQuery = "";
+  kioskState.session.studentKeyboardOpen = false;
   kioskState.session.student = null;
   kioskState.session.pinDigits = "";
-  jump(kioskState.session.mode === "classOnly" ? "category" : "student-search");
+  jump(kioskState.session.mode === "classOnly" ? "insert" : "student-search");
 }
 
 function handleSearchKey(key) {
   kioskState.session.student = null;
   if (key === "Apagar") {
     kioskState.session.studentQuery = kioskState.session.studentQuery.slice(0, -1);
-  } else if (kioskState.session.studentQuery.length < 16) {
+  } else if (key === "Espaço") {
+    if (kioskState.session.studentQuery && !kioskState.session.studentQuery.endsWith(" ")) {
+      kioskState.session.studentQuery += " ";
+    }
+  } else if (kioskState.session.studentQuery.length < 24) {
     kioskState.session.studentQuery += key;
   }
   render();
@@ -1438,6 +1194,7 @@ function selectStudent(student) {
     return;
   }
   kioskState.session.student = student;
+  kioskState.session.studentKeyboardOpen = false;
   kioskState.session.pinDigits = "";
   jump("pin");
 }
@@ -1456,45 +1213,26 @@ function resetPhysicalSession() {
   kioskState.session.mechanismStatus = "idle";
   kioskState.session.dropStatus = "idle";
   kioskState.session.registrationStatus = "idle";
-}
-
-function confirmCategory() {
-  if (!kioskState.session.selectedItem) {
-    return;
-  }
-  resetPhysicalSession();
-  jump("safety");
+  kioskState.session.processingStatus = "idle";
 }
 
 function handleSafety(result) {
   if (result === "unsafe") {
     kioskState.session.safetyConfirmed = false;
-    jump("safety-stop");
+    kioskState.session.handConfirmed = false;
+    jump("teacher");
     return;
   }
   kioskState.session.safetyConfirmed = true;
-  jump("insert");
-}
-
-function returnToCategory() {
-  const categoryIndex = kioskState.history.lastIndexOf("category");
-  kioskState.history = categoryIndex >= 0
-    ? kioskState.history.slice(0, categoryIndex)
-    : kioskState.history;
-  kioskState.session.selectedItem = null;
-  resetPhysicalSession();
-  kioskState.screenId = "category";
-  render();
+  kioskState.session.handConfirmed = true;
+  kioskState.session.doorStatus = "processing";
+  jump("door-progress");
 }
 
 function confirmInsertion() {
+  resetPhysicalSession();
   kioskState.session.itemInserted = true;
-  jump("hand-remove");
-}
-
-function confirmHandRemoved() {
-  kioskState.session.handConfirmed = true;
-  jump("hand-check");
+  jump("safety");
 }
 
 function openReview() {
@@ -1552,8 +1290,10 @@ function confirmDiscard() {
     return;
   }
   kioskState.session.reviewConfirmed = true;
+  kioskState.session.processingStatus = "computing";
   kioskState.session.mechanismStatus = "releasing";
-  jump("trapdoor");
+  kioskState.session.registrationStatus = "registering";
+  jump("computing");
 }
 
 function handlePin(key) {
@@ -1562,19 +1302,13 @@ function handlePin(key) {
     kioskState.session.pinDigits = kioskState.session.pinDigits.slice(0, -1);
   } else if (key === "OK") {
     if (kioskState.session.pinDigits.length >= 4) {
-      jump("category");
+      jump("insert");
       return;
     }
     kioskState.session.pinWarning = true;
   } else {
     kioskState.session.pinDigits = `${kioskState.session.pinDigits}${key}`.slice(0, 4);
   }
-  render();
-}
-
-function selectItem(id) {
-  kioskState.session.selectedItem = itemOptions.find((item) => item.id === id) ?? null;
-  resetPhysicalSession();
   render();
 }
 
