@@ -1,0 +1,54 @@
+name: Bug técnico
+description: Registrar um comportamento incorreto reproduzível no código.
+title: "fix(área): "
+labels:
+  - bug
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Backend e Supabase
+        - Totem kiosk
+        - Aplicativo Flutter
+        - Diário de Bordo
+        - Hardware e visão
+        - GitHub e CI
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Comportamento observado
+      description: Descreva o que aconteceu, sem resumir apenas como "não funciona".
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Como reproduzir
+      placeholder: |
+        1. Abra...
+        2. Execute...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidências
+      description: Inclua logs sem segredos, screenshots, vídeo, commit ou branch.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Segurança do registro
+      options:
+        - label: Confirmei que a issue não contém credenciais, PINs reais ou dados pessoais.
+          required: true
