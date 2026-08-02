@@ -152,6 +152,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('dialogue strip uses the contextual B1N pose', (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        const B1nDialogueStrip(
+          message: 'Vamos pensar juntos.',
+          asset: AppAssets.b1nQuestion,
+        ),
+      ),
+    );
+
+    final avatar = tester.widget<Image>(find.byType(Image));
+    expect((avatar.image as AssetImage).assetName, AppAssets.b1nQuestion);
+    expect(avatar.alignment, Alignment.topCenter);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('long compact message supports target viewports and text scale', (
     tester,
   ) async {

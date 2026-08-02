@@ -81,6 +81,7 @@ class HomeScreen extends StatelessWidget {
     const scenario = _HomeScenarioOverview();
     const prompt = B1nDialogueStrip(
       message: 'Leve um eletrônico seguro ao Totem.',
+      asset: AppAssets.b1nIdeaInstruction,
     );
     final cta = BingoActionButton(
       label: 'Começar no Totem',
@@ -155,7 +156,13 @@ class MissionDetailScreen extends StatelessWidget {
             const _MissionEventStatus(),
           ],
           const SizedBox(height: 14),
-          B1nDialogueStrip(message: mission.detailText, tone: mission.color),
+          B1nDialogueStrip(
+            message: mission.detailText,
+            tone: mission.color,
+            asset: mission.state == MissionState.event
+                ? AppAssets.b1nQuestion
+                : AppAssets.b1nIdeaInstruction,
+          ),
           const SizedBox(height: 22),
           Align(
             alignment: Alignment.centerLeft,
@@ -196,6 +203,7 @@ class TotemTrackingScreen extends StatelessWidget {
           const SizedBox(height: 18),
           const B1nDialogueStrip(
             message: 'Escolha sua turma no Totem e siga a tela do equipamento.',
+            asset: AppAssets.b1nThumbsUp,
           ),
           const SizedBox(height: 22),
           Align(
@@ -347,90 +355,43 @@ class _WalletSectionSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final tone = value == WalletSection.transactions
-        ? AppColors.green
-        : AppColors.blue;
     final duration = reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: AppMotion.standard);
 
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.25,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final segmentWidth = constraints.maxWidth / 2;
-          return Container(
-            height: 46,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.line),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.line)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _WalletSectionTab(
+                key: const ValueKey('wallet-tab-extrato'),
+                label: 'Extrato',
+                icon: Icons.swap_vert_rounded,
+                activeColor: AppColors.green,
+                selected: value == WalletSection.transactions,
+                duration: duration,
+                onTap: () => onChanged(WalletSection.transactions),
+              ),
             ),
-            child: Stack(
-              children: [
-                AnimatedPositioned(
-                  duration: duration,
-                  curve: Curves.easeOutCubic,
-                  top: 2,
-                  bottom: 2,
-                  left: value == WalletSection.transactions ? 2 : segmentWidth,
-                  width: segmentWidth - 2,
-                  child: AnimatedContainer(
-                    duration: duration,
-                    curve: Curves.easeOutCubic,
-                    decoration: BoxDecoration(
-                      color: tone.withValues(alpha: 0.11),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        height: 3,
-                        margin: const EdgeInsets.symmetric(horizontal: 18),
-                        decoration: BoxDecoration(
-                          color: tone,
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Center(
-                  child: Container(width: 1, height: 24, color: AppColors.line),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _WalletSectionTab(
-                        key: const ValueKey('wallet-tab-extrato'),
-                        label: 'Extrato',
-                        icon: Icons.swap_vert_rounded,
-                        color: value == WalletSection.transactions
-                            ? AppColors.green
-                            : AppColors.navy,
-                        selected: value == WalletSection.transactions,
-                        onTap: () => onChanged(WalletSection.transactions),
-                      ),
-                    ),
-                    Expanded(
-                      child: _WalletSectionTab(
-                        key: const ValueKey('wallet-tab-descartes'),
-                        label: 'Descartes',
-                        icon: Icons.recycling_rounded,
-                        color: value == WalletSection.discards
-                            ? AppColors.blue
-                            : AppColors.navy,
-                        selected: value == WalletSection.discards,
-                        onTap: () => onChanged(WalletSection.discards),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: _WalletSectionTab(
+                key: const ValueKey('wallet-tab-descartes'),
+                label: 'Descartes',
+                icon: Icons.recycling_rounded,
+                activeColor: AppColors.blue,
+                selected: value == WalletSection.discards,
+                duration: duration,
+                onTap: () => onChanged(WalletSection.discards),
+              ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
@@ -440,20 +401,23 @@ class _WalletSectionTab extends StatelessWidget {
   const _WalletSectionTab({
     required this.label,
     required this.icon,
-    required this.color,
+    required this.activeColor,
     required this.selected,
+    required this.duration,
     required this.onTap,
     super.key,
   });
 
   final String label;
   final IconData icon;
-  final Color color;
+  final Color activeColor;
   final bool selected;
+  final Duration duration;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final color = selected ? activeColor : AppColors.textMuted;
     return Semantics(
       button: true,
       selected: selected,
@@ -462,24 +426,37 @@ class _WalletSectionTab extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 19),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.fade,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: color,
-                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
-                  ),
+          child: AnimatedContainer(
+            duration: duration,
+            curve: Curves.easeOutCubic,
+            height: 46,
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: selected ? activeColor : Colors.transparent,
+                  width: 3,
                 ),
               ),
-            ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 19),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.fade,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: color,
+                      fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -754,6 +731,7 @@ class CurrentScenarioScreen extends StatelessWidget {
           const B1nDialogueStrip(
             message:
                 'A Praça Central é o cenário deste ciclo: cada ponto da turma ajuda a recuperar um setor.',
+            asset: AppAssets.b1nReward,
           ),
           const SizedBox(height: 18),
           ImageHeroCard(
@@ -1368,47 +1346,6 @@ class _HowItWorksOutcome extends StatelessWidget {
   }
 }
 
-class _CharacterPortrait extends StatelessWidget {
-  const _CharacterPortrait({
-    required this.asset,
-    required this.tone,
-    required this.width,
-    required this.height,
-  });
-
-  final String asset;
-  final Color tone;
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      padding: const EdgeInsets.fromLTRB(6, 6, 6, 3),
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.navy.withValues(alpha: 0.16),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Image.asset(
-        asset,
-        fit: BoxFit.contain,
-        alignment: Alignment.bottomCenter,
-        filterQuality: FilterQuality.high,
-      ),
-    );
-  }
-}
-
 class _MissionFeaturedHero extends StatelessWidget {
   const _MissionFeaturedHero({required this.mission, required this.onTap});
 
@@ -1438,6 +1375,18 @@ class _MissionFeaturedHero extends StatelessWidget {
                     alignment: Alignment.center,
                   ),
                 ),
+                Positioned(
+                  top: 8,
+                  right: -5,
+                  width: 132,
+                  height: 174,
+                  child: Image.asset(
+                    AppAssets.b1nMissionReady,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.topRight,
+                    filterQuality: FilterQuality.high,
+                  ),
+                ),
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -1452,16 +1401,6 @@ class _MissionFeaturedHero extends StatelessWidget {
                         stops: const [0, 0.42, 1],
                       ),
                     ),
-                  ),
-                ),
-                const Positioned(
-                  top: 14,
-                  right: 14,
-                  child: _CharacterPortrait(
-                    asset: AppAssets.b1nMissionReady,
-                    tone: AppColors.green,
-                    width: 82,
-                    height: 98,
                   ),
                 ),
                 Container(
@@ -1541,65 +1480,78 @@ class _MissionEventBanner extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: mission.color.withValues(alpha: 0.30),
-                width: 2,
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _CharacterPortrait(
-                  asset: AppAssets.scr4pDefense,
-                  tone: AppColors.scr4p,
-                  width: 66,
-                  height: 78,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'EVENTO ATIVO',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: mission.color,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        mission.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(mission.subtitle),
-                      const SizedBox(height: 10),
-                      AnimatedProgressPill(
-                        value: mission.progress,
-                        color: mission.color,
-                        height: 9,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        mission.reward,
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(
-                              color: mission.color,
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                    ],
+          child: Stack(
+            children: [
+              Positioned(
+                right: -8,
+                bottom: -10,
+                width: 112,
+                height: 132,
+                child: Opacity(
+                  opacity: 0.62,
+                  child: Image.asset(
+                    AppAssets.scr4pDefense,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomRight,
+                    filterQuality: FilterQuality.high,
                   ),
                 ),
-                const SizedBox(width: 6),
-                Icon(Icons.chevron_right_rounded, color: mission.color),
-              ],
-            ),
+              ),
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 14, 82, 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: mission.color.withValues(alpha: 0.30),
+                    width: 2,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'EVENTO ATIVO',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: mission.color,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            mission.title,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(mission.subtitle),
+                          const SizedBox(height: 10),
+                          AnimatedProgressPill(
+                            value: mission.progress,
+                            color: mission.color,
+                            height: 9,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            mission.reward,
+                            style: Theme.of(context).textTheme.labelMedium
+                                ?.copyWith(
+                                  color: mission.color,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.chevron_right_rounded, color: mission.color),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

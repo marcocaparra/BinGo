@@ -30,8 +30,8 @@ class OnboardingScreen extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.white.withValues(alpha: 0.10),
-                  Colors.white.withValues(alpha: 0.58),
+                  Colors.white.withValues(alpha: 0.04),
+                  Colors.white.withValues(alpha: 0.16),
                 ],
               ),
             ),
@@ -51,25 +51,26 @@ class OnboardingScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           _GlassSurface(
-                            dark: true,
+                            fillOpacity: 0.34,
+                            blurSigma: 8,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 22,
-                              vertical: 12,
+                              horizontal: 18,
+                              vertical: 10,
                             ),
                             child: SizedBox(
-                              width: 230,
-                              height: 64,
+                              width: 246,
+                              height: 70,
                               child: Image.asset(
                                 AppAssets.logoOfficialTrimmed,
                                 fit: BoxFit.contain,
-                                color: Colors.white,
-                                colorBlendMode: BlendMode.srcIn,
                                 filterQuality: FilterQuality.high,
                               ),
                             ),
                           ),
                           const SizedBox(height: 28),
                           _GlassSurface(
+                            fillOpacity: 0.24,
+                            blurSigma: 8,
                             child: Column(
                               children: [
                                 Image.asset(
@@ -87,7 +88,12 @@ class OnboardingScreen extends StatelessWidget {
                                 const SizedBox(height: 10),
                                 Text(
                                   'Complete missões de descarte, recupere setores da cidade e ganhe BinCoins no caminho.',
-                                  style: Theme.of(context).textTheme.bodyMedium,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: AppColors.navy.withValues(
+                                          alpha: 0.78,
+                                        ),
+                                      ),
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 18),
@@ -123,18 +129,20 @@ class OnboardingScreen extends StatelessWidget {
 class _GlassSurface extends StatelessWidget {
   const _GlassSurface({
     required this.child,
-    this.dark = false,
     this.padding = const EdgeInsets.all(20),
+    this.fillOpacity,
+    this.blurSigma = 18,
   });
 
   final Widget child;
-  final bool dark;
   final EdgeInsetsGeometry padding;
+  final double? fillOpacity;
+  final double blurSigma;
 
   @override
   Widget build(BuildContext context) {
     const radius = BorderRadius.all(Radius.circular(20));
-    final shadowColor = AppColors.navy.withValues(alpha: dark ? 0.20 : 0.10);
+    final shadowColor = AppColors.navy.withValues(alpha: 0.10);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -150,17 +158,13 @@ class _GlassSurface extends StatelessWidget {
       child: ClipRRect(
         borderRadius: radius,
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: dark
-                  ? AppColors.navy.withValues(alpha: 0.56)
-                  : Colors.white.withValues(alpha: 0.54),
+              color: Colors.white.withValues(alpha: fillOpacity ?? 0.54),
               borderRadius: radius,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: dark ? 0.42 : 0.78),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.50)),
             ),
             child: child,
           ),

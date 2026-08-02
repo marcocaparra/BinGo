@@ -22,7 +22,7 @@ class B1nGuide extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (compact) {
-      return B1nDialogueStrip(message: message, tone: tone);
+      return B1nDialogueStrip(message: message, tone: tone, asset: asset);
     }
 
     final image = Image.asset(asset, fit: BoxFit.contain);

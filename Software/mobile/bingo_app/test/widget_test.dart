@@ -341,7 +341,7 @@ void main() {
             )
             .style
             ?.color,
-        AppColors.navy,
+        AppColors.textMuted,
       );
 
       await tester.tap(find.text('Descartes'));
@@ -356,7 +356,7 @@ void main() {
             )
             .style
             ?.color,
-        AppColors.navy,
+        AppColors.textMuted,
       );
       expect(
         tester
@@ -600,12 +600,15 @@ void main() {
           );
       expect(themedImages, hasLength(1));
       expect(find.byType(B1nDialogueStrip), findsOneWidget);
+      final expectedDialogueAsset = mission.state == MissionState.event
+          ? AppAssets.b1nQuestion
+          : AppAssets.b1nIdeaInstruction;
       final b1nImages = tester
           .widgetList<Image>(find.byType(Image))
           .where(
             (image) =>
                 image.image is AssetImage &&
-                (image.image as AssetImage).assetName == AppAssets.b1nIcon,
+                (image.image as AssetImage).assetName == expectedDialogueAsset,
           );
       expect(b1nImages, hasLength(1));
       expect(tester.takeException(), isNull);
@@ -641,7 +644,7 @@ void main() {
 
     expect(countAsset(AppAssets.totemConceptFull), 1);
     expect(countAsset(activeMission.image), 0);
-    expect(countAsset(AppAssets.b1nIcon), 1);
+    expect(countAsset(AppAssets.b1nThumbsUp), 1);
     for (final state in const <(String, Color)>[
       (
         'Concluído: Item preparado. Eletrônico sem uso, autorizado, seco e sem risco.',
