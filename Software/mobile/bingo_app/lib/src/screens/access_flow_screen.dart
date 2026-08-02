@@ -249,7 +249,7 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
         ),
         const SizedBox(height: 20),
         const B1nGuide(
-          asset: AppAssets.b1nIdeaInstruction,
+          asset: AppAssets.b1nMissionReady,
           title: 'B1N está pronto',
           message:
               'Crie seu PIN uma vez. Depois, ele abre seu caminho no Totem.',

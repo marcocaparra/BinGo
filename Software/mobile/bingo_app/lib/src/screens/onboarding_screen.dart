@@ -226,29 +226,39 @@ class _FlowSteps extends StatelessWidget {
                           Transform.scale(scale: value, child: child),
                       child: Column(
                         children: [
-                          Container(
-                            width: 46,
-                            height: 46,
+                          DecoratedBox(
                             decoration: BoxDecoration(
-                              color: Colors.white,
                               shape: BoxShape.circle,
-                              border: Border.all(
-                                color: steps[index].$3,
-                                width: 3,
-                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: steps[index].$3.withValues(
-                                    alpha: 0.18,
+                                    alpha: 0.16,
                                   ),
-                                  blurRadius: 10,
+                                  blurRadius: 12,
                                   offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              steps[index].$1,
-                              color: steps[index].$3,
+                            child: ClipOval(
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                                child: Container(
+                                  width: 46,
+                                  height: 46,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.22),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: steps[index].$3,
+                                      width: 2.5,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    steps[index].$1,
+                                    color: steps[index].$3,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
