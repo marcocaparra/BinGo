@@ -2,6 +2,7 @@ class AppAssets {
   static const logoOfficial = 'assets/images/logo_official.png';
   static const logoOfficialTransparent =
       'assets/images/logo_official_transparent.png';
+  static const logoOfficialTrimmed = 'assets/images/logo_official_trimmed.png';
   static const b1nPose = 'assets/images/b1n_pose_transparent.png';
   static const b1nIcon = 'assets/images/b1n_icon.png';
   static const b3nTioB1n = 'assets/images/b3n_tio_b1n_transparent.png';
@@ -30,4 +31,5 @@ class AppAssets {
   static const sceneTransition = 'assets/images/Praça Central - Transição.png';
   static const totemConcept = 'assets/images/totem_concept_transparent.png';
   static const totemConceptFull = 'assets/images/totem_concept.png';
+  static const totemSingleCutout = 'assets/images/totem_single_cutout.png';
 }

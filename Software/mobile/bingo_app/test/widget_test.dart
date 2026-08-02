@@ -319,9 +319,57 @@ void main() {
         ),
         findsNWidgets(4),
       );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('wallet-tab-extrato')),
+                matching: find.text('Extrato'),
+              ),
+            )
+            .style
+            ?.color,
+        AppColors.green,
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('wallet-tab-descartes')),
+                matching: find.text('Descartes'),
+              ),
+            )
+            .style
+            ?.color,
+        AppColors.navy,
+      );
 
       await tester.tap(find.text('Descartes'));
       await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('wallet-tab-extrato')),
+                matching: find.text('Extrato'),
+              ),
+            )
+            .style
+            ?.color,
+        AppColors.navy,
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('wallet-tab-descartes')),
+                matching: find.text('Descartes'),
+              ),
+            )
+            .style
+            ?.color,
+        AppColors.blue,
+      );
       expect(find.text('Mouse sem uso'), findsOneWidget);
       expect(find.text('Cabo USB'), findsOneWidget);
       expect(find.text('Fone de ouvido'), findsOneWidget);

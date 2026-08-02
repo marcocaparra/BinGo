@@ -57,10 +57,10 @@ class OnboardingScreen extends StatelessWidget {
                               vertical: 12,
                             ),
                             child: SizedBox(
-                              width: 248,
-                              height: 58,
+                              width: 230,
+                              height: 64,
                               child: Image.asset(
-                                AppAssets.logoOfficialTransparent,
+                                AppAssets.logoOfficialTrimmed,
                                 fit: BoxFit.contain,
                                 color: Colors.white,
                                 colorBlendMode: BlendMode.srcIn,

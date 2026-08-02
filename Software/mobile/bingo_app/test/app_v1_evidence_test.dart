@@ -77,6 +77,7 @@ void main() {
             Image.asset(AppAssets.sceneTransition),
             Image.asset(AppAssets.sceneConfrontation),
             Image.asset(AppAssets.totemConceptFull),
+            Image.asset(AppAssets.totemSingleCutout),
           ],
         ),
       ),

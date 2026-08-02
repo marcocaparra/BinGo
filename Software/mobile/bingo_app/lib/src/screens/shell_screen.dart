@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../data/demo_data.dart';
@@ -251,10 +253,6 @@ class _WalletScreenState extends State<WalletScreen> {
     final redeemableRewards = rewards
         .where((reward) => reward.available)
         .length;
-    final sectionTone = _section == WalletSection.transactions
-        ? AppColors.green
-        : AppColors.blue;
-
     return AppPage(
       title: 'Carteira',
       subtitle: 'Seu saldo e o histórico do ecossistema.',
@@ -301,50 +299,9 @@ class _WalletScreenState extends State<WalletScreen> {
             onPressed: () => _push(context, const RewardsScreen()),
           ),
           const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: MediaQuery.withClampedTextScaling(
-              maxScaleFactor: 1.25,
-              child: SegmentedButton<WalletSection>(
-                style: ButtonStyle(
-                  backgroundColor: WidgetStateProperty.resolveWith((states) {
-                    return states.contains(WidgetState.selected)
-                        ? sectionTone.withValues(alpha: 0.14)
-                        : Colors.transparent;
-                  }),
-                  foregroundColor: WidgetStateProperty.resolveWith((states) {
-                    return states.contains(WidgetState.selected)
-                        ? sectionTone
-                        : AppColors.navy;
-                  }),
-                  side: WidgetStateProperty.resolveWith((states) {
-                    return BorderSide(
-                      color: states.contains(WidgetState.selected)
-                          ? sectionTone
-                          : AppColors.line,
-                      width: states.contains(WidgetState.selected) ? 1.6 : 1,
-                    );
-                  }),
-                ),
-                segments: const [
-                  ButtonSegment(
-                    value: WalletSection.transactions,
-                    label: Text('Extrato', maxLines: 1, softWrap: false),
-                    icon: Icon(Icons.swap_vert_rounded),
-                  ),
-                  ButtonSegment(
-                    value: WalletSection.discards,
-                    label: Text('Descartes', maxLines: 1, softWrap: false),
-                    icon: Icon(Icons.recycling_rounded),
-                  ),
-                ],
-                selected: {_section},
-                showSelectedIcon: false,
-                onSelectionChanged: (selection) {
-                  setState(() => _section = selection.single);
-                },
-              ),
-            ),
+          _WalletSectionSelector(
+            value: _section,
+            onChanged: (value) => setState(() => _section = value),
           ),
           const SizedBox(height: 14),
           if (widget.isLoading)
@@ -376,6 +333,155 @@ class _WalletScreenState extends State<WalletScreen> {
             for (final discard in widget.discards)
               _DiscardHistoryTile(discard: discard),
         ],
+      ),
+    );
+  }
+}
+
+class _WalletSectionSelector extends StatelessWidget {
+  const _WalletSectionSelector({required this.value, required this.onChanged});
+
+  final WalletSection value;
+  final ValueChanged<WalletSection> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final tone = value == WalletSection.transactions
+        ? AppColors.green
+        : AppColors.blue;
+    final duration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: AppMotion.standard);
+
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.25,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final segmentWidth = constraints.maxWidth / 2;
+          return Container(
+            height: 46,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Stack(
+              children: [
+                AnimatedPositioned(
+                  duration: duration,
+                  curve: Curves.easeOutCubic,
+                  top: 2,
+                  bottom: 2,
+                  left: value == WalletSection.transactions ? 2 : segmentWidth,
+                  width: segmentWidth - 2,
+                  child: AnimatedContainer(
+                    duration: duration,
+                    curve: Curves.easeOutCubic,
+                    decoration: BoxDecoration(
+                      color: tone.withValues(alpha: 0.11),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: 3,
+                        margin: const EdgeInsets.symmetric(horizontal: 18),
+                        decoration: BoxDecoration(
+                          color: tone,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Container(width: 1, height: 24, color: AppColors.line),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _WalletSectionTab(
+                        key: const ValueKey('wallet-tab-extrato'),
+                        label: 'Extrato',
+                        icon: Icons.swap_vert_rounded,
+                        color: value == WalletSection.transactions
+                            ? AppColors.green
+                            : AppColors.navy,
+                        selected: value == WalletSection.transactions,
+                        onTap: () => onChanged(WalletSection.transactions),
+                      ),
+                    ),
+                    Expanded(
+                      child: _WalletSectionTab(
+                        key: const ValueKey('wallet-tab-descartes'),
+                        label: 'Descartes',
+                        icon: Icons.recycling_rounded,
+                        color: value == WalletSection.discards
+                            ? AppColors.blue
+                            : AppColors.navy,
+                        selected: value == WalletSection.discards,
+                        onTap: () => onChanged(WalletSection.discards),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WalletSectionTab extends StatelessWidget {
+  const _WalletSectionTab({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+    super.key,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 19),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.fade,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: color,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -922,6 +1028,41 @@ class _RewardTile extends StatelessWidget {
   }
 }
 
+class _TotemSceneCutout extends StatelessWidget {
+  const _TotemSceneCutout();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Transform.translate(
+          offset: const Offset(0, 7),
+          child: ImageFiltered(
+            imageFilter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+            child: ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                AppColors.navy.withValues(alpha: 0.26),
+                BlendMode.srcIn,
+              ),
+              child: Image.asset(
+                AppAssets.totemSingleCutout,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.high,
+              ),
+            ),
+          ),
+        ),
+        Image.asset(
+          AppAssets.totemSingleCutout,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+        ),
+      ],
+    );
+  }
+}
+
 class _HowItWorksHero extends StatelessWidget {
   const _HowItWorksHero();
 
@@ -948,22 +1089,11 @@ class _HowItWorksHero extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  top: 20,
-                  right: -46,
-                  width: 210,
-                  height: 220,
-                  child: ClipRect(
-                    child: Transform.scale(
-                      scale: 1.72,
-                      alignment: Alignment.centerRight,
-                      child: Image.asset(
-                        AppAssets.totemConceptFull,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.centerRight,
-                        filterQuality: FilterQuality.high,
-                      ),
-                    ),
-                  ),
+                  top: 8,
+                  right: -18,
+                  width: 190,
+                  height: 238,
+                  child: _TotemSceneCutout(),
                 ),
                 Positioned.fill(
                   child: DecoratedBox(
