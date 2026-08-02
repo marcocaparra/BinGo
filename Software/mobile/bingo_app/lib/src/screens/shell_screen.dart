@@ -158,7 +158,9 @@ class MissionDetailScreen extends StatelessWidget {
           const SizedBox(height: 14),
           B1nDialogueStrip(
             message: mission.detailText,
-            tone: mission.color,
+            tone: mission.state == MissionState.event
+                ? AppColors.blue
+                : mission.color,
             asset: mission.state == MissionState.event
                 ? AppAssets.b1nQuestion
                 : AppAssets.b1nIdeaInstruction,

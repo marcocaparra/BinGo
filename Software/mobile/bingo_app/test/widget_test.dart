@@ -600,6 +600,10 @@ void main() {
           );
       expect(themedImages, hasLength(1));
       expect(find.byType(B1nDialogueStrip), findsOneWidget);
+      expect(
+        tester.widget<B1nDialogueStrip>(find.byType(B1nDialogueStrip)).tone,
+        mission.state == MissionState.event ? AppColors.blue : mission.color,
+      );
       final expectedDialogueAsset = mission.state == MissionState.event
           ? AppAssets.b1nQuestion
           : AppAssets.b1nIdeaInstruction;

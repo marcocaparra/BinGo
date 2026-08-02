@@ -61,7 +61,7 @@ class OnboardingScreen extends StatelessWidget {
                               width: 246,
                               height: 70,
                               child: Image.asset(
-                                AppAssets.logoOfficialTrimmed,
+                                AppAssets.logoOfficialOnboardingClean,
                                 fit: BoxFit.contain,
                                 filterQuality: FilterQuality.high,
                               ),
@@ -74,7 +74,7 @@ class OnboardingScreen extends StatelessWidget {
                             child: Column(
                               children: [
                                 Image.asset(
-                                  AppAssets.b1nPose,
+                                  AppAssets.b1nPoseOnboardingClean,
                                   height: 128,
                                   filterQuality: FilterQuality.high,
                                 ),

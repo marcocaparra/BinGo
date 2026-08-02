@@ -3,7 +3,11 @@ class AppAssets {
   static const logoOfficialTransparent =
       'assets/images/logo_official_transparent.png';
   static const logoOfficialTrimmed = 'assets/images/logo_official_trimmed.png';
+  static const logoOfficialOnboardingClean =
+      'assets/images/logo_official_onboarding_clean.png';
   static const b1nPose = 'assets/images/b1n_pose_transparent.png';
+  static const b1nPoseOnboardingClean =
+      'assets/images/b1n_pose_onboarding_clean.png';
   static const b1nIcon = 'assets/images/b1n_icon.png';
   static const b3nTioB1n = 'assets/images/b3n_tio_b1n_transparent.png';
   static const b1nCoin = 'assets/images/b1n_coin_transparent.png';

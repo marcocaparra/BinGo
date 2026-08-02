@@ -54,6 +54,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 message: 'Faltam 240 pontos pessoais para chegar a Guardião.',
                 tone: AppColors.green,
                 compact: true,
+                portraitScale: 1.30,
+                portraitAlignment: Alignment.topCenter,
+                portraitSize: 54,
               ),
               const SizedBox(height: 14),
               BingoActionButton(

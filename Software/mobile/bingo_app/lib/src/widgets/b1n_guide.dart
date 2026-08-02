@@ -10,6 +10,9 @@ class B1nGuide extends StatelessWidget {
     required this.message,
     this.tone = AppColors.blue,
     this.compact = false,
+    this.portraitScale,
+    this.portraitAlignment,
+    this.portraitSize = 40,
     super.key,
   });
 
@@ -18,11 +21,21 @@ class B1nGuide extends StatelessWidget {
   final String message;
   final Color tone;
   final bool compact;
+  final double? portraitScale;
+  final Alignment? portraitAlignment;
+  final double portraitSize;
 
   @override
   Widget build(BuildContext context) {
     if (compact) {
-      return B1nDialogueStrip(message: message, tone: tone, asset: asset);
+      return B1nDialogueStrip(
+        message: message,
+        tone: tone,
+        asset: asset,
+        portraitScale: portraitScale,
+        portraitAlignment: portraitAlignment,
+        portraitSize: portraitSize,
+      );
     }
 
     final image = Image.asset(asset, fit: BoxFit.contain);

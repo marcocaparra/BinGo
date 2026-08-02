@@ -9,6 +9,9 @@ class B1nDialogueStrip extends StatelessWidget {
     this.tone = AppColors.blue,
     this.speaker = 'B1N',
     this.asset = AppAssets.b1nIcon,
+    this.portraitScale,
+    this.portraitAlignment,
+    this.portraitSize = 40,
     super.key,
   });
 
@@ -16,10 +19,16 @@ class B1nDialogueStrip extends StatelessWidget {
   final Color tone;
   final String speaker;
   final String asset;
+  final double? portraitScale;
+  final Alignment? portraitAlignment;
+  final double portraitSize;
 
   @override
   Widget build(BuildContext context) {
     final usesClosePortrait = asset != AppAssets.b1nIcon;
+    final resolvedAlignment =
+        portraitAlignment ??
+        (usesClosePortrait ? Alignment.topCenter : Alignment.center);
     return Semantics(
       container: true,
       label: '$speaker diz: $message',
@@ -45,20 +54,16 @@ class B1nDialogueStrip extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                width: 40,
-                height: 40,
+                width: portraitSize,
+                height: portraitSize,
                 child: ClipRect(
                   child: Transform.scale(
-                    scale: usesClosePortrait ? 2.15 : 1,
-                    alignment: usesClosePortrait
-                        ? Alignment.topCenter
-                        : Alignment.center,
+                    scale: portraitScale ?? (usesClosePortrait ? 2.15 : 1),
+                    alignment: resolvedAlignment,
                     child: Image.asset(
                       asset,
                       fit: BoxFit.contain,
-                      alignment: usesClosePortrait
-                          ? Alignment.topCenter
-                          : Alignment.center,
+                      alignment: resolvedAlignment,
                       filterQuality: FilterQuality.high,
                     ),
                   ),

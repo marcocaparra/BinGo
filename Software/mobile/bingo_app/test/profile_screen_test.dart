@@ -1,7 +1,9 @@
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/change_pin_screen.dart';
 import 'package:bingo_app/src/screens/profile_screen.dart';
+import 'package:bingo_app/src/theme/app_assets.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
+import 'package:bingo_app/src/widgets/b1n_dialogue_strip.dart';
 import 'package:bingo_app/src/widgets/bincoin_amount.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -75,6 +77,12 @@ void main() {
     expect(find.text('Pontos pessoais'), findsOneWidget);
     expect(find.text('Pontos da turma'), findsOneWidget);
     expect(find.text('BinCoins'), findsOneWidget);
+    final dialogue = tester.widget<B1nDialogueStrip>(
+      find.byType(B1nDialogueStrip),
+    );
+    expect(dialogue.asset, AppAssets.b1nReward);
+    expect(dialogue.portraitSize, 54);
+    expect(dialogue.portraitScale, 1.30);
     for (final level in [
       'Aprendiz',
       'Explorador',
