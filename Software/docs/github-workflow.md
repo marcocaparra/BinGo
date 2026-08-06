@@ -15,9 +15,9 @@ Este documento define o fluxo oficial de branches, commits e Pull Requests do Bi
 - Não recebe desenvolvimento direto nem force push.
 - Deve permanecer executável e com os testes aplicáveis aprovados.
 
-### `main` (`legacy`)
+### `main`
 
-Preserva a arquitetura antiga do projeto.
+Preserva a arquitetura estável do projeto mais atual.
 
 - Serve apenas para consulta e recuperação histórica.
 - Não recebe novas funcionalidades.
