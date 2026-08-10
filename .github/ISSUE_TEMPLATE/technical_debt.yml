@@ -1,0 +1,48 @@
+name: Dívida técnica
+description: Registrar uma melhoria técnica necessária sem misturar com uma feature.
+title: "chore(área): "
+labels:
+  - enhancement
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Backend e Supabase
+        - Totem kiosk
+        - Aplicativo Flutter
+        - Diário de Bordo
+        - Hardware e visão
+        - GitHub e CI
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidência atual
+      description: Aponte arquivo, trecho, alerta, falha de teste ou limitação observada.
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risco de não corrigir
+      description: Explique impacto no MVP, segurança, manutenção ou integração.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Critérios de aceite
+      placeholder: |
+        - [ ] Resultado verificável 1
+        - [ ] Testes aplicáveis
+        - [ ] Documentação atualizada
+    validations:
+      required: true
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Fora do escopo
+      description: Registre o que não deve ser alterado junto com esta dívida.

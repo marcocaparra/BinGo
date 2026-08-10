@@ -1,0 +1,40 @@
+name: Totem CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "Software/apps/totem_kiosk_wireframe/**"
+      - ".github/workflows/totem-ci.yml"
+  push:
+    branches:
+      - develop
+    paths:
+      - "Software/apps/totem_kiosk_wireframe/**"
+      - ".github/workflows/totem-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: totem-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    name: JavaScript syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "22"
+
+      - name: Check JavaScript syntax
+        run: node --check Software/apps/totem_kiosk_wireframe/script.js

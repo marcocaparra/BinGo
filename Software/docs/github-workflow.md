@@ -15,9 +15,9 @@ Este documento define o fluxo oficial de branches, commits e Pull Requests do Bi
 - Não recebe desenvolvimento direto nem force push.
 - Deve permanecer executável e com os testes aplicáveis aprovados.
 
-### `main`
+### `legacy`
 
-Preserva a arquitetura estável do projeto mais atual.
+Preserva a arquitetura que antes ocupava a antiga `main`.
 
 - Serve apenas para consulta e recuperação histórica.
 - Não recebe novas funcionalidades.
@@ -114,7 +114,7 @@ Antes do merge:
 - Não reescrever ou apagar commits de outras pessoas.
 - Não desenvolver diretamente na `develop`.
 - Não misturar uma atualização de README com código sem relação.
-- Não excluir `main` nem `release/diario-bordo-v0` sem confirmar dependências externas.
+- Não excluir `legacy` nem `release/diario-bordo-v0` sem confirmar dependências externas.
 - Excluir branches de feature apenas depois de confirmar que foram integradas.
 
-Documentos históricos podem citar o nome temporário `legacy` ou papéis anteriores de `main` e `develop`; isso registra o contexto da época e não altera o fluxo atual.
+Documentos históricos podem citar a antiga `develop`; isso registra o contexto da época e não altera o fluxo atual.

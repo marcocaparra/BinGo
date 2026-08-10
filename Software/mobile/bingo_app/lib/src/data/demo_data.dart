@@ -5,6 +5,63 @@ import '../theme/app_theme.dart';
 
 const userBinCoins = 120;
 
+class ScenarioSnapshot {
+  const ScenarioSnapshot({
+    required this.name,
+    required this.restoredProgress,
+    required this.nextSectorDiscards,
+    required this.cycleDays,
+  });
+
+  final String name;
+  final double restoredProgress;
+  final int nextSectorDiscards;
+  final int cycleDays;
+
+  int get restoredPercent => (restoredProgress * 100).round();
+}
+
+const currentScenario = ScenarioSnapshot(
+  name: 'Praça Central',
+  restoredProgress: 0.68,
+  nextSectorDiscards: 2,
+  cycleDays: 12,
+);
+
+enum TransactionKind { credit, debit }
+
+class BinCoinTransaction {
+  const BinCoinTransaction({
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+    required this.kind,
+  });
+
+  final String title;
+  final String subtitle;
+  final int amount;
+  final TransactionKind kind;
+}
+
+class DiscardRecord {
+  const DiscardRecord({
+    required this.item,
+    required this.dateLabel,
+    required this.binCoins,
+    required this.classPoints,
+    required this.icon,
+  });
+
+  final String item;
+  final String dateLabel;
+  final int binCoins;
+  final int classPoints;
+  final IconData icon;
+}
+
+enum MissionState { active, event, completed, upcoming }
+
 class Mission {
   const Mission({
     required this.id,
@@ -17,6 +74,7 @@ class Mission {
     required this.color,
     required this.image,
     required this.steps,
+    required this.state,
   });
 
   final String id;
@@ -29,6 +87,7 @@ class Mission {
   final Color color;
   final String image;
   final List<(String, String)> steps;
+  final MissionState state;
 }
 
 class RewardItem {
@@ -45,7 +104,8 @@ class RewardItem {
   final Color color;
 
   bool get available => userBinCoins >= cost;
-  String get status => available ? 'Reservar' : 'Faltam ${cost - userBinCoins}';
+  String get status =>
+      available ? 'Ver no Totem' : 'Faltam ${cost - userBinCoins}';
 }
 
 const activeMission = Mission(
@@ -58,6 +118,7 @@ const activeMission = Mission(
   reward: '+10 BinCoins',
   color: AppColors.green,
   image: AppAssets.sceneClean,
+  state: MissionState.active,
   steps: [
     ('Separe um item', 'Mouse, cabo, fone ou eletrônico pequeno.'),
     ('Vá ao Totem físico', 'No Totem, selecione sua turma.'),
@@ -69,13 +130,14 @@ const missions = [
   Mission(
     id: 'three-electronics',
     title: 'Recicle 3 eletrônicos',
-    subtitle: '2 de 3 descartes concluídos',
+    subtitle: '3 de 3 descartes concluídos',
     detailTitle: 'Combo eletrônico',
     detailText: 'Complete 3 descartes corretos para acelerar sua turma.',
-    progress: 0.66,
+    progress: 1,
     reward: '+30 BinCoins',
     color: AppColors.green,
     image: AppAssets.sceneClean,
+    state: MissionState.completed,
     steps: [
       ('Confira o item', 'Separe eletrônicos pequenos e seguros.'),
       ('Registre no Totem', 'Selecione sua turma antes do descarte.'),
@@ -92,6 +154,7 @@ const missions = [
     reward: '+1 setor',
     color: AppColors.blue,
     image: AppAssets.sceneTransition,
+    state: MissionState.upcoming,
     steps: [
       ('Veja a meta', 'Faltam 50 pontos para chegar ao 3º lugar.'),
       ('Some descartes', 'Combine com sua turma para levar itens ao Totem.'),
@@ -101,13 +164,14 @@ const missions = [
   Mission(
     id: 'scr4p-defense',
     title: 'Defesa contra SCR4P',
-    subtitle: 'Evento de turma até sexta',
+    subtitle: 'Ajude a turma com 5 descartes até sexta.',
     detailTitle: 'Defesa especial',
     detailText: 'SCR4P está avançando. A turma precisa reagir em conjunto.',
     progress: 0.58,
     reward: '+20 bônus',
     color: AppColors.scr4p,
     image: AppAssets.sceneCorruptScr4p,
+    state: MissionState.event,
     steps: [
       ('Entre na defesa', 'Veja quantos descartes faltam no evento.'),
       ('Leve itens ao Totem', 'Todo descarte correto reduz a corrupção.'),
@@ -143,6 +207,51 @@ const rewards = [
     cost: 180,
     icon: Icons.card_giftcard,
     color: AppColors.danger,
+  ),
+];
+
+const binCoinTransactions = [
+  BinCoinTransaction(
+    title: 'Ganhou',
+    subtitle: 'Missão rápida concluída',
+    amount: 10,
+    kind: TransactionKind.credit,
+  ),
+  BinCoinTransaction(
+    title: 'Usou',
+    subtitle: 'Suco natural resgatado no Totem',
+    amount: 30,
+    kind: TransactionKind.debit,
+  ),
+  BinCoinTransaction(
+    title: 'Ganhou',
+    subtitle: 'Bônus de setor liberado',
+    amount: 20,
+    kind: TransactionKind.credit,
+  ),
+];
+
+const discardHistory = [
+  DiscardRecord(
+    item: 'Mouse sem uso',
+    dateLabel: 'Hoje · 10:24',
+    binCoins: 10,
+    classPoints: 25,
+    icon: Icons.mouse_outlined,
+  ),
+  DiscardRecord(
+    item: 'Cabo USB',
+    dateLabel: '25 jul · 14:10',
+    binCoins: 8,
+    classPoints: 20,
+    icon: Icons.cable_outlined,
+  ),
+  DiscardRecord(
+    item: 'Fone de ouvido',
+    dateLabel: '22 jul · 09:42',
+    binCoins: 12,
+    classPoints: 30,
+    icon: Icons.headphones_outlined,
   ),
 ];
 

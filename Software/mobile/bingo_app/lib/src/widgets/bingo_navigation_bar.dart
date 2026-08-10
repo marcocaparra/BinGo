@@ -1,0 +1,231 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+
+import '../theme/app_theme.dart';
+
+class BingoNavigationBar extends StatelessWidget {
+  const BingoNavigationBar({
+    required this.selectedIndex,
+    required this.onSelected,
+    super.key,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  static const _destinations = [
+    (Icons.home_outlined, Icons.home_rounded, 'Início'),
+    (
+      Icons.account_balance_wallet_outlined,
+      Icons.account_balance_wallet_rounded,
+      'Carteira',
+    ),
+    (Icons.verified_outlined, Icons.verified_rounded, 'Missões'),
+    (Icons.emoji_events_outlined, Icons.emoji_events_rounded, 'Ranking'),
+    (Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final duration = Duration(
+      milliseconds: reduceMotion ? 0 : AppMotion.standard,
+    );
+    final circularOrder = [
+      (selectedIndex + 3) % _destinations.length,
+      (selectedIndex + 4) % _destinations.length,
+      selectedIndex,
+      (selectedIndex + 1) % _destinations.length,
+      (selectedIndex + 2) % _destinations.length,
+    ];
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: const Border(top: BorderSide(color: AppColors.line)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.blue.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 72,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final contentWidth = constraints.maxWidth < 240
+                  ? 240.0
+                  : constraints.maxWidth;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: contentWidth),
+                  child: SizedBox(
+                    width: contentWidth,
+                    height: 72,
+                    child: LayoutBuilder(
+                      builder: (context, contentConstraints) {
+                        final segmentWidth =
+                            contentConstraints.maxWidth / _destinations.length;
+                        return Stack(
+                          clipBehavior: Clip.hardEdge,
+                          children: [
+                            AnimatedPositioned(
+                              key: Key('bingo-nav-indicator-$selectedIndex'),
+                              duration: duration,
+                              curve: Curves.easeOutCubic,
+                              left: (segmentWidth * 2) + 6,
+                              top: 7,
+                              width: segmentWidth - 12,
+                              height: 54,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: AppColors.blue.withValues(
+                                      alpha: 0.24,
+                                    ),
+                                  ),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      AppColors.blue.withValues(alpha: 0.14),
+                                      AppColors.green.withValues(alpha: 0.12),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            for (
+                              var index = 0;
+                              index < _destinations.length;
+                              index++
+                            )
+                              AnimatedPositioned(
+                                key: Key('bingo-nav-positioned-$index'),
+                                duration: duration,
+                                curve: Curves.easeInOutCubic,
+                                left:
+                                    segmentWidth * circularOrder.indexOf(index),
+                                top: 0,
+                                width: segmentWidth,
+                                height: 72,
+                                child: SizedBox(
+                                  key: Key(
+                                    'bingo-nav-slot-${circularOrder.indexOf(index)}',
+                                  ),
+                                  width: segmentWidth,
+                                  height: 72,
+                                  child: _NavigationDestination(
+                                    key: Key('bingo-nav-destination-$index'),
+                                    icon: _destinations[index].$1,
+                                    selectedIcon: _destinations[index].$2,
+                                    label: _destinations[index].$3,
+                                    selected: selectedIndex == index,
+                                    sortOrder: circularOrder.indexOf(index),
+                                    reduceMotion: reduceMotion,
+                                    onTap: () => onSelected(index),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavigationDestination extends StatelessWidget {
+  const _NavigationDestination({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.sortOrder,
+    required this.reduceMotion,
+    required this.onTap,
+    super.key,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final int sortOrder;
+  final bool reduceMotion;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final duration = Duration(
+      milliseconds: reduceMotion ? 0 : AppMotion.standard,
+    );
+
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      sortKey: OrdinalSortKey(sortOrder.toDouble()),
+      button: true,
+      selected: selected,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Center(
+            child: AnimatedSlide(
+              duration: duration,
+              curve: Curves.easeOutBack,
+              offset: selected ? const Offset(0, -0.08) : Offset.zero,
+              child: AnimatedScale(
+                duration: duration,
+                curve: Curves.easeOutBack,
+                scale: selected ? 1.06 : 1,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      selected ? selectedIcon : icon,
+                      size: 23,
+                      color: selected ? AppColors.blue : AppColors.textMuted,
+                    ),
+                    const SizedBox(height: 3),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: selected
+                              ? AppColors.navy
+                              : AppColors.textMuted,
+                          fontWeight: selected
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
