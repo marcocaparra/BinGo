@@ -138,6 +138,31 @@ O esperado e:
 {"status":"ok"}
 ```
 
+## Preparação para Edge Functions
+
+**Estado comprovado em 2026-08-10:** o runtime de Edge Functions está habilitado em `supabase/config.toml`, mas a pasta `supabase/functions/` não existe e nenhuma Edge Function está versionada nesta branch. Os comandos abaixo preparam o ambiente; eles não comprovam uma Function entregue.
+
+Depois de iniciar a stack local:
+
+```powershell
+supabase start
+supabase functions serve
+```
+
+Quando uma Function vier a existir, será possível servir somente ela sem registrar antecipadamente um nome final neste documento:
+
+```powershell
+supabase functions serve <function-name>
+```
+
+Para secrets locais de desenvolvimento:
+
+```powershell
+supabase functions serve --env-file supabase/.env.local
+```
+
+O arquivo `supabase/.env.local` já está coberto por `supabase/.gitignore` e deve permanecer ignorado pelo Git. Não versionar chaves privilegiadas, credenciais de máquina, tokens ou secrets de integrações. Até existir código em `supabase/functions/`, não há chamada de Function para validar neste guia.
+
 ## Testar se o backend esta lendo o Supabase
 
 ```powershell
