@@ -1,3 +1,6 @@
+from decimal import Decimal, ROUND_HALF_UP
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from app.api.schemas.deposits import DepositCreateRequest
@@ -6,33 +9,70 @@ from infra.db.models import Deposit
 from infra.repositories.deposit_repository import DepositRepository
 from infra.repositories.machine_repository import MachineRepository
 from infra.repositories.student_repository import StudentRepository
-from shared.constants.enums import ActorType, DepositSize
-from shared.errors.exceptions import AppError, NotFoundError
-from shared.utils.time import utcnow
+from infra.repositories.waste_category_repository import WasteCategoryRepository
+from shared.constants.enums import ActorType, StudentStatus
+from shared.errors.exceptions import AppError, ConflictError, NotFoundError
 
 
-def _calculate_points(settings, size: DepositSize) -> tuple[int, int]:
-    if size == DepositSize.SMALL:
-        return settings.points_small_student, settings.points_small_class
-    if size == DepositSize.MEDIUM:
-        return settings.points_medium_student, settings.points_medium_class
-    return settings.points_large_student, settings.points_large_class
+def _calculate_bonus(base_bincoins: int, bonus_rate: Decimal) -> int:
+    return int((Decimal(base_bincoins) * bonus_rate).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
-def register_deposit(session: Session, payload: DepositCreateRequest) -> Deposit:
+def _assert_idempotent_replay(
+    existing: Deposit,
+    payload: DepositCreateRequest,
+    *,
+    school_id: UUID,
+    machine_id: UUID,
+) -> None:
+    existing_category_code = existing.waste_category.code if existing.waste_category is not None else None
+    requested_category_code = payload.waste_category_code.value if payload.waste_category_code is not None else None
+    requested_category_source = payload.category_source.value if payload.category_source is not None else None
+    existing_category_source = (
+        getattr(existing.category_source, "value", existing.category_source)
+        if existing.category_source is not None
+        else None
+    )
+
+    if (
+        existing.school_id != school_id
+        or existing.machine_id != machine_id
+        or existing.class_id != payload.class_id
+        or existing.student_id != payload.student_id
+        or existing.is_valid != payload.is_valid
+        or existing.detected_type != payload.detected_type
+        or existing_category_code != requested_category_code
+        or existing_category_source != requested_category_source
+    ):
+        raise ConflictError("event_id reutilizado com dados diferentes.")
+
+
+def register_deposit(
+    session: Session,
+    payload: DepositCreateRequest,
+    *,
+    school_id: UUID,
+    machine_id: UUID,
+) -> Deposit:
     deposit_repo = DepositRepository(session)
     existing = deposit_repo.get_by_event_id(payload.event_id)
     if existing is not None:
+        _assert_idempotent_replay(
+            existing,
+            payload,
+            school_id=school_id,
+            machine_id=machine_id,
+        )
         return existing
 
     student_repo = StudentRepository(session)
-    machine = MachineRepository(session).get_by_id(payload.machine_id)
+    machine = MachineRepository(session).get_by_id(machine_id)
     classroom = student_repo.get_classroom(payload.class_id)
-    settings = student_repo.get_school_settings(payload.school_id)
+    settings = student_repo.get_school_settings(school_id)
 
-    if machine is None or machine.school_id != payload.school_id:
+    if machine is None or machine.school_id != school_id:
         raise NotFoundError("Máquina inválida para a escola informada.")
-    if classroom is None or classroom.school_id != payload.school_id:
+    if classroom is None or classroom.school_id != school_id:
         raise NotFoundError("Turma inválida para a escola informada.")
     if settings is None:
         raise AppError("A escola não possui configurações operacionais.")
@@ -40,30 +80,41 @@ def register_deposit(session: Session, payload: DepositCreateRequest) -> Deposit
     student = None
     if payload.student_id is not None:
         student = student_repo.get_by_id(payload.student_id)
-        if student is None or student.school_id != payload.school_id or student.class_id != payload.class_id:
+        if (
+            student is None
+            or student.school_id != school_id
+            or student.class_id != payload.class_id
+            or student.status != StudentStatus.ACTIVE
+        ):
             raise NotFoundError("Aluno inválido para o depósito informado.")
 
+    category = None
+    bonus_rate = Decimal("0")
+    bonus_bincoins = 0
     awarded_student = 0
     awarded_class = 0
     if payload.is_valid:
-        base_student, base_class = _calculate_points(settings, payload.size)
-        awarded_class = base_class
+        category = WasteCategoryRepository(session).get_active_by_code(payload.waste_category_code)
+        if category is None:
+            raise NotFoundError("Categoria de lixo eletrônico inexistente ou inativa.")
+        bonus_rate = category.bonus_rate
+        awarded_class = settings.deposit_class_xp_base
         if student is not None:
-            awarded_student = base_student
-            if payload.size == DepositSize.SMALL:
-                small_items_today = deposit_repo.count_student_small_items_on_day(student.id, utcnow())
-                if small_items_today >= settings.small_item_daily_limit:
-                    awarded_student = 0
+            bonus_bincoins = _calculate_bonus(settings.deposit_bincoins_base, bonus_rate)
+            awarded_student = settings.deposit_bincoins_base + bonus_bincoins
 
     deposit = Deposit(
         event_id=payload.event_id,
-        school_id=payload.school_id,
-        machine_id=payload.machine_id,
+        school_id=school_id,
+        machine_id=machine_id,
         class_id=payload.class_id,
         student_id=payload.student_id,
         is_valid=payload.is_valid,
         detected_type=payload.detected_type,
-        size=payload.size,
+        waste_category=category,
+        category_source=payload.category_source,
+        bonus_rate_applied=bonus_rate,
+        bonus_bincoins_awarded=bonus_bincoins,
         points_awarded_student=awarded_student,
         points_awarded_class=awarded_class,
     )
@@ -75,11 +126,20 @@ def register_deposit(session: Session, payload: DepositCreateRequest) -> Deposit
             student.points_student_balance += awarded_student
         register_audit(
             session,
-            school_id=payload.school_id,
+            school_id=school_id,
             actor_type=ActorType.MACHINE,
-            actor_id=payload.machine_id,
-            action="DEPOSIT_SYNCED",
-            metadata={"event_id": str(payload.event_id), "awarded_student": awarded_student, "awarded_class": awarded_class},
+            actor_id=machine_id,
+            action="DEPOSIT_REGISTERED",
+            metadata={
+                "event_id": str(payload.event_id),
+                "detected_type": payload.detected_type,
+                "waste_category_code": category.code if category is not None else None,
+                "category_source": payload.category_source.value if payload.category_source is not None else None,
+                "bonus_rate_applied": str(bonus_rate),
+                "bonus_bincoins_awarded": bonus_bincoins,
+                "points_awarded_student": awarded_student,
+                "points_awarded_class": awarded_class,
+            },
         )
         session.commit()
     except Exception:

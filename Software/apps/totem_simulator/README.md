@@ -78,7 +78,7 @@ Idle
 
 ### P1 - O simulador permite selecionar resultado de visao manualmente
 
-No arquivo `apps/totem_simulator/index.html`, os campos `item-size`, `item-validity` e `detected-type` deixam o operador escolher o resultado final da classificacao. Isso e aceitavel como ferramenta de debug, mas nao como simulacao fiel do totem.
+No arquivo `apps/totem_simulator/index.html`, os campos `waste-category`, `category-source`, `item-validity` e `detected-type` deixam o operador escolher o resultado final da classificacao. Isso e aceitavel como ferramenta de debug, mas nao como simulacao fiel do totem.
 
 Impacto: a experiencia nao testa estados de captura, analise, fallback offline, devolucao fisica, nem mapeamento tipo -> tamanho. O time pode achar que o fluxo do totem esta validado quando, na pratica, apenas o endpoint de deposito foi exercitado.
 

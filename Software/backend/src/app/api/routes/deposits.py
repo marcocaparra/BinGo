@@ -18,11 +18,19 @@ def create_deposit(
 ) -> DepositResponse:
     machine_id, api_key = edge_headers
     machine = authenticate_machine(session, machine_id, api_key)
-    payload = payload.model_copy(update={"school_id": machine.school_id, "machine_id": machine.id})
-    deposit = register_deposit(session, payload)
+    deposit = register_deposit(
+        session,
+        payload,
+        school_id=machine.school_id,
+        machine_id=machine.id,
+    )
     return DepositResponse(
         id=deposit.id,
         event_id=deposit.event_id,
+        waste_category_code=deposit.waste_category.code if deposit.waste_category is not None else None,
+        category_source=deposit.category_source,
+        bonus_rate_applied=deposit.bonus_rate_applied,
+        bonus_bincoins_awarded=deposit.bonus_bincoins_awarded,
         points_awarded_student=deposit.points_awarded_student,
         points_awarded_class=deposit.points_awarded_class,
         created_at=deposit.created_at,

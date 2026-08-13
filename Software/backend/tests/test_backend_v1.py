@@ -1,9 +1,11 @@
 import uuid
+from decimal import Decimal
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from infra.db.models import AuditLog, Redemption, Reward, Student
+from infra.db.models import AuditLog, ClassRoom, Deposit, Redemption, Reward, SchoolSetting, Student, WasteCategory
 from shared.constants.enums import RedemptionStatus, RewardStatus, StudentStatus
 
 
@@ -37,6 +39,18 @@ def admin_login(client):
 
 def edge_headers(ids):
     return {"X-Machine-Id": ids["machine_id"], "X-Api-Key": "edge-secret"}
+
+
+def valid_deposit_payload(ids, *, category="PERIPHERAL", source="AI_CONFIRMED"):
+    return {
+        "event_id": str(uuid.uuid4()),
+        "class_id": ids["class_id"],
+        "student_id": ids["student_id"],
+        "is_valid": True,
+        "detected_type": "mouse",
+        "waste_category_code": category,
+        "category_source": source,
+    }
 
 
 def test_cors_preflight_allows_totem_simulator_origin():
@@ -96,28 +110,44 @@ def test_login_student_success_and_wrong_pin(client, seeded_ids):
     assert failure.status_code == 401
 
 
+def test_school_settings_use_v1_scoring_defaults(seeded_ids, session_factory):
+    session = session_factory()
+    settings = session.get(SchoolSetting, uuid.UUID(seeded_ids["school_id"]))
+    assert settings.deposit_bincoins_base == 8
+    assert settings.deposit_class_xp_base == 19
+    assert settings.class_weekly_xp_goal == 100
+    session.close()
+
+
 def test_valid_deposit_logged_in(client, seeded_ids, session_factory):
     response = client.post(
         "/v1/deposits",
         headers=edge_headers(seeded_ids),
         json={
             "event_id": str(uuid.uuid4()),
-            "school_id": seeded_ids["school_id"],
-            "machine_id": seeded_ids["machine_id"],
             "class_id": seeded_ids["class_id"],
             "student_id": seeded_ids["student_id"],
             "is_valid": True,
             "detected_type": "mouse",
-            "size": "MEDIUM",
+            "waste_category_code": "PERIPHERAL",
+            "category_source": "AI_CONFIRMED",
         },
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["points_awarded_student"] == 30
-    assert body["points_awarded_class"] == 30
+    assert body["points_awarded_student"] == 8
+    assert body["points_awarded_class"] == 19
+    assert body["waste_category_code"] == "PERIPHERAL"
+    assert body["bonus_rate_applied"] == "0.0000"
+    assert body["bonus_bincoins_awarded"] == 0
     session = session_factory()
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
-    assert student.points_student_balance == 150
+    classroom = session.get(ClassRoom, uuid.UUID(seeded_ids["class_id"]))
+    deposit = session.query(Deposit).one()
+    assert student.points_student_balance == 128
+    assert classroom.points_class_balance == 19
+    assert deposit.waste_category.code == "PERIPHERAL"
+    assert deposit.bonus_bincoins_awarded == 0
     session.close()
 
 
@@ -127,13 +157,12 @@ def test_valid_deposit_without_login_and_invalid_deposit(client, seeded_ids, ses
         headers=edge_headers(seeded_ids),
         json={
             "event_id": str(uuid.uuid4()),
-            "school_id": seeded_ids["school_id"],
-            "machine_id": seeded_ids["machine_id"],
             "class_id": seeded_ids["class_id"],
             "student_id": None,
             "is_valid": True,
-            "detected_type": "mouse",
-            "size": "LARGE",
+            "detected_type": "pilha",
+            "waste_category_code": "BATTERY",
+            "category_source": "USER_CORRECTED",
         },
     )
     invalid = client.post(
@@ -141,52 +170,53 @@ def test_valid_deposit_without_login_and_invalid_deposit(client, seeded_ids, ses
         headers=edge_headers(seeded_ids),
         json={
             "event_id": str(uuid.uuid4()),
-            "school_id": seeded_ids["school_id"],
-            "machine_id": seeded_ids["machine_id"],
             "class_id": seeded_ids["class_id"],
             "student_id": seeded_ids["student_id"],
             "is_valid": False,
             "detected_type": "lixo",
-            "size": "SMALL",
         },
     )
     assert no_login.json()["points_awarded_student"] == 0
-    assert no_login.json()["points_awarded_class"] == 50
+    assert no_login.json()["points_awarded_class"] == 19
+    assert no_login.json()["bonus_rate_applied"] == "1.0000"
+    assert no_login.json()["bonus_bincoins_awarded"] == 0
     assert invalid.json()["points_awarded_student"] == 0
     assert invalid.json()["points_awarded_class"] == 0
+    session = session_factory()
+    classroom = session.get(ClassRoom, uuid.UUID(seeded_ids["class_id"]))
+    assert classroom.points_class_balance == 19
+    session.close()
 
 
 def test_duplicate_event_id_does_not_duplicate_points(client, seeded_ids, session_factory):
     event_id = str(uuid.uuid4())
     payload = {
         "event_id": event_id,
-        "school_id": seeded_ids["school_id"],
-        "machine_id": seeded_ids["machine_id"],
         "class_id": seeded_ids["class_id"],
         "student_id": seeded_ids["student_id"],
         "is_valid": True,
         "detected_type": "mouse",
-        "size": "MEDIUM",
+        "waste_category_code": "PERIPHERAL",
+        "category_source": "AI_CONFIRMED",
     }
     first = client.post("/v1/deposits/sync", headers=edge_headers(seeded_ids), json=payload)
     second = client.post("/v1/deposits/sync", headers=edge_headers(seeded_ids), json=payload)
     assert first.json()["id"] == second.json()["id"]
+    assert first.json()["points_awarded_student"] == 8
+    assert first.json()["points_awarded_class"] == 19
+    assert second.json()["points_awarded_student"] == 8
+    assert second.json()["points_awarded_class"] == 19
     session = session_factory()
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
-    assert student.points_student_balance == 150
+    classroom = session.get(ClassRoom, uuid.UUID(seeded_ids["class_id"]))
+    assert session.query(Deposit).count() == 1
+    assert student.points_student_balance == 128
+    assert classroom.points_class_balance == 19
     session.close()
 
 
 def test_deposit_without_school_or_machine_in_body_is_idempotent(client, seeded_ids, session_factory):
-    event_id = str(uuid.uuid4())
-    payload = {
-        "event_id": event_id,
-        "class_id": seeded_ids["class_id"],
-        "student_id": seeded_ids["student_id"],
-        "is_valid": True,
-        "detected_type": "mouse",
-        "size": "MEDIUM",
-    }
+    payload = valid_deposit_payload(seeded_ids)
     first = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
     second = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
     assert first.status_code == 201
@@ -194,42 +224,83 @@ def test_deposit_without_school_or_machine_in_body_is_idempotent(client, seeded_
     assert first.json()["id"] == second.json()["id"]
     session = session_factory()
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
-    assert student.points_student_balance == 150
+    assert student.points_student_balance == 128
     session.close()
 
 
-def test_small_antifarm_keeps_class_points(client, seeded_ids):
-    first = client.post(
+@pytest.mark.parametrize(
+    ("category", "source", "expected_total", "expected_bonus"),
+    [
+        ("BATTERY", "AI_CONFIRMED", 16, 8),
+        ("MOBILE_DEVICE", "USER_CORRECTED", 12, 4),
+        ("CABLE_WIRE", "AI_CONFIRMED", 10, 2),
+        ("PERIPHERAL", "AI_CONFIRMED", 8, 0),
+        ("OTHER_EWASTE", "USER_CORRECTED", 8, 0),
+        ("UNKNOWN", "UNIDENTIFIED", 8, 0),
+    ],
+)
+def test_category_bonus_matrix(client, seeded_ids, category, source, expected_total, expected_bonus):
+    payload = valid_deposit_payload(seeded_ids, category=category, source=source)
+    response = client.post(
         "/v1/deposits",
         headers=edge_headers(seeded_ids),
-        json={
-            "event_id": str(uuid.uuid4()),
-            "school_id": seeded_ids["school_id"],
-            "machine_id": seeded_ids["machine_id"],
-            "class_id": seeded_ids["class_id"],
-            "student_id": seeded_ids["student_id"],
-            "is_valid": True,
-            "detected_type": "pilha",
-            "size": "SMALL",
-        },
+        json=payload,
     )
-    second = client.post(
+    assert response.status_code == 201
+    assert response.json()["points_awarded_student"] == expected_total
+    assert response.json()["bonus_bincoins_awarded"] == expected_bonus
+    assert response.json()["points_awarded_class"] == 19
+
+
+@pytest.mark.parametrize("legacy_field", ["size", "school_id", "machine_id", "points_awarded_student", "bonus_bincoins_awarded"])
+def test_untrusted_or_legacy_deposit_fields_are_rejected(client, seeded_ids, legacy_field):
+    payload = valid_deposit_payload(seeded_ids)
+    payload[legacy_field] = "SMALL" if legacy_field == "size" else seeded_ids["school_id"]
+    response = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
+    assert response.status_code == 422
+
+
+def test_event_id_collision_with_different_category_is_rejected(client, seeded_ids):
+    payload = valid_deposit_payload(seeded_ids, category="PERIPHERAL")
+    first = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
+    payload["waste_category_code"] = "BATTERY"
+    second = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
+    assert first.status_code == 201
+    assert second.status_code == 409
+
+
+def test_historical_bonus_snapshot_survives_catalog_change(client, seeded_ids, session_factory):
+    payload = valid_deposit_payload(seeded_ids, category="BATTERY")
+    first = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
+    session = session_factory()
+    category = session.get(WasteCategory, uuid.UUID(seeded_ids["category_ids"]["BATTERY"]))
+    category.bonus_rate = Decimal("0.2500")
+    session.commit()
+    session.close()
+    replay = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
+    assert first.json()["points_awarded_student"] == 16
+    assert replay.json()["points_awarded_student"] == 16
+    assert replay.json()["bonus_rate_applied"] == "1.0000"
+
+
+def test_inactive_category_and_invalid_source_pair_are_rejected(client, seeded_ids, session_factory):
+    session = session_factory()
+    category = session.get(WasteCategory, uuid.UUID(seeded_ids["category_ids"]["BATTERY"]))
+    category.is_active = False
+    session.commit()
+    session.close()
+    inactive = client.post(
         "/v1/deposits",
         headers=edge_headers(seeded_ids),
-        json={
-            "event_id": str(uuid.uuid4()),
-            "school_id": seeded_ids["school_id"],
-            "machine_id": seeded_ids["machine_id"],
-            "class_id": seeded_ids["class_id"],
-            "student_id": seeded_ids["student_id"],
-            "is_valid": True,
-            "detected_type": "pilha",
-            "size": "SMALL",
-        },
+        json=valid_deposit_payload(seeded_ids, category="BATTERY"),
     )
-    assert first.json()["points_awarded_student"] == 10
-    assert second.json()["points_awarded_student"] == 0
-    assert second.json()["points_awarded_class"] == 10
+    invalid_pair = client.post(
+        "/v1/deposits",
+        headers=edge_headers(seeded_ids),
+        json=valid_deposit_payload(seeded_ids, category="UNKNOWN", source="AI_CONFIRMED"),
+    )
+    assert inactive.status_code == 404
+    assert invalid_pair.status_code == 422
 
 
 def test_redemption_success_and_failures(client, seeded_ids, session_factory):
@@ -389,7 +460,8 @@ def test_totem_student_summary(client, seeded_ids):
         "student_id": seeded_ids["student_id"],
         "is_valid": True,
         "detected_type": "mouse",
-        "size": "MEDIUM",
+        "waste_category_code": "PERIPHERAL",
+        "category_source": "AI_CONFIRMED",
     }
     invalid_payload = {
         "event_id": str(uuid.uuid4()),
@@ -397,7 +469,6 @@ def test_totem_student_summary(client, seeded_ids):
         "student_id": seeded_ids["student_id"],
         "is_valid": False,
         "detected_type": "objeto inválido",
-        "size": "SMALL",
     }
     client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=valid_payload)
     client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=invalid_payload)
@@ -409,5 +480,6 @@ def test_totem_student_summary(client, seeded_ids):
     assert body["student"]["class_name"] == "7A"
     assert body["stats"]["valid_deposits_count"] == 1
     assert body["stats"]["invalid_deposits_count"] == 1
-    assert body["stats"]["total_bins_generated"] == 30
+    assert body["stats"]["total_bins_generated"] == 8
     assert len(body["recent_deposits"]) == 2
+    assert {deposit["waste_category_code"] for deposit in body["recent_deposits"]} == {None, "PERIPHERAL"}

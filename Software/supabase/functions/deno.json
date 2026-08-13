@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.111.0"
+  },
+  "tasks": {
+    "fmt:check": "deno fmt --check .",
+    "lint": "deno lint .",
+    "check": "deno check _shared/supabase-admin.ts _shared/machine-auth.ts tests/machine-auth.test.ts tests/machine-auth.integration.test.ts",
+    "test": "deno test --allow-env tests/machine-auth.test.ts",
+    "test:integration": "deno test --allow-env --allow-net tests/machine-auth.integration.test.ts"
+  }
+}

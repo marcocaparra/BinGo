@@ -152,11 +152,22 @@
                 </select>
               </label>
               <label>
-                Tamanho
-                <select id="item-size">
-                  <option value="SMALL">SMALL - 10 Bins</option>
-                  <option value="MEDIUM">MEDIUM - 25 Bins</option>
-                  <option value="LARGE">LARGE - 50 Bins</option>
+                Categoria canônica
+                <select id="waste-category">
+                  <option value="BATTERY">Pilha ou bateria</option>
+                  <option value="MOBILE_DEVICE">Celular ou tablet</option>
+                  <option value="CABLE_WIRE">Cabo ou fio</option>
+                  <option value="PERIPHERAL" selected>Periférico</option>
+                  <option value="OTHER_EWASTE">Outro lixo eletrônico</option>
+                  <option value="UNKNOWN">Não identificado</option>
+                </select>
+              </label>
+              <label>
+                Origem da categoria
+                <select id="category-source">
+                  <option value="AI_CONFIRMED">IA confirmada</option>
+                  <option value="USER_CORRECTED">Corrigida pelo aluno</option>
+                  <option value="UNIDENTIFIED">Não identificada</option>
                 </select>
               </label>
               <label>

@@ -60,7 +60,8 @@ const studentPickerSearch = document.querySelector("#student-picker-search");
 const studentPickerList = document.querySelector("#student-picker-list");
 const studentPickerClose = document.querySelector("#student-picker-close");
 const studentPinInput = document.querySelector("#student-pin");
-const itemSizeSelect = document.querySelector("#item-size");
+const wasteCategorySelect = document.querySelector("#waste-category");
+const categorySourceSelect = document.querySelector("#category-source");
 const itemValiditySelect = document.querySelector("#item-validity");
 const detectedTypeSelect = document.querySelector("#detected-type");
 const resultTitle = document.querySelector("#result-title");
@@ -476,13 +477,15 @@ function buildDepositPayload() {
   const classId = state.discard.mode === "anonymous" ? discardClassSelect.value : state.discard.classId;
   state.discard.classId = classId;
 
+  const isValid = itemValiditySelect.value === "valid";
   return {
     event_id: crypto.randomUUID(),
     student_id: state.discard.mode === "identified" ? state.discard.studentId : null,
     class_id: classId,
-    is_valid: itemValiditySelect.value === "valid",
+    is_valid: isValid,
     detected_type: detectedTypeSelect.value,
-    size: itemSizeSelect.value,
+    waste_category_code: isValid ? wasteCategorySelect.value : null,
+    category_source: isValid ? categorySourceSelect.value : null,
   };
 }
 
@@ -501,16 +504,17 @@ function renderDepositResult(payload, deposit) {
   discardResultCard.innerHTML = `
     <div class="metric"><span>Status</span><span>${validText}</span></div>
     <div class="metric"><span>Tipo</span><span>${payload.detected_type || "sem tipo"}</span></div>
-    <div class="metric"><span>Tamanho</span><span>${payload.size}</span></div>
+    <div class="metric"><span>Categoria</span><span>${deposit.waste_category_code || "sem categoria"}</span></div>
     <div class="metric"><span>Aluno</span><span>${refreshedStudent ? refreshedStudent.name : "Sem identificação"}</span></div>
-    <div class="metric"><span>Pontos da turma</span><span>${deposit.points_awarded_class} Bins</span></div>
-    <div class="metric"><span>Saldo da turma</span><span>${refreshedClass ? `${refreshedClass.points_class_balance} Bins` : "-"}</span></div>
+    <div class="metric"><span>XP da turma</span><span>${deposit.points_awarded_class} XP</span></div>
+    <div class="metric"><span>XP acumulado</span><span>${refreshedClass ? `${refreshedClass.points_class_balance} XP` : "-"}</span></div>
   `;
 
   if (refreshedStudent) {
     discardResultCard.innerHTML += `
-      <div class="metric"><span>Pontos do aluno</span><span>${deposit.points_awarded_student} Bins</span></div>
-      <div class="metric"><span>Saldo do aluno</span><span>${refreshedStudent.points_student_balance} Bins</span></div>
+      <div class="metric"><span>BinCoins do aluno</span><span>${deposit.points_awarded_student}</span></div>
+      <div class="metric"><span>Bônus ambiental</span><span>${deposit.bonus_bincoins_awarded}</span></div>
+      <div class="metric"><span>Saldo do aluno</span><span>${refreshedStudent.points_student_balance} BinCoins</span></div>
     `;
   }
 
@@ -595,8 +599,8 @@ function renderStudentInfo(summary) {
 
   const lastDeposit = summary.recent_deposits[0];
   const lastDepositText = lastDeposit
-    ? `${lastDeposit.detected_type || "sem tipo"} (${lastDeposit.size}) - ${
-        lastDeposit.is_valid ? `${lastDeposit.points_awarded_student} Bins` : "inválido"
+    ? `${lastDeposit.detected_type || "sem tipo"} (${lastDeposit.waste_category_code || "sem categoria"}) - ${
+        lastDeposit.is_valid ? `${lastDeposit.points_awarded_student} BinCoins` : "inválido"
       }`
     : "Nenhum descarte encontrado";
 
@@ -615,8 +619,8 @@ function renderStudentInfo(summary) {
         .map(
           (deposit) => `
             <article class="history-item">
-              <strong>${deposit.detected_type || "sem tipo"} - ${deposit.size}</strong>
-              <small>${deposit.is_valid ? `${deposit.points_awarded_student} Bins gerados` : "Item inválido"} - ${formatDate(deposit.created_at)}</small>
+              <strong>${deposit.detected_type || "sem tipo"} - ${deposit.waste_category_code || "sem categoria"}</strong>
+              <small>${deposit.is_valid ? `${deposit.points_awarded_student} BinCoins (${deposit.bonus_bincoins_awarded} de bônus)` : "Item inválido"} - ${formatDate(deposit.created_at)}</small>
             </article>
           `,
         )
@@ -807,6 +811,22 @@ document.addEventListener("keydown", (event) => {
 
 studentPinInput.addEventListener("input", () => {
   studentPinInput.value = studentPinInput.value.replace(/\D/g, "").slice(0, 4);
+});
+
+wasteCategorySelect.addEventListener("change", () => {
+  if (wasteCategorySelect.value === "UNKNOWN") {
+    categorySourceSelect.value = "UNIDENTIFIED";
+  } else if (categorySourceSelect.value === "UNIDENTIFIED") {
+    categorySourceSelect.value = "AI_CONFIRMED";
+  }
+});
+
+categorySourceSelect.addEventListener("change", () => {
+  if (categorySourceSelect.value === "UNIDENTIFIED") {
+    wasteCategorySelect.value = "UNKNOWN";
+  } else if (wasteCategorySelect.value === "UNKNOWN") {
+    wasteCategorySelect.value = "OTHER_EWASTE";
+  }
 });
 
 studentInfoClassSelect.addEventListener("change", () => {

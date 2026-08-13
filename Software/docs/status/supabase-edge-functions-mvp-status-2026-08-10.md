@@ -1,139 +1,49 @@
-# Status técnico — Supabase Edge Functions MVP
+# Status — Supabase Edge Functions MVP
 
-Data: `2026-08-10`  
-Branch de trabalho: `feature/supabase-edge-functions-mvp`  
-Escopo desta etapa: documentação preparatória; nenhuma Edge Function, migration, alteração de schema ou deploy.
+Atualização: `2026-08-12`
 
-Documento arquitetural principal: [`../supabase-edge-functions-mvp.md`](../supabase-edge-functions-mvp.md)
+Este arquivo distingue o que existe no repositório do que foi executado ou implantado. O repositório é a fonte adotada nesta etapa; nenhum estado remoto foi inferido.
 
-## Legenda de status
+## Estado implementado
 
-- **Decisão oficial:** direção aprovada e vigente.
-- **Estado comprovado:** fato verificado no `HEAD` desta branch.
-- **Decisão histórica:** registro de outra etapa ou linha de desenvolvimento; não comprova entrega atual.
-- **Hipótese/Sugestão:** possibilidade ainda não aprovada.
-- **Pendência:** trabalho ou decisão ainda necessário.
-- **Conflito:** fontes divergem e exigem decisão explícita.
-- **Bloqueio:** ausência de contrato impede implementação segura.
+As migrations local e Supabase removem `deposits.size`, o limite para itens pequenos e todas as pontuações por tamanho. `school_settings` passa a concentrar `deposit_bincoins_base = 8`, `deposit_class_xp_base = 19` e `class_weekly_xp_goal = 100`.
 
-## Baseline técnico atual
+O catálogo global `waste_categories` contém seis códigos canônicos. Todos nascem com bônus zero na migration; apenas as seeds de desenvolvimento aplicam a matriz provisória de 100% para bateria, 50% para dispositivo móvel e 25% para cabo ou fio.
 
-- **Estado comprovado:** a branch conferida antes das edições é `feature/supabase-edge-functions-mvp`.
-- **Estado comprovado:** não existe `STATUS.md` na raiz deste baseline. O status técnico anterior consultado foi `docs/status/backend-v1-status-2026-06-09.md`; o `STATUS.md` encontrado no commit histórico `56f950a` não pertence ao `HEAD` atual.
-- **Estado comprovado:** `supabase/config.toml` habilita Auth, migrations, seed e o runtime local de Edge Functions.
-- **Estado comprovado:** `supabase/functions/` não existe.
-- **Estado comprovado:** não há Edge Functions versionadas.
-- **Estado comprovado:** nenhuma implementação ou documentação chamada `process_deposit` foi localizada no baseline ou no histórico Git consultado.
-- **Estado comprovado:** as migrations atuais são `20260527120000_initial_schema.sql`, `20260527121000_add_indexes.sql` (vazia), `20260527122000_backend_v1_support.sql` e `20260527123000_prepare_supabase_auth.sql`.
-- **Estado comprovado:** `20260802120000_mobile_profile_rls.sql` não está no baseline atual e nenhuma migration vigente cria policies RLS.
-- **Estado comprovado:** não há evidência no repositório suficiente para afirmar que um projeto Supabase remoto esteja configurado ou migrado.
-- **Estado comprovado:** `supabase/.temp/cli-latest` registra `v2.111.0`, mas o executável `supabase` não estava disponível no `PATH` desta estação; os comandos de Functions documentados não foram executados nesta revisão.
-- **Estado comprovado:** o FastAPI atual passou em `21` testes (`python -m pytest`) em 2026-08-10, com avisos de chave JWT curta restritos ao ambiente de teste.
+`deposits` relaciona a categoria confirmada, registra sua origem e preserva `bonus_rate_applied` e `bonus_bincoins_awarded`. Descartes válidos preexistentes são migrados para `UNKNOWN/UNIDENTIFIED` com bônus zero antes da remoção de tamanho.
 
-## O que já existe
+`register_deposit_v1` implementa a operação atômica, idempotência sequencial e concorrente, detecção de colisão de payload, atualização de saldos e auditoria. A execução foi restringida a `service_role`, e escrita direta nas tabelas críticas foi revogada de `anon` e `authenticated`.
 
-### Banco e autenticação
+O FastAPI de referência aceita apenas os campos do contrato novo, calcula o bônus com arredondamento para o inteiro mais próximo e expõe categoria, origem, taxa e bônus no resultado e nos históricos. O Totem Simulator também deixou de enviar tamanho.
 
-- `deposits.event_id` possui unicidade no schema Supabase e no modelo SQLAlchemy.
-- `machines.api_key_hash` existe na migration de suporte e no modelo SQLAlchemy.
-- `students.auth_user_id` existe, é nullable e unique, sem FK comprovada para `auth.users`.
-- o Mobile contém integração com Supabase Auth por e-mail/senha e leitura de perfil, mas o RLS de suporte não está no baseline.
-- o PIN do Totem permanece separado da senha do App e é armazenado como `students.pin_hash`.
+A fundação Deno versionada existe em `supabase/functions`, com dependência e lockfile fixados. O módulo compartilhado autentica `X-Machine-Id` e `X-Api-Key`, localiza a máquina com `service_role` e entrega somente `{ id, schoolId }` aos handlers futuros. Não existe Function HTTP implantável nesta etapa.
 
-### FastAPI como referência de negócio
+A API key permanece fora do frontend no desenho do Orange Pi e deve ser carregada pelo serviço local por configuração protegida. A revogação MVP consiste em substituir ou remover `machines.api_key_hash`; não foi criada infraestrutura de expiração, múltiplas chaves ou rotação automática. O status operacional da máquina não bloqueia autenticação.
 
-- autenticação técnica por `X-Machine-Id` e `X-Api-Key`, com chave comparada a `machines.api_key_hash`;
-- autenticação do aluno no Totem por PIN e contexto de escola/turma;
-- contrato de descarte com `event_id`, `class_id`, `student_id`, `is_valid`, `detected_type` e `size`;
-- `school_id` e `machine_id` do descarte derivados da máquina autenticada, mesmo quando o schema aceita esses campos opcionais no corpo;
-- idempotência sequencial por consulta prévia de `event_id` e unicidade no banco;
-- cálculo de pontos server-side por tamanho e configurações da escola;
-- antifraude inicial: limite diário de pontos individuais para itens pequenos, mantendo pontos da turma na implementação atual;
-- atualização de saldo do aluno e da turma;
-- auditoria de descarte, PIN, heartbeat, criação e entrega de resgate;
-- criação de resgate com validação de escola, recompensa, disponibilidade, estoque, saldo, limite diário e limite de pendentes;
-- código, expiração, débito, decremento de estoque e auditoria na criação;
-- entrega por admin da mesma escola, somente para resgate pendente e não expirado;
-- `/health` estático com `{"status":"ok"}`.
+## Regra oficial
 
-## O que ainda não existe ou não está comprovado
+Todo e-lixo válido usa a mesma recompensa-base. A categoria pode acrescentar somente BinCoins; XP permanece fixo em 19 por evento válido. Sem aluno identificado, o evento concede `0` BinCoins e `19` XP. Evento inválido concede `0/0` e não recebe categoria canônica.
 
-- scaffold ou código de Edge Functions;
-- nomes e contratos finais de Functions;
-- `_shared` para Functions;
-- RLS versionado no baseline;
-- testes de isolamento RLS disponíveis no baseline;
-- autenticação de máquina portada para Edge Functions;
-- descarte, resgate, heartbeat ou health implementados em Edge Functions;
-- mecanismo server-side escolhido para atomicidade sob Functions;
-- tratamento comprovado de duplicação concorrente e retry após timeout;
-- testes de falha parcial/transação e concorrência no PostgreSQL;
-- health Supabase com verificação seletiva de dependências;
-- contrato preciso de confirmação física/queda;
-- política oficial completa de recuperação após falha de conexão;
-- exemplos de chamada de Functions;
-- evidência de configuração ou deploy remoto.
+`BATTERY`, `MOBILE_DEVICE`, `CABLE_WIRE`, `PERIPHERAL`, `OTHER_EWASTE` e `UNKNOWN` são os grupos do MVP. `UNKNOWN` exige origem `UNIDENTIFIED`; categorias conhecidas usam `AI_CONFIRMED` ou `USER_CORRECTED`.
 
-## Decisões vigentes
+## Validação comprovada
 
-- **Decisão oficial:** arquitetura híbrida: leitura simples por Direct Supabase + RLS; regra crítica, privilégio, transação ou segredo por Edge Function; hardware e ciclo físico no Orange Pi/Totem local.
-- **Decisão oficial:** não criar Function para toda leitura simples.
-- **Decisão oficial:** nenhuma leitura direta é liberada sem policy RLS correspondente e teste de isolamento.
-- **Decisão oficial:** Supabase Auth, PIN do Totem e credencial da máquina são mecanismos distintos.
-- **Decisão oficial:** chave privilegiada não vai para Mobile nem frontend JavaScript público do Totem; secrets não são versionados.
-- **Decisão oficial:** o FastAPI existente é referência das regras de negócio já implementadas.
-- **Decisão oficial:** novas regras críticas desta feature não devem ser implementadas apenas no FastAPI.
-- **Decisão oficial:** Edge Functions só são entregues quando o código está versionado em `supabase/functions/` no baseline atual.
-- **Decisão oficial:** registros históricos de Functions ou migrations não localizadas permanecem como histórico, não como evidência de entrega.
-- **Decisão oficial:** writes críticos de descarte e resgate não são responsabilidade direta dos frontends.
+Os testes Python/SQLite cobrem contrato, categorias, bônus, descarte anônimo, descarte inválido, categoria inativa, combinação de origem, snapshot histórico, retry e colisão de `event_id`. A suíte executada em `2026-08-12` passou com `35` testes e deixou o teste PostgreSQL opt-in separado.
 
-## Decisões históricas preservadas
+As cinco migrations foram reproduzidas com sucesso no Supabase local/PostgreSQL 17. A seed rica criou uma escola, sete turmas, setenta alunos e aplicou somente no ambiente local a matriz provisória de bônus. `supabase test db --local` passou com `20` testes pgTAP, e a prova PostgreSQL com duas chamadas simultâneas ao mesmo `event_id` passou sem duplicar evento, BinCoins ou XP.
 
-- O commit `56f950a`, na branch `feature/mobile-pin-refresh`, registrou Supabase PostgreSQL/Auth/Edge Functions como backend alvo do Mobile e adicionou `20260802120000_mobile_profile_rls.sql` e `supabase/tests/mobile_profile_rls.sql`.
-- Esses arquivos e o `STATUS.md` daquela etapa não estão no `HEAD` atual. O conteúdo histórico pode servir de insumo para recuperação/revisão, mas não é entrega vigente.
-- O FastAPI foi documentado em 2026-06-09 como backend V1 pronto; nesta feature ele permanece no repositório e serve de referência, sem ser alterado.
+A auditoria final confirmou ausência de `deposits.size` e dos campos de configuração por tamanho, seis categorias ativas, execução da RPC negada a `anon` e `authenticated` e concedida a `service_role`. Essas evidências comprovam o estado local, mas não a aplicação no projeto Supabase hospedado.
 
-## Conflitos encontrados
+A fundação das Edge Functions foi validada com Deno 2.9.4. `deno fmt --check`, `deno lint` e `deno check` passaram. Os seis testes unitários de autenticação passaram, e o teste opt-in somente leitura autenticou a máquina da seed através da Data API do Supabase local.
 
-1. **RLS documentado versus baseline:** `docs/supabase-preparation.md` e `docs/mobile-supabase-auth-profile.md` afirmavam que a migration de perfil era aplicada pelo reset local. A migration e o teste SQL estão ausentes desta branch. Os documentos foram corrigidos para distinguir histórico de estado comprovado.
-2. **Offline-first versus modo seguro:** `backend/README.md` e `apps/totem_simulator/README.md` mencionam offline-first/fila pendente; `docs/operacao-offline.md` bloqueia descarte real sem serviços críticos. O fluxo oficial permite apenas recuperação de ciclo iniciado online e fisicamente concluído. A política completa segue pendente.
-3. **Pontos fixos versus pontos por tamanho:** `docs/descarte/FLUXO_ECOSSISTEMA_DESCARTE_V1.md` diz que todos os descartes válidos têm o mesmo valor; `docs/data-contracts-totem-app-backend.md`, `school_settings`, FastAPI e testes usam `SMALL`, `MEDIUM`, `LARGE` com valores distintos.
-4. **Canal de resgate:** `docs/database-model.md` define resgate V1 no Totem e Mobile apenas para consulta; o contrato de dados registra criação tecnicamente disponível ao principal aluno e exige validação de produto antes de liberar no App.
-5. **Mobile sem camada RLS correspondente no baseline:** o cliente autenticado e o repositório de perfil estão presentes, mas os artefatos de RLS e seus testes não estão.
+O módulo não aplica `trim()` à API key. O teste unitário comprova a comparação literal quando o adaptador preserva whitespace; em uma requisição Fetch real, o runtime normaliza whitespace HTTP nas extremidades antes de entregar o header ao módulo. Essa limitação foi documentada em vez de ser contornada artificialmente.
 
-## Bloqueios
+## Pendências reais
 
-- **RLS:** recuperar ou recriar migrations/policies e testes em tarefa própria antes de leitura direta.
-- **Confirmação física:** definir sinal de queda/ciclo concluído, instante elegível para persistência e recuperação quando a conexão falhar após inserção física.
-- **Atomicidade:** decidir o mecanismo PostgreSQL/RPC/transação server-side sem assumir uma solução não aprovada.
-- **Concorrência:** especificar e testar comportamento de `event_id`, saldos, estoque, limites e entrega sob chamadas simultâneas.
-- **Produto:** resolver pontos fixos versus pontos por tamanho, ranking e canal de criação de resgate.
-- **Health:** definir dependências relevantes e semântica de degradação.
+A Edge Function HTTP ainda precisa ser criada para combinar a autenticação compartilhada, validar e rejeitar campos fora do contrato, chamar a RPC e mapear os demais erros. O teste atual com `machine_id` e `school_id` no body comprova apenas que a autenticação não lê esses campos; o futuro endpoint deverá rejeitá-los. As policies completas de leitura para Mobile e administração continuam fora deste recorte; esta migration protege as escritas críticas, mas não substitui o desenho geral de RLS.
 
-## Hipóteses e sugestões
+O FastAPI continua divergindo em dois pontos e não foi alterado: aplica `strip()` à chave e pode responder `404` quando a máquina não existe. A fundação Edge não chama `trim()` e padroniza ausência, formato inválido, máquina inexistente e chave incorreta como `401 MACHINE_AUTHENTICATION_FAILED`.
 
-- **Hipótese:** a migration RLS histórica pode ser recuperada como ponto de partida após revisão contra o schema atual; ela não deve ser reaplicada cegamente.
-- **Sugestão:** testar idempotência e transações contra Postgres/Supabase, porque os testes FastAPI atuais usam SQLite.
-- **Sugestão:** criar `_shared` somente após surgir duplicação real entre Functions.
-- **Sugestão:** portar primeiro a autenticação técnica e o descarte após resolver os bloqueios de RLS e ciclo físico.
+Antes do deploy remoto, executar `supabase migration list` no projeto vinculado e comparar o histórico com o estado local validado. Se o banco remoto contiver dados históricos úteis em `size`, exportá-los antes da migration destrutiva.
 
-## Próximas etapas
-
-1. resolver RLS e testes de isolamento;
-2. resolver contrato físico/queda e recuperação;
-3. fechar a matriz de responsabilidades e conflitos de produto;
-4. criar scaffold versionado de Functions;
-5. portar autenticação técnica da máquina;
-6. implementar descarte com atomicidade e idempotência concorrente;
-7. testar retries, falhas parciais e concorrência;
-8. portar resgates e demais operações sensíveis necessárias;
-9. implementar health de dependências relevantes;
-10. integrar clientes, documentar contratos/exemplos e registrar evidências rastreáveis.
-
-## Critério de saída desta etapa documental
-
-- referência arquitetural principal criada;
-- baseline e ausências registrados sem tratar histórico como entrega;
-- responsabilidades classificadas;
-- autenticação, RLS, descarte, atomicidade, resgate, offline, confirmação física, health, erros, testes, roadmap e critérios de pronto documentados;
-- nenhum código, migration, schema ou cliente alterado.
+Os valores provisórios das seeds não são política ambiental de produção. Ativação de qualquer bônus remoto requer aprovação formal e alteração controlada do catálogo.

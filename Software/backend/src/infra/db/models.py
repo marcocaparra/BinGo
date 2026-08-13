@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
 from infra.db.base import Base
-from shared.constants.enums import ActorType, AdminRole, DepositSize, MachineStatus, RedemptionStatus, RewardStatus, StudentStatus
+from shared.constants.enums import ActorType, AdminRole, DepositCategorySource, MachineStatus, RedemptionStatus, RewardStatus, StudentStatus
 
 
 class School(Base):
@@ -24,13 +25,9 @@ class SchoolSetting(Base):
     __tablename__ = "school_settings"
 
     school_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("schools.id", ondelete="RESTRICT"), primary_key=True)
-    small_item_daily_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
-    points_small_student: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
-    points_small_class: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
-    points_medium_student: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
-    points_medium_class: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
-    points_large_student: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
-    points_large_class: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    deposit_bincoins_base: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
+    deposit_class_xp_base: Mapped[int] = mapped_column(Integer, nullable=False, default=19)
+    class_weekly_xp_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     redemption_expiration_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=72)
     redemption_daily_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     redemption_max_pending: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
@@ -117,6 +114,22 @@ class Reward(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
+class WasteCategory(Base):
+    __tablename__ = "waste_categories"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    code: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    bonus_rate: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("0"))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("bonus_rate >= 0", name="waste_categories_bonus_rate_check"),
+    )
+
+
 class Deposit(Base):
     __tablename__ = "deposits"
 
@@ -128,14 +141,31 @@ class Deposit(Base):
     student_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("students.id", ondelete="RESTRICT"))
     is_valid: Mapped[bool] = mapped_column(Boolean, nullable=False)
     detected_type: Mapped[str | None] = mapped_column(Text)
-    size: Mapped[DepositSize] = mapped_column(String(16), nullable=False)
+    waste_category_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("waste_categories.id", ondelete="RESTRICT"))
+    category_source: Mapped[DepositCategorySource | None] = mapped_column(String(24))
+    bonus_rate_applied: Mapped[Decimal] = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("0"))
+    bonus_bincoins_awarded: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     points_awarded_student: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     points_awarded_class: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
+    waste_category: Mapped[WasteCategory | None] = relationship(lazy="joined")
+
     __table_args__ = (
+        CheckConstraint(
+            "category_source IS NULL OR category_source IN ('AI_CONFIRMED', 'USER_CORRECTED', 'UNIDENTIFIED')",
+            name="deposits_category_source_check",
+        ),
+        CheckConstraint("bonus_rate_applied >= 0", name="deposits_bonus_rate_applied_check"),
+        CheckConstraint("bonus_bincoins_awarded >= 0", name="deposits_bonus_bincoins_awarded_check"),
+        CheckConstraint("bonus_bincoins_awarded <= points_awarded_student", name="deposits_bonus_not_greater_than_total_check"),
         CheckConstraint("points_awarded_student >= 0", name="deposits_points_awarded_student_check"),
         CheckConstraint("points_awarded_class >= 0", name="deposits_points_awarded_class_check"),
+        CheckConstraint(
+            "(is_valid AND waste_category_id IS NOT NULL AND category_source IS NOT NULL) "
+            "OR (NOT is_valid AND waste_category_id IS NULL AND category_source IS NULL)",
+            name="deposits_valid_category_check",
+        ),
     )
 
 
