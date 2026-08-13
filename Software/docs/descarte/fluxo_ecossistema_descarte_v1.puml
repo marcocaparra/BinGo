@@ -1,0 +1,164 @@
+@startuml
+title Fluxo do Ecossistema de Descarte — BinGo V1
+
+skinparam shadowing false
+
+skinparam activity {
+    BackgroundColor white
+    BorderColor black
+    DiamondBackgroundColor white
+    DiamondBorderColor black
+}
+
+|Totem|
+start
+
+:Verificar conexão com o Backend\ne com a visão computacional;
+
+if (Serviços disponíveis?) then (Sim)
+    :Permitir início da sessão;
+else (Não)
+    :Exibir mensagem de\n"Totem fora de operação";
+    stop
+endif
+
+|Aluno|
+:Iniciar sessão;
+:Identificar-se;
+
+|Totem|
+:Criar identificador único do ciclo;
+:Apresentar triagem de segurança;
+
+|Aluno|
+:Informar se o item apresenta risco;
+
+|Totem|
+if (Item apresenta risco?) then (Não)
+
+    |Hardware|
+    :Abrir porta de entrada;
+    :Confirmar abertura;
+
+else (Sim)
+
+    |Totem|
+    :Interromper descarte;
+    :Orientar o aluno a procurar\num responsável;
+    stop
+
+endif
+
+|Aluno|
+:Inserir o lixo eletrônico;
+:Retirar a mão;
+:Pressionar "Retirei a mão";
+
+note right
+A V1 orienta a inserção
+de apenas um item por ciclo.
+
+A quantidade não será
+detectada automaticamente.
+end note
+
+|Hardware|
+:Fechar porta de entrada;
+:Confirmar fechamento;
+
+|Totem|
+:Capturar imagem do compartimento;
+
+|Visão Computacional|
+:Executar classificação principal;
+
+if (Resultado incerto?) then (Sim)
+
+    |Gemini|
+    :Executar análise secundária;
+
+else (Não)
+
+    |Visão Computacional|
+    :Manter resultado da\nclassificação principal;
+
+endif
+
+|Totem|
+:Consolidar resultado da classificação;
+
+if (É lixo eletrônico?) then (Sim)
+
+    :Apresentar classe sugerida;
+
+else (Não)
+
+    :Informar que o objeto\nnão foi aceito;
+
+    |Hardware|
+    :Reabrir porta de entrada;
+    :Confirmar abertura;
+
+    |Aluno|
+    :Retirar o objeto;
+
+    |Totem|
+    :Encerrar sessão sem pontos;
+    stop
+
+endif
+
+|Aluno|
+if (A classe está correta?) then (Sim)
+
+    :Confirmar identificação;
+
+else (Não)
+
+    |Totem|
+    :Exibir lista de classes\nretornadas pela IA;
+
+    |Aluno|
+    if (Encontrou a classe correta?) then (Sim)
+
+        :Selecionar classe correta;
+
+    else (Não)
+
+        :Selecionar "Lixo eletrônico\nnão identificado";
+
+    endif
+
+endif
+
+|Totem|
+:Registrar classificação final\ne decisão do aluno;
+
+|Hardware|
+:Abrir escotilha inferior;
+:Executar ciclo mecânico;
+:Fechar escotilha;
+:Retornar mecanismos ao estado inicial;
+:Confirmar conclusão do ciclo;
+
+|Totem|
+:Enviar evento ao Backend\nusando o identificador do ciclo;
+
+note right
+Em caso de timeout ou repetição,
+o mesmo identificador deve ser usado.
+end note
+
+|Backend|
+:Registrar descarte de forma idempotente;
+:Gerar pontuação fixa;
+:Associar descarte ao histórico do aluno;
+
+|Totem|
+:Exibir mensagem de sucesso;
+:Encerrar sessão;
+:Retornar à tela inicial;
+
+stop
+
+@enduml

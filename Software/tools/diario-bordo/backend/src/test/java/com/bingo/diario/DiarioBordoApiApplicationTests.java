@@ -14,8 +14,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -26,11 +24,7 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -38,10 +32,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-import com.bingo.diario.config.TimeConfig;
-
 @SpringBootTest(webEnvironment = RANDOM_PORT)
-@Import(DiarioBordoApiApplicationTests.FixedClockConfig.class)
 class DiarioBordoApiApplicationTests {
 
     private static final String TEAM_PIN = "261026";
@@ -51,7 +42,6 @@ class DiarioBordoApiApplicationTests {
     private static final String DATABASE_URL = "jdbc:postgresql://127.0.0.1:54324/bingo_diario_test";
     private static final String DATABASE_USERNAME = "diario";
     private static final String DATABASE_PASSWORD = "diario_dev";
-    private static final LocalDate TODAY = LocalDate.of(2026, 7, 14);
 
     static {
         initializeDatabaseSchema();
@@ -113,7 +103,7 @@ class DiarioBordoApiApplicationTests {
     @Test
     void requiresTeamPinToCreateReportsAndAdminPinToReadReports() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
-        LocalDate yesterday = TODAY.minusDays(1);
+        LocalDate yesterday = LocalDate.now().minusDays(1);
 
         TestResponse unauthorizedCreate = post("/reports/today", validReport(memberId, yesterday), null);
         TestResponse unauthorizedRead = get("/reports", null);
@@ -150,7 +140,7 @@ class DiarioBordoApiApplicationTests {
     @Test
     void requiresExpandedDailyFieldsAndCalculatesTodayStatusAutomatically() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
-        LocalDate today = TODAY;
+        LocalDate today = LocalDate.now();
         Map<String, Object> invalidReport = Map.of(
                 "memberId", memberId,
                 "reportDate", today.toString(),
@@ -169,7 +159,7 @@ class DiarioBordoApiApplicationTests {
     @Test
     void rejectsFutureReportDates() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
-        LocalDate futureDate = TODAY.plusDays(1);
+        LocalDate futureDate = LocalDate.now().plusDays(1);
 
         TestResponse response = post("/reports/today", validReport(memberId, futureDate), teamToken);
 
@@ -180,7 +170,7 @@ class DiarioBordoApiApplicationTests {
     @Test
     void rejectsEvidenceAttachmentsWhenStorageIsDisabled() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
-        LocalDate reportDate = TODAY;
+        LocalDate reportDate = LocalDate.now();
 
         TestResponse created = multipartPostReport(
                 "/reports/today",
@@ -197,7 +187,7 @@ class DiarioBordoApiApplicationTests {
     @Test
     void returnsPendingMembersForSelectedDate() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
-        LocalDate reportDate = TODAY;
+        LocalDate reportDate = LocalDate.now();
         post("/reports/today", validReport(memberId, reportDate), teamToken);
 
         TestResponse response = get("/reports/pending?date=" + reportDate, adminToken);
@@ -212,7 +202,7 @@ class DiarioBordoApiApplicationTests {
     @Test
     void letsTeamCheckWhetherMemberAlreadySubmittedForDate() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
-        LocalDate reportDate = TODAY;
+        LocalDate reportDate = LocalDate.now();
         post("/reports/today", validReport(memberId, reportDate), teamToken);
 
         TestResponse existingResponse = get("/reports/exists?memberId=" + memberId + "&date=" + reportDate, teamToken);
@@ -230,7 +220,7 @@ class DiarioBordoApiApplicationTests {
     @Test
     void letsAdminUpdateReportContent() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
-        LocalDate reportDate = TODAY;
+        LocalDate reportDate = LocalDate.now();
         TestResponse created = post("/reports/today", validReport(memberId, reportDate), teamToken);
         UUID reportId = extractId(created.body());
 
@@ -259,7 +249,7 @@ class DiarioBordoApiApplicationTests {
     @Test
     void letsAdminDeleteReportAndReleaseMemberForSameDate() throws Exception {
         UUID memberId = memberIdByName("Marco Caparra");
-        LocalDate reportDate = TODAY;
+        LocalDate reportDate = LocalDate.now();
         TestResponse created = post("/reports/today", validReport(memberId, reportDate), teamToken);
         UUID reportId = extractId(created.body());
 
@@ -296,7 +286,7 @@ class DiarioBordoApiApplicationTests {
     void exportsSelectedDateAsMarkdownWithAnsweredNoActivityAndPendingSections() throws Exception {
         UUID firstMemberId = memberIdByName("Marco Caparra");
         UUID secondMemberId = memberIdByName("Gustavo Bretas");
-        LocalDate reportDate = TODAY;
+        LocalDate reportDate = LocalDate.now();
         post("/reports/today", validReport(firstMemberId, reportDate), teamToken);
         post("/reports/no-activity", Map.of(
                 "memberId", secondMemberId,
@@ -324,16 +314,6 @@ class DiarioBordoApiApplicationTests {
     private UUID memberIdByName(String name) throws Exception {
         TestResponse response = get("/members", teamToken);
         return extractMemberIdByName(response.body(), name);
-    }
-
-    @TestConfiguration(proxyBeanMethods = false)
-    static class FixedClockConfig {
-
-        @Bean
-        @Primary
-        Clock fixedDiaryClock() {
-            return Clock.fixed(Instant.parse("2026-07-14T15:00:00Z"), TimeConfig.DIARY_ZONE);
-        }
     }
 
     private String login(String role, String pin) throws Exception {

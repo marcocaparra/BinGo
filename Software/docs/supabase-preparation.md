@@ -20,11 +20,11 @@ O login do app e o login do Totem são fluxos diferentes. O app deve autenticar 
 
 Essa separação evita misturar senha de app com PIN operacional. Também permite que um aluno exista no sistema e use o Totem antes de criar uma conta no app, mantendo o cadastro escolar como fonte de verdade do domínio.
 
-## RLS futura
+## RLS atual e futura
 
-Quando o projeto migrar para Supabase, as tabelas com escopo por escola provavelmente precisarão de Row Level Security: `schools`, `classes`, `students`, `admins`, `machines`, `rewards`, `deposits`, `redemptions`, `audit_logs` e `school_settings`.
+A migration Supabase `20260802120000_mobile_profile_rls.sql` implementa o primeiro recorte: o aluno autenticado pode ler somente seu registro em `students` e as linhas de `classes` e `schools` relacionadas ao próprio vínculo. Os grants são limitados às colunas usadas pelo perfil, `anon` não recebe acesso e o cliente não recebe escrita.
 
-As políticas devem ser desenhadas depois que os papéis reais estiverem claros. A regra central deve ser impedir vazamento entre escolas e permitir que o aluno autenticado acesse apenas seus próprios dados ou dados agregados permitidos da sua turma/escola. Admins devem ter acesso limitado à escola em que atuam. Máquinas/totens não devem depender de permissões amplas de usuário final.
+Essa proteção não cobre as demais funcionalidades. As políticas de `admins`, `machines`, `rewards`, `deposits`, `redemptions`, `audit_logs`, `school_settings` e qualquer leitura adicional ainda precisam ser desenhadas antes de acesso direto pelo Mobile. A existência da migration no repositório também não comprova sua aplicação em um projeto remoto.
 
 ## Leitura direta e operações transacionais
 

@@ -4,7 +4,7 @@ Protótipo Flutter criado a partir do wireframe `V7.1 B1N GUIDE`, já com os aju
 
 ## Onde Está
 
-`Software/Frontend, UI e UX/App Flutter/bingo_app`
+`Software/mobile/bingo_app`
 
 ## Decisões De UX/UI
 
@@ -20,7 +20,8 @@ Protótipo Flutter criado a partir do wireframe `V7.1 B1N GUIDE`, já com os aju
 - Para feiras e testes supervisionados, o app usa `modo piloto`: demonstra a jornada sem coletar dados reais de alunos.
 - Toda validação simulada deve ser apresentada como demonstração. A validação real pertence ao fluxo Totem/professor/sensor.
 - Mensagem pedagógica central: BinGo! recompensa descarte correto, seguro e validado; não recompensa volume por volume.
-- O Totem ainda não tem telas próprias, mas o app já explica o fluxo físico.
+- O app possui uma tela de orientação para o Totem, sem executar descarte,
+  validação ou resgate.
 
 ## Assets No App
 
@@ -50,5 +51,14 @@ flutter test
 flutter build web
 flutter run
 ```
+
+## Modos de acesso e Supabase
+
+- `flutter run`: permite usar o modo piloto sem qualquer configuração Supabase; os dados permanecem locais e simulados.
+- `flutter run --dart-define=SUPABASE_URL=<url> --dart-define=SUPABASE_PUBLISHABLE_KEY=<public-key>`: habilita o login real por e-mail/senha e o perfil remoto.
+
+Não versione valores reais e nunca use `service_role` no aplicativo. Configuração ausente bloqueia somente o login real, com erro explícito; não afeta o piloto.
+
+O guia completo de migrations, fixture, vínculo `auth_user_id` e testes está em `../../docs/mobile-supabase-auth-profile.md`.
 
 Se o Flutter reclamar de pastas `ephemeral` dentro do OneDrive, apague as pastas temporárias de plataforma e rode o comando novamente. Isso é cache gerado pelo Flutter, não código do app.

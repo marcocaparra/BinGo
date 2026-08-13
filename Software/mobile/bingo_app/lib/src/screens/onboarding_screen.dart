@@ -1,12 +1,21 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
-import '../widgets/bingo_widgets.dart';
-import 'login_screen.dart';
+import '../widgets/bingo_action_button.dart';
+import 'access_flow_screen.dart';
 
 class OnboardingScreen extends StatelessWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({
+    required this.onSignIn,
+    required this.onEnterPilot,
+    super.key,
+  });
+
+  final SignInCallback onSignIn;
+  final VoidCallback onEnterPilot;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +35,7 @@ class OnboardingScreen extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.white.withValues(alpha: 0.10),
-                  Colors.white.withValues(alpha: 0.92),
+                  Colors.white.withValues(alpha: 0.58),
                 ],
               ),
             ),
@@ -45,32 +54,33 @@ class OnboardingScreen extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
+                          _GlassSurface(
+                            dark: true,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 10,
+                              horizontal: 22,
+                              vertical: 12,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.94),
-                              borderRadius: BorderRadius.circular(999),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.navy.withValues(alpha: 0.10),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
-                                ),
-                              ],
-                            ),
-                            child: Image.asset(
-                              AppAssets.logoOfficialTransparent,
-                              height: 54,
+                            child: SizedBox(
+                              width: 248,
+                              height: 58,
+                              child: Image.asset(
+                                AppAssets.logoOfficialTransparent,
+                                fit: BoxFit.contain,
+                                color: Colors.white,
+                                colorBlendMode: BlendMode.srcIn,
+                                filterQuality: FilterQuality.high,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 28),
-                          SurfaceCard(
+                          _GlassSurface(
                             child: Column(
                               children: [
-                                Image.asset(AppAssets.b1nPose, height: 128),
+                                Image.asset(
+                                  AppAssets.b1nPose,
+                                  height: 128,
+                                  filterQuality: FilterQuality.high,
+                                ),
                                 Text(
                                   'Ajude BinGópolis',
                                   style: Theme.of(
@@ -90,12 +100,15 @@ class OnboardingScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 18),
-                          PrimaryButton(
+                          BingoActionButton(
                             label: 'Começar missão',
-                            color: AppColors.green,
+                            tone: BingoActionTone.green,
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute<void>(
-                                builder: (_) => const LoginScreen(),
+                                builder: (_) => AccessFlowScreen(
+                                  onSignIn: onSignIn,
+                                  onEnterPilot: onEnterPilot,
+                                ),
                               ),
                             ),
                           ),
@@ -113,46 +126,149 @@ class OnboardingScreen extends StatelessWidget {
   }
 }
 
+class _GlassSurface extends StatelessWidget {
+  const _GlassSurface({
+    required this.child,
+    this.dark = false,
+    this.padding = const EdgeInsets.all(20),
+  });
+
+  final Widget child;
+  final bool dark;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = BorderRadius.all(Radius.circular(20));
+    final shadowColor = AppColors.navy.withValues(alpha: dark ? 0.20 : 0.10);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: dark
+                  ? AppColors.navy.withValues(alpha: 0.56)
+                  : Colors.white.withValues(alpha: 0.54),
+              borderRadius: radius,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: dark ? 0.42 : 0.78),
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _FlowSteps extends StatelessWidget {
   const _FlowSteps();
 
   @override
   Widget build(BuildContext context) {
     const steps = [
-      ('1', 'Separe'),
-      ('2', 'Vá ao Totem'),
-      ('3', 'Descarte'),
-      ('4', 'Ganhe'),
+      (Icons.devices_other_rounded, 'Prepare', AppColors.blue),
+      (Icons.directions_walk_rounded, 'Vá ao Totem', AppColors.green),
+      (Icons.verified_rounded, 'Valide', AppColors.scr4p),
+      (Icons.bolt_rounded, 'Impacte', AppColors.warning),
     ];
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
 
-    return Row(
+    return Column(
       children: [
-        for (final step in steps)
-          Expanded(
-            child: Column(
+        Text(
+          'Rota do descarte',
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
+        ),
+        const SizedBox(height: 12),
+        Stack(
+          children: [
+            Positioned(
+              left: 32,
+              right: 32,
+              top: 23,
+              child: Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  gradient: const LinearGradient(
+                    colors: [AppColors.blue, AppColors.green, AppColors.scr4p],
+                  ),
+                ),
+              ),
+            ),
+            Row(
               children: [
-                CircleAvatar(
-                  radius: 17,
-                  backgroundColor: AppColors.blue,
-                  child: Text(
-                    step.$1,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
+                for (var index = 0; index < steps.length; index++)
+                  Expanded(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.78, end: 1),
+                      duration: Duration(
+                        milliseconds: reduceMotion ? 0 : 360 + (index * 90),
+                      ),
+                      curve: Curves.easeOutBack,
+                      builder: (context, value, child) =>
+                          Transform.scale(scale: value, child: child),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: steps[index].$3,
+                                width: 3,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: steps[index].$3.withValues(
+                                    alpha: 0.18,
+                                  ),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              steps[index].$1,
+                              color: steps[index].$3,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              steps[index].$2,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 7),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    step.$2,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                ),
               ],
             ),
-          ),
+          ],
+        ),
       ],
     );
   }

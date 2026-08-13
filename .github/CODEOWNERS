@@ -1,0 +1,18 @@
+# Responsável geral e fallback para qualquer arquivo.
+* @marcocaparra
+
+# Governança do repositório.
+/.github/ @marcocaparra
+/CONTRIBUTING.md @marcocaparra
+/SECURITY.md @marcocaparra
+
+# Backend, banco e contratos.
+/Software/backend/ @vpredeus @marcocaparra
+/Software/database/ @vpredeus @marcocaparra
+/Software/supabase/ @vpredeus @marcocaparra
+/Software/tools/diario-bordo/ @vpredeus @marcocaparra
+
+# Totem e aplicativo.
+/Software/apps/totem_kiosk_wireframe/ @gugdev @marcocaparra
+/Software/apps/totem_simulator/ @gugdev @vpredeus @marcocaparra
+/Software/mobile/ @gugdev @marcocaparra
