@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select extensions.plan(20);
+select extensions.plan(24);
 
 select extensions.is(
     (select count(*)::integer from public.waste_categories),
@@ -83,6 +83,23 @@ select extensions.is(
     'bonus concedido fica persistido separadamente'
 );
 select extensions.is(
+    (
+        select result.category_source
+        from public.register_deposit_v1(
+            '95000000-0000-4000-8000-000000000001',
+            '94000000-0000-4000-8000-000000000001',
+            '92000000-0000-4000-8000-000000000001',
+            true,
+            '93000000-0000-4000-8000-000000000001',
+            'pilha',
+            'BATTERY',
+            'AI_CONFIRMED'
+        ) as result
+    ),
+    'AI_CONFIRMED',
+    'RPC retorna category_source da fotografia persistida'
+);
+select extensions.is(
     (select points_awarded_class from public.deposits where event_id = '95000000-0000-4000-8000-000000000001'),
     19,
     'categoria nao altera o XP da turma'
@@ -136,6 +153,60 @@ select extensions.throws_ok(
     '23505',
     'event_id reutilizado com dados diferentes.',
     'colisao semantica de event_id e rejeitada'
+);
+
+select extensions.throws_ok(
+    $$
+    select * from public.register_deposit_v1(
+        '95000000-0000-4000-8000-000000000011',
+        '94000000-0000-4000-8000-000000000001',
+        '92999999-9999-4999-8999-999999999999',
+        true,
+        null,
+        'pilha',
+        'BATTERY',
+        'AI_CONFIRMED'
+    )
+    $$,
+    '23503',
+    'Turma invalida para a escola da maquina.',
+    'turma fora do contexto emite SQLSTATE 23503'
+);
+
+select extensions.throws_ok(
+    $$
+    select * from public.register_deposit_v1(
+        '95000000-0000-4000-8000-000000000012',
+        '94000000-0000-4000-8000-000000000001',
+        '92000000-0000-4000-8000-000000000001',
+        true,
+        '93999999-9999-4999-8999-999999999999',
+        'pilha',
+        'BATTERY',
+        'AI_CONFIRMED'
+    )
+    $$,
+    '23503',
+    'Aluno invalido para a escola e turma informadas.',
+    'aluno fora do contexto emite SQLSTATE 23503'
+);
+
+select extensions.throws_ok(
+    $$
+    select * from public.register_deposit_v1(
+        '95000000-0000-4000-8000-000000000013',
+        '94000000-0000-4000-8000-000000000001',
+        '92000000-0000-4000-8000-000000000001',
+        true,
+        null,
+        'pilha',
+        'UNKNOWN',
+        'AI_CONFIRMED'
+    )
+    $$,
+    '23514',
+    'A categoria UNKNOWN exige origem UNIDENTIFIED.',
+    'categoria e origem incompatíveis emitem SQLSTATE 23514'
 );
 
 select extensions.lives_ok(

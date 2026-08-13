@@ -1,6 +1,6 @@
 # Modelo de dados — descarte e bônus ambiental V1
 
-Revisão: `2026-08-12`
+Revisão: `2026-08-13`
 
 O modelo V1 separa três conceitos. BinCoins são o saldo individual e gastável do aluno; XP mede o progresso coletivo da turma; e a categoria ambiental descreve o lixo eletrônico confirmado no Totem. Todo descarte válido parte da mesma recompensa-base. A categoria pode acrescentar BinCoins, mas nunca altera o XP.
 
@@ -38,10 +38,10 @@ A migration cria o catálogo com todas as taxas em zero. Somente as seeds de des
 
 O primeiro insert usa `event_id` como barreira de concorrência. Retry com os mesmos dados retorna a fotografia existente; reutilização com máquina, turma, aluno, validade, classificação ou categoria diferente é rejeitada. Assim não existe evento sem recompensa correspondente, recompensa sem evento, saldo duplicado ou auditoria duplicada.
 
-A execução da RPC foi revogada de `public`, `anon` e `authenticated` e concedida somente a `service_role`. Os papéis públicos também não podem inserir, atualizar ou excluir descartes, saldos, configurações, auditoria ou categorias. A futura Edge Function autentica a máquina e chama a RPC com o papel técnico.
+A execução da RPC foi revogada de `public`, `anon` e `authenticated` e concedida somente a `service_role`. Para autenticar a máquina, esse papel recebe apenas `SELECT (id, school_id, api_key_hash)` em `machines`; não recebe leitura ampla nem escrita, e os papéis `anon` e `authenticated` continuam sem acesso ao hash. Os papéis públicos também não podem inserir, atualizar ou excluir descartes, saldos, configurações, auditoria ou categorias. A Edge Function `register-deposit-v1` autentica a máquina e chama a RPC com o papel técnico.
 
 ## Migration e compatibilidade
 
-Os arquivos `database/migrations/005_deposit_v1_scoring.sql` e `supabase/migrations/20260812120000_deposit_v1_scoring.sql` materializam este modelo. Antes de remover `size`, descartes válidos preexistentes são associados a `UNKNOWN` com bônus zero; depois a coluna e as configurações por tamanho são eliminadas.
+Os arquivos de migration `005` materializam a pontuação e a RPC original. A migration `006` acrescenta `category_source` à fotografia retornada preservando o núcleo atômico já versionado, e a migration `007` concede a leitura mínima de `machines` necessária à autenticação. Antes de remover `size`, descartes válidos preexistentes são associados a `UNKNOWN` com bônus zero; depois a coluna e as configurações por tamanho são eliminadas.
 
 O repositório é a fonte adotada nesta etapa. A existência dos arquivos não comprova aplicação no projeto Supabase hospedado. Antes de qualquer deploy, verificar o histórico remoto e exportar valores históricos de `size` caso tenham valor operacional fora deste baseline.
