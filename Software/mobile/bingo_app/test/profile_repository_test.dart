@@ -1,112 +1,87 @@
 import 'package:bingo_app/src/data/profile_repository.dart';
-import 'package:bingo_app/src/data/supabase_profile_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-class _FakeDataSource implements ProfileDataSource {
-  _FakeDataSource({
-    this.hasSession = true,
-    this.student,
-    this.classroom,
-    this.school,
-  });
-
-  @override
-  final bool hasSession;
-  final Map<String, dynamic>? student;
-  final Map<String, dynamic>? classroom;
-  final Map<String, dynamic>? school;
-
-  @override
-  Future<Map<String, dynamic>?> fetchOwnStudent() async => student;
-
-  @override
-  Future<Map<String, dynamic>?> fetchClass(String classId) async => classroom;
-
-  @override
-  Future<Map<String, dynamic>?> fetchSchool(String schoolId) async => school;
-}
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  const student = <String, dynamic>{
-    'id': 'student-id',
-    'name': 'Aluno Remoto',
-    'school_id': 'school-id',
-    'class_id': 'class-id',
-    'points_student_balance': 760,
-    'status': 'ACTIVE',
-  };
-  const classroom = <String, dynamic>{
-    'id': 'class-id',
-    'school_id': 'school-id',
-    'name': '9º Ano A',
-    'points_class_balance': 1190,
-  };
-  const school = <String, dynamic>{'id': 'school-id', 'name': 'Escola Remota'};
+  Future<LocalProfileRepository> repositoryWithEmptyStorage() async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    return LocalProfileRepository(preferences);
+  }
 
-  test('repository remoto mapeia somente campos reais do perfil', () async {
-    final repository = RemoteProfileRepository(
-      _FakeDataSource(student: student, classroom: classroom, school: school),
-    );
+  test('saves a local profile and verifies its PIN', () async {
+    final repository = await repositoryWithEmptyStorage();
+    const profile = StudentProfile(school: 'ENIAC', identifier: '2026001');
 
-    final profile = await repository.loadProfile();
+    await repository.save(profile: profile, pin: '4826');
 
-    expect(profile.name, 'Aluno Remoto');
-    expect(profile.pointsStudentBalance, 760);
-    expect(profile.pointsClassBalance, 1190);
-    expect(profile.schoolName, 'Escola Remota');
-    expect(profile.className, '9º Ano A');
-  });
-
-  test('sessão ausente falha sem consultar ou retornar mock', () async {
-    final repository = RemoteProfileRepository(
-      _FakeDataSource(hasSession: false),
-    );
-
-    await expectLater(
-      repository.loadProfile(),
-      throwsA(
-        isA<ProfileFailure>().having(
-          (failure) => failure.kind,
-          'kind',
-          ProfileFailureKind.sessionInvalid,
-        ),
+    expect(await repository.hasProfile(), isTrue);
+    expect(await repository.loadProfile(), profile);
+    expect(
+      await repository.verify(
+        school: 'ENIAC',
+        identifier: '2026001',
+        pin: '4826',
       ),
+      isTrue,
     );
   });
 
-  test('aluno não vinculado recebe erro específico', () async {
-    final repository = RemoteProfileRepository(_FakeDataSource());
+  test('rejects an incorrect PIN without deleting the saved profile', () async {
+    final repository = await repositoryWithEmptyStorage();
+    const profile = StudentProfile(school: 'ENIAC', identifier: '2026001');
+    await repository.save(profile: profile, pin: '4826');
 
-    await expectLater(
-      repository.loadProfile(),
-      throwsA(
-        isA<ProfileFailure>().having(
-          (failure) => failure.kind,
-          'kind',
-          ProfileFailureKind.authLinkMissing,
-        ),
+    final authenticated = await repository.verify(
+      school: 'ENIAC',
+      identifier: '2026001',
+      pin: '9999',
+    );
+
+    expect(authenticated, isFalse);
+    expect(await repository.loadProfile(), profile);
+  });
+
+  test('replaces the previous PIN after a reset for the saved student', () async {
+    final repository = await repositoryWithEmptyStorage();
+    const profile = StudentProfile(school: 'ENIAC', identifier: '2026001');
+    await repository.save(profile: profile, pin: '4826');
+
+    final reset = await repository.resetPin(
+      school: 'ENIAC',
+      identifier: '2026001',
+      newPin: '1357',
+    );
+
+    expect(reset, isTrue);
+    expect(
+      await repository.verify(
+        school: 'ENIAC',
+        identifier: '2026001',
+        pin: '4826',
       ),
+      isFalse,
+    );
+    expect(
+      await repository.verify(
+        school: 'ENIAC',
+        identifier: '2026001',
+        pin: '1357',
+      ),
+      isTrue,
     );
   });
 
-  test('turma fora da escola vinculada é rejeitada', () async {
-    final repository = RemoteProfileRepository(
-      _FakeDataSource(
-        student: student,
-        classroom: {...classroom, 'school_id': 'another-school'},
-        school: school,
-      ),
+  test('deletes the local profile and its PIN', () async {
+    final repository = await repositoryWithEmptyStorage();
+    await repository.save(
+      profile: const StudentProfile(school: 'ENIAC', identifier: '2026001'),
+      pin: '4826',
     );
 
-    await expectLater(
-      repository.loadProfile(),
-      throwsA(
-        isA<ProfileFailure>().having(
-          (failure) => failure.kind,
-          'kind',
-          ProfileFailureKind.notFound,
-        ),
-      ),
-    );
+    await repository.deleteProfile();
+
+    expect(await repository.hasProfile(), isFalse);
+    expect(await repository.loadProfile(), isNull);
   });
 }

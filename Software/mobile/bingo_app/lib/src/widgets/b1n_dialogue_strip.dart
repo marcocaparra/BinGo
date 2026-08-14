@@ -3,17 +3,28 @@ import 'package:flutter/material.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 
+enum B1nPortraitVariant { neutral, instruction, question, celebration }
+
 class B1nDialogueStrip extends StatelessWidget {
   const B1nDialogueStrip({
     required this.message,
     this.tone = AppColors.blue,
     this.speaker = 'B1N',
+    this.portrait = B1nPortraitVariant.neutral,
     super.key,
   });
 
   final String message;
   final Color tone;
   final String speaker;
+  final B1nPortraitVariant portrait;
+
+  String get _asset => switch (portrait) {
+    B1nPortraitVariant.neutral => AppAssets.b1nIcon,
+    B1nPortraitVariant.instruction => AppAssets.b1nPortraitInstruction,
+    B1nPortraitVariant.question => AppAssets.b1nPortraitQuestion,
+    B1nPortraitVariant.celebration => AppAssets.b1nPortraitCelebration,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -42,10 +53,10 @@ class B1nDialogueStrip extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                width: 36,
-                height: 36,
+                width: 44,
+                height: 44,
                 child: Image.asset(
-                  AppAssets.b1nIcon,
+                  _asset,
                   fit: BoxFit.contain,
                   alignment: Alignment.center,
                   filterQuality: FilterQuality.high,

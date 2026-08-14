@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:bingo_app/src/app.dart';
 import 'package:bingo_app/src/data/demo_data.dart';
+import 'package:bingo_app/src/data/session_wallet_controller.dart';
+import 'package:bingo_app/src/screens/city_map_screen.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
 import 'package:bingo_app/src/theme/app_assets.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
@@ -31,25 +33,53 @@ void main() {
   }
 
   Future<void> enterPilot(WidgetTester tester) async {
-    await tester.tap(find.text('Começar missão'));
-    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Entrar no modo piloto'));
     await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
   }
 
+  testWidgets('BinBazar confirms a redemption and exposes its pickup code', (
+    tester,
+  ) async {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = SessionWalletController();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: RewardsScreen(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Suco natural'));
+    await tester.pumpAndSettle();
+    expect(find.text('Resgatar por 30 BinCoins'), findsOneWidget);
+    await tester.ensureVisible(find.text('Resgatar por 30 BinCoins'));
+    await tester.tap(find.text('Resgatar por 30 BinCoins'));
+    await tester.pumpAndSettle();
+
+    expect(controller.balance, 90);
+    expect(find.text('Resgate confirmado'), findsOneWidget);
+    expect(find.textContaining('BGO-'), findsAtLeastNWidgets(1));
+  });
+
   for (final size in const [Size(390, 844), Size(430, 932), Size(1024, 768)]) {
-    testWidgets('onboarding fits ${size.width}x${size.height}', (
+    testWidgets('access flow fits ${size.width}x${size.height}', (
       WidgetTester tester,
     ) async {
       await pumpAtSize(tester, size);
 
-      expect(find.text('Ajude BinGópolis'), findsOneWidget);
-      expect(find.text('Começar missão'), findsOneWidget);
-      expect(find.text('Prepare'), findsOneWidget);
-      expect(find.text('Vá ao Totem'), findsOneWidget);
-      expect(find.text('Valide'), findsOneWidget);
-      expect(find.text('Impacte'), findsOneWidget);
+      expect(find.text('Criar meu PIN'), findsOneWidget);
+      expect(find.text('Já tenho PIN'), findsOneWidget);
+      expect(find.text('Entrar no modo piloto'), findsOneWidget);
     });
   }
 
@@ -58,11 +88,7 @@ void main() {
   ) async {
     await pumpAtSize(tester, const Size(390, 844));
 
-    await tester.tap(find.text('Começar missão'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Entrar com conta demo'), findsOneWidget);
-    expect(find.text('Entrar no modo piloto'), findsOneWidget);
+    expect(find.text('Criar meu PIN'), findsOneWidget);
 
     await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
@@ -200,8 +226,6 @@ void main() {
   ) async {
     await pumpAtSize(tester, const Size(390, 844));
 
-    await tester.tap(find.text('Começar missão'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView), const Offset(0, -520));
@@ -234,8 +258,6 @@ void main() {
   ) async {
     await pumpAtSize(tester, const Size(390, 844));
 
-    await tester.tap(find.text('Começar missão'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
 
@@ -253,8 +275,6 @@ void main() {
   ) async {
     await pumpAtSize(tester, const Size(390, 844));
 
-    await tester.tap(find.text('Começar missão'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
 
@@ -273,8 +293,8 @@ void main() {
     await tester.tap(find.text('Ranking'));
     await tester.pumpAndSettle();
     expect(find.text('Turmas da Praça'), findsOneWidget);
-    expect(find.text('Cenário atual · Praça Central'), findsOneWidget);
-    expect(find.text('Ver cenário atual'), findsOneWidget);
+    expect(find.text('BinGópolis · 3 setores'), findsOneWidget);
+    expect(find.text('Explorar BinGópolis'), findsOneWidget);
     expect(find.text('12 dias'), findsOneWidget);
 
     await tester.tap(find.text('Perfil'));
@@ -297,7 +317,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Saldo disponível'), findsOneWidget);
-      expect(find.text('3 recompensas no Totem'), findsOneWidget);
+      expect(find.text('3 recompensas disponíveis'), findsOneWidget);
       expect(find.text('Ganhou'), findsNWidgets(2));
       expect(find.text('Usou'), findsOneWidget);
       expect(find.byIcon(Icons.add_rounded), findsNWidgets(2));
@@ -320,9 +340,57 @@ void main() {
         ),
         findsNWidgets(4),
       );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('wallet-tab-extrato')),
+                matching: find.text('Extrato'),
+              ),
+            )
+            .style
+            ?.color,
+        AppColors.green,
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('wallet-tab-descartes')),
+                matching: find.text('Descartes'),
+              ),
+            )
+            .style
+            ?.color,
+        AppColors.textMuted,
+      );
 
       await tester.tap(find.text('Descartes'));
       await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('wallet-tab-extrato')),
+                matching: find.text('Extrato'),
+              ),
+            )
+            .style
+            ?.color,
+        AppColors.textMuted,
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('wallet-tab-descartes')),
+                matching: find.text('Descartes'),
+              ),
+            )
+            .style
+            ?.color,
+        AppColors.blue,
+      );
       expect(find.text('Mouse sem uso'), findsOneWidget);
       expect(find.text('Cabo USB'), findsOneWidget);
       expect(find.text('Fone de ouvido'), findsOneWidget);
@@ -332,13 +400,10 @@ void main() {
       await tester.tap(find.text('Abrir BinBazar'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Consulte recompensas'),
-        findsAtLeastNWidgets(1),
-      );
+      expect(find.textContaining('Troque BinCoins'), findsAtLeastNWidgets(1));
       expect(find.text('Tio B3N cuida do balcão'), findsOneWidget);
       expect(find.bySemanticsLabel('120 BinCoins'), findsOneWidget);
-      expect(find.text('Ver no Totem'), findsNWidgets(3));
+      expect(find.text('Resgatar'), findsNWidgets(3));
       expect(find.text('Faltam 60'), findsOneWidget);
     },
   );
@@ -494,23 +559,33 @@ void main() {
       expect(find.text('Sua turma · 9ºA'), findsOneWidget);
       expect(find.text('760 pts'), findsOneWidget);
       expect(find.text('Faltam 50 pts para entrar no top 3'), findsOneWidget);
-      final confrontationImages = tester
+      final mapImages = tester
           .widgetList<Image>(find.byType(Image))
           .where(
             (image) =>
                 image.image is AssetImage &&
                 (image.image as AssetImage).assetName ==
-                    AppAssets.sceneConfrontation,
+                    AppAssets.bingopolisMap,
           );
-      expect(confrontationImages, hasLength(1));
+      expect(mapImages, hasLength(1));
       expect(
         tester.getTopLeft(find.text('Sua turma · 9ºA')).dy,
         lessThan(tester.getTopLeft(find.text('Turmas da Praça')).dy),
       );
 
-      await tester.ensureVisible(find.text('Ver cenário atual'));
+      await tester.ensureVisible(find.text('Explorar BinGópolis'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Ver cenário atual'));
+      await tester.tap(find.text('Explorar BinGópolis'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1200));
+      expect(find.byType(CityMapScreen), findsOneWidget);
+      expect(find.text('Próximo setor'), findsOneWidget);
+      expect(find.text('Escola Criativa'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('scenario-marker-central-square')),
+      );
+      await tester.tap(find.text('Ver cenário'));
       await tester.pumpAndSettle();
       expect(find.text('Régua de restauração'), findsOneWidget);
       expect(find.text('68% restaurada'), findsOneWidget);
@@ -553,12 +628,19 @@ void main() {
           );
       expect(themedImages, hasLength(1));
       expect(find.byType(B1nDialogueStrip), findsOneWidget);
+      expect(
+        tester.widget<B1nDialogueStrip>(find.byType(B1nDialogueStrip)).tone,
+        mission.state == MissionState.event ? AppColors.blue : mission.color,
+      );
+      final expectedDialogueAsset = mission.state == MissionState.event
+          ? AppAssets.b1nPortraitQuestion
+          : AppAssets.b1nPortraitInstruction;
       final b1nImages = tester
           .widgetList<Image>(find.byType(Image))
           .where(
             (image) =>
                 image.image is AssetImage &&
-                (image.image as AssetImage).assetName == AppAssets.b1nIcon,
+                (image.image as AssetImage).assetName == expectedDialogueAsset,
           );
       expect(b1nImages, hasLength(1));
       expect(tester.takeException(), isNull);
@@ -594,7 +676,7 @@ void main() {
 
     expect(countAsset(AppAssets.totemConceptFull), 1);
     expect(countAsset(activeMission.image), 0);
-    expect(countAsset(AppAssets.b1nIcon), 1);
+    expect(countAsset(AppAssets.b1nPortraitCelebration), 1);
     for (final state in const <(String, Color)>[
       (
         'Concluído: Item preparado. Eletrônico sem uso, autorizado, seco e sem risco.',

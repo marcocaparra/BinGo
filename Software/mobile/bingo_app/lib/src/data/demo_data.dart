@@ -10,12 +10,14 @@ class ScenarioSnapshot {
     required this.name,
     required this.restoredProgress,
     required this.nextSectorDiscards,
+    required this.nextSectorName,
     required this.cycleDays,
   });
 
   final String name;
   final double restoredProgress;
   final int nextSectorDiscards;
+  final String nextSectorName;
   final int cycleDays;
 
   int get restoredPercent => (restoredProgress * 100).round();
@@ -25,8 +27,126 @@ const currentScenario = ScenarioSnapshot(
   name: 'Praça Central',
   restoredProgress: 0.68,
   nextSectorDiscards: 2,
+  nextSectorName: 'Parque das Nascentes',
   cycleDays: 12,
 );
+
+enum ScenarioState { active, locked, completed }
+
+enum ScenarioVisualPhase { corrupted, combat, restored }
+
+class CityScenario {
+  const CityScenario({
+    required this.id,
+    required this.order,
+    required this.name,
+    required this.description,
+    required this.progress,
+    required this.state,
+    required this.cleanAsset,
+    required this.corruptAsset,
+    required this.combatAsset,
+    required this.mapLandmarkAsset,
+    required this.landmarkIcon,
+    required this.unlockRequirement,
+  });
+
+  final String id;
+  final int order;
+  final String name;
+  final String description;
+  final double progress;
+  final ScenarioState state;
+  final String cleanAsset;
+  final String corruptAsset;
+  final String combatAsset;
+  final String mapLandmarkAsset;
+  final IconData landmarkIcon;
+  final String unlockRequirement;
+
+  int get restoredPercent => (progress * 100).round();
+  double get corruption => 1 - progress;
+
+  ScenarioVisualPhase phaseFor(double value) {
+    if (value < 0.35) return ScenarioVisualPhase.corrupted;
+    if (value < 0.85) return ScenarioVisualPhase.combat;
+    return ScenarioVisualPhase.restored;
+  }
+
+  String assetFor(double value) => switch (phaseFor(value)) {
+    ScenarioVisualPhase.corrupted => corruptAsset,
+    ScenarioVisualPhase.combat => combatAsset,
+    ScenarioVisualPhase.restored => cleanAsset,
+  };
+}
+
+class DemoCampaignState {
+  const DemoCampaignState({
+    required this.activeScenarioId,
+    required this.progressByScenario,
+  });
+
+  final String activeScenarioId;
+  final Map<String, double> progressByScenario;
+
+  double progressFor(CityScenario scenario) =>
+      progressByScenario[scenario.id] ?? scenario.progress;
+}
+
+const demoCampaign = DemoCampaignState(
+  activeScenarioId: 'central-square',
+  progressByScenario: {'central-square': 0.68},
+);
+
+const centralSquareScenario = CityScenario(
+  id: 'central-square',
+  order: 1,
+  name: 'Praça Central',
+  description:
+      'O coração de BinGópolis e o primeiro cenário da jornada da sua turma.',
+  progress: 0.68,
+  state: ScenarioState.active,
+  cleanAsset: AppAssets.sceneClean,
+  corruptAsset: AppAssets.sceneCorrupt,
+  combatAsset: AppAssets.sceneConfrontation,
+  mapLandmarkAsset: AppAssets.mapLandmarkSquare,
+  landmarkIcon: Icons.water_drop_rounded,
+  unlockRequirement: 'Conclua a restauração da Praça Central.',
+);
+
+const cityScenarios = <CityScenario>[
+  centralSquareScenario,
+  CityScenario(
+    id: 'spring-park',
+    order: 2,
+    name: 'Parque das Nascentes',
+    description:
+        'Trilhas, água e natureza aguardam a próxima onda de restauração.',
+    progress: 0,
+    state: ScenarioState.locked,
+    cleanAsset: AppAssets.springParkClean,
+    corruptAsset: AppAssets.springParkCorrupt,
+    combatAsset: AppAssets.springParkCombat,
+    mapLandmarkAsset: AppAssets.mapLandmarkPark,
+    landmarkIcon: Icons.park_rounded,
+    unlockRequirement: 'Restaure 100% da Praça Central.',
+  ),
+  CityScenario(
+    id: 'creative-school',
+    order: 3,
+    name: 'Escola Criativa',
+    description:
+        'Um campus onde conhecimento, tecnologia e sustentabilidade se encontram.',
+    progress: 0,
+    state: ScenarioState.locked,
+    cleanAsset: AppAssets.creativeSchoolClean,
+    corruptAsset: AppAssets.creativeSchoolCorrupt,
+    combatAsset: AppAssets.creativeSchoolCombat,
+    mapLandmarkAsset: AppAssets.mapLandmarkSchool,
+    landmarkIcon: Icons.school_rounded,
+    unlockRequirement: 'Restaure 100% do Parque das Nascentes.',
+  ),
+];
 
 enum TransactionKind { credit, debit }
 
@@ -92,20 +212,46 @@ class Mission {
 
 class RewardItem {
   const RewardItem({
+    required this.id,
     required this.title,
     required this.cost,
     required this.icon,
     required this.color,
+    required this.asset,
+    required this.description,
+    required this.pickupInstruction,
   });
 
+  final String id;
   final String title;
   final int cost;
   final IconData icon;
   final Color color;
+  final String asset;
+  final String description;
+  final String pickupInstruction;
 
-  bool get available => userBinCoins >= cost;
-  String get status =>
-      available ? 'Ver no Totem' : 'Faltam ${cost - userBinCoins}';
+  bool isAvailable(int balance) => balance >= cost;
+  String statusFor(int balance) =>
+      isAvailable(balance) ? 'Disponível agora' : 'Faltam ${cost - balance}';
+}
+
+class RewardRedemption {
+  const RewardRedemption({
+    required this.id,
+    required this.rewardId,
+    required this.rewardTitle,
+    required this.cost,
+    required this.pickupCode,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String rewardId;
+  final String rewardTitle;
+  final int cost;
+  final String pickupCode;
+  final DateTime createdAt;
 }
 
 const activeMission = Mission(
@@ -185,28 +331,44 @@ const missions = [
 
 const rewards = [
   RewardItem(
+    id: 'natural-juice',
     title: 'Suco natural',
     cost: 30,
     icon: Icons.local_drink,
     color: AppColors.green,
+    asset: AppAssets.rewardJuice,
+    description: 'Uma bebida natural para recarregar as energias.',
+    pickupInstruction: 'Apresente o código no balcão da escola.',
   ),
   RewardItem(
+    id: 'themed-pen',
     title: 'Caneta temática',
     cost: 70,
     icon: Icons.edit,
     color: AppColors.blue,
+    asset: AppAssets.rewardPen,
+    description: 'Caneta especial da jornada de restauração.',
+    pickupInstruction: 'Apresente o código no balcão da escola.',
   ),
   RewardItem(
+    id: 'cafeteria-ticket',
     title: 'Ticket cantina',
     cost: 120,
     icon: Icons.confirmation_number,
     color: AppColors.warning,
+    asset: AppAssets.rewardCafeteriaTicket,
+    description: 'Um ticket demonstrativo para usar na cantina.',
+    pickupInstruction: 'Apresente o código no balcão da cantina.',
   ),
   RewardItem(
+    id: 'surprise-reward',
     title: 'Prêmio surpresa',
     cost: 180,
     icon: Icons.card_giftcard,
-    color: AppColors.danger,
+    color: AppColors.scr4p,
+    asset: AppAssets.rewardSurprise,
+    description: 'Uma recompensa misteriosa para restauradores dedicados.',
+    pickupInstruction: 'Apresente o código no balcão da escola.',
   ),
 ];
 
@@ -219,7 +381,7 @@ const binCoinTransactions = [
   ),
   BinCoinTransaction(
     title: 'Usou',
-    subtitle: 'Suco natural resgatado no Totem',
+    subtitle: 'Suco natural resgatado no BinBazar',
     amount: 30,
     kind: TransactionKind.debit,
   ),

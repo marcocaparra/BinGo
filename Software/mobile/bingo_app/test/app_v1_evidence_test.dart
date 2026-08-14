@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:bingo_app/src/data/demo_data.dart';
+import 'package:bingo_app/src/screens/city_map_screen.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
 import 'package:bingo_app/src/theme/app_assets.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
@@ -68,6 +69,9 @@ void main() {
             Image.asset(AppAssets.b1nIcon),
             Image.asset(AppAssets.b1nIdeaInstruction),
             Image.asset(AppAssets.b1nMissionReady),
+            Image.asset(AppAssets.b1nPortraitInstruction),
+            Image.asset(AppAssets.b1nPortraitQuestion),
+            Image.asset(AppAssets.b1nPortraitCelebration),
             Image.asset(AppAssets.scr4pIcon),
             Image.asset(AppAssets.scr4pDefense),
             Image.asset(AppAssets.bincoinV2),
@@ -77,6 +81,29 @@ void main() {
             Image.asset(AppAssets.sceneTransition),
             Image.asset(AppAssets.sceneConfrontation),
             Image.asset(AppAssets.totemConceptFull),
+            Image.asset(AppAssets.totemSingleCutout),
+            Image.asset(AppAssets.howItWorksScene),
+            Image.asset(AppAssets.b3nBazaarCutout),
+            Image.asset(AppAssets.b3nBazaarCounterScene),
+            Image.asset(AppAssets.profileAvatarB3n),
+            Image.asset(AppAssets.profileAvatarScr4p),
+            Image.asset(AppAssets.profileAvatarB1nReward),
+            Image.asset(AppAssets.profileAvatarB1nHero),
+            Image.asset(AppAssets.rewardJuice),
+            Image.asset(AppAssets.rewardPen),
+            Image.asset(AppAssets.rewardCafeteriaTicket),
+            Image.asset(AppAssets.rewardSurprise),
+            Image.asset(AppAssets.bingopolisMap),
+            Image.asset(AppAssets.corruptionClouds),
+            Image.asset(AppAssets.springParkClean),
+            Image.asset(AppAssets.springParkCorrupt),
+            Image.asset(AppAssets.springParkCombat),
+            Image.asset(AppAssets.creativeSchoolClean),
+            Image.asset(AppAssets.creativeSchoolCorrupt),
+            Image.asset(AppAssets.creativeSchoolCombat),
+            Image.asset(AppAssets.mapLandmarkSquare),
+            Image.asset(AppAssets.mapLandmarkPark),
+            Image.asset(AppAssets.mapLandmarkSchool),
           ],
         ),
       ),
@@ -130,6 +157,16 @@ void main() {
     );
   });
 
+  testWidgets('captures BinBazar at 390x844', (tester) async {
+    await configureViewport(tester, const Size(390, 844));
+    await pumpScreen(tester, const RewardsScreen());
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../evidence/app_v1/binbazar-390.png'),
+    );
+  });
+
   testWidgets('captures Ranking at 390x844', (tester) async {
     await configureViewport(tester, const Size(390, 844));
     await pumpScreen(tester, const RankingScreen());
@@ -147,6 +184,57 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../evidence/app_v1/scenario-390.png'),
+    );
+  });
+
+  testWidgets('captures BinGopolis map at 390x844', (tester) async {
+    await configureViewport(tester, const Size(390, 844));
+    await pumpScreen(tester, CityMapScreen(onOpenScenario: (_) {}));
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../evidence/app_v1/bingopolis-map-390.png'),
+    );
+  });
+
+  testWidgets('captures discovered park map at 390x844', (tester) async {
+    await configureViewport(tester, const Size(390, 844));
+    await pumpScreen(
+      tester,
+      CityMapScreen(isPilot: true, onOpenScenario: (_) {}),
+    );
+    await tester.tap(find.text('Simular descoberta'));
+    await tester.pump();
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../evidence/app_v1/bingopolis-discovered-390.png'),
+    );
+  });
+
+  testWidgets('captures park combat scenario at 390x844', (tester) async {
+    await configureViewport(tester, const Size(390, 844));
+    await pumpScreen(
+      tester,
+      CurrentScenarioScreen(scenario: cityScenarios[1], progress: 0.52),
+    );
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../evidence/app_v1/scenario-park-390.png'),
+    );
+  });
+
+  testWidgets('captures school corrupted scenario at 390x844', (tester) async {
+    await configureViewport(tester, const Size(390, 844));
+    await pumpScreen(
+      tester,
+      CurrentScenarioScreen(scenario: cityScenarios[2], progress: 0.2),
+    );
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('../evidence/app_v1/scenario-school-390.png'),
     );
   });
 

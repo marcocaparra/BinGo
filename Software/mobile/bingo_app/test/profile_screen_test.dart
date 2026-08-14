@@ -1,170 +1,311 @@
-import 'dart:async';
-
-import 'package:bingo_app/src/auth/auth_gateway.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
-import 'package:bingo_app/src/screens/authenticated_profile_screen.dart';
-import 'package:bingo_app/src/screens/shell_screen.dart';
+import 'package:bingo_app/src/screens/access_flow_screen.dart';
+import 'package:bingo_app/src/screens/change_pin_screen.dart';
+import 'package:bingo_app/src/screens/profile_screen.dart';
+import 'package:bingo_app/src/screens/splash_screen.dart';
+import 'package:bingo_app/src/theme/app_theme.dart';
+import 'package:bingo_app/src/widgets/b1n_dialogue_strip.dart';
+import 'package:bingo_app/src/widgets/bincoin_amount.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-const _profile = StudentProfile(
-  id: 'student-id',
-  name: 'Aluno do Backend',
-  schoolId: 'school-id',
-  schoolName: 'Escola Backend',
-  classId: 'class-id',
-  className: 'Turma Backend',
-  pointsStudentBalance: 321,
-  pointsClassBalance: 654,
-  status: 'ACTIVE',
-);
-
-class _Repository implements ProfileRepository {
-  _Repository(this.loader);
-
-  final Future<StudentProfile> Function() loader;
-  int calls = 0;
+class _ProfileRepository
+    implements ProfileRepository, ProfileCustomizationStore {
+  StudentProfile? profile = const StudentProfile(
+    school: 'ENIAC',
+    identifier: 'Marco Caparra',
+  );
+  String pin = '4826';
+  ProfileCustomization customization = const ProfileCustomization();
 
   @override
-  Future<StudentProfile> loadProfile() {
-    calls++;
-    return loader();
+  Future<void> deleteProfile() async {
+    profile = null;
+    customization = const ProfileCustomization();
+  }
+
+  @override
+  Future<bool> hasProfile() async => profile != null;
+
+  @override
+  Future<StudentProfile?> loadProfile() async => profile;
+
+  @override
+  Future<ProfileCustomization> loadCustomization() async => customization;
+
+  @override
+  Future<void> save({
+    required StudentProfile profile,
+    required String pin,
+  }) async {
+    this.profile = profile;
+    this.pin = pin;
+  }
+
+  @override
+  Future<void> saveCustomization(ProfileCustomization customization) async {
+    this.customization = customization;
+  }
+
+  @override
+  Future<bool> verify({
+    required String school,
+    required String identifier,
+    required String pin,
+  }) async => this.pin == pin;
+
+  @override
+  Future<bool> resetPin({
+    required String school,
+    required String identifier,
+    required String newPin,
+  }) async {
+    if (profile?.school != school || profile?.identifier != identifier) {
+      return false;
+    }
+    pin = newPin;
+    return true;
   }
 }
 
-Widget _app(
-  ProfileRepository repository, {
-  Future<void> Function()? onSessionInvalid,
-  Future<AuthFailure?> Function()? onLogout,
-}) {
-  return MaterialApp(
-    home: AuthenticatedProfileScreen(
-      repository: repository,
-      onSessionInvalid: onSessionInvalid ?? () async {},
-      onLogout: onLogout ?? () async => null,
-    ),
-  );
-}
-
-Future<void> _pumpUi(WidgetTester tester) async {
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 600));
-}
-
 void main() {
-  testWidgets('perfil autenticado mostra loading sem perfil fictício', (
-    tester,
+  void reduceMotion(WidgetTester tester) {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
+  }
+
+  testWidgets('profile separates resources and shows the level path', (
+    WidgetTester tester,
   ) async {
-    final completer = Completer<StudentProfile>();
-    await tester.pumpWidget(_app(_Repository(() => completer.future)));
-
-    expect(find.text('Carregando perfil'), findsOneWidget);
-    expect(find.text('Marco Caparra'), findsNothing);
-    expect(find.text('Aluno do Backend'), findsNothing);
-
-    completer.complete(_profile);
-    await _pumpUi(tester);
-  });
-
-  testWidgets('sucesso mostra somente campos remotos disponíveis', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_app(_Repository(() async => _profile)));
-    await _pumpUi(tester);
-
-    expect(find.text('Aluno do Backend'), findsOneWidget);
-    expect(find.text('Escola Backend'), findsOneWidget);
-    expect(find.text('Turma Backend'), findsOneWidget);
-    expect(find.text('321'), findsOneWidget);
-    expect(find.text('654'), findsOneWidget);
-    expect(find.text('Dados remotos'), findsOneWidget);
-    expect(find.text('Marco Caparra'), findsNothing);
-    expect(find.text('120'), findsNothing);
-    expect(find.textContaining('não estão disponíveis'), findsOneWidget);
-  });
-
-  testWidgets('vínculo Auth–aluno ausente mostra erro e retry', (tester) async {
-    var shouldFail = true;
-    final repository = _Repository(() async {
-      if (shouldFail) {
-        throw const ProfileFailure(
-          ProfileFailureKind.authLinkMissing,
-          'Esta conta ainda não está vinculada a um aluno BinGo.',
-        );
-      }
-      return _profile;
-    });
-    await tester.pumpWidget(_app(repository));
-    await _pumpUi(tester);
-
-    expect(find.text('Conta sem vínculo de aluno'), findsOneWidget);
-    expect(find.text('Tentar novamente'), findsOneWidget);
-    expect(find.text('Marco Caparra'), findsNothing);
-
-    shouldFail = false;
-    await tester.tap(find.text('Tentar novamente'));
-    await _pumpUi(tester);
-    expect(find.text('Aluno do Backend'), findsOneWidget);
-    expect(repository.calls, 2);
-  });
-
-  testWidgets('sessão inválida apresenta estado e solicita retorno', (
-    tester,
-  ) async {
-    var invalidCalls = 0;
+    reduceMotion(tester);
     await tester.pumpWidget(
-      _app(
-        _Repository(
-          () async => throw const ProfileFailure(
-            ProfileFailureKind.sessionInvalid,
-            'Sua sessão expirou. Entre novamente.',
+      MaterialApp(
+        home: ProfileScreen(repository: _ProfileRepository(), onGoHome: () {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pontos pessoais'), findsOneWidget);
+    expect(find.text('Pontos da turma'), findsOneWidget);
+    expect(find.text('BinCoins'), findsOneWidget);
+    final dialogue = tester.widget<B1nDialogueStrip>(
+      find.byType(B1nDialogueStrip),
+    );
+    expect(dialogue.portrait, B1nPortraitVariant.celebration);
+    for (final level in [
+      'Aprendiz',
+      'Explorador',
+      'Restaurador',
+      'Guardião',
+      'Herói',
+    ]) {
+      expect(find.text(level), findsOneWidget);
+    }
+  });
+
+  for (final viewport in <Size>[const Size(390, 844), const Size(430, 932)]) {
+    testWidgets(
+      'profile resources stay compact at ${viewport.width.toInt()} with text scale 2',
+      (WidgetTester tester) async {
+        reduceMotion(tester);
+        tester.view.physicalSize = viewport;
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ProfileScreen(
+              repository: _ProfileRepository(),
+              onGoHome: () {},
+            ),
           ),
-        ),
-        onSessionInvalid: () async => invalidCalls++,
-      ),
+        );
+        await tester.pumpAndSettle();
+
+        final resourceKeys = <String>[
+          'profile-resource-personal',
+          'profile-resource-class',
+          'profile-resource-bincoins',
+        ];
+        for (final key in resourceKeys) {
+          final tile = find.byKey(ValueKey<String>(key));
+          expect(tile, findsOneWidget);
+          expect(tester.getSize(tile).height, inInclusiveRange(112, 120));
+        }
+
+        expect(tester.takeException(), isNull);
+        expect(find.byIcon(Icons.bolt_rounded), findsNothing);
+
+        final coinIcon = find.descendant(
+          of: find.byKey(const ValueKey<String>('profile-resource-bincoins')),
+          matching: find.byType(BinCoinIcon),
+        );
+        expect(coinIcon, findsOneWidget);
+        expect(tester.getSize(coinIcon), const Size.square(26));
+        final coinAmount = find.descendant(
+          of: find.byKey(const ValueKey<String>('profile-resource-bincoins')),
+          matching: find.byType(BinCoinAmount),
+        );
+        expect(coinAmount, findsOneWidget);
+        expect(tester.widget<BinCoinAmount>(coinAmount).showIcon, isFalse);
+
+        final leadingTops = <double>[
+          tester.getTopLeft(find.byIcon(Icons.person_rounded)).dy,
+          tester.getTopLeft(find.byIcon(Icons.groups_rounded)).dy,
+          tester.getTopLeft(coinIcon).dy,
+        ];
+        final valueTops = <double>[
+          tester.getTopLeft(find.text('760')).dy,
+          tester.getTopLeft(find.text('1.190')).dy,
+          tester.getTopLeft(find.text('120')).dy,
+        ];
+        final labelTops = <double>[
+          tester.getTopLeft(find.text('Pontos pessoais')).dy,
+          tester.getTopLeft(find.text('Pontos da turma')).dy,
+          tester.getTopLeft(find.text('BinCoins')).dy,
+        ];
+        for (final tops in [leadingTops, valueTops, labelTops]) {
+          expect(tops.toSet(), hasLength(1));
+        }
+
+        for (final label in [
+          'Pontos pessoais',
+          'Pontos da turma',
+          'BinCoins',
+        ]) {
+          final text = tester.widget<Text>(find.text(label));
+          expect(text.maxLines, 2);
+          expect(text.overflow, isNot(TextOverflow.ellipsis));
+          expect(text.style?.fontSize ?? 11, greaterThanOrEqualTo(10));
+        }
+        expect(find.bySemanticsLabel('120 BinCoins'), findsOneWidget);
+        expect(find.bySemanticsLabel('BinCoins'), findsNothing);
+      },
     );
-    await _pumpUi(tester);
+  }
 
-    expect(find.text('Sessão expirada'), findsOneWidget);
-    expect(invalidCalls, 1);
-    expect(find.text('Marco Caparra'), findsNothing);
-  });
-
-  testWidgets('logout real delega ao gateway e mostra erro sem piloto', (
-    tester,
-  ) async {
-    var logoutCalls = 0;
+  testWidgets('profile opens PIN redefinition', (WidgetTester tester) async {
+    reduceMotion(tester);
     await tester.pumpWidget(
-      _app(
-        _Repository(() async => _profile),
-        onLogout: () async {
-          logoutCalls++;
-          return const AuthFailure(AuthFailureKind.network, 'Falha ao sair.');
-        },
+      MaterialApp(
+        home: ProfileScreen(repository: _ProfileRepository(), onGoHome: () {}),
       ),
     );
-    await _pumpUi(tester);
-    await tester.tap(find.byTooltip('Sair da conta'));
-    await _pumpUi(tester);
+    await tester.pumpAndSettle();
 
-    expect(logoutCalls, 1);
-    expect(find.text('Falha ao sair.'), findsOneWidget);
-    expect(find.byType(ShellScreen), findsNothing);
+    await tester.drag(find.byType(ListView), const Offset(0, -720));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Redefinir PIN'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChangePinScreen), findsOneWidget);
+    expect(find.text('Crie seu novo PIN'), findsOneWidget);
   });
 
-  testWidgets('shell piloto preserva os mocks e identifica o modo', (
-    tester,
+  testWidgets('profile saves unlocked avatar and theme choices', (
+    WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: ShellScreen()));
-    await _pumpUi(tester);
+    reduceMotion(tester);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _ProfileRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen(repository: repository, onGoHome: () {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Personalizar perfil'));
+    await tester.pumpAndSettle();
+    expect(find.text('Personalize seu caminho'), findsOneWidget);
+
+    final b3nOption = find.text('Tio B3N');
+    await tester.ensureVisible(b3nOption);
+    await tester.tap(b3nOption);
+    await tester.tap(find.text('Tema'));
+    await tester.pumpAndSettle();
+    final scr4pTheme = find.text('Energia SCR4P');
+    await tester.ensureVisible(scr4pTheme);
+    await tester.tap(scr4pTheme);
+    await tester.tap(find.text('Usar esta identidade'));
+    await tester.pumpAndSettle();
 
     expect(
-      find.byWidgetPredicate(
-        (widget) => widget is Banner && widget.message == 'MODO PILOTO',
+      repository.customization,
+      const ProfileCustomization(
+        avatarId: 'b3n-shopkeeper',
+        themeId: 'scr4p-purple',
       ),
-      findsOneWidget,
     );
-    expect(find.textContaining('Marco'), findsWidgets);
-    expect(find.text('REMOTE PROFILE ONLY'), findsNothing);
+    expect(find.byTooltip('Personalizar perfil'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  test(
+    'local profile customization migrates defaults and persists choices',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final repository = LocalProfileRepository(preferences);
+
+      expect(
+        await repository.loadCustomization(),
+        const ProfileCustomization(),
+      );
+
+      const selected = ProfileCustomization(
+        avatarId: 'scr4p-defense',
+        themeId: 'restoration-cyan',
+      );
+      await repository.saveCustomization(selected);
+      expect(await repository.loadCustomization(), selected);
+
+      await repository.deleteProfile();
+      expect(
+        await repository.loadCustomization(),
+        const ProfileCustomization(),
+      );
+    },
+  );
+
+  testWidgets('pilot profile does not offer an unavailable PIN action', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen(onGoHome: () {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -720));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Redefinir PIN'), findsNothing);
+    expect(find.text('Sair do modo piloto'), findsOneWidget);
+
+    await tester.tap(find.text('Sair do modo piloto'));
+    await tester.pumpAndSettle();
+
+    final dialogTitle = tester.widget<Text>(find.text('Sair do piloto?'));
+    expect(dialogTitle.style?.fontFamily, 'Sora');
+
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
+    expect(find.byType(SplashScreen), findsNothing);
   });
 }
