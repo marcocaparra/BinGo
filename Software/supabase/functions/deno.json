@@ -6,8 +6,8 @@
   "tasks": {
     "fmt:check": "deno fmt --check .",
     "lint": "deno lint .",
-    "check": "deno check _shared/supabase-admin.ts _shared/machine-auth.ts register-deposit-v1/index.ts tests/*.test.ts",
-    "test": "deno test --allow-env tests/machine-auth.test.ts tests/register-deposit-v1.test.ts",
-    "test:integration": "deno test --allow-env --allow-net tests/machine-auth.integration.test.ts tests/register-deposit-v1.integration.test.ts"
+    "check": "deno check _shared/supabase-admin.ts _shared/machine-auth.ts register-deposit-v1/index.ts health-v1/index.ts tests/*.test.ts",
+    "test": "deno test --allow-env tests/machine-auth.test.ts tests/register-deposit-v1.test.ts tests/health-v1.test.ts",
+    "test:integration": "deno test --allow-env --allow-net tests/machine-auth.integration.test.ts tests/health-v1.integration.test.ts tests/register-deposit-v1.integration.test.ts tests/authorization-rls.integration.test.ts"
   }
 }

@@ -37,7 +37,7 @@ Sem os dois `dart-define`, o piloto continua disponível e a tentativa de login 
 
 ## Banco local e migrations
 
-> **Aviso de baseline — 2026-08-10:** este documento registrava uma entrega feita em outra linha de desenvolvimento. A branch `feature/supabase-edge-functions-mvp` contém o cliente Mobile de Supabase Auth, mas não contém `supabase/migrations/20260802120000_mobile_profile_rls.sql`, `supabase/tests/mobile_profile_rls.sql` nem a fixture `database/seeds/009_seed_mobile_authenticated_demo_domain.sql`. As instruções históricas abaixo que dependem desses arquivos não comprovam funcionamento no baseline atual.
+O baseline backend de autorização foi recriado por migrations versionadas em `database/migrations` e `supabase/migrations`. Ele habilita RLS nas tabelas de domínio e permite a `authenticated` somente a leitura do próprio registro em `students`, da própria turma em `classes` e da própria escola em `schools`. Esta entrega não alterou o Flutter nem substituiu mocks do Mobile.
 
 Com Supabase CLI e Docker disponíveis:
 
@@ -46,7 +46,7 @@ supabase start
 supabase db reset
 ```
 
-O reset aplica somente as migrations que realmente existem em `supabase/migrations/`. No baseline atual, isso **não inclui** RLS mínima de perfil. A migration histórica precisa ser recuperada ou recriada e validada em uma tarefa própria antes de qualquer leitura direta do perfil.
+O reset aplica as migrations existentes em `supabase/migrations/`, incluindo o baseline atual de Auth/RLS. O vínculo continua sendo provisionado por `students.auth_user_id`; usuário Auth sem aluno associado recebe resultado vazio, e aluno sem `auth_user_id` não é visível por uma sessão autenticada.
 
 Historicamente, a fixture de domínio era executada de forma explícita em desenvolvimento com o comando abaixo. O arquivo referenciado não existe no baseline atual; o comando fica preservado apenas como registro e não deve ser tratado como executável nesta branch:
 
@@ -82,18 +82,18 @@ cd mobile/bingo_app
 flutter test test/access_flow_test.dart test/session_gate_test.dart test/profile_repository_test.dart test/profile_screen_test.dart
 ```
 
-Teste SQL comportamental histórico de RLS contra Supabase local já migrado:
+O baseline estrutural é validado junto da suíte pgTAP:
 
 ```powershell
-psql <local-postgres-url> -v ON_ERROR_STOP=1 -f supabase/tests/mobile_profile_rls.sql
+supabase test db
 ```
 
-O arquivo `supabase/tests/mobile_profile_rls.sql` não existe no baseline atual. A versão histórica usava transação com rollback e validava leitura própria, bloqueio de outro aluno, escola/turma relacionadas, bloqueio de alteração de saldo, bloqueio do papel anônimo e ausência de exposição para identidade sem vínculo. Esses cenários continuam sendo requisitos para o teste a recuperar ou recriar, não evidência de teste disponível nesta branch.
+`supabase/functions/tests/authorization-rls.integration.test.ts` complementa a inspeção estática com usuários reais do Supabase Auth local. Ele valida leitura própria, isolamento de outro aluno e de outra escola, escola/turma relacionadas, identidade sem vínculo, bloqueio de alterações críticas, bloqueio de dados privados para `anon`, catálogo público e privilégios mínimos de `service_role`. Sua execução é opt-in por `BINGO_AUTH_RLS_INTEGRATION=1` e exige apenas credenciais do ambiente local de teste.
 
 ## Limitações e decisões de segurança
 
-- A intenção histórica da leitura remota usa `students`, `classes` e `schools`; grants e policies correspondentes não estão comprovados no baseline atual.
-- Não há Edge Function nesta etapa.
+- O baseline comprova grants e policies de `students`, `classes` e `schools`, mas a integração do App e as demais áreas simuladas permanecem fora desta entrega.
+- Leituras simples usam Supabase Auth e RLS; operações críticas continuam reservadas às Edge Functions e RPCs.
 - A FK de `students.auth_user_id` para `auth.users.id` não foi criada sem validar previamente os registros do projeto remoto.
 - O indicador de restauração autenticada em `SharedPreferences` não contém sessão nem credenciais. O SDK do Supabase gerencia a sessão.
 - Sessão inválida retorna à entrada. Erro de rede permanece erro e oferece nova tentativa; nenhum desses estados ativa o piloto.

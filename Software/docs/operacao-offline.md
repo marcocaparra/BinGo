@@ -34,41 +34,34 @@ Offline = fluxo real bloqueado
 Demonstração = fluxo simulado, sem alterar dados reais
 ```
 
-## Detecção de conexão
+## Readiness do backend central
 
-O serviço local do Orange Pi deve verificar periodicamente se o backend central está respondendo.
-
-Endpoint sugerido no backend central:
+O backend central possui uma única Edge Function autenticada, `health-v1`, que materializa conceitualmente `GET /health`. No ambiente Supabase local, sua rota nativa é:
 
 ```http
-GET /health
+GET /functions/v1/health-v1
+X-Machine-Id: <uuid>
+X-Api-Key: <secret>
 ```
 
-Resposta esperada:
+Uma resposta saudável tem HTTP `200` e o seguinte contrato:
 
 ```json
 {
-  "status": "ok"
+  "status": "AVAILABLE",
+  "can_start_deposit": true,
+  "scope": "CENTRAL_BACKEND",
+  "checked_at": "2026-08-15T12:00:00.000Z"
 }
 ```
 
-Regra de detecção:
+Quando o handler consegue comprovar readiness negativo, responde HTTP `503` com `status = UNAVAILABLE` e `can_start_deposit = false`. Credencial inválida responde `401` e não significa falha de saúde. Uma indisponibilidade de PostgreSQL ou Data API pode interromper a autenticação antes da RPC; timeout, ausência de resposta, `500` ou qualquer outra resposta diferente do sucesso exato também exige comportamento fail-closed. Portanto, somente `200 + AVAILABLE + can_start_deposit=true` libera um novo ciclo.
 
-```text
-A cada 5 segundos, o Orange Pi chama /health.
+O check central cobre chegada ao runtime, autenticação técnica/Data API e PostgreSQL disponível em condição gravável verificável sem escrita. Ele não chama IA, não consulta turma ou catálogo e não executa RPC de negócio. Não possui CORS, polling, contadores ou estado persistente.
 
-Se o backend falhar 3 vezes seguidas:
-    o Totem entra em modo seguro offline.
+## Estado consultado pelo frontend — pendência local
 
-Se o backend voltar a responder 2 vezes seguidas:
-    o Totem volta para o modo real online.
-```
-
-Essa regra evita que pequenas oscilações de rede façam a interface alternar rapidamente entre online e offline.
-
-## Estado consultado pelo frontend
-
-O serviço local deve expor um endpoint para o frontend consultar:
+O contrato abaixo permanece uma responsabilidade futura do serviço local do Orange Pi e não foi implementado ou simulado nesta entrega. Esse serviço poderá expor um endpoint para o frontend consultar:
 
 ```http
 GET /local/status
@@ -94,7 +87,7 @@ Quando o Totem estiver offline, a resposta deve bloquear o início do fluxo:
 }
 ```
 
-O frontend deve usar o campo `can_start_deposit` para decidir se libera ou bloqueia o fluxo.
+O frontend deverá usar o campo `can_start_deposit` para decidir se libera ou bloqueia o fluxo quando essa integração local existir.
 
 Regra da interface:
 
@@ -135,7 +128,7 @@ O botão recomendado é:
 Verificar novamente
 ```
 
-Esse botão apenas força uma nova consulta ao `/local/status`. Ele não deve iniciar o fluxo de descarte.
+Quando o serviço local for implementado, esse botão apenas forçará uma nova consulta ao `/local/status`. Ele não deverá iniciar o fluxo de descarte.
 
 ## Queda de conexão durante o fluxo
 
@@ -213,7 +206,7 @@ Se o Totem não conseguir se comunicar com o backend central, ele deve entrar em
 
 O Orange Pi continua ligado, mantém a interface aberta e verifica periodicamente se a conexão voltou.
 
-O frontend consulta `/local/status` e só libera o fluxo quando `can_start_deposit = true`.
+Na integração futura, o frontend consultará `/local/status` e só liberará o fluxo quando `can_start_deposit = true`.
 
 Se a conexão cair durante o fluxo antes da inserção física, o fluxo é cancelado. Se cair depois da inserção física, o Totem não confirma pontos e orienta o aluno a chamar um responsável.
 

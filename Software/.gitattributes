@@ -1,0 +1,4 @@
+# Deno exige LF para que `deno fmt --check` seja reproduzivel no Windows.
+supabase/functions/**/*.ts text eol=lf
+supabase/functions/*.json text eol=lf
+supabase/functions/*.md text eol=lf

@@ -1,6 +1,6 @@
 # Modelo de dados — descarte e bônus ambiental V1
 
-Revisão: `2026-08-13`
+Revisão: `2026-08-15`
 
 O modelo V1 separa três conceitos. BinCoins são o saldo individual e gastável do aluno; XP mede o progresso coletivo da turma; e a categoria ambiental descreve o lixo eletrônico confirmado no Totem. Todo descarte válido parte da mesma recompensa-base. A categoria pode acrescentar BinCoins, mas nunca altera o XP.
 
@@ -40,8 +40,18 @@ O primeiro insert usa `event_id` como barreira de concorrência. Retry com os me
 
 A execução da RPC foi revogada de `public`, `anon` e `authenticated` e concedida somente a `service_role`. Para autenticar a máquina, esse papel recebe apenas `SELECT (id, school_id, api_key_hash)` em `machines`; não recebe leitura ampla nem escrita, e os papéis `anon` e `authenticated` continuam sem acesso ao hash. Os papéis públicos também não podem inserir, atualizar ou excluir descartes, saldos, configurações, auditoria ou categorias. A Edge Function `register-deposit-v1` autentica a máquina e chama a RPC com o papel técnico.
 
+`check_backend_readiness_v1()` é a RPC mínima e somente leitura usada por `health-v1`. Ela não consulta tabelas nem regras de domínio; verifica apenas se o PostgreSQL não está em recovery e se `default_transaction_read_only` permite escrita. A função é `STABLE`, `SECURITY INVOKER`, possui `search_path` vazio e pode ser executada somente por `service_role`; `PUBLIC`, `anon` e `authenticated` estão explicitamente revogados.
+
+## Supabase Auth e RLS
+
+O baseline V1 liga a sessão por `auth.uid() → students.auth_user_id → school_id/class_id`. `auth_user_id` continua opcional para permitir alunos ainda não vinculados ao Auth, mas possui unicidade e índice; uma identidade Auth sem aluno associado não obtém contexto de domínio. RLS está habilitado em todas as onze tabelas de domínio: `schools`, `classes`, `students`, `admins`, `machines`, `rewards`, `deposits`, `redemptions`, `audit_logs`, `school_settings` e `waste_categories`.
+
+As três policies privadas mínimas permitem a `authenticated` ler somente seu registro em `students`, sua turma em `classes` e sua escola em `schools`. Todas usam explicitamente `TO authenticated` e comparam a identidade por `(select auth.uid())`; as policies de escola e turma também conferem `school_id` para preservar o isolamento. Os grants expõem somente as colunas necessárias. O grant de `students.auth_user_id` é necessário porque as policies relacionadas consultam essa coluna sob o papel autenticado; o teste com usuários Auth reais comprovou que sua ausência produz `42501`. A própria RLS restringe essa coluna ao vínculo do usuário atual.
+
+O catálogo global `waste_categories` possui policy explícita de leitura para `anon` e `authenticated` com `USING (true)`. A leitura inclui categorias ativas e inativas; nenhuma filtragem por `is_active` foi introduzida. Não existem policies de escrita direta para clientes, e os defaults de `postgres` foram corrigidos para que novas tabelas, sequences e funções não voltem a conceder privilégios implícitos aos papéis expostos.
+
 ## Migration e compatibilidade
 
-Os arquivos de migration `005` materializam a pontuação e a RPC original. A migration `006` acrescenta `category_source` à fotografia retornada preservando o núcleo atômico já versionado, e a migration `007` concede a leitura mínima de `machines` necessária à autenticação. Antes de remover `size`, descartes válidos preexistentes são associados a `UNKNOWN` com bônus zero; depois a coluna e as configurações por tamanho são eliminadas.
+Os arquivos de migration `005` materializam a pontuação e a RPC original. A migration `006` acrescenta `category_source` à fotografia retornada preservando o núcleo atômico já versionado, a migration `007` concede a leitura mínima de `machines` necessária à autenticação, a migration `008` estabelece grants mínimos, defaults seguros e o baseline de RLS/Auth e a migration `009` acrescenta a RPC restrita de readiness. Antes de remover `size`, descartes válidos preexistentes são associados a `UNKNOWN` com bônus zero; depois a coluna e as configurações por tamanho são eliminadas.
 
 O repositório é a fonte adotada nesta etapa. A existência dos arquivos não comprova aplicação no projeto Supabase hospedado. Antes de qualquer deploy, verificar o histórico remoto e exportar valores históricos de `size` caso tenham valor operacional fora deste baseline.

@@ -1,6 +1,6 @@
 # Contrato Totem, App e backend — descarte V1
 
-Revisão: `2026-08-13`
+Revisão: `2026-08-15`
 
 Este contrato define o evento entregue pelo Totem e a resposta oficial da camada server-side. O cliente descreve o ciclo físico e a classificação final; somente o servidor calcula BinCoins, bônus e XP.
 
@@ -57,6 +57,23 @@ A `service_role` recebe somente `SELECT` nessas três colunas de `machines`; nã
 ```
 
 Essa resposta usa HTTP `401`. Falhas internas usam HTTP `500` com o código público `INTERNAL_ERROR`, sem detalhes de banco, hash ou configuração.
+
+## Readiness central
+
+O contrato conceitual `GET /health` está materializado localmente como `GET http://127.0.0.1:54321/functions/v1/health-v1` e exige os mesmos headers técnicos. Ele avalia somente a parcela central necessária ao início de um descarte: chegada ao runtime, autenticação técnica pela Data API e PostgreSQL operacional em condição gravável detectável por consulta somente leitura.
+
+```json
+{
+  "status": "AVAILABLE",
+  "can_start_deposit": true,
+  "scope": "CENTRAL_BACKEND",
+  "checked_at": "2026-08-15T12:00:00.000Z"
+}
+```
+
+Somente HTTP `200` com `AVAILABLE` e `can_start_deposit = true` autoriza o consumidor a considerar o backend central saudável. Um readiness negativo comprovado pelo handler retorna HTTP `503`, `UNAVAILABLE` e `can_start_deposit = false`. Credencial inválida retorna `401` e não é convertida em estado de saúde. Timeout, ausência de resposta, HTTP `500` ou qualquer outra falha também são fail-closed, pois a autenticação pode falhar antes que a RPC consiga produzir um `503` confiável.
+
+O contrato não testa IA, turma, categoria ou regras de negócio e não implementa polling, estado do Orange Pi ou `/local/status`. A integração com o futuro serviço local permanece pendente e separada.
 
 ## Resposta
 
