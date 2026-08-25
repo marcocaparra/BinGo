@@ -82,11 +82,11 @@ class HomeScreen extends StatelessWidget {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     const scenario = _HomeScenarioOverview();
     const prompt = B1nDialogueStrip(
-      message: 'Leve um eletrônico seguro ao Totem.',
+      message: 'Separe um eletrônico sem uso e confira se ele está seguro.',
       portrait: B1nPortraitVariant.instruction,
     );
     final cta = BingoActionButton(
-      label: 'Começar no Totem',
+      label: 'Ver preparo para o Totem',
       tone: BingoActionTone.green,
       icon: Icons.directions_walk,
       onPressed: () =>
@@ -94,9 +94,9 @@ class HomeScreen extends StatelessWidget {
     );
     final primaryFlow = usesLargeText
         ? <Widget>[
-            prompt,
-            const SizedBox(height: 8),
             cta,
+            const SizedBox(height: 8),
+            prompt,
             const SizedBox(height: 8),
             scenario,
           ]
@@ -110,7 +110,7 @@ class HomeScreen extends StatelessWidget {
 
     return AppPage(
       title: 'Olá, $firstName!',
-      subtitle: 'Sua turma está recuperando a ${currentScenario.name}.',
+      subtitle: 'Sua turma está restaurando a ${currentScenario.name}.',
       showBackButton: false,
       child: Column(
         children: [
@@ -147,7 +147,7 @@ class MissionDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Missão',
-      subtitle: 'Prepare o item e avance com segurança.',
+      subtitle: 'Veja a meta, prepare com segurança e acompanhe o progresso.',
       child: Column(
         children: [
           _MissionHero(mission: mission),
@@ -171,7 +171,7 @@ class MissionDetailScreen extends StatelessWidget {
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Como completar',
+              'Caminho da missão',
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
@@ -180,9 +180,9 @@ class MissionDetailScreen extends StatelessWidget {
           const SizedBox(height: 8),
           const _SafetyAlert(
             icon: Icons.health_and_safety_outlined,
-            title: 'Segurança antes dos pontos',
+            title: 'Segurança antes da recompensa',
             message:
-                'Leve itens pequenos, secos e seguros. Em caso de bateria, peça ajuda a um adulto.',
+                'Use somente item sem uso e autorizado. Se houver bateria ou dano, peça ajuda a um adulto.',
             color: AppColors.warning,
           ),
         ],
@@ -200,20 +200,20 @@ class TotemTrackingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'No Totem',
-      subtitle: 'O equipamento valida. O app acompanha.',
+      subtitle: 'O Totem valida o descarte. O app mostra o resultado.',
       child: Column(
         children: [
           _TotemHero(mission: mission),
           const SizedBox(height: 18),
           const B1nDialogueStrip(
-            message: 'Escolha sua turma no Totem e siga a tela do equipamento.',
+            message: 'No Totem, eu vou guiar você em cada etapa.',
             portrait: B1nPortraitVariant.celebration,
           ),
           const SizedBox(height: 22),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              'Seu caminho no Totem',
+              'Etapas no Totem',
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
@@ -285,7 +285,7 @@ class _WalletScreenState extends State<WalletScreen> {
             : _controller.transactions;
         return AppPage(
           title: 'Carteira',
-          subtitle: 'Seu saldo e o histórico do ecossistema.',
+          subtitle: 'Suas BinCoins e as validações recebidas do Totem.',
           showBackButton: false,
           child: Column(
             children: [
@@ -399,7 +399,7 @@ class _WalletBalanceHero extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Saldo disponível',
+                        'Suas BinCoins',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
@@ -447,7 +447,7 @@ class _WalletBalanceHero extends StatelessWidget {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        '$redeemableRewards recompensas disponíveis',
+                        '$redeemableRewards opções disponíveis na simulação',
                         style: Theme.of(
                           context,
                         ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
@@ -465,7 +465,7 @@ class _WalletBalanceHero extends StatelessWidget {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    'Faltam ${nextReward.cost - balance} para ${nextReward.title}',
+                    'Faltam ${nextReward.cost - balance} BinCoins para ${nextReward.title}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textMuted,
                       fontWeight: FontWeight.w700,
@@ -535,7 +535,7 @@ class _BazaarAccessCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        'B3N separou $available recompensas para você',
+                        'Tio B3N separou $available opções para você',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -552,7 +552,7 @@ class _BazaarAccessCard extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.arrow_forward_rounded,
-                    color: AppColors.navy,
+                    color: Colors.white,
                     size: 20,
                   ),
                 ),
@@ -709,7 +709,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
       listenable: _controller,
       builder: (context, _) => AppPage(
         title: 'BinBazar',
-        subtitle: 'Troque BinCoins e guarde seu código de retirada.',
+        subtitle: 'Simulação de resgate com BinCoins desta sessão.',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -722,13 +722,14 @@ class _RewardsScreenState extends State<RewardsScreen> {
             if (widget.items.isEmpty)
               const BingoDataState(
                 kind: BingoDataStateKind.empty,
-                title: 'BinBazar sem recompensas',
-                message: 'Novas opções aparecerão quando a escola atualizar.',
+                title: 'Nenhuma opção disponível',
+                message:
+                    'Novas recompensas aparecerão quando a escola atualizar.',
                 icon: Icons.storefront_outlined,
               )
             else ...[
               Text(
-                'Escolha sua recompensa',
+                'Explore as recompensas',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 12),
@@ -746,7 +747,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                       crossAxisCount: columns,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
-                      mainAxisExtent: largeText ? 356 : 304,
+                      mainAxisExtent: largeText ? 372 : 308,
                     ),
                     itemBuilder: (context, index) {
                       final reward = widget.items[index];
@@ -787,15 +788,15 @@ class MissionsScreen extends StatelessWidget {
         .toList();
 
     return AppPage(
-      title: 'Missões',
-      subtitle: 'Escolha seu próximo passo em BinGópolis.',
+      title: 'Missões de restauração',
+      subtitle: 'Acompanhe metas seguras e o progresso da sua turma.',
       showBackButton: false,
       child: items.isEmpty
           ? const BingoDataState(
               kind: BingoDataStateKind.empty,
-              title: 'Nenhuma missão disponível',
+              title: 'Nenhuma missão ativa',
               message:
-                  'As próximas missões aparecerão depois da atualização do Totem.',
+                  'As próximas missões aparecerão quando uma nova jornada começar.',
               icon: Icons.verified_outlined,
             )
           : Column(
@@ -811,7 +812,7 @@ class MissionsScreen extends StatelessWidget {
                 if (eventItems.isNotEmpty) ...[
                   const SizedBox(height: 22),
                   Text(
-                    'Evento em destaque',
+                    'Força-tarefa em destaque',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
@@ -827,7 +828,7 @@ class MissionsScreen extends StatelessWidget {
                 if (compactItems.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
-                    'Outras missões',
+                    'Outras etapas da jornada',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
@@ -853,14 +854,14 @@ class Scr4pInfoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Quem é SCR4P?',
-      subtitle: 'O vilão que cresce quando o descarte vai para o lugar errado.',
+      subtitle: 'A corrupção que cresce com o descarte inadequado.',
       child: Column(
         children: [
           ImageHeroCard(
             image: AppAssets.sceneCorruptScr4p,
             badge: 'Alerta ativo',
             title: 'Corrupção eletrônica',
-            subtitle: 'Cada item no lixo comum fortalece SCR4P.',
+            subtitle: 'Eletrônicos no lixo comum aumentam a corrupção.',
             height: 188,
             alignment: Alignment.centerRight,
           ),
@@ -873,7 +874,7 @@ class Scr4pInfoScreen extends StatelessWidget {
                 const SizedBox(width: 14),
                 const Expanded(
                   child: Text(
-                    'SCR4P tenta corromper os cenários de BinGópolis. Para enfraquecê-lo, sua turma precisa validar descartes no Totem.',
+                    'SCR4P representa a corrupção causada pelo descarte inadequado. Cada validação segura ajuda sua turma a recuperar BinGópolis.',
                   ),
                 ),
               ],
@@ -885,22 +886,22 @@ class Scr4pInfoScreen extends StatelessWidget {
               children: [
                 _StepRow(
                   number: '1',
-                  title: 'Ele ataca cenários',
+                  title: 'A corrupção ocupa cenários',
                   text:
-                      'Praças, parques e lugares sazonais podem ficar corrompidos.',
+                      'Praças, parques e escolas podem ficar sob a névoa de SCR4P.',
                   color: AppColors.scr4p,
                 ),
                 _StepRow(
                   number: '2',
-                  title: 'A turma limpa setores',
-                  text: 'Cada descarte validado recupera uma parte do cenário.',
+                  title: 'A turma recupera setores',
+                  text: 'Cada descarte seguro e validado reduz a corrupção.',
                   color: AppColors.scr4p,
                 ),
                 _StepRow(
                   number: '3',
-                  title: 'Quem ajuda mais ganha mais',
+                  title: 'Participação que conta',
                   text:
-                      'Eventos SCR4P dão bônus por participação e contribuição.',
+                      'Eventos reconhecem a participação elegível e o avanço coletivo.',
                   color: AppColors.scr4p,
                 ),
               ],
@@ -908,7 +909,7 @@ class Scr4pInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           BingoActionButton(
-            label: 'Ver defesa ativa',
+            label: 'Ver força-tarefa ativa',
             tone: BingoActionTone.purple,
             icon: Icons.shield,
             onPressed: () => _push(
@@ -935,15 +936,15 @@ class RankingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppPage(
-      title: 'Ranking da turma',
-      subtitle: 'Veja quem está perto de recuperar mais setores.',
+      title: 'Ranking das turmas',
+      subtitle: 'Compare posições e acompanhe a restauração coletiva.',
       showBackButton: false,
       child: rows.isEmpty
           ? const BingoDataState(
               kind: BingoDataStateKind.empty,
-              title: 'Ranking ainda sem dados',
+              title: 'Ranking ainda sem resultados',
               message:
-                  'A classificação aparecerá após as primeiras validações no Totem.',
+                  'As posições aparecerão após as primeiras validações do ciclo.',
               icon: Icons.emoji_events_outlined,
             )
           : Column(
@@ -957,11 +958,13 @@ class RankingScreen extends StatelessWidget {
                     context,
                     CityMapScreen(
                       isPilot: isPilot,
-                      onOpenScenario: (scenario) => _push(
+                      onOpenScenario: (scenario, visualProgress) => _push(
                         context,
                         CurrentScenarioScreen(
                           scenario: scenario,
-                          progress: scenario.id == 'central-square' ? 0.68 : 0,
+                          progress: visualProgress,
+                          isPilotSimulation:
+                              visualProgress != scenario.progress,
                         ),
                       ),
                     ),
@@ -976,12 +979,14 @@ class RankingScreen extends StatelessWidget {
 class CurrentScenarioScreen extends StatelessWidget {
   const CurrentScenarioScreen({
     this.scenario = centralSquareScenario,
-    this.progress = 0.68,
+    this.progress = centralSquareProgress,
+    this.isPilotSimulation = false,
     super.key,
   });
 
   final CityScenario scenario;
   final double progress;
+  final bool isPilotSimulation;
 
   @override
   Widget build(BuildContext context) {
@@ -989,14 +994,14 @@ class CurrentScenarioScreen extends StatelessWidget {
     return AppPage(
       title: scenario.name,
       subtitle: progress > 0
-          ? 'Onde a restauração da turma está acontecendo.'
-          : 'Um novo território de BinGópolis.',
+          ? 'Acompanhe a restauração construída pela sua turma.'
+          : 'Um novo setor da jornada de BinGópolis.',
       child: Column(
         children: [
           B1nDialogueStrip(
             message: progress > 0
-                ? 'Cada descarte correto faz a tempestade recuar deste setor.'
-                : 'Este setor ainda está corrompido. A próxima jornada começa aqui.',
+                ? 'Cada descarte validado ajuda a tempestade a recuar.'
+                : 'Este setor ainda está sob corrupção. A próxima etapa começa aqui.',
             portrait: B1nPortraitVariant.celebration,
           ),
           const SizedBox(height: 18),
@@ -1007,7 +1012,7 @@ class CurrentScenarioScreen extends StatelessWidget {
                 ? '${(progress * 100).round()}% restaurada'
                 : 'Sob corrupção',
             subtitle: progress > 0
-                ? 'A soma dos descartes corretos transforma este lugar.'
+                ? 'Cada validação ajuda a transformar este lugar.'
                 : scenario.unlockRequirement,
             height: usesLargeText ? 384 : 220,
             progress: progress,
@@ -1038,10 +1043,14 @@ class CurrentScenarioScreen extends StatelessWidget {
                       : Icons.science_outlined,
                   value: scenario.id == centralSquareScenario.id
                       ? '${currentScenario.cycleDays}'
-                      : 'Demo',
+                      : isPilotSimulation
+                      ? 'Visual'
+                      : '${(scenario.progress * 100).round()}%',
                   label: scenario.id == centralSquareScenario.id
                       ? 'dias neste ciclo'
-                      : 'progresso simulado',
+                      : isPilotSimulation
+                      ? 'simulação do mapa'
+                      : 'impacto registrado',
                   color: AppColors.warning,
                 ),
               ),
@@ -1062,8 +1071,8 @@ class CurrentScenarioScreen extends StatelessWidget {
                 Divider(height: 24, color: AppColors.line),
                 _ScenarioInfoLine(
                   icon: Icons.grid_view_rounded,
-                  title: 'Como limpar',
-                  text: 'Descartes corretos reduzem a corrupção deste setor.',
+                  title: 'Como restaurar',
+                  text: 'Descartes seguros e validados reduzem a corrupção.',
                   color: AppColors.blue,
                 ),
                 Divider(height: 24, color: AppColors.line),
@@ -1071,7 +1080,7 @@ class CurrentScenarioScreen extends StatelessWidget {
                   icon: Icons.restart_alt_rounded,
                   title: 'Ciclo',
                   text:
-                      'Quando acaba, os pontos da turma reiniciam e os prêmios saem.',
+                      'Ao final, os pontos reiniciam e as recompensas do ciclo mudam.',
                   color: AppColors.warning,
                 ),
               ],
@@ -1082,7 +1091,15 @@ class CurrentScenarioScreen extends StatelessWidget {
             label: 'Ver impacto da turma',
             icon: Icons.auto_graph_rounded,
             tone: BingoActionTone.green,
-            onPressed: () => _push(context, const ImpactScreen()),
+            onPressed: () => _push(
+              context,
+              ImpactScreen(
+                scenario: scenario,
+                registeredProgress: scenario.progress,
+                visualProgress: progress,
+                isPilotSimulation: isPilotSimulation,
+              ),
+            ),
           ),
         ],
       ),
@@ -1091,31 +1108,84 @@ class CurrentScenarioScreen extends StatelessWidget {
 }
 
 class ImpactScreen extends StatelessWidget {
-  const ImpactScreen({super.key});
+  const ImpactScreen({
+    this.scenario = centralSquareScenario,
+    this.registeredProgress = centralSquareProgress,
+    this.visualProgress = centralSquareProgress,
+    this.isPilotSimulation = false,
+    super.key,
+  });
+
+  final CityScenario scenario;
+  final double registeredProgress;
+  final double visualProgress;
+  final bool isPilotSimulation;
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Impacto',
-      subtitle: 'Veja como sua turma mudou a cidade.',
+      subtitle: 'Veja o resultado registrado da turma em ${scenario.name}.',
       child: Column(
         children: [
-          const ImpactComparison(
-            beforeImage: AppAssets.sceneCorrupt,
-            nowImage: AppAssets.sceneClean,
-            beforeLabel: 'Antes',
-            nowLabel: 'Depois',
-            beforeFit: BoxFit.cover,
-            nowFit: BoxFit.cover,
+          if (registeredProgress > 0)
+            ImpactComparison(
+              beforeImage: scenario.corruptAsset,
+              nowImage: scenario.assetFor(registeredProgress),
+              beforeLabel: 'Antes',
+              nowLabel: 'Agora',
+              beforeFit: BoxFit.cover,
+              nowFit: BoxFit.cover,
+            )
+          else
+            ImageHeroCard(
+              image: scenario.corruptAsset,
+              badge: scenario.name,
+              title: 'Restauração ainda não iniciada',
+              subtitle: scenario.impact.nextGoal,
+              height: 220,
+              progress: 0,
+              progressColor: AppColors.scr4p,
+            ),
+          if (isPilotSimulation && visualProgress != registeredProgress) ...[
+            const SizedBox(height: 14),
+            _PilotSimulationNotice(
+              visualProgress: visualProgress,
+              registeredProgress: registeredProgress,
+            ),
+          ],
+          const SizedBox(height: 18),
+          _ImpactHeadline(scenario: scenario, progress: registeredProgress),
+          const SizedBox(height: 18),
+          _ImpactMetricsGrid(snapshot: scenario.impact),
+          const SizedBox(height: 18),
+          _NextTransformationCard(
+            scenario: scenario,
+            progress: registeredProgress,
           ),
-          const SizedBox(height: 18),
-          const _ImpactHeadline(),
-          const SizedBox(height: 18),
-          const _ImpactMetricsGrid(),
-          const SizedBox(height: 18),
-          const _NextTransformationCard(),
         ],
       ),
+    );
+  }
+}
+
+class _PilotSimulationNotice extends StatelessWidget {
+  const _PilotSimulationNotice({
+    required this.visualProgress,
+    required this.registeredProgress,
+  });
+
+  final double visualProgress;
+  final double registeredProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SafetyAlert(
+      icon: Icons.visibility_outlined,
+      title: 'Simulação visual',
+      message:
+          'O mapa mostrou ${(visualProgress * 100).round()}%, mas o impacto registrado continua em ${(registeredProgress * 100).round()}%.',
+      color: AppColors.blue,
     );
   }
 }
@@ -1183,14 +1253,14 @@ class HowItWorksScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Como funciona',
-      subtitle: 'Uma ação física, dois resultados no app.',
+      subtitle: 'Separe com segurança, valide no Totem e acompanhe no app.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _HowItWorksHero(),
           const SizedBox(height: 22),
           Text(
-            'Do eletrônico ao resultado',
+            'Do descarte ao resultado',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 14),
@@ -1207,7 +1277,7 @@ class HowItWorksScreen extends StatelessWidget {
             icon: Icons.health_and_safety_outlined,
             title: 'Segurança primeiro',
             message:
-                'Bateria inchada, item quente, molhado ou quebrado deve ficar com um adulto responsável.',
+                'Não toque em bateria inchada nem em item quente, molhado ou quebrado. Peça ajuda a um adulto.',
             color: AppColors.warning,
           ),
         ],
@@ -1343,7 +1413,11 @@ Future<void> _showRewardDetails(
               child: SizedBox(
                 width: 150,
                 height: 128,
-                child: Image.asset(reward.asset, fit: BoxFit.contain),
+                child: BingoAssetImage(
+                  asset: reward.asset,
+                  fit: BoxFit.contain,
+                  semanticLabel: reward.title,
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -1351,16 +1425,15 @@ Future<void> _showRewardDetails(
             const SizedBox(height: 6),
             Text(reward.description),
             const SizedBox(height: 14),
-            Row(
-              children: [
-                BinCoinAmount(
-                  value: reward.cost,
-                  size: 22,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const Spacer(),
-                Text('Saldo: ${controller.balance}'),
-              ],
+            _RewardPriceBand(
+              value: reward.cost,
+              color: reward.color,
+              large: true,
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.center,
+              child: Text('Seu saldo: ${controller.balance} BinCoins'),
             ),
             const SizedBox(height: 12),
             _SafetyAlert(
@@ -1370,12 +1443,12 @@ Future<void> _showRewardDetails(
               title: reward.statusFor(controller.balance),
               message: available
                   ? reward.pickupInstruction
-                  : 'Continue concluindo descartes para liberar esta recompensa.',
+                  : 'Faltam ${reward.cost - controller.balance} BinCoins nesta simulação.',
               color: available ? AppColors.green : AppColors.blue,
             ),
             const SizedBox(height: 16),
             BingoActionButton(
-              label: 'Resgatar por ${reward.cost} BinCoins',
+              label: 'Simular por ${reward.cost} BinCoins',
               icon: Icons.redeem_rounded,
               tone: BingoActionTone.green,
               onPressed: available
@@ -1418,12 +1491,12 @@ Future<void> _showRewardDetails(
             ),
             const SizedBox(height: 14),
             Text(
-              'Resgate confirmado',
+              'Simulação concluída',
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 6),
             Text(
-              '${reward.title} entrou no seu Extrato.',
+              '${reward.title} foi registrado no Extrato desta simulação.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
@@ -1445,7 +1518,7 @@ class _PickupCode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Código de retirada $code',
+      label: 'Código demonstrativo de retirada $code',
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -1457,7 +1530,7 @@ class _PickupCode extends StatelessWidget {
         child: Column(
           children: [
             Text(
-              'Código demonstrativo',
+              'Código demonstrativo de retirada',
               style: Theme.of(context).textTheme.labelMedium,
             ),
             const SizedBox(height: 5),
@@ -1498,7 +1571,7 @@ class _LatestRedemptionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Último resgate',
+                  'Última simulação',
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
                 Text(
@@ -1515,6 +1588,48 @@ class _LatestRedemptionCard extends StatelessWidget {
             ).textTheme.labelLarge?.copyWith(color: AppColors.blue),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RewardPriceBand extends StatelessWidget {
+  const _RewardPriceBand({
+    required this.value,
+    required this.color,
+    this.large = false,
+  });
+
+  final int value;
+  final Color color;
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Container(
+        key: ValueKey('reward-price-$value'),
+        width: double.infinity,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.11),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.26)),
+        ),
+        child: BinCoinAmount(
+          value: value,
+          size: large ? 25 : 23,
+          style:
+              (large
+                      ? Theme.of(context).textTheme.titleLarge
+                      : Theme.of(context).textTheme.titleMedium)
+                  ?.copyWith(
+                    color: AppColors.navy,
+                    fontWeight: FontWeight.w900,
+                  ),
+        ),
       ),
     );
   }
@@ -1566,7 +1681,11 @@ class _RewardTile extends StatelessWidget {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: Image.asset(reward.asset, fit: BoxFit.contain),
+                        child: BingoAssetImage(
+                          asset: reward.asset,
+                          fit: BoxFit.contain,
+                          semanticLabel: reward.title,
+                        ),
                       ),
                       Positioned(
                         right: 0,
@@ -1592,34 +1711,31 @@ class _RewardTile extends StatelessWidget {
                     child: Text(
                       reward.title,
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    BinCoinAmount(
-                      value: reward.cost,
-                      size: 17,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: AppColors.navy,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+                _RewardPriceBand(
+                  value: reward.cost,
+                  color: reward.color,
+                  large: largeText,
                 ),
-                if (!available) ...[
-                  const SizedBox(height: 8),
-                  AnimatedProgressPill(
-                    value: balance / reward.cost,
-                    color: reward.color,
-                    height: 7,
-                  ),
-                ] else
-                  const SizedBox(height: 15),
-                const Spacer(),
+                const SizedBox(height: 7),
+                SizedBox(
+                  height: 10,
+                  child: available
+                      ? null
+                      : Align(
+                          alignment: Alignment.topCenter,
+                          child: AnimatedProgressPill(
+                            value: balance / reward.cost,
+                            color: reward.color,
+                            height: 7,
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 6),
                 Container(
                   key: ValueKey('reward-action-${reward.id}'),
                   width: double.infinity,
@@ -1648,22 +1764,19 @@ class _RewardTile extends StatelessWidget {
                       ),
                       const SizedBox(width: 7),
                       Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            available
-                                ? 'Resgatar'
-                                : 'Faltam ${reward.cost - balance}',
-                            maxLines: 1,
-                            softWrap: false,
-                            style: Theme.of(context).textTheme.labelMedium
-                                ?.copyWith(
-                                  color: available
-                                      ? Colors.white
-                                      : AppColors.textMuted,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                          ),
+                        child: Text(
+                          available
+                              ? 'Simular resgate'
+                              : 'Faltam ${reward.cost - balance}',
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: available
+                                    ? Colors.white
+                                    : AppColors.textMuted,
+                                fontWeight: FontWeight.w900,
+                              ),
                         ),
                       ),
                     ],
@@ -1687,7 +1800,7 @@ class _HowItWorksHero extends StatelessWidget {
     return Semantics(
       container: true,
       label:
-          'Do eletrônico ao impacto. O Totem recebe o item e o app mostra o resultado.',
+          'Do descarte ao impacto. O Totem valida o item e o app mostra o resultado.',
       child: ExcludeSemantics(
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -1733,7 +1846,7 @@ class _HowItWorksHero extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Do eletrônico ao impacto',
+                        'Do descarte ao impacto',
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               color: Colors.white,
@@ -1742,7 +1855,7 @@ class _HowItWorksHero extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'O app orienta; o descarte acontece no Totem e o resultado aparece aqui.',
+                        'O app orienta, o Totem valida e a cadeia responsável encaminha o item.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.white.withValues(alpha: 0.92),
                         ),
@@ -1770,14 +1883,14 @@ class _HowItWorksPath extends StatelessWidget {
           number: 1,
           icon: Icons.inventory_2_outlined,
           title: 'Prepare com segurança',
-          text: 'Separe um eletrônico pequeno, sem uso, seco e autorizado.',
+          text: 'Separe um eletrônico sem uso, seco, seguro e autorizado.',
           color: AppColors.green,
         ),
         _HowItWorksStep(
           number: 2,
           icon: Icons.precision_manufacturing_outlined,
           title: 'Use o Totem',
-          text: 'Escolha sua turma e siga as instruções do equipamento físico.',
+          text: 'Identifique sua turma e siga uma etapa por vez na tela.',
           color: AppColors.blue,
         ),
         _HowItWorksStep(
@@ -1785,7 +1898,7 @@ class _HowItWorksPath extends StatelessWidget {
           icon: Icons.phone_android_outlined,
           title: 'Acompanhe no app',
           text:
-              'Depois da validação, consulte BinCoins, pontos e a recuperação da cidade.',
+              'Depois da validação, consulte BinCoins, pontos e progresso territorial.',
           color: AppColors.warning,
           isLast: true,
         ),
@@ -1879,7 +1992,7 @@ class _HowItWorksOutcomes extends StatelessWidget {
             child: _HowItWorksOutcome(
               icon: Icons.account_balance_wallet_outlined,
               title: 'Resultado pessoal',
-              text: 'BinCoins entram na sua Carteira.',
+              text: 'BinCoins entram na sua Carteira pessoal.',
               color: AppColors.blue,
             ),
           ),
@@ -1887,7 +2000,7 @@ class _HowItWorksOutcomes extends StatelessWidget {
             child: _HowItWorksOutcome(
               icon: Icons.groups_2_outlined,
               title: 'Resultado coletivo',
-              text: 'Pontos recuperam setores da cidade.',
+              text: 'Pontos mostram o avanço coletivo da turma.',
               color: AppColors.green,
             ),
           ),
@@ -1899,14 +2012,14 @@ class _HowItWorksOutcomes extends StatelessWidget {
               _HowItWorksOutcome(
                 icon: Icons.account_balance_wallet_outlined,
                 title: 'Resultado pessoal',
-                text: 'BinCoins entram na sua Carteira.',
+                text: 'BinCoins entram na sua Carteira pessoal.',
                 color: AppColors.blue,
               ),
               SizedBox(height: 10),
               _HowItWorksOutcome(
                 icon: Icons.groups_2_outlined,
                 title: 'Resultado coletivo',
-                text: 'Pontos recuperam setores da cidade.',
+                text: 'Pontos mostram o avanço coletivo da turma.',
                 color: AppColors.green,
               ),
             ],
@@ -2029,7 +2142,7 @@ class _MissionFeaturedHero extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const BadgeLabel(
-                            label: 'Missão ativa',
+                            label: 'Em andamento',
                             color: AppColors.green,
                           ),
                           const SizedBox(height: 10),
@@ -2111,10 +2224,12 @@ class _MissionEventBanner extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: Container(
             height: largeText
-                ? 420
+                ? compactWidth
+                      ? 500
+                      : 460
                 : compactWidth
-                ? 244
-                : 196,
+                ? 268
+                : 216,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: mission.color.withValues(alpha: 0.30)),
@@ -2145,11 +2260,12 @@ class _MissionEventBanner extends StatelessWidget {
                         ],
                       ),
                     ),
-                    child: Image.asset(
-                      AppAssets.scr4pDefense,
+                    child: BingoAssetImage(
+                      asset: AppAssets.scr4pDefense,
                       fit: BoxFit.contain,
                       alignment: Alignment.bottomCenter,
                       filterQuality: FilterQuality.high,
+                      semanticLabel: 'SCR4P em postura defensiva',
                     ),
                   ),
                 ),
@@ -2168,7 +2284,7 @@ class _MissionEventBanner extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'EVENTO ATIVO',
+                              'AÇÃO COLETIVA',
                               style: Theme.of(context).textTheme.labelSmall
                                   ?.copyWith(
                                     color: mission.color,
@@ -2179,14 +2295,12 @@ class _MissionEventBanner extends StatelessWidget {
                             Text(
                               mission.title,
                               maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             const SizedBox(height: 3),
                             Text(
                               mission.subtitle,
-                              maxLines: stackedFooter ? 2 : 1,
-                              overflow: TextOverflow.ellipsis,
+                              maxLines: stackedFooter ? 3 : 2,
                             ),
                           ],
                         ),
@@ -2214,8 +2328,7 @@ class _MissionEventBanner extends StatelessWidget {
                                 children: [
                                   Text(
                                     mission.reward,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 3,
                                     style: Theme.of(context)
                                         .textTheme
                                         .labelMedium
@@ -2229,20 +2342,16 @@ class _MissionEventBanner extends StatelessWidget {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Flexible(
-                                        child: FittedBox(
-                                          fit: BoxFit.scaleDown,
-                                          child: Text(
-                                            'Ver evento',
-                                            maxLines: 1,
-                                            softWrap: false,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .labelMedium
-                                                ?.copyWith(
-                                                  color: mission.color,
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                          ),
+                                        child: Text(
+                                          'Ver evento',
+                                          maxLines: 2,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelMedium
+                                              ?.copyWith(
+                                                color: mission.color,
+                                                fontWeight: FontWeight.w900,
+                                              ),
                                         ),
                                       ),
                                       Icon(
@@ -2310,7 +2419,7 @@ class _MissionCompactTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isCompleted = mission.state == MissionState.completed;
     final tone = isCompleted ? AppColors.green : AppColors.blue;
-    final stateLabel = isCompleted ? 'Concluída' : 'Em breve';
+    final stateLabel = isCompleted ? 'Missão concluída' : 'Próxima missão';
 
     return Semantics(
       button: true,
@@ -2425,7 +2534,7 @@ class _MissionEventStatus extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'SCR4P ainda controla 58% do setor',
+                  'A corrupção ainda ocupa 58% do setor',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
@@ -2439,7 +2548,7 @@ class _MissionEventStatus extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Faltam 3 descartes validados para liberar o bônus do evento.',
+            'Faltam 3 descartes validados para concluir a meta coletiva.',
           ),
         ],
       ),
@@ -2457,7 +2566,7 @@ class _RankingHero extends StatelessWidget {
       container: true,
       label:
           'Sua turma, 9ºA, está em quarto lugar com 760 pontos. '
-          'Faltam 50 pontos para o top 3.',
+          'A próxima meta é alcançar o top 3 com mais 50 pontos.',
       child: ExcludeSemantics(
         child: SurfaceCard(
           color: const Color(0xFFEAF6FF),
@@ -2488,7 +2597,7 @@ class _RankingHero extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Faltam 50 pts para entrar no top 3',
+                      'Próxima meta: 50 pontos para o top 3',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.navy,
                         fontWeight: FontWeight.w700,
@@ -2574,7 +2683,7 @@ class _PodiumCard extends StatelessWidget {
             ),
           const SizedBox(height: 10),
           Text(
-            'Top 3 e participação segura recebem bônus ao fim do ciclo.',
+            'O top 3 e a participação elegível recebem bônus no fim do ciclo.',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
@@ -2756,12 +2865,69 @@ class _ScenarioAccessCard extends StatelessWidget {
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             child: SizedBox(
-              height: 112,
+              height: 138,
               width: double.infinity,
-              child: Image.asset(
-                AppAssets.bingopolisMap,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(
+                    AppAssets.bingopolisTerrainTile,
+                    fit: BoxFit.cover,
+                  ),
+                  Positioned(
+                    left: -70,
+                    top: -68,
+                    width: 270,
+                    child: Opacity(
+                      opacity: 0.62,
+                      child: Image.asset(AppAssets.corruptionFogMid),
+                    ),
+                  ),
+                  Positioned(
+                    right: 10,
+                    bottom: -8,
+                    width: 118,
+                    child: Image.asset(
+                      AppAssets.b1nMapGuide,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  Positioned(
+                    left: 14,
+                    bottom: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xE60B234A),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.deepCyan),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.explore_rounded,
+                            size: 16,
+                            color: AppColors.green,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Jornada em expansão',
+                            style: TextStyle(
+                              fontFamily: 'Sora',
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -2774,7 +2940,7 @@ class _ScenarioAccessCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'BinGópolis · 3 setores',
+                        'A jornada de restauração',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
@@ -2786,8 +2952,7 @@ class _ScenarioAccessCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${currentScenario.name} está ${currentScenario.restoredPercent}% limpa · '
-                  '${currentScenario.nextSectorDiscards} descartes para avançar',
+                  'A ${currentScenario.name} é o começo. Cada descarte validado afasta a névoa e abre novos caminhos.',
                 ),
                 const SizedBox(height: 12),
                 AnimatedProgressPill(
@@ -2853,7 +3018,7 @@ class _ScenarioMetric extends StatelessWidget {
 }
 
 class _RestorationScale extends StatelessWidget {
-  const _RestorationScale({this.progress = 0.68});
+  const _RestorationScale({this.progress = centralSquareProgress});
 
   final double progress;
 
@@ -2987,7 +3152,10 @@ class _ScenarioInfoLine extends StatelessWidget {
 }
 
 class _ImpactHeadline extends StatelessWidget {
-  const _ImpactHeadline();
+  const _ImpactHeadline({required this.scenario, required this.progress});
+
+  final CityScenario scenario;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -3026,14 +3194,18 @@ class _ImpactHeadline extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${currentScenario.restoredPercent}% restaurada',
+                  '${(progress * 100).round()}% restaurada',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: AppColors.navy,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text('Sua turma está transformando a ${currentScenario.name}.'),
+                Text(
+                  progress > 0
+                      ? 'Sua turma está restaurando ${scenario.name}.'
+                      : 'A restauração registrada deste setor ainda não começou.',
+                ),
               ],
             ),
           ),
@@ -3044,7 +3216,9 @@ class _ImpactHeadline extends StatelessWidget {
 }
 
 class _ImpactMetricsGrid extends StatelessWidget {
-  const _ImpactMetricsGrid();
+  const _ImpactMetricsGrid({required this.snapshot});
+
+  final ScenarioImpactSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
@@ -3058,29 +3232,31 @@ class _ImpactMetricsGrid extends StatelessWidget {
             _ImpactMetric(
               width: itemWidth,
               icon: Icons.scale_rounded,
-              value: '3,2 kg',
-              label: 'fora do lixo comum',
+              value: _formatImpactWeight(snapshot.recoveredWeightKg),
+              label: 'encaminhados corretamente',
               color: AppColors.green,
             ),
             _ImpactMetric(
               width: itemWidth,
               icon: Icons.recycling_rounded,
-              value: '8',
+              value: '${snapshot.validatedDiscards}',
               label: 'descartes validados',
               color: AppColors.blue,
             ),
             _ImpactMetric(
               width: itemWidth,
               icon: Icons.groups_2_rounded,
-              value: '12',
+              value: '${snapshot.activeStudents}',
               label: 'alunos ativos',
               color: AppColors.warning,
             ),
             _ImpactMetric(
               width: itemWidth,
               icon: Icons.flag_rounded,
-              value: '${currentScenario.nextSectorDiscards}',
-              label: 'para o próximo setor',
+              value: '${snapshot.remainingDiscards}',
+              label: snapshot.validatedDiscards == 0
+                  ? 'para a primeira meta'
+                  : 'para o próximo setor',
               color: AppColors.scr4p,
             ),
           ],
@@ -3136,7 +3312,13 @@ class _ImpactMetric extends StatelessWidget {
 }
 
 class _NextTransformationCard extends StatelessWidget {
-  const _NextTransformationCard();
+  const _NextTransformationCard({
+    required this.scenario,
+    required this.progress,
+  });
+
+  final CityScenario scenario;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -3153,7 +3335,9 @@ class _NextTransformationCard extends StatelessWidget {
                   height: 118,
                   width: double.infinity,
                   child: Image.asset(
-                    AppAssets.sceneTransition,
+                    scenario.id == centralSquareScenario.id
+                        ? AppAssets.sceneTransition
+                        : scenario.combatAsset,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -3171,17 +3355,16 @@ class _NextTransformationCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Um novo setor está perto',
+                  progress > 0
+                      ? 'Um novo setor está perto'
+                      : 'A primeira restauração começa aqui',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 5),
-                Text(
-                  'Faltam ${currentScenario.nextSectorDiscards} descartes '
-                  'validados no Totem para a cidade mudar novamente.',
-                ),
+                Text(scenario.impact.nextGoal),
                 const SizedBox(height: 14),
                 AnimatedProgressPill(
-                  value: currentScenario.restoredProgress,
+                  value: progress,
                   color: AppColors.green,
                   backgroundColor: Color(0xFFE8EEF5),
                   height: 12,
@@ -3193,6 +3376,11 @@ class _NextTransformationCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatImpactWeight(double value) {
+  if (value == 0) return '0 kg';
+  return '${value.toStringAsFixed(1).replaceAll('.', ',')} kg';
 }
 
 class _MissionHero extends StatelessWidget {
@@ -3446,7 +3634,7 @@ class _TotemHero extends StatelessWidget {
     return Semantics(
       container: true,
       label:
-          'Totem físico do BinGo. Missão ${mission.title}. O equipamento valida o descarte.',
+          'Totem físico do BinGo. Ele valida o descarte da missão ${mission.title}.',
       child: ExcludeSemantics(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -3507,7 +3695,7 @@ class _TotemHero extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'O Totem confirma o descarte',
+                            'O Totem valida o descarte',
                             style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   color: AppColors.navy,
@@ -3550,20 +3738,20 @@ class _TotemProcess extends StatelessWidget {
       children: [
         _TotemProcessStep(
           number: 1,
-          title: 'Item preparado',
-          text: 'Eletrônico sem uso, autorizado, seco e sem risco.',
+          title: 'Item seguro e autorizado',
+          text: 'Eletrônico sem uso, seco, sem dano e autorizado.',
           state: TotemStepState.ready,
         ),
         _TotemProcessStep(
           number: 2,
           title: 'Use o Totem',
-          text: 'Escolha sua turma e siga a tela do equipamento.',
+          text: 'Identifique sua turma e siga uma orientação por vez.',
           state: TotemStepState.current,
         ),
         _TotemProcessStep(
           number: 3,
           title: 'Resultado no app',
-          text: 'Após o Totem validar, BinCoins e pontos aparecem no app.',
+          text: 'Após a validação, BinCoins e pontos aparecem no app.',
           state: TotemStepState.upcoming,
           isLast: true,
         ),
@@ -3690,7 +3878,7 @@ class _ResponsibilityNotice extends StatelessWidget {
           const SizedBox(width: 11),
           Expanded(
             child: Text(
-              'Use somente item sem uso e autorizado. Nunca compre, quebre ou pegue algo de outra pessoa para ganhar pontos.',
+              'Use somente item sem uso e autorizado. Nunca compre, quebre ou pegue algo de outra pessoa para pontuar.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: AppColors.navy,
                 fontWeight: FontWeight.w600,
@@ -3721,7 +3909,7 @@ class _TotemSafetyGuide extends StatelessWidget {
           _TotemSafetyRow(
             icon: Icons.check_circle_outline_rounded,
             title: 'Pode levar',
-            text: 'Cabos, mouse, fone, controle pequeno e acessórios secos.',
+            text: 'Cabos, mouse, fone e acessórios pequenos, secos e sem dano.',
             color: AppColors.green,
           ),
           Divider(height: 24, color: AppColors.line),
@@ -3729,14 +3917,15 @@ class _TotemSafetyGuide extends StatelessWidget {
             icon: Icons.supervisor_account_outlined,
             title: 'Peça ajuda',
             text:
-                'Celular, bateria solta, item trincado ou peça com ponta exposta.',
+                'Celular, bateria solta, item trincado ou peça com parte exposta.',
             color: AppColors.warning,
           ),
           Divider(height: 24, color: AppColors.line),
           _TotemSafetyRow(
             icon: Icons.dangerous_outlined,
             title: 'Não toque',
-            text: 'Bateria inchada, vazando, molhada ou quente.',
+            text:
+                'Bateria inchada, vazando, molhada ou quente. Chame um adulto.',
             color: AppColors.danger,
           ),
         ],
@@ -3753,8 +3942,8 @@ class _TotemResultSummary extends StatelessWidget {
     return Semantics(
       container: true,
       label:
-          'Depois da validação. BinCoins aparecem na Carteira. '
-          'Pontos e recuperação aparecem no Impacto.',
+          'Depois da validação, BinCoins aparecem na Carteira. '
+          'Pontos e progresso territorial aparecem no Impacto.',
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
@@ -3773,7 +3962,7 @@ class _TotemResultSummary extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               const Text(
-                'O Totem envia os resultados e o app atualiza as áreas de consulta.',
+                'O Totem envia a validação e o app atualiza as áreas de consulta.',
               ),
               const SizedBox(height: 12),
               const _TotemResultRow(
@@ -3786,7 +3975,7 @@ class _TotemResultSummary extends StatelessWidget {
               const _TotemResultRow(
                 icon: Icons.auto_graph_outlined,
                 title: 'Impacto',
-                text: 'Pontos e recuperação da turma',
+                text: 'Pontos e progresso territorial',
                 color: AppColors.green,
               ),
             ],
@@ -4161,7 +4350,7 @@ class _HomeScenarioOverview extends StatelessWidget {
                 AnimatedProgressPill(value: currentScenario.restoredProgress),
                 const SizedBox(height: 10),
                 Text(
-                  'Missão ativa',
+                  'Em andamento',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     color: AppColors.green,
                     fontWeight: FontWeight.w800,

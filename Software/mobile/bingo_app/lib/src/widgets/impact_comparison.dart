@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import 'bingo_asset_image.dart';
 
 class ImpactComparison extends StatelessWidget {
   const ImpactComparison({
@@ -87,7 +88,12 @@ class _ImpactFrame extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: ColoredBox(
                   color: AppColors.surface,
-                  child: Image.asset(image, fit: fit, alignment: alignment),
+                  child: BingoAssetImage(
+                    asset: image,
+                    fit: fit,
+                    alignment: alignment,
+                    semanticLabel: label,
+                  ),
                 ),
               ),
             ),

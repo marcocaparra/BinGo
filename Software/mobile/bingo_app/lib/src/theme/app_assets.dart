@@ -29,10 +29,11 @@ class AppAssets {
   static const b1nQuestion = 'assets/images/b1n_duvida_pergunta_web.png';
   static const b1nMissionReady = 'assets/images/b1n_mission_ready.png';
   static const b1nPortraitInstruction =
-      'assets/images/b1n_portrait_instruction.png';
-  static const b1nPortraitQuestion = 'assets/images/b1n_portrait_question.png';
+      'assets/images/b1n_portrait_instruction_v2.png';
+  static const b1nPortraitQuestion =
+      'assets/images/b1n_portrait_question_v2.png';
   static const b1nPortraitCelebration =
-      'assets/images/b1n_portrait_celebration.png';
+      'assets/images/b1n_portrait_celebration_v2.png';
   static const scr4pPose = 'assets/images/scr4p_pose_transparent.png';
   static const scr4pIcon = 'assets/images/scr4p_icon.png';
   static const scr4pDefense = 'assets/images/scr4p_defense.png';
@@ -60,6 +61,21 @@ class AppAssets {
   static const mapLandmarkSquare = 'assets/images/map_landmark_square.png';
   static const mapLandmarkPark = 'assets/images/map_landmark_park.png';
   static const mapLandmarkSchool = 'assets/images/map_landmark_school.png';
+  static const bingopolisTerrainTile =
+      'assets/images/bingopolis_terrain_tile.png';
+  static const b1nMapGuide = 'assets/images/b1n_map_guide_v4.png';
+  static const mapLandmarkSquareV2 = 'assets/images/map_landmark_square_v2.png';
+  static const mapLandmarkParkV2 = 'assets/images/map_landmark_park_v2.png';
+  static const mapLandmarkSchoolV2 = 'assets/images/map_landmark_school_v2.png';
+  static const mapLandmarkSquareCorruptV3 =
+      'assets/images/map_landmark_square_corrupt_v3.png';
+  static const mapLandmarkParkCorruptV3 =
+      'assets/images/map_landmark_park_corrupt_v3.png';
+  static const mapLandmarkSchoolCorruptV3 =
+      'assets/images/map_landmark_school_corrupt_v3.png';
+  static const corruptionFogNear = 'assets/images/corruption_fog_near.png';
+  static const corruptionFogMid = 'assets/images/corruption_fog_mid.png';
+  static const corruptionFogFar = 'assets/images/corruption_fog_far.png';
   static const totemConcept = 'assets/images/totem_concept_transparent.png';
   static const totemConceptFull = 'assets/images/totem_concept.png';
   static const totemSingleCutout = 'assets/images/totem_single_cutout.png';

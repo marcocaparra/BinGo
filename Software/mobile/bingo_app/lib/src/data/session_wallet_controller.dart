@@ -37,8 +37,8 @@ class SessionWalletController extends ChangeNotifier {
     _transactions.insert(
       0,
       BinCoinTransaction(
-        title: 'Usou',
-        subtitle: '${reward.title} resgatado no BinBazar',
+        title: 'Simulação de resgate',
+        subtitle: '${reward.title} no BinBazar',
         amount: reward.cost,
         kind: TransactionKind.debit,
       ),

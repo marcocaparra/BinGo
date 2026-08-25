@@ -61,13 +61,13 @@ void main() {
 
     await tester.tap(find.text('Suco natural'));
     await tester.pumpAndSettle();
-    expect(find.text('Resgatar por 30 BinCoins'), findsOneWidget);
-    await tester.ensureVisible(find.text('Resgatar por 30 BinCoins'));
-    await tester.tap(find.text('Resgatar por 30 BinCoins'));
+    expect(find.text('Simular por 30 BinCoins'), findsOneWidget);
+    await tester.ensureVisible(find.text('Simular por 30 BinCoins'));
+    await tester.tap(find.text('Simular por 30 BinCoins'));
     await tester.pumpAndSettle();
 
     expect(controller.balance, 90);
-    expect(find.text('Resgate confirmado'), findsOneWidget);
+    expect(find.text('Simulação concluída'), findsOneWidget);
     expect(find.textContaining('BGO-'), findsAtLeastNWidgets(1));
   });
 
@@ -107,9 +107,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Praça Central'), findsOneWidget);
-      expect(find.text('Missão ativa'), findsOneWidget);
+      expect(find.text('Em andamento'), findsOneWidget);
       expect(find.text('2 descartes para o próximo setor'), findsOneWidget);
-      expect(find.text('Começar no Totem'), findsOneWidget);
+      expect(find.text('Ver preparo para o Totem'), findsOneWidget);
       expect(find.text('Como funciona o BinGo'), findsOneWidget);
       expect(find.byTooltip('Como funciona'), findsNothing);
       expect(tester.takeException(), isNull);
@@ -125,7 +125,7 @@ void main() {
       expect(find.text('Segurança primeiro'), findsOneWidget);
       expect(find.text('Resultado pessoal'), findsOneWidget);
       expect(find.text('Resultado coletivo'), findsOneWidget);
-      expect(find.text('Começar no Totem'), findsNothing);
+      expect(find.text('Ver preparo para o Totem'), findsNothing);
       expect(tester.takeException(), isNull);
 
       await tester.pageBack();
@@ -147,7 +147,10 @@ void main() {
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await tester.pumpAndSettle();
 
-      final cta = find.widgetWithText(BingoActionButton, 'Começar no Totem');
+      final cta = find.widgetWithText(
+        BingoActionButton,
+        'Ver preparo para o Totem',
+      );
       final ctaRect = tester.getRect(cta);
 
       expect(cta, findsOneWidget);
@@ -200,21 +203,21 @@ void main() {
     expect(
       find.bySemanticsLabel(
         'Etapa 1 de 3. Prepare com segurança. '
-        'Separe um eletrônico pequeno, sem uso, seco e autorizado.',
+        'Separe um eletrônico sem uso, seco, seguro e autorizado.',
       ),
       findsOneWidget,
     );
     expect(
       find.bySemanticsLabel(
         'Etapa 2 de 3. Use o Totem. '
-        'Escolha sua turma e siga as instruções do equipamento físico.',
+        'Identifique sua turma e siga uma etapa por vez na tela.',
       ),
       findsOneWidget,
     );
     expect(
       find.bySemanticsLabel(
         'Etapa 3 de 3. Acompanhe no app. Depois da validação, consulte '
-        'BinCoins, pontos e a recuperação da cidade.',
+        'BinCoins, pontos e progresso territorial.',
       ),
       findsOneWidget,
     );
@@ -230,15 +233,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.drag(find.byType(ListView), const Offset(0, -520));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Começar no Totem'));
-    await tester.tap(find.text('Começar no Totem'));
+    await tester.ensureVisible(find.text('Ver preparo para o Totem'));
+    await tester.tap(find.text('Ver preparo para o Totem'));
     await tester.pumpAndSettle();
 
     expect(find.text('No Totem'), findsOneWidget);
-    expect(find.text('Seu caminho no Totem'), findsOneWidget);
+    expect(find.text('Etapas no Totem'), findsOneWidget);
     expect(find.text('Resultado no app'), findsOneWidget);
     expect(
-      find.text('Após o Totem validar, BinCoins e pontos aparecem no app.'),
+      find.text('Após a validação, BinCoins e pontos aparecem no app.'),
       findsOneWidget,
     );
     expect(find.text('Validação no app'), findsNothing);
@@ -267,7 +270,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Quem é SCR4P?'), findsOneWidget);
-    expect(find.text('Ver defesa ativa'), findsOneWidget);
+    expect(find.text('Ver força-tarefa ativa'), findsOneWidget);
   });
 
   testWidgets('wallet, ranking and profile refinements render on phone', (
@@ -293,7 +296,8 @@ void main() {
     await tester.tap(find.text('Ranking'));
     await tester.pumpAndSettle();
     expect(find.text('Turmas da Praça'), findsOneWidget);
-    expect(find.text('BinGópolis · 3 setores'), findsOneWidget);
+    expect(find.text('A jornada de restauração'), findsOneWidget);
+    expect(find.textContaining('3 setores'), findsNothing);
     expect(find.text('Explorar BinGópolis'), findsOneWidget);
     expect(find.text('12 dias'), findsOneWidget);
 
@@ -316,10 +320,13 @@ void main() {
       await tester.tap(find.text('Carteira'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Saldo disponível'), findsOneWidget);
-      expect(find.text('3 recompensas disponíveis'), findsOneWidget);
-      expect(find.text('Ganhou'), findsNWidgets(2));
-      expect(find.text('Usou'), findsOneWidget);
+      expect(find.text('Suas BinCoins'), findsOneWidget);
+      expect(
+        find.text('3 opções disponíveis na simulação'),
+        findsOneWidget,
+      );
+      expect(find.text('Crédito'), findsNWidgets(2));
+      expect(find.text('Uso'), findsOneWidget);
       expect(find.byIcon(Icons.add_rounded), findsNWidgets(2));
       expect(find.byIcon(Icons.remove_rounded), findsOneWidget);
       expect(
@@ -400,10 +407,13 @@ void main() {
       await tester.tap(find.text('Abrir BinBazar'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Troque BinCoins'), findsAtLeastNWidgets(1));
+      expect(
+        find.textContaining('Simulação de resgate'),
+        findsAtLeastNWidgets(1),
+      );
       expect(find.text('Tio B3N cuida do balcão'), findsOneWidget);
       expect(find.bySemanticsLabel('120 BinCoins'), findsOneWidget);
-      expect(find.text('Resgatar'), findsNWidgets(3));
+      expect(find.text('Simular resgate'), findsNWidgets(3));
       expect(find.text('Faltam 60'), findsOneWidget);
     },
   );
@@ -490,13 +500,16 @@ void main() {
 
     await expectEmpty(
       const RewardsScreen(items: []),
-      'BinBazar sem recompensas',
+      'Nenhuma opção disponível',
     );
     await expectEmpty(
       const MissionsScreen(items: []),
-      'Nenhuma missão disponível',
+      'Nenhuma missão ativa',
     );
-    await expectEmpty(const RankingScreen(rows: []), 'Ranking ainda sem dados');
+    await expectEmpty(
+      const RankingScreen(rows: []),
+      'Ranking ainda sem resultados',
+    );
   });
 
   testWidgets(
@@ -508,27 +521,27 @@ void main() {
       await tester.tap(find.text('Missões'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Missão ativa'), findsOneWidget);
-      expect(find.text('Evento em destaque'), findsOneWidget);
-      expect(find.text('EVENTO ATIVO'), findsOneWidget);
-      expect(find.text('Concluída'), findsOneWidget);
-      expect(find.text('Em breve'), findsOneWidget);
-      expect(find.text('Outras missões'), findsOneWidget);
-      expect(find.text('3 de 3 descartes concluídos'), findsOneWidget);
+      expect(find.text('Em andamento'), findsOneWidget);
+      expect(find.text('Força-tarefa em destaque'), findsOneWidget);
+      expect(find.text('AÇÃO COLETIVA'), findsOneWidget);
+      expect(find.text('Missão concluída'), findsOneWidget);
+      expect(find.text('Próxima missão'), findsOneWidget);
+      expect(find.text('Outras etapas da jornada'), findsOneWidget);
+      expect(find.text('3 de 3 descartes validados'), findsOneWidget);
       expect(find.byIcon(Icons.check_rounded), findsOneWidget);
       expect(find.byIcon(Icons.lock_clock_outlined), findsOneWidget);
 
-      await tester.tap(find.text('Recicle 1 item'));
+      await tester.tap(find.text('Descarte corretamente 1 eletrônico'));
       await tester.pumpAndSettle();
 
       expect(find.text('Objetivo'), findsOneWidget);
-      expect(find.text('Segurança antes dos pontos'), findsOneWidget);
-      expect(find.text('Como completar'), findsOneWidget);
-      expect(find.text('Missão rápida'), findsOneWidget);
+      expect(find.text('Segurança antes da recompensa'), findsOneWidget);
+      expect(find.text('Caminho da missão'), findsOneWidget);
+      expect(find.text('Descarte consciente'), findsOneWidget);
       expect(find.text('+10 BinCoins'), findsOneWidget);
       expect(find.byType(B1nDialogueStrip), findsOneWidget);
       expect(find.text('Ir ao Totem'), findsNothing);
-      expect(find.text('Começar no Totem'), findsNothing);
+      expect(find.text('Ver preparo para o Totem'), findsNothing);
 
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -537,8 +550,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Missão'), findsOneWidget);
-      expect(find.text('Defesa especial'), findsOneWidget);
-      expect(find.text('SCR4P ainda controla 58% do setor'), findsOneWidget);
+      expect(find.text('Força-tarefa SCR4P'), findsOneWidget);
+      expect(find.text('A corrupção ainda ocupa 58% do setor'), findsOneWidget);
       expect(find.text('Ver objetivo da defesa'), findsNothing);
       expect(find.text('Ir ao Totem'), findsNothing);
       await tester.pageBack();
@@ -558,14 +571,14 @@ void main() {
 
       expect(find.text('Sua turma · 9ºA'), findsOneWidget);
       expect(find.text('760 pts'), findsOneWidget);
-      expect(find.text('Faltam 50 pts para entrar no top 3'), findsOneWidget);
+      expect(find.text('Próxima meta: 50 pontos para o top 3'), findsOneWidget);
       final mapImages = tester
           .widgetList<Image>(find.byType(Image))
           .where(
             (image) =>
                 image.image is AssetImage &&
                 (image.image as AssetImage).assetName ==
-                    AppAssets.bingopolisMap,
+                    AppAssets.bingopolisTerrainTile,
           );
       expect(mapImages, hasLength(1));
       expect(
@@ -598,7 +611,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Antes'), findsOneWidget);
-      expect(find.text('Depois'), findsOneWidget);
+      expect(find.text('Agora'), findsOneWidget);
       expect(find.text('68% restaurada'), findsOneWidget);
       expect(find.text('3,2 kg'), findsOneWidget);
       expect(find.text('Próxima transformação'), findsOneWidget);
@@ -679,15 +692,15 @@ void main() {
     expect(countAsset(AppAssets.b1nPortraitCelebration), 1);
     for (final state in const <(String, Color)>[
       (
-        'Concluído: Item preparado. Eletrônico sem uso, autorizado, seco e sem risco.',
+        'Concluído: Item seguro e autorizado. Eletrônico sem uso, seco, sem dano e autorizado.',
         AppColors.green,
       ),
       (
-        'Etapa atual: Use o Totem. Escolha sua turma e siga a tela do equipamento.',
+        'Etapa atual: Use o Totem. Identifique sua turma e siga uma orientação por vez.',
         AppColors.blue,
       ),
       (
-        'Próxima etapa: Resultado no app. Após o Totem validar, BinCoins e pontos aparecem no app.',
+        'Próxima etapa: Resultado no app. Após a validação, BinCoins e pontos aparecem no app.',
         AppColors.warning,
       ),
     ]) {
@@ -728,9 +741,9 @@ void main() {
     await tester.pumpAndSettle();
 
     for (final title in const [
-      'Ele ataca cenários',
-      'A turma limpa setores',
-      'Quem ajuda mais ganha mais',
+      'A corrupção ocupa cenários',
+      'A turma recupera setores',
+      'Participação que conta',
     ]) {
       final row = find.ancestor(
         of: find.text(title),

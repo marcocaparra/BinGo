@@ -51,13 +51,13 @@ const _profileAvatars = <_ProfileAvatarOption>[
   ),
   _ProfileAvatarOption(
     id: 'b1n-instruction',
-    label: 'B1N ideia',
+    label: 'B1N inventor',
     asset: AppAssets.b1nPortraitInstruction,
     requiredLevel: 2,
   ),
   _ProfileAvatarOption(
     id: 'b1n-question',
-    label: 'B1N curioso',
+    label: 'B1N atento',
     asset: AppAssets.b1nPortraitQuestion,
     requiredLevel: 2,
   ),
@@ -75,13 +75,13 @@ const _profileAvatars = <_ProfileAvatarOption>[
   ),
   _ProfileAvatarOption(
     id: 'b1n-reward',
-    label: 'B1N prêmio',
+    label: 'B1N celebrando',
     asset: AppAssets.profileAvatarB1nReward,
     requiredLevel: 4,
   ),
   _ProfileAvatarOption(
     id: 'b1n-hero',
-    label: 'B1N herói',
+    label: 'B1N restaurador',
     asset: AppAssets.profileAvatarB1nHero,
     requiredLevel: 5,
   ),
@@ -190,7 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             data?.customization ??
             const ProfileCustomization();
         return AppPage(
-          title: 'Seu caminho',
+          title: 'Sua jornada',
           subtitle: 'Progresso, conquistas e conta em um só lugar.',
           showBackButton: false,
           dataStatus: AppDataStatus.local,
@@ -210,7 +210,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 16),
               const B1nGuide(
                 asset: AppAssets.b1nReward,
-                title: 'Você está avançando!',
+                title: 'Sua jornada está avançando!',
                 message: 'Faltam 240 pontos pessoais para chegar a Guardião.',
                 tone: AppColors.green,
                 compact: true,
@@ -218,7 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 14),
               BingoActionButton(
-                label: 'Continuar minha missão',
+                label: 'Ver missões',
                 icon: Icons.arrow_forward_rounded,
                 tone: BingoActionTone.green,
                 onPressed: widget.onGoHome,
@@ -419,8 +419,8 @@ class _ProfileAvatarFrame extends StatelessWidget {
                   width: 2,
                 ),
               ),
-              child: Image.asset(
-                asset,
+              child: BingoAssetImage(
+                asset: asset,
                 fit: BoxFit.contain,
                 alignment: Alignment.center,
                 filterQuality: FilterQuality.high,
@@ -548,7 +548,7 @@ class _ProfileCustomizationSheetState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Personalize seu caminho',
+                          'Personalize sua jornada',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 4),
@@ -617,7 +617,7 @@ class _ProfileCustomizationSheetState
               ),
               const SizedBox(height: 14),
               BingoActionButton(
-                label: 'Usar esta identidade',
+                label: 'Salvar personalização',
                 icon: Icons.check_rounded,
                 tone: BingoActionTone.green,
                 onPressed: () => Navigator.of(context).pop(
@@ -687,8 +687,8 @@ class _AvatarOptionCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Image.asset(
-                        option.asset,
+                      BingoAssetImage(
+                        asset: option.asset,
                         fit: BoxFit.contain,
                         filterQuality: FilterQuality.high,
                         opacity: AlwaysStoppedAnimation(locked ? 0.34 : 1),

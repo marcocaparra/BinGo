@@ -228,7 +228,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Personalizar perfil'));
     await tester.pumpAndSettle();
-    expect(find.text('Personalize seu caminho'), findsOneWidget);
+    expect(find.text('Personalize sua jornada'), findsOneWidget);
 
     final b3nOption = find.text('Tio B3N');
     await tester.ensureVisible(b3nOption);
@@ -238,7 +238,7 @@ void main() {
     final scr4pTheme = find.text('Energia SCR4P');
     await tester.ensureVisible(scr4pTheme);
     await tester.tap(scr4pTheme);
-    await tester.tap(find.text('Usar esta identidade'));
+    await tester.tap(find.text('Salvar personalização'));
     await tester.pumpAndSettle();
 
     expect(

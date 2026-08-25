@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
+import 'bingo_asset_image.dart';
 
 class BinCoinAmount extends StatelessWidget {
   const BinCoinAmount({
@@ -59,8 +60,8 @@ class BinCoinIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox.square(
       dimension: size,
-      child: Image.asset(
-        AppAssets.bincoinV2,
+      child: BingoAssetImage(
+        asset: AppAssets.bincoinV2,
         width: size,
         height: size,
         fit: BoxFit.contain,

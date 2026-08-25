@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
+import 'bingo_asset_image.dart';
 
 enum B1nPortraitVariant { neutral, instruction, question, celebration }
 
@@ -55,11 +56,12 @@ class B1nDialogueStrip extends StatelessWidget {
               SizedBox(
                 width: 44,
                 height: 44,
-                child: Image.asset(
-                  _asset,
+                child: BingoAssetImage(
+                  asset: _asset,
                   fit: BoxFit.contain,
                   alignment: Alignment.center,
                   filterQuality: FilterQuality.high,
+                  semanticLabel: speaker,
                 ),
               ),
               const SizedBox(width: 9),

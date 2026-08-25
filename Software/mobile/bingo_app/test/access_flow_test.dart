@@ -20,7 +20,10 @@ class _FakeProfileRepository implements ProfileRepository {
   Future<StudentProfile?> loadProfile() async => profile;
 
   @override
-  Future<void> save({required StudentProfile profile, required String pin}) async {
+  Future<void> save({
+    required StudentProfile profile,
+    required String pin,
+  }) async {
     this.profile = profile;
     this.pin = pin;
   }
@@ -80,6 +83,7 @@ void main() {
       MaterialApp(home: AccessFlowScreen(repository: _FakeProfileRepository())),
     );
 
+    await tester.ensureVisible(find.text('Já tenho PIN'));
     await tester.tap(find.text('Já tenho PIN'));
     await tester.pumpAndSettle();
     expect(find.text('Bom te ver de novo'), findsOneWidget);
@@ -132,8 +136,11 @@ void main() {
     await tester.tap(find.text('Confirmar PIN'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Tudo pronto!'), findsOneWidget);
-    expect(repository.profile, const StudentProfile(school: 'ENIAC', identifier: '2026001'));
+    expect(find.text('Tudo certo!'), findsOneWidget);
+    expect(
+      repository.profile,
+      const StudentProfile(school: 'ENIAC', identifier: '2026001'),
+    );
     expect(repository.pin, '4826');
   });
 }

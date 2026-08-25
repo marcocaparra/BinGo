@@ -68,6 +68,9 @@ flutter:
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter[opsz,wght].ttf
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Inter[opsz,wght].ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

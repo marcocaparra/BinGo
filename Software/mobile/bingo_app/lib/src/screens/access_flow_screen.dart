@@ -240,20 +240,20 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Vamos entrar em ação?',
+          'Pronto para continuar sua jornada?',
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 8),
         Text(
-          'Seu PIN identifica você no Totem e acompanha seu caminho no BinGo.',
+          'Seu PIN conecta as validações do Totem ao seu perfil.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
         const B1nGuide(
           asset: AppAssets.b1nMissionReady,
-          title: 'B1N está pronto',
+          title: 'Eu te guio',
           message:
-              'Crie seu PIN uma vez. Depois, ele abre seu caminho no Totem.',
+              'Crie seu PIN uma vez para acompanhar sua jornada no Totem e no app.',
           tone: AppColors.blue,
         ),
         const SizedBox(height: 22),
@@ -294,22 +294,22 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
         Text(
           isReset
               ? 'Vamos recuperar seu acesso'
-              : 'Primeiro, me conta quem você é',
+              : 'Quem vai continuar esta jornada?',
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 8),
         Text(
           isReset
               ? 'Confirme os mesmos dados usados no cadastro deste aparelho.'
-              : 'Esses dados aparecem no seu perfil e no Totem.',
+              : 'Esses dados identificam seu perfil neste aparelho e no Totem.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
         B1nGuide(
           asset: isReset ? AppAssets.b1nQuestion : AppAssets.b1nIdeaInstruction,
-          title: isReset ? 'Vamos resolver isso' : 'É rápido',
+          title: isReset ? 'Eu te ajudo a voltar' : 'É rápido',
           message: isReset
-              ? 'Depois voce escolhe um novo PIN.'
+              ? 'Depois você escolhe um novo PIN.'
               : 'Use seu nome ou matrícula como a escola combinou.',
           compact: true,
           portrait: isReset
@@ -359,14 +359,14 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Ele será usado para entrar no Totem.',
+          'Você usará este PIN para se identificar no Totem.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
         const B1nGuide(
           asset: AppAssets.b1nPinPrivacy,
-          title: 'Só você vê seu PIN',
-          message: 'B1N fecha os olhos para proteger sua escolha.',
+          title: 'Seu PIN fica só com você',
+          message: 'Eu fecho os olhos enquanto você escolhe.',
           tone: AppColors.blue,
           compact: true,
           portrait: B1nPortraitVariant.question,
@@ -403,7 +403,7 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
         const SizedBox(height: 20),
         const B1nGuide(
           asset: AppAssets.b1nPinPrivacy,
-          title: 'Sem pressa',
+          title: 'Confira com calma',
           message: 'Eu continuo de olhos fechados.',
           compact: true,
           portrait: B1nPortraitVariant.question,
@@ -444,8 +444,8 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
         const SizedBox(height: 20),
         const B1nGuide(
           asset: AppAssets.b1nThumbsUp,
-          title: 'B1N lembra do caminho',
-          message: 'Seu PIN continua privado.',
+          title: 'Eu reconheço seu caminho',
+          message: 'Seu PIN continua privado neste aparelho.',
           compact: true,
           portrait: B1nPortraitVariant.celebration,
         ),
@@ -495,22 +495,22 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
       key: const ValueKey('access-success'),
       children: [
         Text(
-          wasReset ? 'PIN atualizado!' : 'Tudo pronto!',
+          wasReset ? 'PIN atualizado!' : 'Jornada liberada!',
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 8),
         Text(
           wasReset
               ? 'Seu novo PIN já pode ser usado no Totem.'
-              : 'Seu PIN abre caminho no Totem.',
+              : 'Seu PIN já pode identificar você no Totem.',
           style: Theme.of(context).textTheme.bodyMedium,
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
         const B1nGuide(
           asset: AppAssets.b1nThumbsUp,
-          title: 'Mandou bem!',
-          message: 'Agora vamos recuperar BinGópolis juntos.',
+          title: 'Tudo certo!',
+          message: 'Agora vamos restaurar BinGópolis com sua turma.',
           tone: AppColors.green,
         ),
         const SizedBox(height: 22),

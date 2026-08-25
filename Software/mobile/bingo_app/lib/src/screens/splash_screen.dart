@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
+import '../widgets/bingo_asset_image.dart';
 
 const _cinematicDuration = Duration(milliseconds: 2800);
 
@@ -211,8 +212,8 @@ class _HeroMotion extends StatelessWidget {
                       opacity: flightWeight,
                       child: Transform.translate(
                         offset: Offset(0, -5 * flightToDescent),
-                        child: Image.asset(
-                          AppAssets.b1nSplashFlight,
+                        child: BingoAssetImage(
+                          asset: AppAssets.b1nSplashFlight,
                           key: const ValueKey('b1n-splash-flight'),
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
@@ -223,8 +224,8 @@ class _HeroMotion extends StatelessWidget {
                       opacity: descentWeight,
                       child: Transform.translate(
                         offset: Offset(0, 3 * descentToLanding),
-                        child: Image.asset(
-                          AppAssets.b1nSplashDescent,
+                        child: BingoAssetImage(
+                          asset: AppAssets.b1nSplashDescent,
                           key: const ValueKey('b1n-splash-descent'),
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
@@ -235,8 +236,8 @@ class _HeroMotion extends StatelessWidget {
                       opacity: landingWeight,
                       child: Transform.scale(
                         scale: 0.88 + (0.12 * rebound),
-                        child: Image.asset(
-                          AppAssets.b1nSplashHero,
+                        child: BingoAssetImage(
+                          asset: AppAssets.b1nSplashHero,
                           key: const ValueKey('b1n-splash-hero'),
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
@@ -340,8 +341,8 @@ class _LogoReveal extends StatelessWidget {
             opacity: reveal,
             child: SizedBox(
               width: width,
-              child: Image.asset(
-                AppAssets.splashLogo,
+              child: BingoAssetImage(
+                asset: AppAssets.splashLogo,
                 key: const ValueKey('splash-logo'),
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.high,

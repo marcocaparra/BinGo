@@ -1,5 +1,6 @@
 export 'b1n_context_message.dart';
 export 'b1n_dialogue_strip.dart';
+export 'bingo_asset_image.dart';
 export 'bincoin_amount.dart';
 export 'impact_comparison.dart';
 
@@ -9,6 +10,7 @@ import '../data/demo_data.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import 'bincoin_amount.dart';
+import 'bingo_asset_image.dart';
 
 enum AppDataStatus { simulated, local }
 
@@ -71,6 +73,7 @@ class _DataStatusNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     return Tooltip(
       message: status == AppDataStatus.simulated
           ? 'Dados simulados. A atualização real acontecerá pelo Totem.'
@@ -82,7 +85,7 @@ class _DataStatusNotice extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(right: 16),
           child: SizedBox(
-            width: 118,
+            width: largeText ? 180 : 118,
             child: Row(
               children: [
                 const Icon(
@@ -92,17 +95,14 @@ class _DataStatusNotice extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      status == AppDataStatus.simulated
-                          ? 'Dados simulados'
-                          : 'Perfil local',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textMuted,
-                        fontWeight: FontWeight.w800,
-                      ),
+                  child: Text(
+                    status == AppDataStatus.simulated
+                        ? 'Dados simulados'
+                        : 'Perfil local',
+                    maxLines: 2,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -234,10 +234,11 @@ class ImageHeroCard extends StatelessWidget {
             ? height
             : responsiveHeight;
         final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-        final effectiveHeight = usesLargeText && baseHeight < 330
-            ? 330.0
+        final largeTextMinimum = constraints.maxWidth < 340 ? 460.0 : 430.0;
+        final effectiveHeight = usesLargeText && baseHeight < largeTextMinimum
+            ? largeTextMinimum
             : baseHeight;
-        final maximumHeight = usesLargeText ? 400.0 : 230.0;
+        final maximumHeight = usesLargeText ? 480.0 : 230.0;
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(22),
@@ -248,7 +249,12 @@ class ImageHeroCard extends StatelessWidget {
               children: [
                 ColoredBox(
                   color: AppColors.navy,
-                  child: Image.asset(image, fit: fit, alignment: alignment),
+                  child: BingoAssetImage(
+                    asset: image,
+                    fit: fit,
+                    alignment: alignment,
+                    semanticLabel: title,
+                  ),
                 ),
                 DecoratedBox(
                   decoration: BoxDecoration(
@@ -272,8 +278,6 @@ class ImageHeroCard extends StatelessWidget {
                       if (badge != null) const SizedBox(height: 8),
                       Text(
                         title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(
                           context,
                         ).textTheme.titleLarge?.copyWith(color: Colors.white),
@@ -281,8 +285,6 @@ class ImageHeroCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.white.withValues(alpha: 0.88),
                           fontSize: 14,
@@ -495,7 +497,12 @@ class B1nTipCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: Row(
           children: [
-            Image.asset(asset, height: 54, width: 54),
+            BingoAssetImage(
+              asset: asset,
+              height: 54,
+              width: 54,
+              semanticLabel: title,
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

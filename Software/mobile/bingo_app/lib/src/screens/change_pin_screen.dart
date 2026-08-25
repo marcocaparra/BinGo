@@ -69,16 +69,18 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
   Widget build(BuildContext context) {
     return AppPage(
       title: _confirming ? 'Confirme seu novo PIN' : 'Crie seu novo PIN',
-      subtitle: 'Ele continuará sendo usado para entrar no Totem.',
+      subtitle: 'Você continuará usando este PIN para se identificar no Totem.',
       dataStatus: AppDataStatus.local,
       child: Column(
         children: [
           B1nGuide(
             asset: AppAssets.b1nPinPrivacy,
-            title: _confirming ? 'Mais uma vez' : 'Sua escolha é privada',
+            title: _confirming
+                ? 'Confira mais uma vez'
+                : 'Seu PIN fica só com você',
             message: _confirming
                 ? 'Digite os mesmos quatro números.'
-                : 'B1N fecha os olhos enquanto você escolhe.',
+                : 'Eu fecho os olhos enquanto você escolhe.',
             compact: true,
             portrait: B1nPortraitVariant.question,
           ),

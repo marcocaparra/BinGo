@@ -42,35 +42,38 @@ void main() {
     expect(await repository.loadProfile(), profile);
   });
 
-  test('replaces the previous PIN after a reset for the saved student', () async {
-    final repository = await repositoryWithEmptyStorage();
-    const profile = StudentProfile(school: 'ENIAC', identifier: '2026001');
-    await repository.save(profile: profile, pin: '4826');
+  test(
+    'replaces the previous PIN after a reset for the saved student',
+    () async {
+      final repository = await repositoryWithEmptyStorage();
+      const profile = StudentProfile(school: 'ENIAC', identifier: '2026001');
+      await repository.save(profile: profile, pin: '4826');
 
-    final reset = await repository.resetPin(
-      school: 'ENIAC',
-      identifier: '2026001',
-      newPin: '1357',
-    );
-
-    expect(reset, isTrue);
-    expect(
-      await repository.verify(
+      final reset = await repository.resetPin(
         school: 'ENIAC',
         identifier: '2026001',
-        pin: '4826',
-      ),
-      isFalse,
-    );
-    expect(
-      await repository.verify(
-        school: 'ENIAC',
-        identifier: '2026001',
-        pin: '1357',
-      ),
-      isTrue,
-    );
-  });
+        newPin: '1357',
+      );
+
+      expect(reset, isTrue);
+      expect(
+        await repository.verify(
+          school: 'ENIAC',
+          identifier: '2026001',
+          pin: '4826',
+        ),
+        isFalse,
+      );
+      expect(
+        await repository.verify(
+          school: 'ENIAC',
+          identifier: '2026001',
+          pin: '1357',
+        ),
+        isTrue,
+      );
+    },
+  );
 
   test('deletes the local profile and its PIN', () async {
     final repository = await repositoryWithEmptyStorage();

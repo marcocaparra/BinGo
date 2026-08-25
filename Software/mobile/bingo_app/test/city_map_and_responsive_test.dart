@@ -3,16 +3,21 @@ import 'package:bingo_app/src/screens/access_flow_screen.dart';
 import 'package:bingo_app/src/screens/city_map_screen.dart';
 import 'package:bingo_app/src/screens/profile_screen.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
+import 'package:bingo_app/src/theme/app_assets.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  void useViewport(WidgetTester tester, Size size) {
+  void useViewport(
+    WidgetTester tester,
+    Size size, {
+    bool disableAnimations = true,
+  }) {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
-        const FakeAccessibilityFeatures(disableAnimations: true);
+        FakeAccessibilityFeatures(disableAnimations: disableAnimations);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(
@@ -25,15 +30,16 @@ void main() {
     Widget screen,
     Size size, {
     double textScale = 1,
+    bool disableAnimations = true,
   }) async {
-    useViewport(tester, size);
+    useViewport(tester, size, disableAnimations: disableAnimations);
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
         home: MediaQuery(
           data: MediaQueryData(
             textScaler: TextScaler.linear(textScale),
-            disableAnimations: true,
+            disableAnimations: disableAnimations,
           ),
           child: screen,
         ),
@@ -72,6 +78,11 @@ void main() {
         scenario.cleanAsset,
       }, hasLength(3));
       expect(scenario.mapLandmarkAsset, isNotEmpty);
+      expect(scenario.corruptMapLandmarkAsset, isNotEmpty);
+      expect(
+        scenario.corruptMapLandmarkAsset,
+        isNot(scenario.mapLandmarkAsset),
+      );
     }
   });
 
@@ -99,15 +110,29 @@ void main() {
         ];
         expect(cardSizes.map((size) => size.height).toSet(), hasLength(1));
         expect(cardSizes.map((size) => size.width).toSet(), hasLength(1));
+        expect(
+          cardSizes.first.height,
+          lessThanOrEqualTo(entry.$2 >= 1.5 ? 372 : 308),
+        );
 
         for (final reward in rewards) {
           final action = find.byKey(ValueKey('reward-action-${reward.id}'));
           expect(action, findsOneWidget);
           expect(tester.getSize(action).width, greaterThan(120));
+          final price = find.byKey(ValueKey('reward-price-${reward.cost}'));
+          expect(price, findsOneWidget);
+          expect(tester.getSize(price).width, greaterThan(120));
+          expect(tester.getSize(price).height, greaterThanOrEqualTo(48));
+          final priceBottom = tester.getBottomLeft(price).dy;
+          final actionTop = tester.getTopLeft(action).dy;
+          expect(actionTop - priceBottom, lessThanOrEqualTo(24));
         }
-        for (final label in tester.widgetList<Text>(find.text('Resgatar'))) {
-          expect(label.maxLines, 1);
-          expect(label.softWrap, isFalse);
+        for (final label in tester.widgetList<Text>(
+          find.text('Simular resgate'),
+        )) {
+          expect(label.maxLines, lessThanOrEqualTo(2));
+          expect(label.overflow, isNot(TextOverflow.ellipsis));
+          expect(label.style?.color, Colors.white);
         }
         expect(tester.takeException(), isNull);
       },
@@ -120,7 +145,10 @@ void main() {
     var openedCurrent = false;
     await pumpScreen(
       tester,
-      CityMapScreen(isPilot: true, onOpenScenario: (_) => openedCurrent = true),
+      CityMapScreen(
+        isPilot: true,
+        onOpenScenario: (_, _) => openedCurrent = true,
+      ),
       const Size(390, 844),
     );
 
@@ -128,6 +156,22 @@ void main() {
       find.byKey(const ValueKey('bingopolis-interactive-map')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('bingopolis-world-backdrop')),
+      findsOneWidget,
+    );
+    final fogImages = tester.widgetList<Image>(find.byType(Image)).where((
+      image,
+    ) {
+      final provider = image.image;
+      if (provider is! AssetImage) return false;
+      return {
+        AppAssets.corruptionFogNear,
+        AppAssets.corruptionFogMid,
+        AppAssets.corruptionFogFar,
+      }.contains(provider.assetName);
+    });
+    expect(fogImages.length, greaterThanOrEqualTo(20));
     expect(
       find.byKey(const ValueKey('scenario-marker-central-square')),
       findsOneWidget,
@@ -144,6 +188,14 @@ void main() {
 
     final viewer = tester.widget<InteractiveViewer>(
       find.byKey(const ValueKey('bingopolis-interactive-map')),
+    );
+    expect(viewer.boundaryMargin, EdgeInsets.zero);
+    expect(
+      find.ancestor(
+        of: find.byKey(const ValueKey('bingopolis-interactive-map')),
+        matching: find.byType(SafeArea),
+      ),
+      findsOneWidget,
     );
     final initialMatrix = List<double>.of(
       viewer.transformationController!.value.storage,
@@ -175,13 +227,33 @@ void main() {
     await tester.tap(find.text('Ver cenário'));
     expect(openedCurrent, isTrue);
 
-    await tester.tap(find.text('Simular descoberta'));
+    await tester.tap(find.byKey(const ValueKey('advance-bingopolis-journey')));
     await tester.pump();
     await tester.tap(find.byKey(const ValueKey('scenario-marker-spring-park')));
     await tester.pump();
     expect(find.text('Parque das Nascentes'), findsAtLeastNWidgets(1));
-    expect(find.text('Reiniciar mapa'), findsOneWidget);
-    expect(find.text('Escola Criativa'), findsNothing);
+    expect(find.text('Demonstrar Escola'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('scenario-marker-creative-school')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('advance-bingopolis-journey')));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const ValueKey('scenario-marker-creative-school')),
+    );
+    await tester.pump();
+    expect(find.text('Escola Criativa'), findsAtLeastNWidgets(1));
+    expect(find.text('Reiniciar demonstração'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('advance-bingopolis-journey')));
+    await tester.pump();
+    expect(find.text('Praça Central'), findsAtLeastNWidgets(1));
+    expect(
+      find.byKey(const ValueKey('scenario-marker-creative-school')),
+      findsNothing,
+    );
   });
 
   testWidgets('corruption storm stays static with reduced motion', (
@@ -189,7 +261,7 @@ void main() {
   ) async {
     await pumpScreen(
       tester,
-      CityMapScreen(onOpenScenario: (_) {}),
+      CityMapScreen(onOpenScenario: (_, _) {}),
       const Size(390, 844),
     );
     expect(
@@ -198,6 +270,152 @@ void main() {
     );
     await tester.pump();
     expect(tester.binding.transientCallbackCount, 0);
+  });
+
+  testWidgets('sector progression animates cleanup before moving the camera', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      CityMapScreen(isPilot: true, onOpenScenario: (_, _) {}),
+      const Size(390, 844),
+      disableAnimations: false,
+    );
+    await tester.pump(const Duration(milliseconds: 1100));
+
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byKey(const ValueKey('bingopolis-interactive-map')),
+    );
+    final initialMatrix = List<double>.of(
+      viewer.transformationController!.value.storage,
+    );
+    await tester.tap(find.byKey(const ValueKey('advance-bingopolis-journey')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find.byKey(const ValueKey('bingopolis-map-interaction-lock')),
+          )
+          .ignoring,
+      isTrue,
+    );
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    final progress = tester
+        .widgetList<LinearProgressIndicator>(
+          find.byType(LinearProgressIndicator),
+        )
+        .first
+        .value!;
+    expect(progress, greaterThan(currentScenario.restoredProgress));
+    expect(progress, lessThan(1));
+    expect(
+      viewer.transformationController!.value.storage,
+      orderedEquals(initialMatrix),
+    );
+
+    await tester.pump(const Duration(milliseconds: 1400));
+    expect(
+      viewer.transformationController!.value.storage,
+      isNot(orderedEquals(initialMatrix)),
+    );
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(find.text('Parque das Nascentes'), findsAtLeastNWidgets(1));
+    expect(find.text('Demonstrar Escola'), findsOneWidget);
+    expect(
+      tester
+          .widget<IgnorePointer>(
+            find.byKey(const ValueKey('bingopolis-map-interaction-lock')),
+          )
+          .ignoring,
+      isFalse,
+    );
+  });
+
+  testWidgets('storm frontier remains continuous when a stage settles', (
+    tester,
+  ) async {
+    await pumpScreen(
+      tester,
+      CityMapScreen(isPilot: true, onOpenScenario: (_, _) {}),
+      const Size(390, 844),
+      disableAnimations: false,
+    );
+    await tester.pump(const Duration(milliseconds: 1100));
+    await tester.tap(find.byKey(const ValueKey('advance-bingopolis-journey')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 3000));
+
+    final persistentCloud = find.byKey(
+      const ValueKey('storm-bank-stage-1-cloud-0-0'),
+    );
+    expect(persistentCloud, findsOneWidget);
+    final beforeHandoff = tester.getTopLeft(persistentCloud);
+
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(persistentCloud, findsOneWidget);
+    final afterHandoff = tester.getTopLeft(persistentCloud);
+    expect((afterHandoff.dy - beforeHandoff.dy).abs(), lessThan(12));
+    expect((afterHandoff.dx - beforeHandoff.dx).abs(), lessThan(12));
+    expect(find.byKey(const ValueKey('storm-bank-retreat-0')), findsNothing);
+  });
+
+  testWidgets('map opening reports the selected visual progress', (
+    tester,
+  ) async {
+    CityScenario? openedScenario;
+    double? openedProgress;
+    await pumpScreen(
+      tester,
+      CityMapScreen(
+        isPilot: true,
+        onOpenScenario: (scenario, progress) {
+          openedScenario = scenario;
+          openedProgress = progress;
+        },
+      ),
+      const Size(390, 844),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('advance-bingopolis-journey')));
+    await tester.pump();
+    await tester.tap(find.text('Ver cenário'));
+    expect(openedScenario?.id, cityScenarios[1].id);
+    expect(openedProgress, 0);
+
+    await tester.tap(find.byKey(const ValueKey('advance-bingopolis-journey')));
+    await tester.pump();
+    await tester.tap(find.text('Ver cenário'));
+    expect(openedScenario?.id, cityScenarios[2].id);
+    expect(openedProgress, 0);
+  });
+
+  testWidgets('future sectors use their own zero-impact state', (tester) async {
+    for (final scenario in cityScenarios.skip(1)) {
+      await pumpScreen(
+        tester,
+        ImpactScreen(
+          scenario: scenario,
+          registeredProgress: scenario.progress,
+          visualProgress: 1,
+          isPilotSimulation: true,
+        ),
+        const Size(390, 844),
+      );
+      expect(find.text('Restauração ainda não iniciada'), findsOneWidget);
+      expect(find.text('Simulação visual'), findsOneWidget);
+      expect(find.textContaining(scenario.name), findsWidgets);
+      final scenarioImages = tester
+          .widgetList<Image>(find.byType(Image))
+          .where(
+            (image) =>
+                image.image is AssetImage &&
+                (image.image as AssetImage).assetName == scenario.corruptAsset,
+          );
+      expect(scenarioImages, isNotEmpty);
+      expect(find.text('3,2 kg'), findsNothing);
+      expect(tester.takeException(), isNull);
+    }
   });
 
   final screens = <String, Widget Function()>{
@@ -209,7 +427,7 @@ void main() {
     'mission detail': () => const MissionDetailScreen(mission: activeMission),
     'totem': () => const TotemTrackingScreen(mission: activeMission),
     'ranking': () => const RankingScreen(),
-    'city map': () => CityMapScreen(onOpenScenario: (_) {}),
+    'city map': () => CityMapScreen(onOpenScenario: (_, _) {}),
     'scenario': () => const CurrentScenarioScreen(),
     'impact': () => const ImpactScreen(),
     'how it works': () => const HowItWorksScreen(),
