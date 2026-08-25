@@ -1,16 +1,16 @@
 const assets = {
-  logo: "./assets/brand/logo_bingo_sem_slogan.png",
-  b1n: "./assets/characters/b1n_joinha_confirmacao_web.png",
-  b1nCorner: "./assets/characters/b1n_joinha_confirmacao_corner_norm_web.png",
-  b1nDoubtCorner: "./assets/characters/b1n_duvida_pergunta_corner_norm_web.png",
-  b1nIdea: "./assets/characters/b1n_ideia_instrucao_web.png",
-  b1nIdeaCorner: "./assets/characters/b1n_ideia_instrucao_corner_norm_web.png",
-  b1nPrivacyCorner: "./assets/characters/b1n_privacidade_pin_olhos_fechados_corner_norm_web.png",
+  logo: "./assets/brand/logo_bingo_sem_slogan_clean.png",
+  b1n: "./assets/characters/b1n_joinha_confirmacao_web_clean.png",
+  b1nCorner: "./assets/characters/b1n_joinha_confirmacao_corner_norm_web_clean.png",
+  b1nDoubtCorner: "./assets/characters/b1n_duvida_pergunta_corner_norm_web_clean.png",
+  b1nIdea: "./assets/characters/b1n_ideia_instrucao_web_clean.png",
+  b1nIdeaCorner: "./assets/characters/b1n_ideia_instrucao_corner_norm_web_clean.png",
+  b1nPrivacyCorner: "./assets/characters/b1n_privacidade_pin_olhos_fechados_corner_norm_web_clean.png",
   b1nPrivacy: "./assets/characters/b1n_privacidade_pin_olhos_fechados_web.png",
-  b1nSleep: "./assets/characters/b1n_dormindo_kiosk_idle_clean_web.png",
-  b1nPointLeft: "./assets/characters/b1n_apontando_esquerda_compartimento_web.png",
-  b1nAnalyze: "./assets/characters/b1n_lupa_analise_web.png",
-  b1nReward: "./assets/characters/b1n_segurando_bincoin_recompensa_web.png",
+  b1nSleep: "./assets/characters/b1n_dormindo_kiosk_idle_recorte.png",
+  b1nPointLeft: "./assets/characters/b1n_apontando_esquerda_compartimento_web_clean.png",
+  b1nAnalyze: "./assets/characters/b1n_lupa_analise_web_clean.png",
+  b1nReward: "./assets/characters/b1n_segurando_bincoin_recompensa_web_clean.png",
   detectedCable: "./assets/items/descarte_cabo_usb_web.png",
 };
 
@@ -20,32 +20,32 @@ const itemOptions = [
     title: "Pilha ou bateria",
     subtitle: "Cuidado especial",
     image: "./assets/items/descarte_pilha_bateria_web.png",
-    cutout: "./assets/items/descarte_pilha_bateria_cutout.png",
+    cutout: "./assets/items/descarte_pilha_bateria_cutout_clean.png",
   },
   {
     id: "cable",
     title: "Cabo",
     subtitle: "Carregador/fio",
     image: "./assets/items/descarte_cabo_usb_web.png",
-    cutout: "./assets/items/descarte_cabo_usb_cutout.png",
+    cutout: "./assets/items/descarte_cabo_usb_cutout_clean.png",
   },
   {
     id: "phone",
     title: "Celular",
     subtitle: "Atenção especial",
     image: "./assets/items/descarte_celular_smartphone_web.png",
-    cutout: "./assets/items/descarte_celular_smartphone_cutout.png",
+    cutout: "./assets/items/descarte_celular_smartphone_cutout_clean.png",
   },
   {
     id: "small",
     title: "Item pequeno",
     subtitle: "Mouse, fone...",
     image: "./assets/items/descarte_mouse_item_pequeno_web.png",
-    cutout: "./assets/items/descarte_mouse_item_pequeno_cutout.png",
+    cutout: "./assets/items/descarte_mouse_item_pequeno_cutout_clean.png",
   },
   {
     id: "unknown",
-    title: "Lixo eletrônico não identificado",
+    title: "Eletrônico não identificado",
     subtitle: "Categoria geral",
     image: null,
     cutout: null,
@@ -54,18 +54,18 @@ const itemOptions = [
 
 const schoolTree = {
   fundamental1: {
-    label: "Fund. 1",
-    speech: "Legal. Agora escolha o ano.",
+    label: "Fundamental I",
+    speech: "Agora escolha o seu ano.",
     years: ["1º Ano", "2º Ano", "3º Ano", "4º Ano", "5º Ano"],
   },
   fundamental2: {
-    label: "Fund. 2",
-    speech: "Legal. Agora escolha o ano.",
+    label: "Fundamental II",
+    speech: "Agora escolha o seu ano.",
     years: ["6º Ano", "7º Ano", "8º Ano", "9º Ano"],
   },
   medio: {
     label: "Ensino Médio",
-    speech: "Legal. Agora escolha a série.",
+    speech: "Agora escolha a sua série.",
     years: ["1ª Série", "2ª Série", "3ª Série"],
   },
 };
@@ -127,10 +127,10 @@ const screens = [
       <section class="screen screen--big screen--stack-action is-idle">
         ${topbar("Pronto")}
         <div class="content-zone content-zone--big">
-          ${talk(assets.b1n, "Trouxe eletrônico? Eu te guio.", "big welcome-talk character-joinha")}
+          ${talk(assets.b1n, "Trouxe um eletrônico sem uso? Eu te guio.", "big welcome-talk character-joinha")}
         </div>
         <div class="action-zone action-zone--stack action-zone--single">
-          <button class="primary-action wake-action" data-start-session>Descartar agora</button>
+          <button class="primary-action wake-action" data-start-session>Iniciar descarte</button>
         </div>
       </section>
     `,
@@ -142,11 +142,11 @@ const screens = [
       <section class="screen screen--big screen--stack-action">
         ${topbar("Participar")}
         <div class="content-zone content-zone--big">
-          ${talk(assets.b1n, "Como quer participar?", "big character-joinha")}
+          ${talk(assets.b1n, "Como você quer participar?", "big character-joinha")}
         </div>
         <div class="action-zone action-zone--stack">
-          <button class="primary-action" data-mode="student" data-next>Quero BinCoins</button>
-          <button class="secondary-action" data-mode="classOnly" data-next>Só pontuar pra turma</button>
+          <button class="primary-action" data-mode="student" data-next>Participar com meu perfil</button>
+          <button class="secondary-action class-only-action" data-mode="classOnly" data-next>Contribuir só com a turma</button>
         </div>
       </section>
     `,
@@ -158,7 +158,7 @@ const screens = [
       <section class="screen screen--corner screen--no-action screen--choice-list">
         ${topbar("Segmento")}
         <div class="content-zone content-zone--corner">
-          ${talk(assets.b1nCorner, "Toque no seu segmento.", "corner")}
+          ${talk(assets.b1nCorner, "Escolha sua etapa escolar.", "corner")}
           <div class="option-stack">
             ${Object.entries(schoolTree).map(([id, segment]) => `
               <button class="list-button list-button--large" data-segment="${id}" data-next>
@@ -242,7 +242,7 @@ const screens = [
       <section class="screen screen--corner screen--pin screen--with-cancel">
         ${topbar("PIN", { back: false })}
         <div class="content-zone content-zone--corner content-zone--pin">
-          ${talk(assets.b1nPrivacyCorner, "Digite seu PIN. Eu não olho.", "corner privacy-guide character-privacy")}
+          ${talk(assets.b1nPrivacyCorner, "Digite seu PIN. Eu fecho os olhos.", "corner privacy-guide character-privacy")}
           <div class="pin-display">
             ${[0, 1, 2, 3].map((index) => `<span class="pin-dot ${index < pinDigits ? "filled" : ""}"></span>`).join("")}
           </div>
@@ -266,17 +266,17 @@ const screens = [
       <section class="screen screen--corner screen--safety screen--stack-action">
         ${topbar("Segurança")}
         <div class="content-zone content-zone--corner content-zone--safety">
-          ${talk(assets.b1nIdeaCorner, "Antes de abrir, confira o item.", "corner safety-guide")}
+          ${talk(assets.b1nIdeaCorner, "Antes de abrir, vamos conferir o item.", "corner safety-guide")}
           <div class="safety-card">
-            <strong>O item parece seguro?</strong>
+            <strong>O item está seguro?</strong>
             <div class="safety-row"><span>1</span><p>Não está vazando nem estufado.</p></div>
             <div class="safety-row"><span>2</span><p>Não tem líquido nem parte cortante.</p></div>
             <p class="safety-note">Se notar algum risco, não coloque o item.</p>
           </div>
         </div>
         <div class="action-zone action-zone--stack">
-          <button class="primary-action" data-safety-safe>Está seguro</button>
-          <button class="alert-action" data-safety-risk>Tem sinal de risco</button>
+          <button class="primary-action" data-safety-safe>Sim, está seguro</button>
+          <button class="alert-action" data-safety-risk>Encontrei um risco</button>
         </div>
       </section>
     `,
@@ -285,7 +285,7 @@ const screens = [
     id: "opening",
     label: "Abrindo porta",
     render: () => `
-      <section class="screen screen--corner screen--process screen--auto" data-process="opening">
+      <section class="screen screen--corner screen--process screen--door-process screen--auto" data-process="opening">
         ${topbar("Abertura", { back: false })}
         <div class="content-zone content-zone--computing">
           ${talk(assets.b1nIdeaCorner, "Vou abrir o compartimento para você.", "corner character-idea")}
@@ -331,7 +331,7 @@ const screens = [
     id: "door-progress",
     label: "Fechando porta",
     render: () => `
-      <section class="screen screen--corner screen--process screen--auto" data-process="closing">
+      <section class="screen screen--corner screen--process screen--door-process screen--auto" data-process="closing">
         ${topbar("Preparando", { back: false })}
         <div class="content-zone content-zone--computing">
           ${talk(assets.b1nIdeaCorner, "Agora vou preparar a câmera.", "corner character-idea")}
@@ -347,7 +347,7 @@ const screens = [
       <section class="screen screen--camera screen--auto" data-auto-next="classification" data-auto-delay="2800">
         ${topbar("Câmera", { back: false })}
         <div class="content-zone content-zone--camera">
-          ${talk(assets.b1nAnalyze, "Vou olhar por dentro rapidinho.", "big camera-talk character-analyze")}
+          ${talk(assets.b1nAnalyze, "Vou conferir o item por dentro.", "big camera-talk character-analyze")}
           <div class="camera-preview" aria-label="Preview da câmera interna">
             <div class="camera-bar"><span>Câmera interna</span><strong>AO VIVO</strong></div>
             <div class="camera-frame">
@@ -381,7 +381,7 @@ const screens = [
       <section class="screen screen--big screen--analysis screen--auto" data-process="secondary">
         ${topbar("Nova análise", { back: false })}
         <div class="content-zone content-zone--big content-zone--analysis">
-          ${talk(assets.b1nAnalyze, "Preciso conferir mais um pouco.", "big character-analyze")}
+          ${talk(assets.b1nAnalyze, "Preciso conferir mais um detalhe.", "big character-analyze")}
           <div class="analysis-progress analysis-progress--secondary"><span></span></div>
           <span class="simulation-badge">Gemini simulado</span>
         </div>
@@ -395,12 +395,12 @@ const screens = [
       <section class="screen screen--corner screen--stack-action screen--item-focus screen--recognized">
         ${topbar("Reconhecimento")}
         <div class="content-zone content-zone--item-focus">
-          ${talk(assets.b1nCorner, "Encontrei isto. Vamos conferir?", "corner")}
+          ${talk(assets.b1nCorner, "Encontrei este item. Confira comigo.", "corner")}
           ${itemSummary("Item reconhecido")}
         </div>
         <div class="action-zone action-zone--stack">
-          <button class="primary-action" data-recognition-confirm>Está certo</button>
-          <button class="secondary-action" data-correction-open>Corrigir</button>
+          <button class="primary-action" data-recognition-confirm>Sim, está certo</button>
+          <button class="secondary-action correction-action" data-correction-open>Corrigir</button>
         </div>
       </section>
     `,
@@ -412,7 +412,7 @@ const screens = [
       <section class="screen screen--corner screen--correct-item">
         ${topbar("Corrigir item")}
         <div class="content-zone content-zone--compact-list">
-          ${talk(assets.b1nIdeaCorner, "Qual item aparece na foto?", "corner character-idea")}
+          ${talk(assets.b1nIdeaCorner, "Qual item aparece na imagem?", "corner character-idea")}
           <div class="correction-item-list">
             ${correctionCandidates().map((item) => `
               <button class="correction-item ${draftRecognizedItem.id === item.id ? "selected" : ""}" data-correct-item="${item.id}">
@@ -424,7 +424,7 @@ const screens = [
           </div>
         </div>
         <div class="action-zone">
-          <button class="primary-action" data-apply-correction>Aplicar correção</button>
+          <button class="primary-action" data-apply-correction>Confirmar correção</button>
         </div>
       </section>
     `,
@@ -436,24 +436,24 @@ const screens = [
       <section class="screen screen--corner screen--stack-action screen--item-focus screen--review">
         ${topbar("Revisão final")}
         <div class="content-zone content-zone--item-focus">
-          ${talk(assets.b1nCorner, "Confira antes de liberar o descarte.", "corner")}
+          ${talk(assets.b1nCorner, "Confira o item antes de confirmar o descarte.", "corner")}
           ${itemSummary("Seu descarte")}
         </div>
         <div class="action-zone action-zone--stack">
           <button class="primary-action" data-discard-confirm>Confirmar descarte</button>
-          <button class="secondary-action" data-correction-open>Corrigir</button>
+          <button class="secondary-action correction-action" data-correction-open>Corrigir</button>
         </div>
       </section>
     `,
   },
   {
     id: "computing",
-    label: "Computando descarte",
+    label: "Registrando descarte",
     render: () => `
       <section class="screen screen--corner screen--auto screen--computing" data-process="computing">
         ${topbar("Descarte", { back: false })}
         <div class="content-zone content-zone--computing">
-          ${talk(assets.b1nIdeaCorner, "Estamos computando seu descarte.", "corner character-idea")}
+          ${talk(assets.b1nIdeaCorner, "Vou concluir o ciclo e preparar o registro.", "corner character-idea")}
           <div class="computing-signal">
             <span class="computing-icon">${recordIcon()}</span>
             <strong>Só mais um instante</strong>
@@ -482,14 +482,14 @@ const screens = [
   },
   {
     id: "success",
-    label: "Descarte confirmado",
+    label: "Descarte validado",
     render: () => `
       <section class="screen screen--big screen--success screen--success--${flowMode} screen--auto" data-auto-next="sleep" data-auto-delay="6000">
         ${topbar("Concluído", { back: false })}
         <div class="content-zone content-zone--success">
-          ${talk(assets.b1nReward, "Boa! Descarte confirmado.", "big character-reward success-talk")}
+          ${talk(assets.b1nReward, "Boa escolha! Descarte validado.", "big character-reward success-talk")}
           <div class="reward-list">
-            <div class="metric metric--class"><span>XP da turma</span><strong class="score-gradient"><span class="reward-number">+19</span><span class="reward-unit"> XP</span></strong></div>
+            <div class="metric metric--class"><span>Pontos da turma</span><strong class="score-gradient"><span class="reward-number">+19</span><span class="reward-unit"> pts</span></strong></div>
             ${flowMode === "student" ? `<div class="metric metric--student"><span>Seus BinCoins</span><strong class="score-gradient"><span class="reward-number">+8</span><span class="reward-unit"> BinCoins</span></strong></div>` : ""}
             <span class="simulation-badge">Registro simulado</span>
           </div>
@@ -521,8 +521,8 @@ const screens = [
       <section class="screen screen--corner screen--stack-action screen--critical">
         ${topbar("Item não aceito", { back: false })}
         <div class="content-zone content-zone--corner content-zone--critical">
-          ${talk(assets.b1nDoubtCorner, "Não consegui confirmar que é lixo eletrônico.", "corner character-doubt")}
-          ${statusPanel("Vamos devolver o item", "Nenhum descarte será registrado e não haverá recompensa.", "IA simulada")}
+          ${talk(assets.b1nDoubtCorner, "Não consegui confirmar este eletrônico.", "corner character-doubt")}
+          ${statusPanel("Vamos devolver o item", "Nenhum descarte será registrado e nenhum resultado será gerado.", "IA simulada")}
         </div>
         <div class="action-zone"><button class="primary-action" data-return-start>Abrir para retirar</button></div>
       </section>
@@ -549,7 +549,7 @@ const screens = [
         ${topbar("Conexão", { back: false })}
         <div class="content-zone content-zone--corner content-zone--critical">
           ${talk(assets.b1nIdeaCorner, "A conexão caiu antes do descarte.", "corner character-idea")}
-          ${statusPanel("O item não foi liberado", "Vamos devolver o eletrônico com segurança. Nenhuma recompensa foi gerada.", "Conexão simulada")}
+          ${statusPanel("O item não foi liberado", "Vamos devolver o eletrônico com segurança. Nenhum resultado foi gerado.", "Conexão simulada")}
         </div>
         <div class="action-zone"><button class="primary-action" data-return-start>Devolver item</button></div>
       </section>
@@ -677,6 +677,7 @@ function topbar(step, options = {}) {
   return `
     <div class="topbar">
       ${canGoBack ? `<button class="back-button" data-back aria-label="Voltar"><svg class="back-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M15 6L9 12L15 18" /><path d="M10 12H20" /></svg></button>` : `<span class="back-placeholder" aria-hidden="true"></span>`}
+      <img class="logo" src="${assets.logo}" alt="BinGo" data-demo-trigger />
       <span class="step">${step}</span>
     </div>
   `;
@@ -814,23 +815,6 @@ function discardCorrectionDraft() {
   draftRecognizedItem = recognizedItem;
 }
 
-function visualKeyboard() {
-  return `
-    <div class="visual-keyboard ${keyboardOpening ? "is-opening" : ""}" aria-label="Teclado visual">
-      ${keyboardRows.map((row) => `
-        <div class="keyboard-row" style="--key-count: ${row.length}">
-          ${row.map((key) => `<button class="keyboard-key" data-key="${key}" data-label="${keyboardShift ? key.toUpperCase() : key}"><span>${keyboardShift ? key.toUpperCase() : key}</span></button>`).join("")}
-        </div>
-      `).join("")}
-      <div class="keyboard-row keyboard-row--actions" style="--key-count: 3">
-        <button class="keyboard-key keyboard-key--shift ${keyboardShift ? "active" : ""}" data-key="shift" data-label="Aa" aria-label="Maiúscula"><span>Aa</span></button>
-        <button class="keyboard-key keyboard-key--wide" data-key="space" data-label="Espaço"><span>Espaço</span></button>
-        <button class="keyboard-key keyboard-key--wide" data-key="backspace" data-label="Apagar"><span>Apagar</span></button>
-      </div>
-    </div>
-  `;
-}
-
 function filteredStudents() {
   const query = normalize(searchQuery);
   return students
@@ -841,34 +825,6 @@ function filteredStudents() {
 
 function normalize(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
-function resetState() {
-  flowMode = "student";
-  selectedSegment = null;
-  selectedYear = null;
-  selectedClass = null;
-  selectedStudent = null;
-  searchQuery = "";
-  searchActive = false;
-  keyboardShift = true;
-  pinDigits = 0;
-  pinWarning = false;
-  historyStack = [];
-  recognizedItem = itemOptions.find((item) => item.id === "cable");
-  visionItem = recognizedItem;
-  visionCandidateIds = ["cable", "small", "phone"];
-  classificationOrigin = "VISION_PRIMARY";
-  safetyConfirmed = false;
-  handConfirmed = false;
-  doorStatus = "closed";
-  classificationStatus = "idle";
-  recognitionOutcome = null;
-  reviewConfirmed = false;
-  mechanismStatus = "idle";
-  registrationStatus = "idle";
-  demoPanelOpen = false;
-  discardCorrectionDraft();
 }
 
 function resetFlow() {
@@ -883,13 +839,100 @@ function cancelDiscard() {
   render();
 }
 
+const kiosk = document.querySelector("#kiosk");
+const preloadedAssets = new Set();
+
+function studentListMarkup() {
+  return filteredStudents().map((name) => `
+    <button class="list-button student-button" data-student="${name}" data-next>
+      <span>${name}</span>${arrowIcon("right")}
+    </button>
+  `).join("") || `<div class="empty-state">Não achei esse nome. Tente apagar uma letra.</div>`;
+}
+
+function updateStudentSearch() {
+  const screen = kiosk.querySelector("[data-search-screen]");
+  if (!screen) {
+    return;
+  }
+
+  const searchBox = screen.querySelector("[data-search-toggle]");
+  const searchLabel = searchBox?.querySelector(":scope > span");
+  const studentList = screen.querySelector(".student-list");
+  screen.classList.toggle("is-searching", searchActive || keyboardClosing);
+  searchBox?.classList.toggle("active", searchActive);
+  searchBox?.classList.toggle("has-value", Boolean(searchQuery));
+  if (searchLabel) {
+    searchLabel.textContent = searchQuery || "Digite seu nome...";
+    searchLabel.classList.toggle("search-placeholder", !searchQuery);
+  }
+  if (studentList) {
+    studentList.innerHTML = studentListMarkup();
+  }
+
+  screen.querySelectorAll("[data-key]").forEach((keyButton) => {
+    const key = keyButton.dataset.key;
+    const label = keyboardRows.flat().includes(key) && keyboardShift
+      ? key.toUpperCase()
+      : keyButton.dataset.label;
+    keyButton.classList.toggle("pressed", lastPressedKey === key);
+    keyButton.classList.toggle("active", key === "shift" && keyboardShift);
+    const text = keyButton.querySelector("span");
+    if (text && keyboardRows.flat().includes(key)) {
+      text.textContent = label;
+      keyButton.dataset.label = label;
+    }
+  });
+}
+
+function updatePinView() {
+  kiosk.querySelectorAll(".pin-dot").forEach((dot, index) => {
+    dot.classList.toggle("filled", index < pinDigits);
+  });
+  const okButton = kiosk.querySelector('[data-pin="OK"]');
+  if (okButton) {
+    okButton.disabled = pinDigits < 4;
+    okButton.classList.toggle("key-disabled", pinDigits < 4);
+  }
+  kiosk.querySelector(".pin-hint")?.classList.toggle("show", pinWarning);
+}
+
+function preloadNextScreenAssets() {
+  const nextScreen = screens[Math.min(currentIndex + 1, screens.length - 1)];
+  if (!nextScreen) {
+    return;
+  }
+  const sources = [...nextScreen.render().matchAll(/src="([^"]+)"/g)].map((match) => match[1]);
+  sources.forEach((source) => {
+    if (preloadedAssets.has(source)) {
+      return;
+    }
+    preloadedAssets.add(source);
+    const image = new Image();
+    image.decoding = "async";
+    image.src = source;
+  });
+}
+
+function scheduleAdjacentPreload() {
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(preloadNextScreenAssets, { timeout: 800 });
+    return;
+  }
+  window.setTimeout(preloadNextScreenAssets, 120);
+}
+
 function render() {
-  const kiosk = document.querySelector("#kiosk");
   const screenList = document.querySelector("#screenList");
   clearTimeout(autoAdvanceTimer);
 
   kiosk.innerHTML = screens[currentIndex].render() + scenarioPanel();
   keyboardOpening = false;
+  kiosk.querySelectorAll("img").forEach((image) => {
+    image.decoding = "async";
+    image.draggable = false;
+  });
+  scheduleAdjacentPreload();
   if (screenList) {
     screenList.innerHTML = screens
       .map((screen, index) => `
@@ -899,197 +942,6 @@ function render() {
       `)
       .join("");
   }
-
-  document.querySelectorAll("[data-mode]").forEach((button) => {
-    button.addEventListener("click", () => {
-      flowMode = button.dataset.mode;
-    });
-  });
-
-  document.querySelectorAll("[data-segment]").forEach((button) => {
-    button.addEventListener("click", () => {
-      selectedSegment = button.dataset.segment;
-      selectedYear = null;
-      selectedClass = null;
-    });
-  });
-
-  document.querySelectorAll("[data-year]").forEach((button) => {
-    button.addEventListener("click", () => {
-      selectedYear = button.dataset.year;
-      selectedClass = null;
-    });
-  });
-
-  document.querySelectorAll("[data-class]").forEach((button) => {
-    button.addEventListener("click", () => {
-      selectedClass = button.dataset.class;
-      searchQuery = "";
-      searchActive = false;
-    });
-  });
-
-  document.querySelectorAll("[data-student]").forEach((button) => {
-    button.addEventListener("click", () => {
-      selectedStudent = button.dataset.student;
-      searchQuery = selectedStudent;
-      searchActive = false;
-    });
-  });
-
-  document.querySelectorAll("[data-search-toggle]").forEach((box) => {
-    box.addEventListener("click", (event) => {
-      event.stopPropagation();
-      clearTimeout(keyboardCloseTimer);
-      keyboardOpening = !searchActive;
-      keyboardClosing = false;
-      searchActive = true;
-      if (!searchQuery) {
-        keyboardShift = true;
-      }
-      render();
-    });
-  });
-
-  document.querySelectorAll("[data-search-screen]").forEach((screen) => {
-    screen.addEventListener("click", (event) => {
-      if (!searchActive) {
-        return;
-      }
-      if (event.target.closest(".search-box, .visual-keyboard, [data-student], [data-next], [data-back]")) {
-        return;
-      }
-      closeSearchKeyboard();
-    });
-  });
-
-  document.querySelectorAll("[data-key]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      handleSearchKey(button.dataset.key);
-    });
-  });
-
-  document.querySelectorAll("[data-pin]").forEach((button) => {
-    button.addEventListener("click", () => handlePin(button.dataset.pin));
-  });
-
-  document.querySelectorAll("[data-start-session]").forEach((button) => {
-    button.addEventListener("click", () => {
-      demoScenario === "unavailable" ? jump("unavailable") : next();
-    });
-  });
-
-  document.querySelectorAll("[data-safety-safe]").forEach((button) => {
-    button.addEventListener("click", startOpening);
-  });
-
-  document.querySelectorAll("[data-safety-risk]").forEach((button) => {
-    button.addEventListener("click", () => jump("teacher"));
-  });
-
-  document.querySelectorAll("[data-item-inserted]").forEach((button) => {
-    button.addEventListener("click", () => jump("hand-confirm"));
-  });
-
-  document.querySelectorAll("[data-hand-confirmed]").forEach((button) => {
-    button.addEventListener("click", startDoorClose);
-  });
-
-  document.querySelectorAll("[data-recognition-confirm]").forEach((button) => {
-    button.addEventListener("click", openReview);
-  });
-
-  document.querySelectorAll("[data-correction-open]").forEach((button) => {
-    button.addEventListener("click", openCorrection);
-  });
-
-  document.querySelectorAll("[data-correct-item]").forEach((button) => {
-    button.addEventListener("click", () => correctRecognizedItem(button.dataset.correctItem));
-  });
-
-  document.querySelectorAll("[data-apply-correction]").forEach((button) => {
-    button.addEventListener("click", applyCorrection);
-  });
-
-  document.querySelectorAll("[data-discard-confirm]").forEach((button) => {
-    button.addEventListener("click", confirmDiscard);
-  });
-
-  document.querySelectorAll("[data-return-start]").forEach((button) => {
-    button.addEventListener("click", startReturn);
-  });
-
-  document.querySelectorAll("[data-return-confirm]").forEach((button) => {
-    button.addEventListener("click", resetFlow);
-  });
-
-  document.querySelectorAll("[data-restore-connection]").forEach((button) => {
-    button.addEventListener("click", () => {
-      registrationStatus = "complete";
-      jump("success");
-    });
-  });
-
-  document.querySelectorAll("[data-next]:not([disabled])").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const target = button.dataset.next;
-      target ? jump(target) : next();
-    });
-  });
-
-  document.querySelectorAll("[data-jump]").forEach((button) => {
-    button.addEventListener("click", () => jump(button.dataset.jump));
-  });
-
-  document.querySelectorAll("[data-cancel-discard]").forEach((button) => {
-    button.addEventListener("click", cancelDiscard);
-  });
-
-  document.querySelectorAll("[data-back]").forEach((button) => {
-    button.addEventListener("click", back);
-  });
-
-  document.querySelectorAll("[data-demo-scenario]").forEach((button) => {
-    button.addEventListener("click", () => {
-      demoScenario = button.dataset.demoScenario;
-      demoPanelOpen = false;
-      resetFlow();
-    });
-  });
-
-  document.querySelectorAll("[data-demo-close]").forEach((button) => {
-    button.addEventListener("click", () => {
-      demoPanelOpen = false;
-      render();
-    });
-  });
-
-  document.querySelectorAll("[data-demo-trigger]").forEach((trigger) => {
-    const cancelPress = () => clearTimeout(demoPressTimer);
-    trigger.addEventListener("pointerdown", () => {
-      clearTimeout(demoPressTimer);
-      demoPressTimer = setTimeout(() => {
-        demoPanelOpen = true;
-        render();
-      }, 2000);
-    });
-    trigger.addEventListener("pointerup", cancelPress);
-    trigger.addEventListener("pointerleave", cancelPress);
-    trigger.addEventListener("pointercancel", cancelPress);
-  });
-
-  document.querySelectorAll("[data-screen]").forEach((button) => {
-    button.addEventListener("click", () => {
-      currentIndex = Number(button.dataset.screen);
-      render();
-    });
-  });
-
-  document.querySelectorAll("img").forEach((image) => {
-    image.setAttribute("draggable", "false");
-  });
 
   const autoTarget = document.querySelector("[data-auto-next]")?.dataset.autoNext;
   if (autoTarget) {
@@ -1119,6 +971,174 @@ function render() {
   } else if (process === "computing") {
     autoAdvanceTimer = setTimeout(completeProcessing, 4500);
   }
+}
+
+function handleKioskClick(event) {
+  const target = event.target.closest("button, [data-search-toggle]");
+  if (!target || !kiosk.contains(target)) {
+    const searchScreen = event.target.closest("[data-search-screen]");
+    if (searchScreen && searchActive) {
+      closeSearchKeyboard();
+    }
+    return;
+  }
+
+  if (target.matches("[data-key]")) {
+    event.stopPropagation();
+    handleSearchKey(target.dataset.key);
+    return;
+  }
+  if (target.matches("[data-pin]")) {
+    handlePin(target.dataset.pin);
+    return;
+  }
+  if (target.matches("[data-search-toggle]")) {
+    event.stopPropagation();
+    clearTimeout(keyboardCloseTimer);
+    keyboardOpening = !searchActive;
+    keyboardClosing = false;
+    searchActive = true;
+    if (!searchQuery) {
+      keyboardShift = true;
+    }
+    render();
+    return;
+  }
+
+  if (target.dataset.mode) {
+    flowMode = target.dataset.mode;
+  }
+  if (target.dataset.segment) {
+    selectedSegment = target.dataset.segment;
+    selectedYear = null;
+    selectedClass = null;
+  }
+  if (target.dataset.year) {
+    selectedYear = target.dataset.year;
+    selectedClass = null;
+  }
+  if (target.dataset.class) {
+    selectedClass = target.dataset.class;
+    searchQuery = "";
+    searchActive = false;
+  }
+  if (target.dataset.student) {
+    selectedStudent = target.dataset.student;
+    searchQuery = selectedStudent;
+    searchActive = false;
+  }
+
+  if (target.matches("[data-start-session]")) {
+    demoScenario === "unavailable" ? jump("unavailable") : next();
+    return;
+  }
+  if (target.matches("[data-safety-safe]")) {
+    startOpening();
+    return;
+  }
+  if (target.matches("[data-safety-risk]")) {
+    jump("teacher");
+    return;
+  }
+  if (target.matches("[data-item-inserted]")) {
+    jump("hand-confirm");
+    return;
+  }
+  if (target.matches("[data-hand-confirmed]")) {
+    startDoorClose();
+    return;
+  }
+  if (target.matches("[data-recognition-confirm]")) {
+    openReview();
+    return;
+  }
+  if (target.matches("[data-correction-open]")) {
+    openCorrection();
+    return;
+  }
+  if (target.dataset.correctItem) {
+    correctRecognizedItem(target.dataset.correctItem);
+    return;
+  }
+  if (target.matches("[data-apply-correction]")) {
+    applyCorrection();
+    return;
+  }
+  if (target.matches("[data-discard-confirm]")) {
+    confirmDiscard();
+    return;
+  }
+  if (target.matches("[data-return-start]")) {
+    startReturn();
+    return;
+  }
+  if (target.matches("[data-return-confirm]")) {
+    resetFlow();
+    return;
+  }
+  if (target.matches("[data-restore-connection]")) {
+    registrationStatus = "complete";
+    jump("success");
+    return;
+  }
+  if (target.matches("[data-jump]")) {
+    jump(target.dataset.jump);
+    return;
+  }
+  if (target.matches("[data-cancel-discard]")) {
+    cancelDiscard();
+    return;
+  }
+  if (target.matches("[data-back]")) {
+    back();
+    return;
+  }
+  if (target.dataset.demoScenario) {
+    demoScenario = target.dataset.demoScenario;
+    demoPanelOpen = false;
+    resetFlow();
+    return;
+  }
+  if (target.matches("[data-demo-close]")) {
+    demoPanelOpen = false;
+    render();
+    return;
+  }
+  if (target.dataset.screen) {
+    currentIndex = Number(target.dataset.screen);
+    render();
+    return;
+  }
+  if (target.matches("[data-next]") && !target.disabled) {
+    event.stopPropagation();
+    const destination = target.dataset.next;
+    destination ? jump(destination) : next();
+    return;
+  }
+
+  const searchScreen = event.target.closest("[data-search-screen]");
+  if (
+    searchScreen
+    && searchActive
+    && !event.target.closest(".search-box, .visual-keyboard, [data-student], [data-back]")
+  ) {
+    closeSearchKeyboard();
+  }
+}
+
+function handleDemoPointerDown(event) {
+  if (!event.target.closest("[data-demo-trigger]")) {
+    return;
+  }
+  clearTimeout(demoPressTimer);
+  demoPressTimer = setTimeout(() => {
+    demoPanelOpen = true;
+    render();
+  }, 2000);
+}
+
+function cancelDemoPress() {
+  clearTimeout(demoPressTimer);
 }
 
 function startOpening() {
@@ -1245,24 +1265,6 @@ function back() {
   render();
 }
 
-function handleSearchKey(key) {
-  if (key === "clear") {
-    searchQuery = "";
-    searchActive = false;
-    keyboardShift = true;
-  } else if (key === "backspace") {
-    searchQuery = searchQuery.slice(0, -1);
-  } else if (key === "space") {
-    searchQuery = `${searchQuery} `;
-  } else if (key === "shift") {
-    keyboardShift = !keyboardShift;
-  } else {
-    searchQuery = `${searchQuery}${keyboardShift ? key.toUpperCase() : key}`;
-    keyboardShift = false;
-  }
-  render();
-}
-
 function handlePin(key) {
   pinWarning = false;
   if (key === "Apagar") {
@@ -1276,7 +1278,7 @@ function handlePin(key) {
   } else {
     pinDigits = Math.min(4, pinDigits + 1);
   }
-  render();
+  updatePinView();
 }
 
 function visualKeyboard() {
@@ -1349,12 +1351,12 @@ function handleSearchKey(key) {
     keyboardShift = searchQuery.length === 0;
   }
 
-  render();
+  updateStudentSearch();
 
   keyPulseTimer = setTimeout(() => {
     lastPressedKey = null;
     if (screens[currentIndex]?.id === "student" && searchActive) {
-      render();
+      updateStudentSearch();
     }
   }, 300);
 }
@@ -1379,7 +1381,11 @@ function closeSearchKeyboard() {
   }, 260);
 }
 
-document.querySelector("#nextBtn")?.addEventListener("click", next);
+kiosk.addEventListener("click", handleKioskClick);
+kiosk.addEventListener("pointerdown", handleDemoPointerDown);
+kiosk.addEventListener("pointerup", cancelDemoPress);
+kiosk.addEventListener("pointerleave", cancelDemoPress);
+kiosk.addEventListener("pointercancel", cancelDemoPress);
 document.addEventListener("dragstart", (event) => {
   if (event.target instanceof HTMLImageElement) {
     event.preventDefault();
