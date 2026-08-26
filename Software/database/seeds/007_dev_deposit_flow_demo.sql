@@ -27,42 +27,42 @@ set
 
 insert into school_settings (
     school_id,
-    small_item_daily_limit,
-    points_small_student,
-    points_small_class,
-    points_medium_student,
-    points_medium_class,
-    points_large_student,
-    points_large_class,
+    deposit_bincoins_base,
+    deposit_class_xp_base,
+    class_weekly_xp_goal,
     redemption_expiration_hours,
     redemption_daily_limit,
     redemption_max_pending
 )
 values (
     '10000000-0000-4000-8000-000000000001',
-    5,
-    10,
-    10,
-    25,
-    25,
-    50,
-    50,
+    8,
+    19,
+    100,
     72,
     3,
     3
 )
 on conflict (school_id) do update
 set
-    small_item_daily_limit = excluded.small_item_daily_limit,
-    points_small_student = excluded.points_small_student,
-    points_small_class = excluded.points_small_class,
-    points_medium_student = excluded.points_medium_student,
-    points_medium_class = excluded.points_medium_class,
-    points_large_student = excluded.points_large_student,
-    points_large_class = excluded.points_large_class,
+    deposit_bincoins_base = excluded.deposit_bincoins_base,
+    deposit_class_xp_base = excluded.deposit_class_xp_base,
+    class_weekly_xp_goal = excluded.class_weekly_xp_goal,
     redemption_expiration_hours = excluded.redemption_expiration_hours,
     redemption_daily_limit = excluded.redemption_daily_limit,
     redemption_max_pending = excluded.redemption_max_pending,
+    updated_at = now();
+
+-- Matriz provisoria exclusivamente local. A migration de producao mantem
+-- todas as categorias com bonus zero ate aprovacao formal do produto.
+update waste_categories
+set
+    bonus_rate = case code
+        when 'BATTERY' then 1.0000
+        when 'MOBILE_DEVICE' then 0.5000
+        when 'CABLE_WIRE' then 0.2500
+        else 0
+    end,
     updated_at = now();
 
 insert into classes (

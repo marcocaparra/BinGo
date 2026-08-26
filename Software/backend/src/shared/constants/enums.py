@@ -25,10 +25,19 @@ class RewardStatus(str, Enum):
     OUT_OF_STOCK = "OUT_OF_STOCK"
 
 
-class DepositSize(str, Enum):
-    SMALL = "SMALL"
-    MEDIUM = "MEDIUM"
-    LARGE = "LARGE"
+class DepositCategorySource(str, Enum):
+    AI_CONFIRMED = "AI_CONFIRMED"
+    USER_CORRECTED = "USER_CORRECTED"
+    UNIDENTIFIED = "UNIDENTIFIED"
+
+
+class WasteCategoryCode(str, Enum):
+    BATTERY = "BATTERY"
+    MOBILE_DEVICE = "MOBILE_DEVICE"
+    CABLE_WIRE = "CABLE_WIRE"
+    PERIPHERAL = "PERIPHERAL"
+    OTHER_EWASTE = "OTHER_EWASTE"
+    UNKNOWN = "UNKNOWN"
 
 
 class RedemptionStatus(str, Enum):

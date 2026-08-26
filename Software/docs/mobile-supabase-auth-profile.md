@@ -37,6 +37,8 @@ Sem os dois `dart-define`, o piloto continua disponível e a tentativa de login 
 
 ## Banco local e migrations
 
+O baseline backend de autorização foi recriado por migrations versionadas em `database/migrations` e `supabase/migrations`. Ele habilita RLS nas tabelas de domínio e permite a `authenticated` somente a leitura do próprio registro em `students`, da própria turma em `classes` e da própria escola em `schools`. Esta entrega não alterou o Flutter nem substituiu mocks do Mobile.
+
 Com Supabase CLI e Docker disponíveis:
 
 ```powershell
@@ -44,9 +46,9 @@ supabase start
 supabase db reset
 ```
 
-O reset aplica as migrations de `supabase/migrations`, inclusive a RLS mínima de perfil. Ele não executa a fixture Mobile autenticada.
+O reset aplica as migrations existentes em `supabase/migrations/`, incluindo o baseline atual de Auth/RLS. O vínculo continua sendo provisionado por `students.auth_user_id`; usuário Auth sem aluno associado recebe resultado vazio, e aluno sem `auth_user_id` não é visível por uma sessão autenticada.
 
-Para executar a fixture de domínio de forma explícita em desenvolvimento:
+Historicamente, a fixture de domínio era executada de forma explícita em desenvolvimento com o comando abaixo. O arquivo referenciado não existe no baseline atual; o comando fica preservado apenas como registro e não deve ser tratado como executável nesta branch:
 
 ```powershell
 psql <local-postgres-url> -v ON_ERROR_STOP=1 -c "set bingo.seed_environment = 'development'" -f database/seeds/009_seed_mobile_authenticated_demo_domain.sql
@@ -80,18 +82,18 @@ cd mobile/bingo_app
 flutter test test/access_flow_test.dart test/session_gate_test.dart test/profile_repository_test.dart test/profile_screen_test.dart
 ```
 
-Teste SQL comportamental de RLS contra Supabase local já migrado:
+O baseline estrutural é validado junto da suíte pgTAP:
 
 ```powershell
-psql <local-postgres-url> -v ON_ERROR_STOP=1 -f supabase/tests/mobile_profile_rls.sql
+supabase test db
 ```
 
-O teste SQL usa transação com rollback e valida leitura própria, bloqueio de outro aluno, escola/turma relacionadas, bloqueio de alteração de saldo, bloqueio do papel anônimo e ausência de exposição para identidade sem vínculo.
+`supabase/functions/tests/authorization-rls.integration.test.ts` complementa a inspeção estática com usuários reais do Supabase Auth local. Ele valida leitura própria, isolamento de outro aluno e de outra escola, escola/turma relacionadas, identidade sem vínculo, bloqueio de alterações críticas, bloqueio de dados privados para `anon`, catálogo público e privilégios mínimos de `service_role`. Sua execução é opt-in por `BINGO_AUTH_RLS_INTEGRATION=1` e exige apenas credenciais do ambiente local de teste.
 
 ## Limitações e decisões de segurança
 
-- A leitura remota usa `students`, `classes` e `schools`; nenhuma escrita é concedida ao papel cliente.
-- Não há Edge Function nesta etapa.
+- O baseline comprova grants e policies de `students`, `classes` e `schools`, mas a integração do App e as demais áreas simuladas permanecem fora desta entrega.
+- Leituras simples usam Supabase Auth e RLS; operações críticas continuam reservadas às Edge Functions e RPCs.
 - A FK de `students.auth_user_id` para `auth.users.id` não foi criada sem validar previamente os registros do projeto remoto.
 - O indicador de restauração autenticada em `SharedPreferences` não contém sessão nem credenciais. O SDK do Supabase gerencia a sessão.
 - Sessão inválida retorna à entrada. Erro de rede permanece erro e oferece nova tentativa; nenhum desses estados ativa o piloto.

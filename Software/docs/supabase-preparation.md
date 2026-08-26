@@ -20,15 +20,19 @@ O login do app e o login do Totem são fluxos diferentes. O app deve autenticar 
 
 Essa separação evita misturar senha de app com PIN operacional. Também permite que um aluno exista no sistema e use o Totem antes de criar uma conta no app, mantendo o cadastro escolar como fonte de verdade do domínio.
 
-## RLS atual e futura
+## Estado comprovado do RLS no baseline de 2026-08-10
 
-A migration Supabase `20260802120000_mobile_profile_rls.sql` implementa o primeiro recorte: o aluno autenticado pode ler somente seu registro em `students` e as linhas de `classes` e `schools` relacionadas ao próprio vínculo. Os grants são limitados às colunas usadas pelo perfil, `anon` não recebe acesso e o cliente não recebe escrita.
+**Estado comprovado:** a migration `20260802120000_mobile_profile_rls.sql` não está presente em `supabase/migrations/` na branch `feature/supabase-edge-functions-mvp`. Também não há outra migration de RLS no baseline atual. Portanto, RLS de perfil não está comprovado nem pode ser tratado como entrega vigente.
 
-Essa proteção não cobre as demais funcionalidades. As políticas de `admins`, `machines`, `rewards`, `deposits`, `redemptions`, `audit_logs`, `school_settings` e qualquer leitura adicional ainda precisam ser desenhadas antes de acesso direto pelo Mobile. A existência da migration no repositório também não comprova sua aplicação em um projeto remoto.
+**Decisão histórica:** existe, em outra linha de desenvolvimento do repositório, uma referência e uma versão histórica de `20260802120000_mobile_profile_rls.sql` para leitura mínima de `students`, `classes` e `schools`. Esse registro deve ser preservado como histórico, mas não demonstra que a migration faça parte desta branch, que tenha sido recuperada para o baseline atual ou que esteja aplicada em qualquer projeto remoto.
+
+**Pendência:** recuperar ou recriar a migration por uma tarefa própria, revisar seu conteúdo contra o schema vigente e criar testes comportamentais de isolamento. Esta tarefa documental não cria migration nem policy.
+
+As policies de `students`, `classes`, `schools`, `admins`, `machines`, `rewards`, `deposits`, `redemptions`, `audit_logs`, `school_settings` e qualquer outra tabela exposta precisam ser comprovadas no baseline antes de acesso direto. A mera existência futura de uma migration no Git também não comprovará sua aplicação em um projeto remoto.
 
 ## Leitura direta e operações transacionais
 
-O app poderá fazer leitura direta, com RLS, de dados de baixo risco: perfil do próprio aluno, turma, saldo, histórico próprio de descartes, histórico próprio de resgates e catálogo de recompensas ativas da escola.
+Arquiteturalmente, o app poderá fazer leitura direta de dados de baixo risco, como perfil do próprio aluno, turma, saldo, histórico próprio de descartes, histórico próprio de resgates e catálogo de recompensas ativas da escola, **somente depois** de existir policy RLS correspondente e teste de isolamento para cada leitura. No baseline de 2026-08-10, nenhuma dessas leituras diretas está liberada por documentação, pois o RLS necessário não está comprovado.
 
 Operações que alteram saldo, estoque, resgates, auditoria ou estado operacional devem continuar passando pelo backend ou por funções transacionais controladas. Isso inclui registrar depósito, calcular pontos, atualizar saldo individual e da turma, criar resgate, expirar resgate, entregar recompensa, decrementar estoque, resetar PIN, escrever `audit_logs` e processar eventos vindos de máquinas.
 

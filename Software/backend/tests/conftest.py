@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,7 +11,7 @@ from app.api.dependencies import get_session
 from app.main import app
 from infra.crypto.security import hash_secret
 from infra.db.base import Base
-from infra.db.models import Admin, ClassRoom, Machine, Reward, School, SchoolSetting, Student
+from infra.db.models import Admin, ClassRoom, Machine, Reward, School, SchoolSetting, Student, WasteCategory
 from shared.constants.enums import AdminRole, MachineStatus, RewardStatus, StudentStatus
 
 
@@ -54,23 +55,37 @@ def seeded_ids(session_factory):
     admin_id = uuid.UUID("44444444-4444-4444-4444-444444444441")
     machine_id = uuid.UUID("55555555-5555-5555-5555-555555555551")
     reward_id = uuid.UUID("66666666-6666-6666-6666-666666666661")
+    category_ids = {
+        "BATTERY": uuid.UUID("77777777-7777-7777-7777-777777777771"),
+        "MOBILE_DEVICE": uuid.UUID("77777777-7777-7777-7777-777777777772"),
+        "CABLE_WIRE": uuid.UUID("77777777-7777-7777-7777-777777777773"),
+        "PERIPHERAL": uuid.UUID("77777777-7777-7777-7777-777777777774"),
+        "OTHER_EWASTE": uuid.UUID("77777777-7777-7777-7777-777777777775"),
+        "UNKNOWN": uuid.UUID("77777777-7777-7777-7777-777777777776"),
+    }
 
     session: Session = session_factory()
     session.add(School(id=school_id, name="Escola Piloto"))
     session.add(
         SchoolSetting(
             school_id=school_id,
-            small_item_daily_limit=1,
-            points_small_student=10,
-            points_small_class=10,
-            points_medium_student=30,
-            points_medium_class=30,
-            points_large_student=50,
-            points_large_class=50,
+            deposit_bincoins_base=8,
+            deposit_class_xp_base=19,
+            class_weekly_xp_goal=100,
             redemption_expiration_hours=72,
             redemption_daily_limit=2,
             redemption_max_pending=1,
         )
+    )
+    session.add_all(
+        [
+            WasteCategory(id=category_ids["BATTERY"], code="BATTERY", display_name="Pilha ou bateria", bonus_rate=Decimal("1.0000")),
+            WasteCategory(id=category_ids["MOBILE_DEVICE"], code="MOBILE_DEVICE", display_name="Celular ou tablet", bonus_rate=Decimal("0.5000")),
+            WasteCategory(id=category_ids["CABLE_WIRE"], code="CABLE_WIRE", display_name="Cabo ou fio", bonus_rate=Decimal("0.2500")),
+            WasteCategory(id=category_ids["PERIPHERAL"], code="PERIPHERAL", display_name="Periférico", bonus_rate=Decimal("0")),
+            WasteCategory(id=category_ids["OTHER_EWASTE"], code="OTHER_EWASTE", display_name="Outro lixo eletrônico", bonus_rate=Decimal("0")),
+            WasteCategory(id=category_ids["UNKNOWN"], code="UNKNOWN", display_name="Lixo eletrônico não identificado", bonus_rate=Decimal("0")),
+        ]
     )
     session.add(ClassRoom(id=class_id, school_id=school_id, segment="FUNDAMENTAL_2", grade="7", name="7A", points_class_balance=0))
     session.add(
@@ -126,4 +141,5 @@ def seeded_ids(session_factory):
         "admin_id": str(admin_id),
         "machine_id": str(machine_id),
         "reward_id": str(reward_id),
+        "category_ids": {code: str(category_id) for code, category_id in category_ids.items()},
     }

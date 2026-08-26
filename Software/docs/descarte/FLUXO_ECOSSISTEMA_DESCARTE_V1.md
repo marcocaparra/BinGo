@@ -2,7 +2,7 @@
 
 Este documento descreve o fluxo de descarte de lixo eletrônico da primeira versão oficial do BinGo, envolvendo o aluno, o Totem, o Hardware, o sistema de visão computacional, o Gemini e o Backend. O objetivo principal do fluxo é permitir que um aluno descarte um lixo eletrônico de forma orientada, receba pontos pela ação e tenha o descarte registrado em seu histórico.
 
-Na primeira versão, todos os descartes válidos possuem o mesmo valor de pontuação. A classe específica do objeto, como pilha, teclado, celular ou carregador, não altera a quantidade de pontos recebida. A identificação da classe serve principalmente para exibição ao aluno, composição do histórico, geração de estatísticas e avaliação da qualidade do sistema de visão computacional.
+Na primeira versão, todos os descartes válidos partem da mesma recompensa-base: `8` BinCoins para o aluno identificado e `19` XP para a turma. A categoria canônica pode acrescentar um bônus ambiental somente aos BinCoins. Ela também serve para exibição, histórico, estatísticas e avaliação da visão computacional; tamanho físico não participa do cálculo.
 
 ## Fluxo principal
 
@@ -36,7 +36,7 @@ Se o aluno encontrar a classe correta, poderá selecioná-la e continuar o desca
 
 Caso o aluno não encontre o objeto na lista, poderá selecionar a opção &#x2A;*“Lixo eletrônico não identificado”**. Essa opção representa um objeto que foi reconhecido como pertencente ao domínio de lixo eletrônico, mas cuja classe exata não pôde ser determinada.
 
-Um lixo eletrônico não identificado poderá ser descartado normalmente e concederá a mesma pontuação dos demais itens. Como todas as classes possuem o mesmo valor na primeira versão, a ausência da classe exata não interfere na validade do descarte. O histórico do aluno poderá apresentar uma descrição genérica, como “Lixo eletrônico não identificado”.
+Um lixo eletrônico não identificado poderá ser descartado normalmente sob a categoria canônica `UNKNOWN`, com origem `UNIDENTIFIED`. Ele recebe a recompensa-base e bônus zero. A ausência da classe exata não interfere na validade do descarte, e o histórico poderá apresentar “Lixo eletrônico não identificado”.
 
 A opção de lixo eletrônico não identificado somente deverá estar disponível quando o sistema já tiver concluído que o objeto pertence ao domínio de lixo eletrônico. Ela não poderá ser utilizada para transformar manualmente um objeto claramente classificado como não eletrônico em um descarte válido.
 
@@ -44,7 +44,7 @@ Depois da confirmação da classe ou da seleção da opção de lixo eletrônico
 
 Caso não exista um sensor capaz de confirmar fisicamente a queda do objeto, o descarte será considerado fisicamente concluído após o Hardware confirmar que o ciclo mecânico esperado foi executado, incluindo a abertura da escotilha, o tempo necessário para a queda, o fechamento da escotilha e o retorno dos mecanismos ao estado inicial.
 
-Após a conclusão do ciclo mecânico, o Totem enviará o evento ao Backend. O Backend deverá registrar o descarte, gerar a pontuação fixa correspondente e associar o evento ao histórico do aluno.
+Após a conclusão do ciclo mecânico, o Totem enviará ao Backend a saída observada pela visão, a categoria canônica final e sua origem. O Backend deverá registrar o descarte, calcular a base e o bônus ambiental server-side e associar o evento ao histórico do aluno.
 
 O registro do descarte e a geração dos pontos deverão ser idempotentes. Isso significa que o mesmo identificador de ciclo poderá ser enviado novamente em caso de timeout ou falha de comunicação, mas o Backend continuará produzindo apenas um descarte e um lançamento de pontos.
 
@@ -80,7 +80,7 @@ Quando uma falha deixar o estado físico do equipamento indefinido, o Totem deve
 
 Cada ciclo do Totem poderá gerar no máximo um descarte e uma pontuação. Objetos recusados, operações canceladas e ciclos mecânicos não concluídos não gerarão pontos.
 
-Todos os lixos eletrônicos aceitos possuirão o mesmo valor de pontuação. A classe do objeto será informativa e não influenciará o valor recebido.
+Todos os lixos eletrônicos aceitos possuirão a mesma recompensa-base. A categoria do objeto poderá acrescentar bônus somente aos BinCoins; o XP da turma permanecerá igual para todo descarte válido.
 
 O Gemini será utilizado somente como análise secundária para resultados incertos do classificador principal.
 

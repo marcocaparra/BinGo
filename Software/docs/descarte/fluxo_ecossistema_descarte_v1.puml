@@ -151,7 +151,7 @@ end note
 
 |Backend|
 :Registrar descarte de forma idempotente;
-:Gerar pontuação fixa;
+:Calcular recompensa-base e\nbônus ambiental por categoria;
 :Associar descarte ao histórico do aluno;
 
 |Totem|

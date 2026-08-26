@@ -138,6 +138,33 @@ O esperado e:
 {"status":"ok"}
 ```
 
+## Edge Functions
+
+**Estado comprovado localmente em 2026-08-15:** `register-deposit-v1` e `health-v1` estão versionadas em `supabase/functions/`, e ambas reutilizam a autenticação técnica compartilhada.
+
+Depois de iniciar a stack local:
+
+```powershell
+supabase start
+supabase functions serve
+```
+
+Também é possível servir uma Function isoladamente:
+
+```powershell
+supabase functions serve health-v1
+```
+
+O readiness central fica em `GET http://127.0.0.1:54321/functions/v1/health-v1` e exige `X-Machine-Id` e `X-Api-Key`. Somente HTTP `200` com `AVAILABLE` e `can_start_deposit=true` representa saúde comprovada. O `/health` do FastAPI mostrado na seção anterior pertence ao backend legado e não substitui esse contrato Supabase.
+
+Para secrets locais de desenvolvimento:
+
+```powershell
+supabase functions serve --env-file supabase/.env.local
+```
+
+O arquivo `supabase/.env.local` já está coberto por `supabase/.gitignore` e deve permanecer ignorado pelo Git. Não versionar chaves privilegiadas, credenciais de máquina, tokens ou secrets de integrações. Até existir código em `supabase/functions/`, não há chamada de Function para validar neste guia.
+
 ## Testar se o backend esta lendo o Supabase
 
 ```powershell

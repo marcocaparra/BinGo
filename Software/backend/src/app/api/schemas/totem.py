@@ -1,9 +1,10 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from shared.constants.enums import DepositSize, MachineStatus, StudentStatus
+from shared.constants.enums import DepositCategorySource, MachineStatus, StudentStatus, WasteCategoryCode
 
 
 class TotemSchoolResponse(BaseModel):
@@ -51,7 +52,10 @@ class TotemDepositResponse(BaseModel):
     id: UUID
     event_id: UUID
     detected_type: str | None
-    size: DepositSize
+    waste_category_code: WasteCategoryCode | None
+    category_source: DepositCategorySource | None
+    bonus_rate_applied: Decimal
+    bonus_bincoins_awarded: int
     is_valid: bool
     points_awarded_student: int
     points_awarded_class: int

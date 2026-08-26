@@ -1,314 +1,57 @@
-# BinGo V1 — Modelo de Dados (Rascunho Inicial)
+# Modelo de dados — descarte e bônus ambiental V1
 
-## 1. Objetivo
+Revisão: `2026-08-15`
 
-Este documento define a modelagem inicial do banco de dados do BinGo V1.
+O modelo V1 separa três conceitos. BinCoins são o saldo individual e gastável do aluno; XP mede o progresso coletivo da turma; e a categoria ambiental descreve o lixo eletrônico confirmado no Totem. Todo descarte válido parte da mesma recompensa-base. A categoria pode acrescentar BinCoins, mas nunca altera o XP.
 
-O objetivo é transformar as regras do produto em entidades, relacionamentos e restrições de dados, servindo como base para a criação do schema SQL, migrations e backend.
+## Pontuação
 
-Este documento ainda é um rascunho técnico e pode evoluir conforme as decisões do projeto forem refinadas.
+`school_settings.deposit_bincoins_base` guarda a base individual, inicialmente `8`. `school_settings.deposit_class_xp_base` guarda o XP por descarte válido, inicialmente `19`. `school_settings.class_weekly_xp_goal`, inicialmente `100`, é a meta usada por consultas de progresso; o saldo acumulado da turma não é zerado semanalmente.
 
----
+O cálculo server-side é:
 
-## 2. Escopo do V1
+```text
+bônus = round(deposit_bincoins_base × waste_categories.bonus_rate)
+BinCoins do evento = deposit_bincoins_base + bônus
+XP do evento = deposit_class_xp_base
+```
 
-O modelo de dados inicial deve atender estas áreas do sistema:
+Sem aluno identificado, o evento válido concede `0` BinCoins, bônus efetivo `0` e o XP normal à turma. Evento inválido concede `0/0` e não recebe categoria canônica. O tamanho físico e todas as configurações `SMALL`, `MEDIUM` e `LARGE` foram removidos pela migration V1.
 
-- cadastro de escolas, turmas e alunos
-- autenticação básica do aluno por PIN
-- registro de descartes
-- sistema de pontuação individual e por turma
-- catálogo de recompensas
-- resgates com código único
-- validação de entrega por admin
-- auditoria básica de ações importantes
-- suporte futuro para multi-escola
+## Catálogo canônico
 
-Fora de escopo neste momento:
+`waste_categories` é um catálogo global com UUID interno, código público estável, nome para exibição, `bonus_rate`, estado ativo e timestamps. Os códigos V1 são `BATTERY`, `MOBILE_DEVICE`, `CABLE_WIRE`, `PERIPHERAL`, `OTHER_EWASTE` e `UNKNOWN`.
 
-- armazenamento de imagens
-- missões avançadas
-- marketplace
-- múltiplos tipos complexos de recompensa
-- relatórios analíticos avançados
+A migration cria o catálogo com todas as taxas em zero. Somente as seeds de desenvolvimento aplicam a matriz provisória: `BATTERY = 1.0000`, `MOBILE_DEVICE = 0.5000`, `CABLE_WIRE = 0.2500` e as demais categorias em zero. Produção não deve ativar esses valores antes da aprovação formal. Categorias deixam de ser utilizadas por `is_active = false`; registros referenciados não são excluídos.
 
----
+## Evento de descarte
 
-## 3. Entidades principais
+`deposits` representa um evento lógico e mantém `event_id` único, escola, máquina, turma, aluno opcional, validade, `detected_type`, categoria canônica, origem da categoria, recompensa concedida e instante do evento. `detected_type` preserva a classificação observada; `waste_category_id` aponta para a decisão canônica confirmada ou corrigida.
 
-### 3.1 School
+`category_source` aceita `AI_CONFIRMED`, `USER_CORRECTED` ou `UNIDENTIFIED`. `UNKNOWN` deve ser combinado com `UNIDENTIFIED`; categorias conhecidas devem ser confirmadas pela IA ou corrigidas pelo aluno.
 
-Representa uma escola cadastrada no sistema.
+`bonus_rate_applied` e `bonus_bincoins_awarded` são fotografias históricas. `points_awarded_student` guarda o total de BinCoins do evento e `points_awarded_class` guarda o XP. Alterar uma taxa ou a base no futuro não recalcula descartes anteriores.
 
-Campos iniciais:
-- id
-- name
-- created_at
-- updated_at
+## Atomicidade e acesso
 
-Observações:
-- mesmo que o piloto use uma única escola, a modelagem já deve suportar multi-escola
+`register_deposit_v1` é uma função PostgreSQL `security definer` com `search_path` vazio. Ela deriva a escola da máquina, valida as relações, resolve uma categoria ativa, calcula a recompensa, insere o evento, atualiza os saldos e grava a auditoria na mesma transação.
 
----
+O primeiro insert usa `event_id` como barreira de concorrência. Retry com os mesmos dados retorna a fotografia existente; reutilização com máquina, turma, aluno, validade, classificação ou categoria diferente é rejeitada. Assim não existe evento sem recompensa correspondente, recompensa sem evento, saldo duplicado ou auditoria duplicada.
 
-### 3.2 Class
+A execução da RPC foi revogada de `public`, `anon` e `authenticated` e concedida somente a `service_role`. Para autenticar a máquina, esse papel recebe apenas `SELECT (id, school_id, api_key_hash)` em `machines`; não recebe leitura ampla nem escrita, e os papéis `anon` e `authenticated` continuam sem acesso ao hash. Os papéis públicos também não podem inserir, atualizar ou excluir descartes, saldos, configurações, auditoria ou categorias. A Edge Function `register-deposit-v1` autentica a máquina e chama a RPC com o papel técnico.
 
-Representa uma turma da escola.
+`check_backend_readiness_v1()` é a RPC mínima e somente leitura usada por `health-v1`. Ela não consulta tabelas nem regras de domínio; verifica apenas se o PostgreSQL não está em recovery e se `default_transaction_read_only` permite escrita. A função é `STABLE`, `SECURITY INVOKER`, possui `search_path` vazio e pode ser executada somente por `service_role`; `PUBLIC`, `anon` e `authenticated` estão explicitamente revogados.
 
-Campos iniciais:
-- id
-- school_id
-- segment
-- grade
-- name
-- points_class_balance
-- created_at
-- updated_at
+## Supabase Auth e RLS
 
-Observações:
-- uma turma pertence a uma escola
-- a turma possui saldo próprio para ranking/premiação coletiva
+O baseline V1 liga a sessão por `auth.uid() → students.auth_user_id → school_id/class_id`. `auth_user_id` continua opcional para permitir alunos ainda não vinculados ao Auth, mas possui unicidade e índice; uma identidade Auth sem aluno associado não obtém contexto de domínio. RLS está habilitado em todas as onze tabelas de domínio: `schools`, `classes`, `students`, `admins`, `machines`, `rewards`, `deposits`, `redemptions`, `audit_logs`, `school_settings` e `waste_categories`.
 
----
+As três policies privadas mínimas permitem a `authenticated` ler somente seu registro em `students`, sua turma em `classes` e sua escola em `schools`. Todas usam explicitamente `TO authenticated` e comparam a identidade por `(select auth.uid())`; as policies de escola e turma também conferem `school_id` para preservar o isolamento. Os grants expõem somente as colunas necessárias. O grant de `students.auth_user_id` é necessário porque as policies relacionadas consultam essa coluna sob o papel autenticado; o teste com usuários Auth reais comprovou que sua ausência produz `42501`. A própria RLS restringe essa coluna ao vínculo do usuário atual.
 
-### 3.3 Student
+O catálogo global `waste_categories` possui policy explícita de leitura para `anon` e `authenticated` com `USING (true)`. A leitura inclui categorias ativas e inativas; nenhuma filtragem por `is_active` foi introduzida. Não existem policies de escrita direta para clientes, e os defaults de `postgres` foram corrigidos para que novas tabelas, sequences e funções não voltem a conceder privilégios implícitos aos papéis expostos.
 
-Representa um aluno da turma.
+## Migration e compatibilidade
 
-Campos iniciais:
-- id
-- school_id
-- class_id
-- name
-- auth_user_id
-- pin_hash
-- is_activated
-- points_student_balance
-- status
-- created_at
-- updated_at
-
-Observações:
-- aluno pertence a uma escola e a uma turma
-- `auth_user_id` é um vínculo futuro e opcional com o usuário do Supabase Auth
-- `auth_user_id` deve ser único quando preenchido, mas pode permanecer nulo para alunos pré-cadastrados
-- Supabase Auth será a fonte de verdade para e-mail, senha, hash, recuperação de senha, sessão e tokens do app
-- `students` continua sendo a fonte de verdade para dados de domínio do aluno: escola, turma, nome, pontos, status e PIN do Totem
-- `students` não deve armazenar `password_hash`
-- `pin_hash` permanece em `students` porque pertence ao fluxo do Totem, separado do login do app
-- PIN não deve ser salvo em texto puro
-- `is_activated` indica se o aluno já criou o PIN no primeiro uso
-- `status` pode ser usado para ativo/inativo sem apagar histórico
-
----
-
-### 3.4 Admin
-
-Representa usuários administrativos do sistema.
-
-Campos iniciais:
-- id
-- school_id
-- name
-- email
-- role
-- created_at
-- updated_at
-
-Observações:
-- papéis iniciais previstos: ADMIN_CONQUISTA e ADMIN
-- admins validam e entregam recompensas
-
----
-
-### 3.5 Machine
-
-Representa um totem/máquina do BinGo instalado em uma escola.
-
-Campos iniciais:
-- id
-- school_id
-- name
-- status
-- firmware_version
-- last_seen
-- bin_full
-- camera_ok
-- net_ok
-- created_at
-- updated_at
-
-Observações:
-- a máquina pertence a uma escola
-- deve permitir telemetria e status operacional
-
----
-
-### 3.6 Reward
-
-Representa uma recompensa disponível para resgate.
-
-Campos iniciais:
-- id
-- school_id
-- name
-- description
-- cost_points
-- category
-- is_active
-- created_at
-- updated_at
-
-Observações:
-- a recompensa pertence a uma escola
-- `stock_qty` pode ser opcional no V1
-- `is_active` controla disponibilidade
-
----
-
-### 3.7 Deposit
-
-Representa um descarte realizado no sistema.
-
-Campos iniciais:
-- id
-- event_id
-- school_id
-- machine_id
-- class_id
-- student_id
-- is_valid
-- detected_type
-- size
-- points_awarded_student
-- points_awarded_class
-- created_at
-
-Observações:
-- `student_id` pode ser nulo quando o descarte ocorre sem login
-- `class_id` continua obrigatório porque a turma recebe pontos mesmo sem login individual
-- `event_id` deve ser único para evitar duplicação em sincronização
-- `detected_type` pode guardar algo como "mouse", "pilha", "teclado"
-- `size` deve guardar SMALL, MEDIUM ou LARGE
-
----
-
-### 3.8 Redemption
-
-Representa um resgate de recompensa realizado por um aluno.
-
-Campos iniciais:
-- id
-- school_id
-- student_id
-- reward_id
-- code
-- status
-- request_channel
-- created_at
-- expires_at
-- delivered_at
-- delivered_by_admin_id
-
-Observações:
-- `code` deve ser único
-- `status` inicial esperado: PENDING
-- `request_channel` no V1 será TOTEM
-- entrega só pode ser feita por admin
-
----
-
-### 3.9 AuditLog
-
-Representa registro de auditoria de ações importantes do sistema.
-
-Campos iniciais:
-- id
-- school_id
-- actor_type
-- actor_id
-- action
-- metadata
-- created_at
-
-Observações:
-- usado para rastrear ações sensíveis
-- exemplos: entrega de resgate, cancelamento, reset de PIN, alteração de recompensa
-
----
-
-## 4. Relacionamentos principais
-
-- uma school possui classes
-- uma school possui students
-- uma school possui admins
-- uma school possui machines
-- uma school possui rewards
-- uma school possui deposits
-- uma school possui redemptions
-
-- uma class pertence a uma school
-- uma class possui students
-- uma class possui deposits
-
-- um student pertence a uma school
-- um student pertence a uma class
-- um student possui deposits
-- um student possui redemptions
-
-- uma machine pertence a uma school
-- uma machine possui muitos deposits
-
-- uma reward pertence a uma school
-- uma reward possui redemptions
-
-- uma redemption pertence a um student
-- uma redemption pertence a uma reward
-- uma redemption pode ser entregue por um admin
-
----
-
-## 5. Regras de integridade iniciais
-
-- `students.pin_hash` nunca armazena o PIN em texto puro
-- `students.password_hash` não deve existir; senha do app pertence ao Supabase Auth
-- `students.auth_user_id` deve ser único quando preenchido
-- `students.auth_user_id` pode ser nulo enquanto o aluno ainda não ativou conta no app
-- `redemptions.code` deve ser único
-- `deposits.event_id` deve ser único
-- `students.points_student_balance` não pode ser negativo
-- `classes.points_class_balance` não pode ser negativo
-- `deposits.student_id` pode ser nulo
-- `redemptions.status` deve aceitar apenas valores controlados
-- `admins.role` deve aceitar apenas valores controlados
-- `machines.status` deve aceitar apenas valores controlados
-- logs e histórico de descarte não devem ser apagados sem regra explícita
-
----
-
-## 6. Decisões já consideradas no modelo
-
-- login do totem pode ser opcional no descarte
-- login do app será por e-mail/senha no Supabase Auth
-- login do Totem continuará usando PIN separado em `students.pin_hash`
-- `students.auth_user_id` permitirá relacionar a entidade de domínio do aluno ao usuário autenticado do app
-- sem login individual, ainda existe pontuação para turma
-- resgate no V1 é feito apenas no totem
-- mobile no V1 é consulta, não resgata
-- entrega da recompensa acontece no admin
-- o modelo já considera expansão para multi-escola
-
----
-
-## 7. Pontos ainda em aberto
-
-- definir lista final de enums:
-  - machine status
-  - redemption status
-  - admin role
-  - student status
-  - deposit size
-
-- decidir política exata de expiração de código
-
----
+Os arquivos de migration `005` materializam a pontuação e a RPC original. A migration `006` acrescenta `category_source` à fotografia retornada preservando o núcleo atômico já versionado, a migration `007` concede a leitura mínima de `machines` necessária à autenticação, a migration `008` estabelece grants mínimos, defaults seguros e o baseline de RLS/Auth e a migration `009` acrescenta a RPC restrita de readiness. Antes de remover `size`, descartes válidos preexistentes são associados a `UNKNOWN` com bônus zero; depois a coluna e as configurações por tamanho são eliminadas.
+
+O repositório é a fonte adotada nesta etapa. A existência dos arquivos não comprova aplicação no projeto Supabase hospedado. Antes de qualquer deploy, verificar o histórico remoto e exportar valores históricos de `size` caso tenham valor operacional fora deste baseline.
