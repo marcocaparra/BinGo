@@ -5,13 +5,13 @@ on:
     branches:
       - develop
     paths:
-      - "Software/apps/totem_kiosk_wireframe/**"
+      - "Software/apps/totem_ui/**"
       - ".github/workflows/totem-ci.yml"
   push:
     branches:
       - develop
     paths:
-      - "Software/apps/totem_kiosk_wireframe/**"
+      - "Software/apps/totem_ui/**"
       - ".github/workflows/totem-ci.yml"
   workflow_dispatch:
 
@@ -37,4 +37,4 @@ jobs:
           node-version: "22"
 
       - name: Check JavaScript syntax
-        run: node --check Software/apps/totem_kiosk_wireframe/script.js
+        run: node --check Software/apps/totem_ui/script.js
