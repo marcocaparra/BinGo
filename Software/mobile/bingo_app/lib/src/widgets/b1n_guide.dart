@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'b1n_dialogue_strip.dart';
+import 'bingo_asset_image.dart';
 
 class B1nGuide extends StatelessWidget {
   const B1nGuide({
@@ -10,6 +11,7 @@ class B1nGuide extends StatelessWidget {
     required this.message,
     this.tone = AppColors.blue,
     this.compact = false,
+    this.portrait = B1nPortraitVariant.neutral,
     super.key,
   });
 
@@ -18,14 +20,19 @@ class B1nGuide extends StatelessWidget {
   final String message;
   final Color tone;
   final bool compact;
+  final B1nPortraitVariant portrait;
 
   @override
   Widget build(BuildContext context) {
     if (compact) {
-      return B1nDialogueStrip(message: message, tone: tone);
+      return B1nDialogueStrip(message: message, tone: tone, portrait: portrait);
     }
 
-    final image = Image.asset(asset, fit: BoxFit.contain);
+    final image = BingoAssetImage(
+      asset: asset,
+      fit: BoxFit.contain,
+      semanticLabel: title,
+    );
     final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

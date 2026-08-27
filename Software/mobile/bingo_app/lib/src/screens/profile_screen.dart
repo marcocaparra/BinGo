@@ -1,130 +1,822 @@
 import 'package:flutter/material.dart';
 
+import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/b1n_guide.dart';
 import '../widgets/bingo_action_button.dart';
 import '../widgets/bingo_widgets.dart';
+import '../widgets/periodic_highlight.dart';
+import 'change_pin_screen.dart';
+import 'access_flow_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({required this.onGoHome, this.onExitPilot, super.key});
+const _currentProfileLevel = 3;
 
+class _ProfileAvatarOption {
+  const _ProfileAvatarOption({
+    required this.id,
+    required this.label,
+    required this.asset,
+    required this.requiredLevel,
+  });
+
+  final String id;
+  final String label;
+  final String asset;
+  final int requiredLevel;
+}
+
+class _ProfileThemeOption {
+  const _ProfileThemeOption({
+    required this.id,
+    required this.label,
+    required this.primary,
+    required this.secondary,
+    required this.requiredLevel,
+  });
+
+  final String id;
+  final String label;
+  final Color primary;
+  final Color secondary;
+  final int requiredLevel;
+}
+
+const _profileAvatars = <_ProfileAvatarOption>[
+  _ProfileAvatarOption(
+    id: 'b1n-default',
+    label: 'B1N guia',
+    asset: AppAssets.b1nPortraitCelebration,
+    requiredLevel: 1,
+  ),
+  _ProfileAvatarOption(
+    id: 'b1n-instruction',
+    label: 'B1N inventor',
+    asset: AppAssets.b1nPortraitInstruction,
+    requiredLevel: 2,
+  ),
+  _ProfileAvatarOption(
+    id: 'b1n-question',
+    label: 'B1N atento',
+    asset: AppAssets.b1nPortraitQuestion,
+    requiredLevel: 2,
+  ),
+  _ProfileAvatarOption(
+    id: 'b3n-shopkeeper',
+    label: 'Tio B3N',
+    asset: AppAssets.profileAvatarB3n,
+    requiredLevel: 3,
+  ),
+  _ProfileAvatarOption(
+    id: 'scr4p-defense',
+    label: 'SCR4P',
+    asset: AppAssets.profileAvatarScr4p,
+    requiredLevel: 3,
+  ),
+  _ProfileAvatarOption(
+    id: 'b1n-reward',
+    label: 'B1N celebrando',
+    asset: AppAssets.profileAvatarB1nReward,
+    requiredLevel: 4,
+  ),
+  _ProfileAvatarOption(
+    id: 'b1n-hero',
+    label: 'B1N restaurador',
+    asset: AppAssets.profileAvatarB1nHero,
+    requiredLevel: 5,
+  ),
+];
+
+const _profileThemes = <_ProfileThemeOption>[
+  _ProfileThemeOption(
+    id: 'city-blue',
+    label: 'Cidade azul',
+    primary: AppColors.blue,
+    secondary: AppColors.deepCyan,
+    requiredLevel: 1,
+  ),
+  _ProfileThemeOption(
+    id: 'eco-green',
+    label: 'Eco verde',
+    primary: AppColors.green,
+    secondary: AppColors.blue,
+    requiredLevel: 2,
+  ),
+  _ProfileThemeOption(
+    id: 'restoration-cyan',
+    label: 'Restauração',
+    primary: Color(0xFF18D7D1),
+    secondary: AppColors.green,
+    requiredLevel: 3,
+  ),
+  _ProfileThemeOption(
+    id: 'scr4p-purple',
+    label: 'Energia SCR4P',
+    primary: AppColors.scr4p,
+    secondary: AppColors.blue,
+    requiredLevel: 3,
+  ),
+  _ProfileThemeOption(
+    id: 'solar-yellow',
+    label: 'Energia solar',
+    primary: AppColors.warning,
+    secondary: AppColors.green,
+    requiredLevel: 4,
+  ),
+  _ProfileThemeOption(
+    id: 'hero-navy',
+    label: 'Herói da cidade',
+    primary: AppColors.deepCyan,
+    secondary: AppColors.green,
+    requiredLevel: 5,
+  ),
+];
+
+class _ProfileViewData {
+  const _ProfileViewData({
+    required this.profile,
+    required this.customization,
+    required this.store,
+  });
+
+  final StudentProfile profile;
+  final ProfileCustomization customization;
+  final ProfileCustomizationStore store;
+}
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({required this.onGoHome, this.repository, super.key});
+
+  final ProfileRepository? repository;
   final VoidCallback onGoHome;
-  final Future<void> Function()? onExitPilot;
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late final Future<_ProfileViewData> _data = _loadData();
+  ProfileCustomization? _customization;
+  ProfileCustomizationStore? _store;
+
+  Future<_ProfileViewData> _loadData() async {
+    final profile =
+        await widget.repository?.loadProfile() ??
+        const StudentProfile(school: 'ENIAC', identifier: 'Marco Caparra');
+    final store = widget.repository is ProfileCustomizationStore
+        ? widget.repository! as ProfileCustomizationStore
+        : await SharedPreferencesCustomizationStore.create();
+    final customization = await store.loadCustomization();
+    _store = store;
+    _customization = customization;
+    return _ProfileViewData(
+      profile: profile,
+      customization: customization,
+      store: store,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    const profile = _PilotProfile(school: 'ENIAC', identifier: 'Marco Caparra');
-    return AppPage(
-      title: 'Seu caminho',
-      subtitle: 'Progresso, conquistas e conta em um só lugar.',
-      showBackButton: false,
-      dataStatus: AppDataStatus.local,
-      child: Column(
+    return FutureBuilder<_ProfileViewData>(
+      future: _data,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        final profile =
+            data?.profile ??
+            const StudentProfile(school: 'ENIAC', identifier: 'Marco Caparra');
+        final customization =
+            _customization ??
+            data?.customization ??
+            const ProfileCustomization();
+        return AppPage(
+          title: 'Sua jornada',
+          subtitle: 'Progresso, conquistas e conta em um só lugar.',
+          showBackButton: false,
+          dataStatus: AppDataStatus.local,
+          child: Column(
+            children: [
+              _ProfileHeader(
+                profile: profile,
+                customization: customization,
+                onEdit: data == null
+                    ? null
+                    : () => _openCustomization(context, customization),
+              ),
+              const SizedBox(height: 16),
+              const _ResourceSummary(),
+              const SizedBox(height: 16),
+              const _LevelPath(),
+              const SizedBox(height: 16),
+              const B1nGuide(
+                asset: AppAssets.b1nReward,
+                title: 'Sua jornada está avançando!',
+                message: 'Faltam 240 pontos pessoais para chegar a Guardião.',
+                tone: AppColors.green,
+                compact: true,
+                portrait: B1nPortraitVariant.celebration,
+              ),
+              const SizedBox(height: 14),
+              BingoActionButton(
+                label: 'Ver missões',
+                icon: Icons.arrow_forward_rounded,
+                tone: BingoActionTone.green,
+                onPressed: widget.onGoHome,
+              ),
+              const SizedBox(height: 18),
+              _AccountPanel(profile: profile, repository: widget.repository),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openCustomization(
+    BuildContext context,
+    ProfileCustomization current,
+  ) async {
+    final selected = await showModalBottomSheet<ProfileCustomization>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => _ProfileCustomizationSheet(initial: current),
+    );
+    if (selected == null || selected == current || !mounted) return;
+    await _store?.saveCustomization(selected);
+    if (!mounted) return;
+    setState(() => _customization = selected);
+  }
+}
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({
+    required this.profile,
+    required this.customization,
+    required this.onEdit,
+  });
+
+  final StudentProfile profile;
+  final ProfileCustomization customization;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = _profileAvatars.firstWhere(
+      (option) => option.id == customization.avatarId,
+      orElse: () => _profileAvatars.first,
+    );
+    final theme = _profileThemes.firstWhere(
+      (option) => option.id == customization.themeId,
+      orElse: () => _profileThemes.first,
+    );
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    return TweenAnimationBuilder<double>(
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 420),
+      tween: Tween(begin: 0.97, end: 1),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) => Transform.scale(
+        scale: value,
+        child: Opacity(opacity: value.clamp(0.0, 1.0).toDouble(), child: child),
+      ),
+      child: PeriodicHighlight(
+        colors: [
+          theme.primary.withValues(alpha: 0.04),
+          Colors.white.withValues(alpha: 0.52),
+          theme.secondary.withValues(alpha: 0.08),
+        ],
+        child: AnimatedContainer(
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: AppMotion.standard),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.primary.withValues(alpha: 0.34)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.primary.withValues(alpha: 0.22),
+                Colors.white,
+                theme.secondary.withValues(alpha: 0.16),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: theme.primary.withValues(alpha: 0.14),
+                blurRadius: 18,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                right: 4,
+                bottom: 0,
+                child: _ProfileSparkles(
+                  color: theme.primary,
+                  reduceMotion: reduceMotion,
+                ),
+              ),
+              Row(
+                children: [
+                  _ProfileAvatarFrame(
+                    asset: avatar.asset,
+                    primary: theme.primary,
+                    secondary: theme.secondary,
+                    size: 94,
+                    badge: 'N3',
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                profile.identifier,
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Personalizar perfil',
+                              onPressed: onEdit,
+                              icon: const Icon(Icons.palette_outlined),
+                              color: theme.primary,
+                            ),
+                          ],
+                        ),
+                        Text('${profile.school} · 9ºA'),
+                        const SizedBox(height: 10),
+                        BadgeLabel(
+                          label: 'Nível 3 · Restaurador',
+                          color: theme.primary,
+                        ),
+                        const SizedBox(height: 8),
+                        AnimatedProgressPill(
+                          value: 0.62,
+                          color: theme.secondary,
+                          height: 9,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileAvatarFrame extends StatelessWidget {
+  const _ProfileAvatarFrame({
+    required this.asset,
+    required this.primary,
+    required this.secondary,
+    required this.size,
+    this.badge,
+  });
+
+  final String asset;
+  final Color primary;
+  final Color secondary;
+  final double size;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          _ProfileHeader(profile: profile),
-          const SizedBox(height: 16),
-          const _ResourceSummary(),
-          const SizedBox(height: 16),
-          const _LevelPath(),
-          const SizedBox(height: 16),
-          const B1nGuide(
-            asset: AppAssets.b1nReward,
-            title: 'Você está avançando!',
-            message: 'Faltam 240 pontos pessoais para chegar a Guardião.',
-            tone: AppColors.green,
-            compact: true,
+          Positioned.fill(
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    primary.withValues(alpha: 0.16),
+                    Colors.white,
+                    secondary.withValues(alpha: 0.14),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: primary.withValues(alpha: 0.52),
+                  width: 2,
+                ),
+              ),
+              child: BingoAssetImage(
+                asset: asset,
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                filterQuality: FilterQuality.high,
+              ),
+            ),
           ),
-          const SizedBox(height: 14),
-          BingoActionButton(
-            label: 'Continuar minha missão',
-            icon: Icons.arrow_forward_rounded,
-            tone: BingoActionTone.green,
-            onPressed: onGoHome,
-          ),
-          const SizedBox(height: 18),
-          _AccountPanel(profile: profile, onExitPilot: onExitPilot),
+          if (badge != null)
+            Positioned(
+              right: -5,
+              bottom: -5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                decoration: BoxDecoration(
+                  color: primary,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: Text(
+                  badge!,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _PilotProfile {
-  const _PilotProfile({required this.school, required this.identifier});
+class _ProfileSparkles extends StatelessWidget {
+  const _ProfileSparkles({required this.color, required this.reduceMotion});
 
-  final String school;
-  final String identifier;
-}
-
-class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.profile});
-
-  final _PilotProfile profile;
-
-  String get _initials {
-    final parts = profile.identifier.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts.first.isEmpty) return 'B!';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
-  }
+  final Color color;
+  final bool reduceMotion;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.blue.withValues(alpha: 0.22)),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.blue.withValues(alpha: 0.12),
-            Colors.white,
-            AppColors.green.withValues(alpha: 0.10),
-          ],
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: reduceMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 760),
+      curve: Curves.easeOutBack,
+      builder: (context, value, _) => Transform.translate(
+        offset: Offset(0, 8 * (1 - value)),
+        child: Opacity(
+          opacity: value.clamp(0.0, 1.0),
+          child: Row(
+            children: [
+              Icon(
+                Icons.auto_awesome_rounded,
+                size: 18,
+                color: color.withValues(alpha: 0.48),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.recycling_rounded,
+                size: 24,
+                color: AppColors.green.withValues(alpha: 0.30),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.star_rounded,
+                size: 19,
+                color: AppColors.warning.withValues(alpha: 0.42),
+              ),
+            ],
+          ),
         ),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [AppColors.blue, AppColors.green],
+    );
+  }
+}
+
+class _ProfileCustomizationSheet extends StatefulWidget {
+  const _ProfileCustomizationSheet({required this.initial});
+
+  final ProfileCustomization initial;
+
+  @override
+  State<_ProfileCustomizationSheet> createState() =>
+      _ProfileCustomizationSheetState();
+}
+
+class _ProfileCustomizationSheetState
+    extends State<_ProfileCustomizationSheet> {
+  late String _avatarId = widget.initial.avatarId;
+  late String _themeId = widget.initial.themeId;
+
+  @override
+  Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final selectedAvatar = _profileAvatars.firstWhere(
+      (option) => option.id == _avatarId,
+      orElse: () => _profileAvatars.first,
+    );
+    final selectedTheme = _profileThemes.firstWhere(
+      (option) => option.id == _themeId,
+      orElse: () => _profileThemes.first,
+    );
+
+    return FractionallySizedBox(
+      heightFactor: 0.86,
+      child: DefaultTabController(
+        length: 2,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  _ProfileAvatarFrame(
+                    asset: selectedAvatar.asset,
+                    primary: selectedTheme.primary,
+                    secondary: selectedTheme.secondary,
+                    size: 68,
+                    badge: 'N3',
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Personalize sua jornada',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${selectedAvatar.label} · ${selectedTheme.label}',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-            child: Text(
-              _initials,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontSize: 24,
+              const SizedBox(height: 16),
+              const TabBar(
+                tabs: [
+                  Tab(
+                    icon: Icon(Icons.face_retouching_natural),
+                    text: 'Avatar',
+                  ),
+                  Tab(icon: Icon(Icons.palette_outlined), text: 'Tema'),
+                ],
               ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  profile.identifier,
-                  style: Theme.of(context).textTheme.titleLarge,
+              const SizedBox(height: 12),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    GridView.builder(
+                      itemCount: _profileAvatars.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: largeText ? 2 : 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: largeText ? 0.82 : 0.78,
+                      ),
+                      itemBuilder: (context, index) {
+                        final option = _profileAvatars[index];
+                        return _AvatarOptionCard(
+                          option: option,
+                          selected: option.id == _avatarId,
+                          onTap: option.requiredLevel <= _currentProfileLevel
+                              ? () => setState(() => _avatarId = option.id)
+                              : null,
+                        );
+                      },
+                    ),
+                    GridView.builder(
+                      itemCount: _profileThemes.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: largeText ? 2 : 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: largeText ? 0.95 : 0.88,
+                      ),
+                      itemBuilder: (context, index) {
+                        final option = _profileThemes[index];
+                        return _ThemeOptionCard(
+                          option: option,
+                          selected: option.id == _themeId,
+                          onTap: option.requiredLevel <= _currentProfileLevel
+                              ? () => setState(() => _themeId = option.id)
+                              : null,
+                        );
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text('${profile.school} · 9ºA'),
-                const SizedBox(height: 10),
-                const BadgeLabel(label: 'Nível 3 · Restaurador'),
-                const SizedBox(height: 8),
-                const AnimatedProgressPill(value: 0.62, height: 9),
+              ),
+              const SizedBox(height: 14),
+              BingoActionButton(
+                label: 'Salvar personalização',
+                icon: Icons.check_rounded,
+                tone: BingoActionTone.green,
+                onPressed: () => Navigator.of(context).pop(
+                  ProfileCustomization(avatarId: _avatarId, themeId: _themeId),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarOptionCard extends StatelessWidget {
+  const _AvatarOptionCard({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _ProfileAvatarOption option;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final locked = onTap == null;
+    return Semantics(
+      button: !locked,
+      selected: selected,
+      label: locked
+          ? '${option.label}, desbloqueia no nível ${option.requiredLevel}'
+          : option.label,
+      child: Material(
+        color: selected ? AppColors.blue.withValues(alpha: 0.10) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: selected ? AppColors.blue : AppColors.line,
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.blue.withValues(alpha: 0.10),
+                              Colors.white,
+                              AppColors.green.withValues(alpha: 0.10),
+                            ],
+                          ),
+                        ),
+                      ),
+                      BingoAssetImage(
+                        asset: option.asset,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.high,
+                        opacity: AlwaysStoppedAnimation(locked ? 0.34 : 1),
+                      ),
+                      if (locked)
+                        const Center(
+                          child: Icon(
+                            Icons.lock_rounded,
+                            color: AppColors.navy,
+                          ),
+                        ),
+                      if (selected)
+                        const Positioned(
+                          right: 3,
+                          top: 3,
+                          child: Icon(
+                            Icons.auto_awesome_rounded,
+                            color: AppColors.warning,
+                            size: 18,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  option.label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                if (locked)
+                  Text(
+                    'Nível ${option.requiredLevel}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
               ],
             ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeOptionCard extends StatelessWidget {
+  const _ThemeOptionCard({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _ProfileThemeOption option;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final locked = onTap == null;
+    return Semantics(
+      button: !locked,
+      selected: selected,
+      label: locked
+          ? '${option.label}, desbloqueia no nível ${option.requiredLevel}'
+          : option.label,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: selected ? option.primary : AppColors.line,
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            gradient: LinearGradient(
+                              colors: [option.primary, option.secondary],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (locked)
+                        const Center(
+                          child: Icon(Icons.lock_rounded, color: Colors.white),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  option.label,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                if (locked)
+                  Text(
+                    'Nível ${option.requiredLevel}',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -347,10 +1039,10 @@ class _LevelPath extends StatelessWidget {
 }
 
 class _AccountPanel extends StatelessWidget {
-  const _AccountPanel({required this.profile, required this.onExitPilot});
+  const _AccountPanel({required this.profile, required this.repository});
 
-  final _PilotProfile profile;
-  final Future<void> Function()? onExitPilot;
+  final StudentProfile profile;
+  final ProfileRepository? repository;
 
   @override
   Widget build(BuildContext context) {
@@ -363,15 +1055,35 @@ class _AccountPanel extends StatelessWidget {
             label: 'Dados da escola',
             onTap: () => _showSchoolData(context),
           ),
+          if (repository != null)
+            _AccountAction(
+              icon: Icons.password_rounded,
+              label: 'Redefinir PIN',
+              onTap: () => _changePin(context),
+            ),
           _AccountAction(
             icon: Icons.swap_horiz_rounded,
-            label: 'Sair do modo piloto',
+            label: repository == null ? 'Sair do modo piloto' : 'Trocar conta',
             danger: true,
             onTap: () => _leaveAccount(context),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _changePin(BuildContext context) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) =>
+            ChangePinScreen(repository: repository!, profile: profile),
+      ),
+    );
+    if (changed == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PIN atualizado neste aparelho.')),
+      );
+    }
   }
 
   void _showSchoolData(BuildContext context) {
@@ -405,10 +1117,14 @@ class _AccountPanel extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Sair do piloto?',
+          repository == null ? 'Sair do piloto?' : 'Trocar conta?',
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        content: const Text('Você voltará para o início da demonstração.'),
+        content: Text(
+          repository == null
+              ? 'Você voltará para o início da demonstração.'
+              : 'O perfil e o PIN salvos neste aparelho serão removidos.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -422,7 +1138,14 @@ class _AccountPanel extends StatelessWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await onExitPilot?.call();
+    await repository?.deleteProfile();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => AccessFlowScreen(repository: repository),
+      ),
+      (_) => false,
+    );
   }
 }
 
