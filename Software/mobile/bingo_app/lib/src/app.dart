@@ -86,12 +86,8 @@ class _SessionGateState extends State<SessionGate> {
   Future<void> _restoreAccess() async {
     if (mounted) setState(() => _access = const AccessState.initializing());
     final store = await _store();
-    if (!await store.shouldRestoreAuthenticatedSession()) {
-      if (mounted) {
-        setState(() => _access = const AccessState.unauthenticated());
-      }
-      return;
-    }
+    final expectedAuthenticatedSession = await store
+        .shouldRestoreAuthenticatedSession();
 
     try {
       final gateway = await _createGateway();
@@ -102,12 +98,15 @@ class _SessionGateState extends State<SessionGate> {
         }
         return;
       }
+      await store.markAuthenticatedSession();
       if (mounted) setState(() => _access = const AccessState.authenticated());
     } on SupabaseConfigurationException catch (error) {
       if (mounted) {
-        setState(
-          () => _access = AccessState.initializationError(error.userMessage),
-        );
+        setState(() {
+          _access = expectedAuthenticatedSession
+              ? AccessState.initializationError(error.userMessage)
+              : const AccessState.unauthenticated();
+        });
       }
     } on AuthFailure catch (error) {
       if (mounted) {

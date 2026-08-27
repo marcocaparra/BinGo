@@ -5,7 +5,9 @@ import 'profile_repository.dart';
 abstract interface class ProfileDataSource {
   bool get hasSession;
 
-  Future<Map<String, dynamic>?> fetchOwnStudent();
+  String? get currentUserId;
+
+  Future<Map<String, dynamic>?> fetchOwnStudent(String authUserId);
 
   Future<Map<String, dynamic>?> fetchClass(String classId);
 
@@ -22,10 +24,14 @@ class SupabaseProfileDataSource implements ProfileDataSource {
       _client.auth.currentSession != null && _client.auth.currentUser != null;
 
   @override
-  Future<Map<String, dynamic>?> fetchOwnStudent() async {
+  String? get currentUserId => _client.auth.currentUser?.id;
+
+  @override
+  Future<Map<String, dynamic>?> fetchOwnStudent(String authUserId) async {
     final List<Map<String, dynamic>> rows = await _client
         .from('students')
         .select('id, name, school_id, class_id, points_student_balance, status')
+        .eq('auth_user_id', authUserId)
         .limit(2);
     if (rows.isEmpty) return null;
     if (rows.length > 1) {
@@ -63,7 +69,8 @@ class RemoteProfileRepository implements ProfileRepository {
 
   @override
   Future<StudentProfile> loadProfile() async {
-    if (!_dataSource.hasSession) {
+    final authUserId = _dataSource.currentUserId;
+    if (!_dataSource.hasSession || authUserId == null) {
       throw const ProfileFailure(
         ProfileFailureKind.sessionInvalid,
         'Sua sessão expirou. Entre novamente.',
@@ -71,7 +78,7 @@ class RemoteProfileRepository implements ProfileRepository {
     }
 
     try {
-      final student = await _dataSource.fetchOwnStudent();
+      final student = await _dataSource.fetchOwnStudent(authUserId);
       if (student == null) {
         throw const ProfileFailure(
           ProfileFailureKind.authLinkMissing,

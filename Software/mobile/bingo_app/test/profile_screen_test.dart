@@ -73,14 +73,25 @@ void main() {
     await _pumpUi(tester);
 
     expect(find.text('Aluno do Backend'), findsOneWidget);
-    expect(find.text('Escola Backend'), findsOneWidget);
-    expect(find.text('Turma Backend'), findsOneWidget);
+    expect(
+      find.textContaining('Escola Backend · Turma Backend'),
+      findsOneWidget,
+    );
     expect(find.text('321'), findsOneWidget);
     expect(find.text('654'), findsOneWidget);
+    expect(find.text('BinCoins'), findsOneWidget);
+    expect(find.text('XP da turma'), findsOneWidget);
     expect(find.text('Dados remotos'), findsOneWidget);
     expect(find.text('Marco Caparra'), findsNothing);
+    expect(find.textContaining('Marco'), findsNothing);
+    expect(find.text('ENIAC'), findsNothing);
+    expect(find.text('9ºA'), findsNothing);
     expect(find.text('120'), findsNothing);
-    expect(find.textContaining('não estão disponíveis'), findsOneWidget);
+    expect(find.text('760'), findsNothing);
+    expect(find.text('1.190'), findsNothing);
+    expect(find.text('Pontos pessoais'), findsNothing);
+    expect(find.text('Nível 3 · Restaurador'), findsNothing);
+    expect(find.text('Continuar minha missão'), findsNothing);
   });
 
   testWidgets('vínculo Auth–aluno ausente mostra erro e retry', (tester) async {
@@ -144,7 +155,7 @@ void main() {
       ),
     );
     await _pumpUi(tester);
-    await tester.tap(find.byTooltip('Sair da conta'));
+    await tester.tap(find.text('Sair da conta'));
     await _pumpUi(tester);
 
     expect(logoutCalls, 1);

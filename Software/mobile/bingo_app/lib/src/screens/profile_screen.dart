@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 import '../widgets/b1n_guide.dart';
@@ -7,60 +8,112 @@ import '../widgets/bingo_action_button.dart';
 import '../widgets/bingo_widgets.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({required this.onGoHome, this.onExitPilot, super.key});
+  const ProfileScreen({required this.onGoHome, this.onExitPilot, super.key})
+    : remoteProfile = null,
+      onLogout = null,
+      loggingOut = false,
+      logoutError = null;
 
-  final VoidCallback onGoHome;
+  const ProfileScreen.authenticated({
+    required StudentProfile profile,
+    required this.onLogout,
+    this.loggingOut = false,
+    this.logoutError,
+    super.key,
+  }) : remoteProfile = profile,
+       onGoHome = null,
+       onExitPilot = null;
+
+  final VoidCallback? onGoHome;
   final Future<void> Function()? onExitPilot;
+  final StudentProfile? remoteProfile;
+  final VoidCallback? onLogout;
+  final bool loggingOut;
+  final String? logoutError;
 
   @override
   Widget build(BuildContext context) {
-    const profile = _PilotProfile(school: 'ENIAC', identifier: 'Marco Caparra');
+    final remote = remoteProfile;
+    final profile = remote == null
+        ? const _DisplayedProfile(
+            school: 'ENIAC',
+            identifier: 'Marco Caparra',
+            className: '9ºA',
+          )
+        : _DisplayedProfile(
+            school: remote.schoolName,
+            identifier: remote.name,
+            className: remote.className,
+          );
     return AppPage(
-      title: 'Seu caminho',
-      subtitle: 'Progresso, conquistas e conta em um só lugar.',
+      title: remote == null ? 'Seu caminho' : 'Seu perfil',
+      subtitle: remote == null
+          ? 'Progresso, conquistas e conta em um só lugar.'
+          : 'Dados reais da sua conta vinculada.',
       showBackButton: false,
-      dataStatus: AppDataStatus.local,
+      dataStatus: remote == null ? AppDataStatus.local : AppDataStatus.remote,
       child: Column(
         children: [
-          _ProfileHeader(profile: profile),
+          _ProfileHeader(profile: profile, showLevel: remote == null),
           const SizedBox(height: 16),
-          const _ResourceSummary(),
-          const SizedBox(height: 16),
-          const _LevelPath(),
-          const SizedBox(height: 16),
-          const B1nGuide(
-            asset: AppAssets.b1nReward,
-            title: 'Você está avançando!',
-            message: 'Faltam 240 pontos pessoais para chegar a Guardião.',
-            tone: AppColors.green,
-            compact: true,
-          ),
-          const SizedBox(height: 14),
-          BingoActionButton(
-            label: 'Continuar minha missão',
-            icon: Icons.arrow_forward_rounded,
-            tone: BingoActionTone.green,
-            onPressed: onGoHome,
-          ),
+          _ResourceSummary(profile: remote),
+          if (remote == null) ...[
+            const SizedBox(height: 16),
+            const _LevelPath(),
+            const SizedBox(height: 16),
+            const B1nGuide(
+              asset: AppAssets.b1nReward,
+              title: 'Você está avançando!',
+              message: 'Faltam 240 pontos pessoais para chegar a Guardião.',
+              tone: AppColors.green,
+              compact: true,
+            ),
+            const SizedBox(height: 14),
+            BingoActionButton(
+              label: 'Continuar minha missão',
+              icon: Icons.arrow_forward_rounded,
+              tone: BingoActionTone.green,
+              onPressed: onGoHome,
+            ),
+          ],
           const SizedBox(height: 18),
-          _AccountPanel(profile: profile, onExitPilot: onExitPilot),
+          _AccountPanel(
+            profile: profile,
+            onExitPilot: onExitPilot,
+            onLogout: onLogout,
+            authenticated: remote != null,
+          ),
+          if (loggingOut) ...[
+            const SizedBox(height: 16),
+            const CircularProgressIndicator(),
+          ],
+          if (logoutError != null) ...[
+            const SizedBox(height: 12),
+            Text(logoutError!, style: const TextStyle(color: AppColors.danger)),
+          ],
         ],
       ),
     );
   }
 }
 
-class _PilotProfile {
-  const _PilotProfile({required this.school, required this.identifier});
+class _DisplayedProfile {
+  const _DisplayedProfile({
+    required this.school,
+    required this.identifier,
+    required this.className,
+  });
 
   final String school;
   final String identifier;
+  final String className;
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.profile});
+  const _ProfileHeader({required this.profile, required this.showLevel});
 
-  final _PilotProfile profile;
+  final _DisplayedProfile profile;
+  final bool showLevel;
 
   String get _initials {
     final parts = profile.identifier.trim().split(RegExp(r'\s+'));
@@ -116,11 +169,13 @@ class _ProfileHeader extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 4),
-                Text('${profile.school} · 9ºA'),
-                const SizedBox(height: 10),
-                const BadgeLabel(label: 'Nível 3 · Restaurador'),
-                const SizedBox(height: 8),
-                const AnimatedProgressPill(value: 0.62, height: 9),
+                Text('${profile.school} · ${profile.className}'),
+                if (showLevel) ...[
+                  const SizedBox(height: 10),
+                  const BadgeLabel(label: 'Nível 3 · Restaurador'),
+                  const SizedBox(height: 8),
+                  const AnimatedProgressPill(value: 0.62, height: 9),
+                ],
               ],
             ),
           ),
@@ -131,30 +186,36 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _ResourceSummary extends StatelessWidget {
-  const _ResourceSummary();
+  const _ResourceSummary({this.profile});
+
+  final StudentProfile? profile;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = (constraints.maxWidth - 20) / 3;
+        final remote = profile;
+        final itemCount = remote == null ? 3 : 2;
+        final width =
+            (constraints.maxWidth - (10 * (itemCount - 1))) / itemCount;
         return Wrap(
           spacing: 10,
           runSpacing: 10,
           children: [
-            _ResourceTile(
-              key: const ValueKey('profile-resource-personal'),
-              width: width,
-              value: '760',
-              label: 'Pontos pessoais',
-              icon: Icons.person_rounded,
-              color: AppColors.green,
-            ),
+            if (remote == null)
+              _ResourceTile(
+                key: const ValueKey('profile-resource-personal'),
+                width: width,
+                value: '760',
+                label: 'Pontos pessoais',
+                icon: Icons.person_rounded,
+                color: AppColors.green,
+              ),
             _ResourceTile(
               key: const ValueKey('profile-resource-class'),
               width: width,
-              value: '1.190',
-              label: 'Pontos da turma',
+              value: remote?.classXpBalance.toString() ?? '1.190',
+              label: remote == null ? 'Pontos da turma' : 'XP da turma',
               icon: Icons.groups_rounded,
               color: AppColors.blue,
             ),
@@ -163,7 +224,7 @@ class _ResourceSummary extends StatelessWidget {
               width: width,
               label: 'BinCoins',
               color: AppColors.warning,
-              binCoinValue: 120,
+              binCoinValue: remote?.binCoinsBalance ?? 120,
             ),
           ],
         );
@@ -347,10 +408,17 @@ class _LevelPath extends StatelessWidget {
 }
 
 class _AccountPanel extends StatelessWidget {
-  const _AccountPanel({required this.profile, required this.onExitPilot});
+  const _AccountPanel({
+    required this.profile,
+    required this.onExitPilot,
+    required this.onLogout,
+    required this.authenticated,
+  });
 
-  final _PilotProfile profile;
+  final _DisplayedProfile profile;
   final Future<void> Function()? onExitPilot;
+  final VoidCallback? onLogout;
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
@@ -364,10 +432,12 @@ class _AccountPanel extends StatelessWidget {
             onTap: () => _showSchoolData(context),
           ),
           _AccountAction(
-            icon: Icons.swap_horiz_rounded,
-            label: 'Sair do modo piloto',
+            icon: authenticated
+                ? Icons.logout_rounded
+                : Icons.swap_horiz_rounded,
+            label: authenticated ? 'Sair da conta' : 'Sair do modo piloto',
             danger: true,
-            onTap: () => _leaveAccount(context),
+            onTap: authenticated ? onLogout! : () => _leavePilot(context),
           ),
         ],
       ),
@@ -392,7 +462,7 @@ class _AccountPanel extends StatelessWidget {
               const SizedBox(height: 16),
               Text('Aluno: ${profile.identifier}'),
               Text('Escola: ${profile.school}'),
-              const Text('Turma: 9ºA'),
+              Text('Turma: ${profile.className}'),
             ],
           ),
         ),
@@ -400,7 +470,7 @@ class _AccountPanel extends StatelessWidget {
     );
   }
 
-  Future<void> _leaveAccount(BuildContext context) async {
+  Future<void> _leavePilot(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

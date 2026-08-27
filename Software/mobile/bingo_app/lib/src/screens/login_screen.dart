@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
+import '../widgets/bingo_action_button.dart';
 import '../widgets/bingo_widgets.dart';
 import 'shell_screen.dart';
 
@@ -23,7 +24,7 @@ class LoginScreen extends StatelessWidget {
             height: 178,
           ),
           const SizedBox(height: 18),
-          PrimaryButton(
+          BingoActionButton(
             label: 'Entrar no piloto',
             icon: Icons.science_outlined,
             onPressed: () => Navigator.of(context).pushAndRemoveUntil(

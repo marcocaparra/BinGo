@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeDataSource implements ProfileDataSource {
   _FakeDataSource({
     this.hasSession = true,
+    this.currentUserId = 'auth-user-id',
     this.student,
     this.classroom,
     this.school,
@@ -12,12 +13,19 @@ class _FakeDataSource implements ProfileDataSource {
 
   @override
   final bool hasSession;
+  @override
+  final String? currentUserId;
   final Map<String, dynamic>? student;
   final Map<String, dynamic>? classroom;
   final Map<String, dynamic>? school;
 
+  String? requestedAuthUserId;
+
   @override
-  Future<Map<String, dynamic>?> fetchOwnStudent() async => student;
+  Future<Map<String, dynamic>?> fetchOwnStudent(String authUserId) async {
+    requestedAuthUserId = authUserId;
+    return student;
+  }
 
   @override
   Future<Map<String, dynamic>?> fetchClass(String classId) async => classroom;
@@ -44,22 +52,43 @@ void main() {
   const school = <String, dynamic>{'id': 'school-id', 'name': 'Escola Remota'};
 
   test('repository remoto mapeia somente campos reais do perfil', () async {
-    final repository = RemoteProfileRepository(
-      _FakeDataSource(student: student, classroom: classroom, school: school),
+    final dataSource = _FakeDataSource(
+      student: student,
+      classroom: classroom,
+      school: school,
     );
+    final repository = RemoteProfileRepository(dataSource);
 
     final profile = await repository.loadProfile();
 
     expect(profile.name, 'Aluno Remoto');
-    expect(profile.pointsStudentBalance, 760);
-    expect(profile.pointsClassBalance, 1190);
+    expect(profile.binCoinsBalance, 760);
+    expect(profile.classXpBalance, 1190);
     expect(profile.schoolName, 'Escola Remota');
     expect(profile.className, '9º Ano A');
+    expect(dataSource.requestedAuthUserId, 'auth-user-id');
   });
 
   test('sessão ausente falha sem consultar ou retornar mock', () async {
     final repository = RemoteProfileRepository(
       _FakeDataSource(hasSession: false),
+    );
+
+    await expectLater(
+      repository.loadProfile(),
+      throwsA(
+        isA<ProfileFailure>().having(
+          (failure) => failure.kind,
+          'kind',
+          ProfileFailureKind.sessionInvalid,
+        ),
+      ),
+    );
+  });
+
+  test('usuário corrente ausente é tratado como sessão inválida', () async {
+    final repository = RemoteProfileRepository(
+      _FakeDataSource(currentUserId: null),
     );
 
     await expectLater(
@@ -105,6 +134,44 @@ void main() {
           (failure) => failure.kind,
           'kind',
           ProfileFailureKind.notFound,
+        ),
+      ),
+    );
+  });
+
+  test('escola vinculada ausente é rejeitada', () async {
+    final repository = RemoteProfileRepository(
+      _FakeDataSource(student: student, classroom: classroom),
+    );
+
+    await expectLater(
+      repository.loadProfile(),
+      throwsA(
+        isA<ProfileFailure>().having(
+          (failure) => failure.kind,
+          'kind',
+          ProfileFailureKind.notFound,
+        ),
+      ),
+    );
+  });
+
+  test('saldo remoto malformado é rejeitado sem valor fictício', () async {
+    final repository = RemoteProfileRepository(
+      _FakeDataSource(
+        student: {...student, 'points_student_balance': null},
+        classroom: classroom,
+        school: school,
+      ),
+    );
+
+    await expectLater(
+      repository.loadProfile(),
+      throwsA(
+        isA<ProfileFailure>().having(
+          (failure) => failure.kind,
+          'kind',
+          ProfileFailureKind.malformedData,
         ),
       ),
     );

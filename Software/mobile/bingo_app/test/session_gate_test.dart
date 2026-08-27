@@ -49,21 +49,30 @@ class _FakeRepository implements ProfileRepository {
   _FakeRepository({this.failure});
 
   final ProfileFailure? failure;
+  int calls = 0;
 
   @override
   Future<StudentProfile> loadProfile() async {
+    calls++;
     if (failure != null) throw failure!;
     return _remoteProfile;
   }
 }
 
 class _FakeGateway implements AuthGateway {
-  _FakeGateway({required this.profileRepository});
+  _FakeGateway({
+    required this.profileRepository,
+    this.restoreSessionResult = false,
+    this.signInFailure,
+  });
 
   @override
   final ProfileRepository profileRepository;
+  final bool restoreSessionResult;
+  final AuthFailure? signInFailure;
   final StreamController<AuthSessionEvent> events =
       StreamController<AuthSessionEvent>.broadcast();
+  int restoreSessionCalls = 0;
   int signInCalls = 0;
   int signOutCalls = 0;
 
@@ -71,11 +80,15 @@ class _FakeGateway implements AuthGateway {
   Stream<AuthSessionEvent> get sessionEvents => events.stream;
 
   @override
-  Future<bool> restoreSession() async => true;
+  Future<bool> restoreSession() async {
+    restoreSessionCalls++;
+    return restoreSessionResult;
+  }
 
   @override
   Future<void> signIn({required String email, required String password}) async {
     signInCalls++;
+    if (signInFailure != null) throw signInFailure!;
   }
 
   @override
@@ -146,12 +159,12 @@ Future<void> _enterCredentials(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('piloto não cria autenticação nem repository remoto', (
+  testWidgets('piloto não carrega repository remoto quando não há sessão', (
     tester,
   ) async {
-    final factory = _FakeFactory(
-      _FakeGateway(profileRepository: _FakeRepository()),
-    );
+    final repository = _FakeRepository();
+    final gateway = _FakeGateway(profileRepository: repository);
+    final factory = _FakeFactory(gateway);
     await tester.pumpWidget(
       BingoApp(
         authGatewayFactory: factory,
@@ -172,7 +185,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(factory.createCalls, 0);
+    expect(factory.createCalls, 1);
+    expect(gateway.restoreSessionCalls, 1);
+    expect(repository.calls, 0);
     expect(find.textContaining('Marco'), findsWidgets);
   });
 
@@ -191,7 +206,7 @@ void main() {
     await _pumpUi(tester);
 
     expect(find.byType(ShellScreen), findsOneWidget);
-    expect(factory.createCalls, 0);
+    expect(factory.createCalls, 1);
   });
 
   testWidgets('configuração ausente bloqueia login real explicitamente', (
@@ -210,13 +225,16 @@ void main() {
 
     expect(find.textContaining('SUPABASE_URL'), findsOneWidget);
     expect(find.byType(ShellScreen), findsNothing);
-    expect(factory.createCalls, 1);
+    expect(factory.createCalls, 2);
   });
 
   testWidgets('sessão restaurada seleciona perfil remoto sem mocks', (
     tester,
   ) async {
-    final gateway = _FakeGateway(profileRepository: _FakeRepository());
+    final gateway = _FakeGateway(
+      profileRepository: _FakeRepository(),
+      restoreSessionResult: true,
+    );
     await tester.pumpWidget(
       BingoApp(
         authGatewayFactory: _FakeFactory(gateway),
@@ -232,6 +250,39 @@ void main() {
     expect(find.byType(ShellScreen), findsNothing);
   });
 
+  testWidgets('sessão Supabase válida restaura mesmo sem marcador auxiliar', (
+    tester,
+  ) async {
+    final store = _FakeRestoreStore(false);
+    final gateway = _FakeGateway(
+      profileRepository: _FakeRepository(),
+      restoreSessionResult: true,
+    );
+    await tester.pumpWidget(
+      BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
+    );
+    await _pumpUi(tester);
+
+    expect(find.text('REMOTE PROFILE ONLY'), findsOneWidget);
+    expect(store.marks, 1);
+    expect(store.restore, isTrue);
+  });
+
+  testWidgets('marcador auxiliar é limpo quando SDK não possui sessão', (
+    tester,
+  ) async {
+    final store = _FakeRestoreStore(true);
+    final gateway = _FakeGateway(profileRepository: _FakeRepository());
+    await tester.pumpWidget(
+      BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
+    );
+    await _pumpUi(tester);
+
+    expect(find.text('Começar missão'), findsOneWidget);
+    expect(store.clears, 1);
+    expect(find.byType(AuthenticatedProfileScreen), findsNothing);
+  });
+
   testWidgets('erro remoto não ativa piloto', (tester) async {
     final gateway = _FakeGateway(
       profileRepository: _FakeRepository(
@@ -240,6 +291,7 @@ void main() {
           'Falha de rede controlada.',
         ),
       ),
+      restoreSessionResult: true,
     );
     await tester.pumpWidget(
       BingoApp(
@@ -263,6 +315,7 @@ void main() {
           'Sua sessão expirou. Entre novamente.',
         ),
       ),
+      restoreSessionResult: true,
     );
     await tester.pumpWidget(
       BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
@@ -276,13 +329,16 @@ void main() {
 
   testWidgets('logout encerra sessão e não entra no piloto', (tester) async {
     final store = _FakeRestoreStore(true);
-    final gateway = _FakeGateway(profileRepository: _FakeRepository());
+    final gateway = _FakeGateway(
+      profileRepository: _FakeRepository(),
+      restoreSessionResult: true,
+    );
     await tester.pumpWidget(
       BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
     );
     await _pumpUi(tester);
 
-    await tester.tap(find.byTooltip('Sair da conta'));
+    await tester.tap(find.text('Sair da conta'));
     await _pumpUi(tester);
 
     expect(gateway.signOutCalls, 1);
@@ -305,6 +361,32 @@ void main() {
     expect(gateway.signInCalls, 1);
     expect(store.marks, 1);
     expect(find.text('REMOTE PROFILE ONLY'), findsOneWidget);
+    expect(find.byType(ShellScreen), findsNothing);
+  });
+
+  testWidgets('credenciais inválidas permanecem na entrada autenticada', (
+    tester,
+  ) async {
+    final gateway = _FakeGateway(
+      profileRepository: _FakeRepository(),
+      signInFailure: const AuthFailure(
+        AuthFailureKind.invalidCredentials,
+        'E-mail ou senha inválidos.',
+      ),
+    );
+    await tester.pumpWidget(
+      BingoApp(
+        authGatewayFactory: _FakeFactory(gateway),
+        restoreStore: _FakeRestoreStore(false),
+      ),
+    );
+    await _pumpUi(tester);
+    await _openAccess(tester);
+    await _enterCredentials(tester);
+
+    expect(gateway.signInCalls, 1);
+    expect(find.text('E-mail ou senha inválidos.'), findsOneWidget);
+    expect(find.byType(AuthenticatedProfileScreen), findsNothing);
     expect(find.byType(ShellScreen), findsNothing);
   });
 }

@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../auth/auth_gateway.dart';
 import '../data/profile_repository.dart';
-import '../theme/app_theme.dart';
 import '../widgets/bingo_action_button.dart';
 import '../widgets/bingo_widgets.dart';
+import 'profile_screen.dart';
 
 class AuthenticatedProfileScreen extends StatefulWidget {
   const AuthenticatedProfileScreen({
@@ -93,6 +93,16 @@ class _AuthenticatedProfileScreenState
 
   @override
   Widget build(BuildContext context) {
+    final profile = _profile;
+    if (!_loading && _failure == null && profile != null) {
+      return ProfileScreen.authenticated(
+        profile: profile,
+        onLogout: _logout,
+        loggingOut: _loggingOut,
+        logoutError: _logoutError,
+      );
+    }
+
     return AppPage(
       title: 'Perfil autenticado',
       subtitle: 'Dados reais da conta vinculada no Supabase.',
@@ -136,75 +146,7 @@ class _AuthenticatedProfileScreenState
       );
     }
 
-    final profile = _profile!;
-    return Column(
-      children: [
-        SurfaceCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(profile.name, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 6),
-              Text('Status: ${profile.status}'),
-              const Divider(height: 28),
-              _ProfileRow(label: 'Escola', value: profile.schoolName),
-              _ProfileRow(label: 'Turma', value: profile.className),
-              _ProfileRow(
-                label: 'Pontos pessoais',
-                value: profile.pointsStudentBalance.toString(),
-              ),
-              _ProfileRow(
-                label: 'Pontos da turma',
-                value: profile.pointsClassBalance.toString(),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        const SurfaceCard(
-          color: Color(0xFFF1F8FD),
-          child: Text(
-            'Níveis, conquistas, BinCoins e métricas ambientais não estão disponíveis no perfil autenticado nesta etapa.',
-          ),
-        ),
-        if (_loggingOut) ...[
-          const SizedBox(height: 16),
-          const CircularProgressIndicator(),
-        ],
-        if (_logoutError != null) ...[
-          const SizedBox(height: 12),
-          Text(_logoutError!, style: const TextStyle(color: AppColors.danger)),
-        ],
-      ],
-    );
-  }
-}
-
-class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Text(label)),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 

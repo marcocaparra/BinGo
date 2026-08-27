@@ -20,6 +20,10 @@ class StudentProfile {
   final int pointsStudentBalance;
   final int pointsClassBalance;
   final String status;
+
+  int get binCoinsBalance => pointsStudentBalance;
+
+  int get classXpBalance => pointsClassBalance;
 }
 
 enum ProfileFailureKind {
