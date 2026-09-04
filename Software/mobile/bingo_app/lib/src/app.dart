@@ -1,31 +1,30 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth/access_restore_store.dart';
 import 'auth/access_state.dart';
 import 'auth/auth_gateway.dart';
 import 'auth/supabase_auth_gateway.dart';
 import 'config/supabase_config.dart';
-import 'screens/authenticated_profile_screen.dart';
-import 'screens/onboarding_screen.dart';
+import 'data/profile_repository.dart';
+import 'screens/access_flow_screen.dart';
 import 'screens/shell_screen.dart';
+import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
-class BingoApp extends StatefulWidget {
-  const BingoApp({this.authGatewayFactory, this.restoreStore, super.key});
+class BingoApp extends StatelessWidget {
+  const BingoApp({
+    this.repository,
+    this.authGatewayFactory,
+    this.restoreStore,
+    super.key,
+  });
 
+  final ProfileRepository? repository;
   final AuthGatewayFactory? authGatewayFactory;
   final AccessRestoreStore? restoreStore;
-
-  @override
-  State<BingoApp> createState() => _BingoAppState();
-}
-
-class _BingoAppState extends State<BingoApp> {
-  late final AuthGatewayFactory _authGatewayFactory =
-      widget.authGatewayFactory ??
-      SupabaseAuthGatewayFactory(SupabaseConfig.fromEnvironment());
 
   @override
   Widget build(BuildContext context) {
@@ -34,20 +33,27 @@ class _BingoAppState extends State<BingoApp> {
       title: 'BinGo!',
       theme: AppTheme.light(),
       home: SessionGate(
-        authGatewayFactory: _authGatewayFactory,
-        restoreStore: widget.restoreStore,
+        repository: repository,
+        authGatewayFactory:
+            authGatewayFactory ??
+            SupabaseAuthGatewayFactory(SupabaseConfig.fromEnvironment()),
+        restoreStore: restoreStore,
       ),
     );
   }
 }
 
 class SessionGate extends StatefulWidget {
-  const SessionGate({
-    required this.authGatewayFactory,
+  SessionGate({
+    this.repository,
+    AuthGatewayFactory? authGatewayFactory,
     this.restoreStore,
     super.key,
-  });
+  }) : authGatewayFactory =
+           authGatewayFactory ??
+           SupabaseAuthGatewayFactory(SupabaseConfig.fromEnvironment());
 
+  final ProfileRepository? repository;
   final AuthGatewayFactory authGatewayFactory;
   final AccessRestoreStore? restoreStore;
 
@@ -56,22 +62,23 @@ class SessionGate extends StatefulWidget {
 }
 
 class _SessionGateState extends State<SessionGate> {
-  AccessState _access = const AccessState.initializing();
+  ({AccessState access, ProfileRepository localRepository})? _session;
   AccessRestoreStore? _restoreStore;
   AuthGateway? _gateway;
   StreamSubscription<AuthSessionEvent>? _sessionSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_restoreAccess());
-  }
+  Object? _error;
+  bool _started = false;
 
   Future<AccessRestoreStore> _store() async {
     final existing = _restoreStore;
     if (existing != null) return existing;
     return _restoreStore =
         widget.restoreStore ?? const SharedPreferencesAccessRestoreStore();
+  }
+
+  Future<ProfileRepository> _localRepository() async {
+    return widget.repository ??
+        LocalProfileRepository(await SharedPreferences.getInstance());
   }
 
   Future<AuthGateway> _createGateway() async {
@@ -83,45 +90,76 @@ class _SessionGateState extends State<SessionGate> {
     return gateway;
   }
 
-  Future<void> _restoreAccess() async {
-    if (mounted) setState(() => _access = const AccessState.initializing());
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    unawaited(_startSession());
+  }
+
+  Future<({AccessState access, ProfileRepository localRepository})>
+  _resolveSession() async {
+    final localRepository = await _localRepository();
     final store = await _store();
     final expectedAuthenticatedSession = await store
         .shouldRestoreAuthenticatedSession();
 
     try {
       final gateway = await _createGateway();
-      if (!await gateway.restoreSession()) {
-        await store.clearAuthenticatedSession();
-        if (mounted) {
-          setState(() => _access = const AccessState.unauthenticated());
-        }
-        return;
+      if (await gateway.restoreSession()) {
+        await store.markAuthenticatedSession();
+        return (
+          access: const AccessState.authenticated(),
+          localRepository: localRepository,
+        );
       }
-      await store.markAuthenticatedSession();
-      if (mounted) setState(() => _access = const AccessState.authenticated());
+      await store.clearAuthenticatedSession();
     } on SupabaseConfigurationException catch (error) {
-      if (mounted) {
-        setState(() {
-          _access = expectedAuthenticatedSession
-              ? AccessState.initializationError(error.userMessage)
-              : const AccessState.unauthenticated();
-        });
-      }
+      if (expectedAuthenticatedSession) rethrow;
+      _error = error;
+    }
+
+    final hasLocalProfile = await localRepository.hasProfile();
+    return (
+      access: hasLocalProfile
+          ? const AccessState.pilot()
+          : const AccessState.unauthenticated(),
+      localRepository: localRepository,
+    );
+  }
+
+  Future<void> _startSession() async {
+    _started = true;
+    _session = null;
+    _error = null;
+    if (mounted) setState(() {});
+    try {
+      final reduceMotion = MediaQuery.disableAnimationsOf(context);
+      final sessionFuture = _resolveSession();
+      if (!reduceMotion) await WidgetsBinding.instance.endOfFrame;
+      final results = await Future.wait<dynamic>([
+        sessionFuture,
+        if (!reduceMotion)
+          Future<void>.delayed(const Duration(milliseconds: 2800)),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _session =
+            results.first
+                as ({AccessState access, ProfileRepository localRepository});
+      });
+    } on SupabaseConfigurationException catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.userMessage);
     } on AuthFailure catch (error) {
-      if (mounted) {
-        setState(
-          () => _access = AccessState.initializationError(error.message),
-        );
-      }
+      if (!mounted) return;
+      setState(() => _error = error.message);
     } catch (_) {
-      if (mounted) {
-        setState(
-          () => _access = const AccessState.initializationError(
+      if (!mounted) return;
+      setState(
+        () => _error =
             'Não foi possível restaurar a sessão. Verifique sua conexão.',
-          ),
-        );
-      }
+      );
     }
   }
 
@@ -130,7 +168,16 @@ class _SessionGateState extends State<SessionGate> {
       final gateway = await _createGateway();
       await gateway.signIn(email: email, password: password);
       await (await _store()).markAuthenticatedSession();
-      if (mounted) setState(() => _access = const AccessState.authenticated());
+      final localRepository =
+          _session?.localRepository ?? await _localRepository();
+      if (mounted) {
+        setState(() {
+          _session = (
+            access: const AccessState.authenticated(),
+            localRepository: localRepository,
+          );
+        });
+      }
       return null;
     } on SupabaseConfigurationException catch (error) {
       return AuthFailure(
@@ -147,14 +194,6 @@ class _SessionGateState extends State<SessionGate> {
         error,
       );
     }
-  }
-
-  void _enterPilot() {
-    setState(() => _access = const AccessState.pilot());
-  }
-
-  Future<void> _leavePilot() async {
-    setState(() => _access = const AccessState.unauthenticated());
   }
 
   Future<AuthFailure?> _signOut() async {
@@ -180,7 +219,28 @@ class _SessionGateState extends State<SessionGate> {
 
   Future<void> _returnToEntry() async {
     await (await _store()).clearAuthenticatedSession();
-    if (mounted) setState(() => _access = const AccessState.unauthenticated());
+    final localRepository =
+        _session?.localRepository ?? await _localRepository();
+    if (!mounted) return;
+    setState(() {
+      _session = (
+        access: const AccessState.unauthenticated(),
+        localRepository: localRepository,
+      );
+      _error = null;
+    });
+  }
+
+  void _enterPilot() {
+    final session = _session;
+    if (session == null) return;
+    setState(() {
+      _session = (
+        access: const AccessState.pilot(),
+        localRepository: session.localRepository,
+      );
+      _error = null;
+    });
   }
 
   void _handleSessionEvent(AuthSessionEvent event) {
@@ -188,14 +248,13 @@ class _SessionGateState extends State<SessionGate> {
       case AuthSessionEvent.signedOut || AuthSessionEvent.sessionInvalid:
         unawaited(_returnToEntry());
       case AuthSessionEvent.networkError:
-        if (mounted) {
-          setState(
-            () => _access = const AccessState.initializationError(
-              'A sessão não pôde ser atualizada. Verifique sua conexão e tente novamente.',
-            ),
-          );
-        }
+        break;
     }
+  }
+
+  void _retry() {
+    _started = false;
+    unawaited(_startSession());
   }
 
   @override
@@ -207,67 +266,49 @@ class _SessionGateState extends State<SessionGate> {
 
   @override
   Widget build(BuildContext context) {
-    return switch (_access.phase) {
-      AccessPhase.initializing => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
-      AccessPhase.unauthenticated => OnboardingScreen(
-        onSignIn: _signIn,
-        onEnterPilot: _enterPilot,
-      ),
-      AccessPhase.pilot => ShellScreen(onExitPilot: _leavePilot),
-      AccessPhase.authenticated => AuthenticatedProfileScreen(
-        repository: _gateway!.profileRepository,
-        onSessionInvalid: _returnToEntry,
-        onLogout: _signOut,
-      ),
-      AccessPhase.initializationError => _InitializationErrorScreen(
-        message: _access.message!,
-        onRetry: _restoreAccess,
-        onReturnToEntry: _returnToEntry,
-      ),
-    };
-  }
-}
-
-class _InitializationErrorScreen extends StatelessWidget {
-  const _InitializationErrorScreen({
-    required this.message,
-    required this.onRetry,
-    required this.onReturnToEntry,
-  });
-
-  final String message;
-  final Future<void> Function() onRetry;
-  final Future<void> Function() onReturnToEntry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off_rounded, size: 48),
-                const SizedBox(height: 16),
-                Text(message, textAlign: TextAlign.center),
-                const SizedBox(height: 20),
-                FilledButton(
-                  onPressed: onRetry,
-                  child: const Text('Tentar novamente'),
-                ),
-                TextButton(
-                  onPressed: onReturnToEntry,
-                  child: const Text('Voltar para a entrada'),
-                ),
-              ],
+    final session = _session;
+    final destination = session == null
+        ? SplashScreen(error: _error, onRetry: _error == null ? null : _retry)
+        : switch (session.access.phase) {
+            AccessPhase.authenticated => ShellScreen.authenticated(
+              key: const ValueKey('authenticated-shell'),
+              repository: _gateway!.profileRepository,
+              onLogout: _signOut,
+              onSessionInvalid: _returnToEntry,
             ),
-          ),
-        ),
+            AccessPhase.pilot => ShellScreen(
+              key: const ValueKey('local-shell'),
+              repository: session.localRepository,
+              onExitPilot: _returnToEntry,
+            ),
+            AccessPhase.unauthenticated => AccessFlowScreen(
+              key: const ValueKey('access-flow'),
+              repository: session.localRepository,
+              onEmailSignIn: _signIn,
+              onEnterPilot: _enterPilot,
+            ),
+            AccessPhase.initializing => const SplashScreen(),
+            AccessPhase.initializationError => SplashScreen(
+              error: session.access.message,
+              onRetry: _retry,
+            ),
+          };
+
+    return AnimatedSwitcher(
+      duration: Duration(
+        milliseconds: MediaQuery.disableAnimationsOf(context)
+            ? 0
+            : AppMotion.standard,
       ),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
+      layoutBuilder: (currentChild, previousChildren) => ColoredBox(
+        color: AppColors.surface,
+        child: currentChild ?? const SizedBox.expand(),
+      ),
+      child: destination,
     );
   }
 }

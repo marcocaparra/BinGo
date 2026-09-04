@@ -51,13 +51,13 @@ class SupabaseAuthGateway implements AuthGateway {
   }
 
   final SupabaseClient _client;
-  final ProfileRepository _profileRepository;
+  final AuthenticatedProfileRepository _profileRepository;
   final StreamController<AuthSessionEvent> _sessionEvents =
       StreamController<AuthSessionEvent>.broadcast();
   late final StreamSubscription<AuthState> _authSubscription;
 
   @override
-  ProfileRepository get profileRepository => _profileRepository;
+  AuthenticatedProfileRepository get profileRepository => _profileRepository;
 
   @override
   Stream<AuthSessionEvent> get sessionEvents => _sessionEvents.stream;

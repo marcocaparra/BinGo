@@ -31,6 +31,8 @@ class BingoNavigationBar extends StatelessWidget {
     final duration = Duration(
       milliseconds: reduceMotion ? 0 : AppMotion.standard,
     );
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final barHeight = largeText ? 94.0 : 72.0;
     final circularOrder = [
       (selectedIndex + 3) % _destinations.length,
       (selectedIndex + 4) % _destinations.length,
@@ -54,7 +56,7 @@ class BingoNavigationBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 72,
+          height: barHeight,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final contentWidth = constraints.maxWidth < 240
@@ -66,7 +68,7 @@ class BingoNavigationBar extends StatelessWidget {
                   constraints: BoxConstraints(minWidth: contentWidth),
                   child: SizedBox(
                     width: contentWidth,
-                    height: 72,
+                    height: barHeight,
                     child: LayoutBuilder(
                       builder: (context, contentConstraints) {
                         final segmentWidth =
@@ -114,13 +116,13 @@ class BingoNavigationBar extends StatelessWidget {
                                     segmentWidth * circularOrder.indexOf(index),
                                 top: 0,
                                 width: segmentWidth,
-                                height: 72,
+                                height: barHeight,
                                 child: SizedBox(
                                   key: Key(
                                     'bingo-nav-slot-${circularOrder.indexOf(index)}',
                                   ),
                                   width: segmentWidth,
-                                  height: 72,
+                                  height: barHeight,
                                   child: _NavigationDestination(
                                     key: Key('bingo-nav-destination-$index'),
                                     icon: _destinations[index].$1,
@@ -203,11 +205,12 @@ class _NavigationDestination extends StatelessWidget {
                       color: selected ? AppColors.blue : AppColors.textMuted,
                     ),
                     const SizedBox(height: 3),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
                       child: Text(
                         label,
-                        maxLines: 1,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: selected
                               ? AppColors.navy
@@ -215,7 +218,6 @@ class _NavigationDestination extends StatelessWidget {
                           fontWeight: selected
                               ? FontWeight.w800
                               : FontWeight.w600,
-                          fontSize: 10.5,
                         ),
                       ),
                     ),

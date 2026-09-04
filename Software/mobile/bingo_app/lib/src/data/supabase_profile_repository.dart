@@ -62,13 +62,13 @@ class SupabaseProfileDataSource implements ProfileDataSource {
   }
 }
 
-class RemoteProfileRepository implements ProfileRepository {
+class RemoteProfileRepository implements AuthenticatedProfileRepository {
   const RemoteProfileRepository(this._dataSource);
 
   final ProfileDataSource _dataSource;
 
   @override
-  Future<StudentProfile> loadProfile() async {
+  Future<AuthenticatedStudentProfile> loadProfile() async {
     final authUserId = _dataSource.currentUserId;
     if (!_dataSource.hasSession || authUserId == null) {
       throw const ProfileFailure(
@@ -112,7 +112,7 @@ class RemoteProfileRepository implements ProfileRepository {
         );
       }
 
-      return StudentProfile(
+      return AuthenticatedStudentProfile(
         id: id,
         name: name,
         schoolId: schoolId,

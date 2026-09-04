@@ -5,12 +5,54 @@ import 'package:bingo_app/src/auth/access_restore_store.dart';
 import 'package:bingo_app/src/auth/auth_gateway.dart';
 import 'package:bingo_app/src/config/supabase_config.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
-import 'package:bingo_app/src/screens/authenticated_profile_screen.dart';
+import 'package:bingo_app/src/screens/access_flow_screen.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
+import 'package:bingo_app/src/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _remoteProfile = StudentProfile(
+class _SessionRepository implements ProfileRepository {
+  _SessionRepository({required this.hasSavedProfile, this.hasProfileOverride});
+
+  bool hasSavedProfile;
+  Future<bool> Function()? hasProfileOverride;
+
+  @override
+  Future<void> deleteProfile() async => hasSavedProfile = false;
+
+  @override
+  Future<bool> hasProfile() async =>
+      hasProfileOverride?.call() ?? hasSavedProfile;
+
+  @override
+  Future<StudentProfile?> loadProfile() async => hasSavedProfile
+      ? const StudentProfile(school: 'ENIAC', identifier: 'Gustavo Alencar')
+      : null;
+
+  @override
+  Future<void> save({
+    required StudentProfile profile,
+    required String pin,
+  }) async {
+    hasSavedProfile = true;
+  }
+
+  @override
+  Future<bool> verify({
+    required String school,
+    required String identifier,
+    required String pin,
+  }) async => hasSavedProfile;
+
+  @override
+  Future<bool> resetPin({
+    required String school,
+    required String identifier,
+    required String newPin,
+  }) async => hasSavedProfile;
+}
+
+const _remoteProfile = AuthenticatedStudentProfile(
   id: 'student-id',
   name: 'REMOTE PROFILE ONLY',
   schoolId: 'school-id',
@@ -45,14 +87,14 @@ class _FakeRestoreStore implements AccessRestoreStore {
   Future<bool> shouldRestoreAuthenticatedSession() async => restore;
 }
 
-class _FakeRepository implements ProfileRepository {
-  _FakeRepository({this.failure});
+class _FakeRemoteRepository implements AuthenticatedProfileRepository {
+  _FakeRemoteRepository({this.failure});
 
   final ProfileFailure? failure;
   int calls = 0;
 
   @override
-  Future<StudentProfile> loadProfile() async {
+  Future<AuthenticatedStudentProfile> loadProfile() async {
     calls++;
     if (failure != null) throw failure!;
     return _remoteProfile;
@@ -67,12 +109,11 @@ class _FakeGateway implements AuthGateway {
   });
 
   @override
-  final ProfileRepository profileRepository;
+  final AuthenticatedProfileRepository profileRepository;
   final bool restoreSessionResult;
   final AuthFailure? signInFailure;
   final StreamController<AuthSessionEvent> events =
       StreamController<AuthSessionEvent>.broadcast();
-  int restoreSessionCalls = 0;
   int signInCalls = 0;
   int signOutCalls = 0;
 
@@ -80,10 +121,7 @@ class _FakeGateway implements AuthGateway {
   Stream<AuthSessionEvent> get sessionEvents => events.stream;
 
   @override
-  Future<bool> restoreSession() async {
-    restoreSessionCalls++;
-    return restoreSessionResult;
-  }
+  Future<bool> restoreSession() async => restoreSessionResult;
 
   @override
   Future<void> signIn({required String email, required String password}) async {
@@ -116,11 +154,8 @@ class _FakeFactory implements AuthGatewayFactory {
 }
 
 class _MissingConfigFactory implements AuthGatewayFactory {
-  int createCalls = 0;
-
   @override
   Future<AuthGateway> create() async {
-    createCalls++;
     throw const SupabaseConfigurationException([
       'SUPABASE_URL',
       'SUPABASE_PUBLISHABLE_KEY',
@@ -128,164 +163,348 @@ class _MissingConfigFactory implements AuthGatewayFactory {
   }
 }
 
-Future<void> _pumpUi(WidgetTester tester) async {
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 600));
-  await tester.pump();
-}
-
-Future<void> _openAccess(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Começar missão'));
-  await tester.tap(find.text('Começar missão'));
-  await _pumpUi(tester);
-}
-
-Future<void> _enterCredentials(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Entrar com conta demo'));
-  await tester.tap(find.text('Entrar com conta demo'));
-  await tester.pump();
-  await tester.enterText(
-    find.byKey(const ValueKey('auth-email')),
-    'demo@example.test',
-  );
-  await tester.enterText(
-    find.byKey(const ValueKey('auth-password')),
-    'password',
-  );
-  await tester.pump();
-  await tester.ensureVisible(find.text('Entrar'));
-  await tester.tap(find.text('Entrar'));
-  await _pumpUi(tester);
-}
-
 void main() {
-  testWidgets('piloto não carrega repository remoto quando não há sessão', (
+  void reduceMotion(WidgetTester tester) {
+    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(
+      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+    );
+  }
+
+  Future<void> enterEmailCredentials(WidgetTester tester) async {
+    await tester.ensureVisible(find.text('Entrar com e-mail'));
+    await tester.tap(find.text('Entrar com e-mail'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('auth-email')),
+      'demo@example.test',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('auth-password')),
+      'password',
+    );
+    await tester.pump();
+    await tester.ensureVisible(find.text('Entrar'));
+    await tester.tap(find.text('Entrar'));
+    await tester.pumpAndSettle();
+  }
+
+  SessionGate localGate(ProfileRepository repository) {
+    return SessionGate(
+      repository: repository,
+      authGatewayFactory: _FakeFactory(
+        _FakeGateway(profileRepository: _FakeRemoteRepository()),
+      ),
+      restoreStore: _FakeRestoreStore(false),
+    );
+  }
+
+  testWidgets('saved local profile opens the isolated pilot after the splash', (
     tester,
   ) async {
-    final repository = _FakeRepository();
-    final gateway = _FakeGateway(profileRepository: repository);
-    final factory = _FakeFactory(gateway);
+    reduceMotion(tester);
     await tester.pumpWidget(
-      BingoApp(
-        authGatewayFactory: factory,
-        restoreStore: _FakeRestoreStore(false),
-      ),
+      MaterialApp(home: localGate(_SessionRepository(hasSavedProfile: true))),
     );
-    await _pumpUi(tester);
-
-    await _openAccess(tester);
-    await tester.ensureVisible(find.text('Entrar no modo piloto'));
-    await tester.tap(find.text('Entrar no modo piloto'));
-    await _pumpUi(tester);
+    await tester.pumpAndSettle();
 
     expect(find.byType(ShellScreen), findsOneWidget);
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is Banner && widget.message == 'MODO PILOTO',
-      ),
-      findsOneWidget,
-    );
-    expect(factory.createCalls, 1);
-    expect(gateway.restoreSessionCalls, 1);
-    expect(repository.calls, 0);
-    expect(find.textContaining('Marco'), findsWidgets);
+    expect(find.byType(SplashScreen), findsNothing);
+    expect(find.text('Olá, Marco!'), findsOneWidget);
   });
 
-  testWidgets('configuração ausente não afeta piloto', (tester) async {
-    final factory = _MissingConfigFactory();
-    await tester.pumpWidget(
-      BingoApp(
-        authGatewayFactory: factory,
-        restoreStore: _FakeRestoreStore(false),
-      ),
-    );
-    await _pumpUi(tester);
-    await _openAccess(tester);
-    await tester.ensureVisible(find.text('Entrar no modo piloto'));
-    await tester.tap(find.text('Entrar no modo piloto'));
-    await _pumpUi(tester);
-
-    expect(find.byType(ShellScreen), findsOneWidget);
-    expect(factory.createCalls, 1);
-  });
-
-  testWidgets('configuração ausente bloqueia login real explicitamente', (
+  testWidgets('empty device opens access flow without onboarding', (
     tester,
   ) async {
-    final factory = _MissingConfigFactory();
+    reduceMotion(tester);
     await tester.pumpWidget(
-      BingoApp(
-        authGatewayFactory: factory,
-        restoreStore: _FakeRestoreStore(false),
-      ),
+      MaterialApp(home: localGate(_SessionRepository(hasSavedProfile: false))),
     );
-    await _pumpUi(tester);
-    await _openAccess(tester);
-    await _enterCredentials(tester);
+    await tester.pumpAndSettle();
 
-    expect(find.textContaining('SUPABASE_URL'), findsOneWidget);
-    expect(find.byType(ShellScreen), findsNothing);
-    expect(factory.createCalls, 2);
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('access-hub')), findsOneWidget);
+    expect(find.text('Pronto para continuar sua jornada?'), findsOneWidget);
+    expect(find.text('Entrar com e-mail'), findsOneWidget);
+    expect(find.byKey(const ValueKey('auth-email')), findsNothing);
   });
 
-  testWidgets('sessão restaurada seleciona perfil remoto sem mocks', (
+  testWidgets('splash remains visible for the 2.8 second reveal', (
     tester,
   ) async {
-    final gateway = _FakeGateway(
-      profileRepository: _FakeRepository(),
-      restoreSessionResult: true,
-    );
     await tester.pumpWidget(
-      BingoApp(
-        authGatewayFactory: _FakeFactory(gateway),
-        restoreStore: _FakeRestoreStore(true),
-      ),
+      MaterialApp(home: localGate(_SessionRepository(hasSavedProfile: false))),
     );
-    await _pumpUi(tester);
 
-    expect(find.byType(AuthenticatedProfileScreen), findsOneWidget);
-    expect(find.text('REMOTE PROFILE ONLY'), findsOneWidget);
-    expect(find.text('Marco Caparra'), findsNothing);
-    expect(find.textContaining('BinCoins'), findsOneWidget);
-    expect(find.byType(ShellScreen), findsNothing);
+    expect(find.byType(SplashScreen), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2799));
+    expect(find.byType(SplashScreen), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump(const Duration(milliseconds: 260));
+
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
   });
 
-  testWidgets('sessão Supabase válida restaura mesmo sem marcador auxiliar', (
+  testWidgets('splash waits for a slower session lookup', (tester) async {
+    final completer = Completer<bool>();
+    final repository = _SessionRepository(
+      hasSavedProfile: false,
+      hasProfileOverride: () => completer.future,
+    );
+    await tester.pumpWidget(MaterialApp(home: localGate(repository)));
+    await tester.pump(const Duration(milliseconds: 3000));
+
+    expect(find.byType(SplashScreen), findsOneWidget);
+    completer.complete(false);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 260));
+
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
+  });
+
+  testWidgets('session error offers a retry instead of hanging', (
     tester,
   ) async {
+    reduceMotion(tester);
+    var attempts = 0;
+    final repository = _SessionRepository(
+      hasSavedProfile: false,
+      hasProfileOverride: () async {
+        attempts += 1;
+        if (attempts == 1) throw StateError('storage unavailable');
+        return false;
+      },
+    );
+    await tester.pumpWidget(MaterialApp(home: localGate(repository)));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Tentar novamente'), findsOneWidget);
+    await tester.tap(find.byTooltip('Tentar novamente'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
+    expect(attempts, 2);
+  });
+
+  for (final size in [const Size(390, 844), const Size(430, 932)]) {
+    testWidgets('splash fits ${size.width}x${size.height} at 2x text', (
+      tester,
+    ) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      reduceMotion(tester);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: SplashScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('splash-logo')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('sessão Supabase válida abre o Shell final sem mocks', (
+    tester,
+  ) async {
+    reduceMotion(tester);
     final store = _FakeRestoreStore(false);
     final gateway = _FakeGateway(
-      profileRepository: _FakeRepository(),
+      profileRepository: _FakeRemoteRepository(),
       restoreSessionResult: true,
     );
     await tester.pumpWidget(
-      BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
+      BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
+        authGatewayFactory: _FakeFactory(gateway),
+        restoreStore: store,
+      ),
     );
-    await _pumpUi(tester);
+    await tester.pumpAndSettle();
 
-    expect(find.text('REMOTE PROFILE ONLY'), findsOneWidget);
+    expect(find.byType(ShellScreen), findsOneWidget);
+    expect(find.text('Olá, REMOTE!'), findsOneWidget);
+    expect(find.text('Remote School · Remote Class'), findsOneWidget);
+    expect(find.textContaining('Marco'), findsNothing);
     expect(store.marks, 1);
     expect(store.restore, isTrue);
   });
 
-  testWidgets('marcador auxiliar é limpo quando SDK não possui sessão', (
+  testWidgets('ausência de sessão SDK limpa marcador e abre acesso final', (
     tester,
   ) async {
+    reduceMotion(tester);
     final store = _FakeRestoreStore(true);
-    final gateway = _FakeGateway(profileRepository: _FakeRepository());
+    final gateway = _FakeGateway(profileRepository: _FakeRemoteRepository());
     await tester.pumpWidget(
-      BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
+      BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
+        authGatewayFactory: _FakeFactory(gateway),
+        restoreStore: store,
+      ),
     );
-    await _pumpUi(tester);
+    await tester.pumpAndSettle();
 
-    expect(find.text('Começar missão'), findsOneWidget);
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
+    expect(find.text('Entrar com e-mail'), findsOneWidget);
     expect(store.clears, 1);
-    expect(find.byType(AuthenticatedProfileScreen), findsNothing);
   });
 
-  testWidgets('erro remoto não ativa piloto', (tester) async {
+  testWidgets('login por e-mail entra no Shell e mostra saldos reais', (
+    tester,
+  ) async {
+    reduceMotion(tester);
+    final store = _FakeRestoreStore(false);
+    final gateway = _FakeGateway(profileRepository: _FakeRemoteRepository());
+    await tester.pumpWidget(
+      BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
+        authGatewayFactory: _FakeFactory(gateway),
+        restoreStore: store,
+      ),
+    );
+
+    expect(find.byType(SplashScreen), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('access-hub')), findsOneWidget);
+    expect(find.text('Pronto para continuar sua jornada?'), findsOneWidget);
+    expect(find.byKey(const ValueKey('auth-email')), findsNothing);
+    await enterEmailCredentials(tester);
+
+    expect(gateway.signInCalls, 1);
+    expect(find.byType(ShellScreen), findsOneWidget);
+    expect(find.text('Cenário indisponível'), findsOneWidget);
+    expect(find.text('Como funciona o BinGo'), findsOneWidget);
+    expect(find.textContaining('Marco'), findsNothing);
+
+    await tester.tap(find.text('Carteira'));
+    await tester.pumpAndSettle();
+    expect(find.text('17'), findsOneWidget);
+    expect(find.text('120'), findsNothing);
+    expect(find.text('BinBazar indisponível'), findsOneWidget);
+    expect(find.text('Extrato indisponível'), findsOneWidget);
+
+    await tester.tap(find.text('Missões'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nenhuma missão autenticada'), findsOneWidget);
+    expect(find.text('Força-tarefa em destaque'), findsOneWidget);
+    expect(find.text('Outras etapas da jornada'), findsOneWidget);
+
+    await tester.tap(find.text('Ranking'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remote Class'), findsOneWidget);
+    expect(find.text('29 XP da turma'), findsOneWidget);
+    expect(find.text('Pódio indisponível'), findsOneWidget);
+    expect(find.text('Mapa indisponível'), findsOneWidget);
+
+    await tester.tap(find.text('Perfil'));
+    await tester.pumpAndSettle();
+    expect(find.text('29'), findsOneWidget);
+    expect(find.text('XP da turma'), findsOneWidget);
+    expect(find.text('Pontos pessoais'), findsNothing);
+    expect(find.text('9ºA'), findsNothing);
+  });
+
+  testWidgets('sair do piloto retorna ao hub Supabase sem expor PIN local', (
+    tester,
+  ) async {
+    reduceMotion(tester);
+    final gateway = _FakeGateway(profileRepository: _FakeRemoteRepository());
+    await tester.pumpWidget(
+      BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
+        authGatewayFactory: _FakeFactory(gateway),
+        restoreStore: _FakeRestoreStore(false),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Entrar no modo piloto'));
+    await tester.tap(find.text('Entrar no modo piloto'));
+    await tester.pumpAndSettle();
+    expect(find.text('Olá, Marco!'), findsOneWidget);
+
+    await tester.tap(find.text('Perfil'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -900));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sair do modo piloto'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('access-hub')), findsOneWidget);
+    expect(find.text('Entrar com e-mail'), findsOneWidget);
+    expect(find.text('Criar meu PIN'), findsNothing);
+    expect(find.text('Já tenho PIN'), findsNothing);
+    expect(gateway.signOutCalls, 0);
+  });
+
+  testWidgets('configuração ausente é explícita sem bloquear o piloto', (
+    tester,
+  ) async {
+    reduceMotion(tester);
+    await tester.pumpWidget(
+      BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
+        authGatewayFactory: _MissingConfigFactory(),
+        restoreStore: _FakeRestoreStore(false),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await enterEmailCredentials(tester);
+
+    expect(find.textContaining('SUPABASE_URL'), findsOneWidget);
+    expect(find.byType(ShellScreen), findsNothing);
+
+    await tester.tap(find.byTooltip('Voltar'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Entrar no modo piloto'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Entrar no modo piloto'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ShellScreen), findsOneWidget);
+  });
+
+  testWidgets('credenciais inválidas permanecem no acesso autenticado', (
+    tester,
+  ) async {
+    reduceMotion(tester);
     final gateway = _FakeGateway(
-      profileRepository: _FakeRepository(
+      profileRepository: _FakeRemoteRepository(),
+      signInFailure: const AuthFailure(
+        AuthFailureKind.invalidCredentials,
+        'E-mail ou senha inválidos.',
+      ),
+    );
+    await tester.pumpWidget(
+      BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
+        authGatewayFactory: _FakeFactory(gateway),
+        restoreStore: _FakeRestoreStore(false),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await enterEmailCredentials(tester);
+
+    expect(find.text('E-mail ou senha inválidos.'), findsOneWidget);
+    expect(find.byType(ShellScreen), findsNothing);
+  });
+
+  testWidgets('falha remota não ativa dados piloto', (tester) async {
+    reduceMotion(tester);
+    final gateway = _FakeGateway(
+      profileRepository: _FakeRemoteRepository(
         failure: const ProfileFailure(
           ProfileFailureKind.network,
           'Falha de rede controlada.',
@@ -295,21 +514,24 @@ void main() {
     );
     await tester.pumpWidget(
       BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
         authGatewayFactory: _FakeFactory(gateway),
         restoreStore: _FakeRestoreStore(true),
       ),
     );
-    await _pumpUi(tester);
+    await tester.pumpAndSettle();
 
+    expect(find.byType(ShellScreen), findsOneWidget);
     expect(find.text('Falha de rede controlada.'), findsOneWidget);
+    expect(find.textContaining('Marco'), findsNothing);
     expect(find.text('Tentar novamente'), findsOneWidget);
-    expect(find.byType(ShellScreen), findsNothing);
   });
 
-  testWidgets('sessão expirada retorna à entrada', (tester) async {
+  testWidgets('sessão expirada retorna ao acesso final', (tester) async {
+    reduceMotion(tester);
     final store = _FakeRestoreStore(true);
     final gateway = _FakeGateway(
-      profileRepository: _FakeRepository(
+      profileRepository: _FakeRemoteRepository(
         failure: const ProfileFailure(
           ProfileFailureKind.sessionInvalid,
           'Sua sessão expirou. Entre novamente.',
@@ -318,75 +540,46 @@ void main() {
       restoreSessionResult: true,
     );
     await tester.pumpWidget(
-      BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
+      BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
+        authGatewayFactory: _FakeFactory(gateway),
+        restoreStore: store,
+      ),
     );
-    await _pumpUi(tester);
+    await tester.pumpAndSettle();
 
-    expect(find.text('Começar missão'), findsOneWidget);
-    expect(find.byType(ShellScreen), findsNothing);
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
     expect(store.clears, greaterThan(0));
+    expect(find.textContaining('Marco'), findsNothing);
   });
 
-  testWidgets('logout encerra sessão e não entra no piloto', (tester) async {
+  testWidgets('logout encerra sessão e volta ao acesso final', (tester) async {
+    reduceMotion(tester);
     final store = _FakeRestoreStore(true);
     final gateway = _FakeGateway(
-      profileRepository: _FakeRepository(),
+      profileRepository: _FakeRemoteRepository(),
       restoreSessionResult: true,
     );
     await tester.pumpWidget(
-      BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
+      BingoApp(
+        repository: _SessionRepository(hasSavedProfile: false),
+        authGatewayFactory: _FakeFactory(gateway),
+        restoreStore: store,
+      ),
     );
-    await _pumpUi(tester);
-
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Perfil'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -720));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sair da conta'));
-    await _pumpUi(tester);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sair').last);
+    await tester.pumpAndSettle();
 
     expect(gateway.signOutCalls, 1);
-    expect(find.text('Começar missão'), findsOneWidget);
-    expect(find.byType(ShellScreen), findsNothing);
-  });
-
-  testWidgets('login válido marca restauração e seleciona remoto', (
-    tester,
-  ) async {
-    final store = _FakeRestoreStore(false);
-    final gateway = _FakeGateway(profileRepository: _FakeRepository());
-    await tester.pumpWidget(
-      BingoApp(authGatewayFactory: _FakeFactory(gateway), restoreStore: store),
-    );
-    await _pumpUi(tester);
-    await _openAccess(tester);
-    await _enterCredentials(tester);
-
-    expect(gateway.signInCalls, 1);
-    expect(store.marks, 1);
-    expect(find.text('REMOTE PROFILE ONLY'), findsOneWidget);
-    expect(find.byType(ShellScreen), findsNothing);
-  });
-
-  testWidgets('credenciais inválidas permanecem na entrada autenticada', (
-    tester,
-  ) async {
-    final gateway = _FakeGateway(
-      profileRepository: _FakeRepository(),
-      signInFailure: const AuthFailure(
-        AuthFailureKind.invalidCredentials,
-        'E-mail ou senha inválidos.',
-      ),
-    );
-    await tester.pumpWidget(
-      BingoApp(
-        authGatewayFactory: _FakeFactory(gateway),
-        restoreStore: _FakeRestoreStore(false),
-      ),
-    );
-    await _pumpUi(tester);
-    await _openAccess(tester);
-    await _enterCredentials(tester);
-
-    expect(gateway.signInCalls, 1);
-    expect(find.text('E-mail ou senha inválidos.'), findsOneWidget);
-    expect(find.byType(AuthenticatedProfileScreen), findsNothing);
-    expect(find.byType(ShellScreen), findsNothing);
+    expect(find.byType(AccessFlowScreen), findsOneWidget);
+    expect(find.textContaining('Marco'), findsNothing);
+    expect(store.restore, isFalse);
   });
 }

@@ -22,7 +22,7 @@ class AuthFailure implements Exception {
 enum AuthSessionEvent { signedOut, sessionInvalid, networkError }
 
 abstract interface class AuthGateway {
-  ProfileRepository get profileRepository;
+  AuthenticatedProfileRepository get profileRepository;
 
   Stream<AuthSessionEvent> get sessionEvents;
 
