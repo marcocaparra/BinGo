@@ -75,6 +75,40 @@ void main() {
     expect(find.text('Entrar no modo piloto'), findsOneWidget);
   });
 
+  testWidgets('Supabase access starts at the approved hub before email login', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AccessFlowScreen(
+          repository: _FakeProfileRepository(),
+          onEmailSignIn: (_, _) async => null,
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('access-hub')), findsOneWidget);
+    expect(find.text('Pronto para continuar sua jornada?'), findsOneWidget);
+    expect(find.text('Entrar com e-mail'), findsOneWidget);
+    expect(find.byKey(const ValueKey('auth-email')), findsNothing);
+    expect(find.byKey(const ValueKey('auth-password')), findsNothing);
+    expect(find.text('Criar meu PIN'), findsNothing);
+    expect(find.text('Já tenho PIN'), findsNothing);
+
+    await tester.tap(find.text('Entrar com e-mail'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('auth-email')), findsOneWidget);
+    expect(find.byKey(const ValueKey('auth-password')), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Voltar'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('access-hub')), findsOneWidget);
+    expect(find.byKey(const ValueKey('auth-email')), findsNothing);
+  });
+
   testWidgets('back from sign in returns to the access hub', (
     WidgetTester tester,
   ) async {

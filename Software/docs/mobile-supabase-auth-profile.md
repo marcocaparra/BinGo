@@ -5,9 +5,11 @@
 O Mobile possui dois caminhos isolados:
 
 - modo piloto: explícito, local, sem autenticação e sem acesso ao Supabase;
-- conta demo autenticada: e-mail/senha no Supabase Auth e leitura remota somente do perfil.
+- conta autenticada: e-mail/senha no Supabase Auth e leitura remota do próprio perfil, turma e escola.
 
-Recompensas, histórico, ranking, carteira, missões, impacto e resgates continuam simulados exclusivamente dentro do modo piloto. Eles não são exibidos no fluxo autenticado.
+O perfil autenticado reutiliza o frontend final somente para nome, escola, turma, saldo individual de BinCoins e XP da turma. `students.points_student_balance` representa BinCoins no V1, e `classes.points_class_balance` representa XP da turma. Não existe um saldo separado de pontos pessoais.
+
+Recompensas, histórico, ranking, extrato/carteira, missões, níveis, conquistas, impacto e resgates continuam simulados exclusivamente dentro do modo piloto. Eles não são exibidos no fluxo autenticado.
 
 ## Configuração do Flutter
 
@@ -37,7 +39,9 @@ Sem os dois `dart-define`, o piloto continua disponível e a tentativa de login 
 
 ## Banco local e migrations
 
-O baseline backend de autorização foi recriado por migrations versionadas em `database/migrations` e `supabase/migrations`. Ele habilita RLS nas tabelas de domínio e permite a `authenticated` somente a leitura do próprio registro em `students`, da própria turma em `classes` e da própria escola em `schools`. Esta entrega não alterou o Flutter nem substituiu mocks do Mobile.
+O baseline backend de autorização foi recriado por migrations versionadas em `database/migrations` e `supabase/migrations`. Ele habilita RLS nas tabelas de domínio e permite a `authenticated` somente a leitura do próprio registro em `students`, da própria turma em `classes` e da própria escola em `schools`.
+
+O Flutter implementa esse recorte com `SupabaseAuthGateway`, `RemoteProfileRepository` e `SupabaseProfileDataSource`. A consulta de `students` explicita `auth_user_id == currentUser.id`, sem substituir a RLS como autoridade de segurança. O repository deriva `class_id` e `school_id`, lê as relações permitidas e rejeita turma de outra escola ou dados obrigatórios malformados.
 
 Com Supabase CLI e Docker disponíveis:
 
@@ -82,6 +86,17 @@ cd mobile/bingo_app
 flutter test test/access_flow_test.dart test/session_gate_test.dart test/profile_repository_test.dart test/profile_screen_test.dart
 ```
 
+Smoke hospedado opt-in, com as credenciais disponíveis somente no ambiente do host:
+
+```powershell
+cd mobile/bingo_app
+powershell -ExecutionPolicy Bypass -File tool/run_hosted_mobile_smoke.ps1
+```
+
+O runner exige `BINGO_MOBILE_TEST_EMAIL` e `BINGO_MOBILE_TEST_PASSWORD`, obtém a configuração pública do projeto Supabase vinculado sem imprimi-la e executa apenas `test/hosted_mobile_smoke_test.dart`. Senha, access token, refresh token e chaves não são registrados. O teste é ignorado pela suíte comum, salvo quando o runner define explicitamente `BINGO_HOSTED_SMOKE=1`.
+
+Em `2026-08-27`, o smoke contra `bingo-dev` comprovou login, sessão válida, leitura de uma linha própria em `students`, uma turma, uma escola, `16` BinCoins, `19` XP, zero linhas de outro aluno, restauração após recriação do cliente e logout. BinCoins e XP são uma fotografia da conta de teste, não parâmetros de regra.
+
 O baseline estrutural é validado junto da suíte pgTAP:
 
 ```powershell
@@ -96,5 +111,6 @@ supabase test db
 - Leituras simples usam Supabase Auth e RLS; operações críticas continuam reservadas às Edge Functions e RPCs.
 - A FK de `students.auth_user_id` para `auth.users.id` não foi criada sem validar previamente os registros do projeto remoto.
 - O indicador de restauração autenticada em `SharedPreferences` não contém sessão nem credenciais. O SDK do Supabase gerencia a sessão.
+- A sessão persistida pelo SDK é a fonte de verdade; o indicador auxiliar não impede a restauração de uma sessão válida.
 - Sessão inválida retorna à entrada. Erro de rede permanece erro e oferece nova tentativa; nenhum desses estados ativa o piloto.
-- Níveis, conquistas, BinCoins e métricas ambientais são declarados indisponíveis no perfil autenticado, pois não existem no modelo consultado por esta integração.
+- BinCoins e XP da turma estão disponíveis no perfil autenticado. Níveis, conquistas, histórico, ranking, recompensas, resgates e métricas ambientais permanecem indisponíveis até possuírem fonte real e autorização próprias.

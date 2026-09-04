@@ -12,7 +12,7 @@ import '../theme/app_theme.dart';
 import 'bincoin_amount.dart';
 import 'bingo_asset_image.dart';
 
-enum AppDataStatus { simulated, local }
+enum AppDataStatus { simulated, local, remote }
 
 enum BingoDataStateKind { empty, loading }
 
@@ -74,14 +74,24 @@ class _DataStatusNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final (message, label) = switch (status) {
+      AppDataStatus.simulated => (
+        'Dados simulados. A atualização real acontecerá pelo Totem.',
+        'Dados simulados',
+      ),
+      AppDataStatus.local => (
+        'Dados salvos localmente neste aparelho.',
+        'Perfil local',
+      ),
+      AppDataStatus.remote => (
+        'Dados reais permitidos para a sessão autenticada.',
+        'Dados autenticados',
+      ),
+    };
     return Tooltip(
-      message: status == AppDataStatus.simulated
-          ? 'Dados simulados. A atualização real acontecerá pelo Totem.'
-          : 'Dados salvos localmente neste aparelho.',
+      message: message,
       child: Semantics(
-        label: status == AppDataStatus.simulated
-            ? 'Dados simulados'
-            : 'Perfil local',
+        label: label,
         child: Padding(
           padding: const EdgeInsets.only(right: 16),
           child: SizedBox(
@@ -96,9 +106,7 @@ class _DataStatusNotice extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    status == AppDataStatus.simulated
-                        ? 'Dados simulados'
-                        : 'Perfil local',
+                    label,
                     maxLines: 2,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: AppColors.textMuted,

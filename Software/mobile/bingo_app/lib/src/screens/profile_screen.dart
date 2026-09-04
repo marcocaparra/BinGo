@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../auth/auth_gateway.dart';
 import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
@@ -145,10 +146,31 @@ class _ProfileViewData {
 }
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({required this.onGoHome, this.repository, super.key});
+  const ProfileScreen({
+    required this.onGoHome,
+    this.repository,
+    this.onExitPilot,
+    super.key,
+  }) : authenticatedProfile = null,
+       onLogout = null,
+       onOpenMissions = null;
+
+  const ProfileScreen.authenticated({
+    required AuthenticatedStudentProfile profile,
+    required this.onLogout,
+    this.onOpenMissions,
+    super.key,
+  }) : authenticatedProfile = profile,
+       repository = null,
+       onGoHome = null,
+       onExitPilot = null;
 
   final ProfileRepository? repository;
-  final VoidCallback onGoHome;
+  final VoidCallback? onGoHome;
+  final Future<void> Function()? onExitPilot;
+  final AuthenticatedStudentProfile? authenticatedProfile;
+  final Future<AuthFailure?> Function()? onLogout;
+  final VoidCallback? onOpenMissions;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -158,6 +180,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late final Future<_ProfileViewData> _data = _loadData();
   ProfileCustomization? _customization;
   ProfileCustomizationStore? _store;
+  var _loggingOut = false;
+  String? _logoutError;
 
   Future<_ProfileViewData> _loadData() async {
     final profile =
@@ -178,6 +202,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authenticatedProfile = widget.authenticatedProfile;
+    if (authenticatedProfile != null) {
+      return _buildAuthenticated(context, authenticatedProfile);
+    }
     return FutureBuilder<_ProfileViewData>(
       future: _data,
       builder: (context, snapshot) {
@@ -224,12 +252,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: widget.onGoHome,
               ),
               const SizedBox(height: 18),
-              _AccountPanel(profile: profile, repository: widget.repository),
+              _AccountPanel(
+                profile: profile,
+                repository: widget.repository,
+                onExitPilot: widget.onExitPilot,
+              ),
             ],
           ),
         );
       },
     );
+  }
+
+  Widget _buildAuthenticated(
+    BuildContext context,
+    AuthenticatedStudentProfile profile,
+  ) {
+    return AppPage(
+      title: 'Sua jornada',
+      subtitle: 'Dados reais da sua conta vinculada.',
+      showBackButton: false,
+      dataStatus: AppDataStatus.remote,
+      child: Column(
+        children: [
+          _AuthenticatedProfileHeader(profile: profile),
+          const SizedBox(height: 16),
+          _AuthenticatedResourceSummary(profile: profile),
+          const SizedBox(height: 16),
+          const _AuthenticatedJourneyPlaceholder(),
+          const SizedBox(height: 16),
+          const B1nGuide(
+            asset: AppAssets.b1nReward,
+            title: 'Jornada indisponível',
+            message:
+                'Níveis, conquistas e progresso aparecerão quando tiverem uma fonte autenticada.',
+            tone: AppColors.green,
+            compact: true,
+            portrait: B1nPortraitVariant.celebration,
+          ),
+          if (widget.onOpenMissions != null) ...[
+            const SizedBox(height: 14),
+            BingoActionButton(
+              label: 'Ver missões',
+              icon: Icons.arrow_forward_rounded,
+              tone: BingoActionTone.green,
+              onPressed: widget.onOpenMissions,
+            ),
+          ],
+          const SizedBox(height: 18),
+          _AuthenticatedAccountPanel(
+            profile: profile,
+            loggingOut: _loggingOut,
+            logoutError: _logoutError,
+            onLogout: _logout,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    if (_loggingOut) return;
+    setState(() {
+      _loggingOut = true;
+      _logoutError = null;
+    });
+    final failure = await widget.onLogout?.call();
+    if (!mounted || failure == null) return;
+    setState(() {
+      _loggingOut = false;
+      _logoutError = failure.message;
+    });
   }
 
   Future<void> _openCustomization(
@@ -246,6 +339,275 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _store?.saveCustomization(selected);
     if (!mounted) return;
     setState(() => _customization = selected);
+  }
+}
+
+class _AuthenticatedProfileHeader extends StatelessWidget {
+  const _AuthenticatedProfileHeader({required this.profile});
+
+  final AuthenticatedStudentProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return PeriodicHighlight(
+      colors: [
+        AppColors.blue.withValues(alpha: 0.04),
+        Colors.white.withValues(alpha: 0.52),
+        AppColors.green.withValues(alpha: 0.08),
+      ],
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.blue.withValues(alpha: 0.34)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.blue.withValues(alpha: 0.22),
+              Colors.white,
+              AppColors.green.withValues(alpha: 0.16),
+            ],
+          ),
+        ),
+        child: Row(
+          children: [
+            const _ProfileAvatarFrame(
+              asset: AppAssets.b1nPortraitCelebration,
+              primary: AppColors.blue,
+              secondary: AppColors.green,
+              size: 94,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    profile.name,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 4),
+                  Text('${profile.schoolName} · ${profile.className}'),
+                  const SizedBox(height: 10),
+                  const BadgeLabel(
+                    label: 'Dados autenticados',
+                    color: AppColors.blue,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthenticatedResourceSummary extends StatelessWidget {
+  const _AuthenticatedResourceSummary({required this.profile});
+
+  final AuthenticatedStudentProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = (constraints.maxWidth - 10) / 2;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _ResourceTile(
+              key: const ValueKey('profile-resource-class'),
+              width: width,
+              value: profile.classXpBalance.toString(),
+              label: 'XP da turma',
+              icon: Icons.groups_rounded,
+              color: AppColors.blue,
+            ),
+            _ResourceTile(
+              key: const ValueKey('profile-resource-bincoins'),
+              width: width,
+              label: 'BinCoins',
+              color: AppColors.warning,
+              binCoinValue: profile.binCoinsBalance,
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AuthenticatedJourneyPlaceholder extends StatelessWidget {
+  const _AuthenticatedJourneyPlaceholder();
+
+  static const _labels = [
+    'Aprendiz',
+    'Explorador',
+    'Restaurador',
+    'Guardião',
+    'Herói',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Trilha do restaurador',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          const Text('Nível atual —'),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var index = 0; index < _labels.length; index++) ...[
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.surface,
+                          border: Border.all(color: AppColors.line, width: 2),
+                        ),
+                        child: const Text(
+                          '—',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          _labels[index],
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (index < _labels.length - 1)
+                  Container(
+                    width: 8,
+                    height: 3,
+                    margin: const EdgeInsets.only(top: 18),
+                    color: AppColors.line,
+                  ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthenticatedAccountPanel extends StatelessWidget {
+  const _AuthenticatedAccountPanel({
+    required this.profile,
+    required this.loggingOut,
+    required this.logoutError,
+    required this.onLogout,
+  });
+
+  final AuthenticatedStudentProfile profile;
+  final bool loggingOut;
+  final String? logoutError;
+  final Future<void> Function() onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Column(
+        children: [
+          _AccountAction(
+            icon: Icons.school_outlined,
+            label: 'Dados da escola',
+            onTap: () => _showSchoolData(context),
+          ),
+          _AccountAction(
+            icon: Icons.logout_rounded,
+            label: 'Sair da conta',
+            danger: true,
+            onTap: loggingOut ? () {} : () => _confirmLogout(context),
+          ),
+          if (loggingOut) ...[
+            const SizedBox(height: 12),
+            const CircularProgressIndicator(),
+          ],
+          if (logoutError != null) ...[
+            const SizedBox(height: 12),
+            Text(logoutError!, style: const TextStyle(color: AppColors.danger)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showSchoolData(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Dados da escola',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              Text('Aluno: ${profile.name}'),
+              Text('Escola: ${profile.schoolName}'),
+              Text('Turma: ${profile.className}'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Sair da conta?',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        content: const Text(
+          'A sessão autenticada será encerrada neste aparelho.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await onLogout();
   }
 }
 
@@ -1039,10 +1401,15 @@ class _LevelPath extends StatelessWidget {
 }
 
 class _AccountPanel extends StatelessWidget {
-  const _AccountPanel({required this.profile, required this.repository});
+  const _AccountPanel({
+    required this.profile,
+    required this.repository,
+    required this.onExitPilot,
+  });
 
   final StudentProfile profile;
   final ProfileRepository? repository;
+  final Future<void> Function()? onExitPilot;
 
   @override
   Widget build(BuildContext context) {
@@ -1138,6 +1505,10 @@ class _AccountPanel extends StatelessWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
+    if (repository == null && onExitPilot != null) {
+      await onExitPilot!();
+      return;
+    }
     await repository?.deleteProfile();
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

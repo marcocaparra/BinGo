@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../auth/auth_gateway.dart';
 import '../data/profile_repository.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
@@ -16,6 +17,7 @@ enum _AccessStage {
   createPin,
   confirmPin,
   signIn,
+  emailSignIn,
   resetPin,
   success,
 }
@@ -23,9 +25,17 @@ enum _AccessStage {
 enum _AccessIntent { create, reset }
 
 class AccessFlowScreen extends StatefulWidget {
-  const AccessFlowScreen({this.repository, super.key});
+  const AccessFlowScreen({
+    this.repository,
+    this.onEmailSignIn,
+    this.onEnterPilot,
+    super.key,
+  });
 
   final ProfileRepository? repository;
+  final Future<AuthFailure?> Function(String email, String password)?
+  onEmailSignIn;
+  final VoidCallback? onEnterPilot;
 
   @override
   State<AccessFlowScreen> createState() => _AccessFlowScreenState();
@@ -34,6 +44,8 @@ class AccessFlowScreen extends StatefulWidget {
 class _AccessFlowScreenState extends State<AccessFlowScreen> {
   final _schoolController = TextEditingController();
   final _identifierController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   ProfileRepository? _repository;
   _AccessStage _stage = _AccessStage.hub;
   _AccessIntent _intent = _AccessIntent.create;
@@ -62,6 +74,8 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
   void dispose() {
     _schoolController.dispose();
     _identifierController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -166,6 +180,28 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
     _openApp();
   }
 
+  Future<void> _signInWithEmail() async {
+    final signIn = widget.onEmailSignIn;
+    if (signIn == null ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    final failure = await signIn(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
+    if (!mounted || failure == null) return;
+    setState(() {
+      _submitting = false;
+      _error = failure.message;
+    });
+  }
+
   void _openApp({bool pilot = false}) {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(
@@ -187,6 +223,7 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
       _AccessStage.createPin || _AccessStage.resetPin => _buildPin(),
       _AccessStage.confirmPin => _buildConfirmation(),
       _AccessStage.signIn => _buildSignIn(),
+      _AccessStage.emailSignIn => _buildEmailSignIn(),
       _AccessStage.success => _buildSuccess(),
     };
 
@@ -257,29 +294,42 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
           tone: AppColors.blue,
         ),
         const SizedBox(height: 22),
-        BingoActionButton(
-          label: 'Criar meu PIN',
-          icon: Icons.lock_outline_rounded,
-          tone: BingoActionTone.green,
-          onPressed: () => _startIdentity(_AccessIntent.create),
-        ),
-        const SizedBox(height: 12),
-        BingoActionButton(
-          label: 'Já tenho PIN',
-          icon: Icons.login_rounded,
-          style: BingoActionStyle.secondary,
-          onPressed: () => setState(() {
-            _error = null;
-            _pin = '';
-            _stage = _AccessStage.signIn;
-          }),
-        ),
-        const SizedBox(height: 12),
+        if (widget.onEmailSignIn != null) ...[
+          BingoActionButton(
+            label: 'Entrar com e-mail',
+            icon: Icons.alternate_email_rounded,
+            tone: BingoActionTone.green,
+            onPressed: () => setState(() {
+              _error = null;
+              _stage = _AccessStage.emailSignIn;
+            }),
+          ),
+          const SizedBox(height: 12),
+        ] else ...[
+          BingoActionButton(
+            label: 'Criar meu PIN',
+            icon: Icons.lock_outline_rounded,
+            tone: BingoActionTone.green,
+            onPressed: () => _startIdentity(_AccessIntent.create),
+          ),
+          const SizedBox(height: 12),
+          BingoActionButton(
+            label: 'Já tenho PIN',
+            icon: Icons.login_rounded,
+            style: BingoActionStyle.secondary,
+            onPressed: () => setState(() {
+              _error = null;
+              _pin = '';
+              _stage = _AccessStage.signIn;
+            }),
+          ),
+          const SizedBox(height: 12),
+        ],
         BingoActionButton(
           label: 'Entrar no modo piloto',
           style: BingoActionStyle.quiet,
           icon: Icons.science_outlined,
-          onPressed: () => _openApp(pilot: true),
+          onPressed: widget.onEnterPilot ?? () => _openApp(pilot: true),
         ),
       ],
     );
@@ -484,6 +534,69 @@ class _AccessFlowScreenState extends State<AccessFlowScreen> {
             onPressed: () => _startIdentity(_AccessIntent.reset),
             child: const Text('Esqueci meu PIN'),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmailSignIn() {
+    final canSubmit =
+        _emailController.text.trim().isNotEmpty &&
+        _passwordController.text.isNotEmpty &&
+        !_submitting;
+    return Column(
+      key: const ValueKey('email-sign-in'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Entre na sua conta BinGo',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Use o e-mail e a senha cadastrados pela escola.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 20),
+        const B1nGuide(
+          asset: AppAssets.b1nPortraitInstruction,
+          title: 'Sua jornada continua aqui',
+          message: 'Vou carregar somente os dados permitidos para sua conta.',
+          compact: true,
+          portrait: B1nPortraitVariant.instruction,
+        ),
+        const SizedBox(height: 18),
+        TextField(
+          key: const ValueKey('auth-email'),
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          autofillHints: const [AutofillHints.email],
+          decoration: const InputDecoration(labelText: 'E-mail'),
+          onChanged: (_) => setState(() => _error = null),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const ValueKey('auth-password'),
+          controller: _passwordController,
+          obscureText: true,
+          autofillHints: const [AutofillHints.password],
+          decoration: const InputDecoration(labelText: 'Senha'),
+          onChanged: (_) => setState(() => _error = null),
+          onSubmitted: (_) {
+            if (canSubmit) _signInWithEmail();
+          },
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 12),
+          Text(_error!, style: const TextStyle(color: AppColors.danger)),
+        ],
+        const SizedBox(height: 22),
+        BingoActionButton(
+          label: _submitting ? 'Entrando...' : 'Entrar',
+          icon: Icons.login_rounded,
+          tone: BingoActionTone.green,
+          onPressed: canSubmit ? _signInWithEmail : null,
         ),
       ],
     );

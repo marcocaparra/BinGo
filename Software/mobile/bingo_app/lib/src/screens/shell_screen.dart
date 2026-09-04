@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../auth/auth_gateway.dart';
 import '../data/demo_data.dart';
 import '../data/profile_repository.dart';
 import '../data/session_wallet_controller.dart';
@@ -13,10 +16,31 @@ import 'city_map_screen.dart';
 import 'profile_screen.dart';
 
 class ShellScreen extends StatefulWidget {
-  const ShellScreen({this.initialIndex = 0, this.repository, super.key});
+  const ShellScreen({
+    this.initialIndex = 0,
+    this.repository,
+    this.onExitPilot,
+    super.key,
+  }) : authenticatedRepository = null,
+       onLogout = null,
+       onSessionInvalid = null;
+
+  const ShellScreen.authenticated({
+    required AuthenticatedProfileRepository repository,
+    required this.onLogout,
+    required this.onSessionInvalid,
+    this.initialIndex = 0,
+    super.key,
+  }) : authenticatedRepository = repository,
+       repository = null,
+       onExitPilot = null;
 
   final int initialIndex;
   final ProfileRepository? repository;
+  final Future<void> Function()? onExitPilot;
+  final AuthenticatedProfileRepository? authenticatedRepository;
+  final Future<AuthFailure?> Function()? onLogout;
+  final Future<void> Function()? onSessionInvalid;
 
   @override
   State<ShellScreen> createState() => _ShellScreenState();
@@ -26,11 +50,18 @@ class _ShellScreenState extends State<ShellScreen> {
   late int _index = widget.initialIndex;
   String _firstName = 'Marco';
   final SessionWalletController _wallet = SessionWalletController();
+  AuthenticatedStudentProfile? _authenticatedProfile;
+  ProfileFailure? _profileFailure;
+  var _loadingProfile = false;
 
   @override
   void initState() {
     super.initState();
-    _loadFirstName();
+    if (widget.authenticatedRepository == null && widget.onExitPilot == null) {
+      _loadFirstName();
+    } else {
+      unawaited(_loadAuthenticatedProfile());
+    }
   }
 
   Future<void> _loadFirstName() async {
@@ -40,18 +71,89 @@ class _ShellScreenState extends State<ShellScreen> {
     setState(() => _firstName = identifier.split(RegExp(r'\s+')).first);
   }
 
+  Future<void> _loadAuthenticatedProfile() async {
+    if (_loadingProfile) return;
+    setState(() {
+      _loadingProfile = true;
+      _profileFailure = null;
+    });
+    try {
+      final profile = await widget.authenticatedRepository!.loadProfile();
+      if (!mounted) return;
+      setState(() {
+        _authenticatedProfile = profile;
+        _loadingProfile = false;
+      });
+    } on ProfileFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _authenticatedProfile = null;
+        _profileFailure = failure;
+        _loadingProfile = false;
+      });
+      if (failure.kind == ProfileFailureKind.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(widget.onSessionInvalid?.call());
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _authenticatedProfile = null;
+        _profileFailure = ProfileFailure(
+          ProfileFailureKind.unknown,
+          'Não foi possível carregar o perfil agora.',
+          error,
+        );
+        _loadingProfile = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      HomeScreen(firstName: _firstName, onOpenTab: _selectTab),
-      WalletScreen(controller: _wallet),
-      const MissionsScreen(),
-      RankingScreen(isPilot: widget.repository == null),
-      ProfileScreen(
-        repository: widget.repository,
-        onGoHome: () => _selectTab(0),
-      ),
-    ];
+    final authenticated = widget.authenticatedRepository != null;
+    final profile = _authenticatedProfile;
+    final failure = _profileFailure;
+    final pages = authenticated
+        ? profile != null
+              ? <Widget>[
+                  _AuthenticatedHomeScreen(
+                    profile: profile,
+                    onOpenTab: _selectTab,
+                  ),
+                  _AuthenticatedWalletScreen(profile: profile),
+                  _AuthenticatedMissionsScreen(profile: profile),
+                  _AuthenticatedRankingScreen(profile: profile),
+                  ProfileScreen.authenticated(
+                    profile: profile,
+                    onLogout: widget.onLogout!,
+                    onOpenMissions: () => _selectTab(2),
+                  ),
+                ]
+              : List<Widget>.filled(
+                  5,
+                  _AuthenticatedProfileState(
+                    failure: failure,
+                    loading: _loadingProfile,
+                    onRetry: _loadAuthenticatedProfile,
+                  ),
+                )
+        : <Widget>[
+            HomeScreen(firstName: _firstName, onOpenTab: _selectTab),
+            WalletScreen(controller: _wallet),
+            const MissionsScreen(),
+            RankingScreen(
+              isPilot: widget.onExitPilot != null || widget.repository == null,
+            ),
+            ProfileScreen(
+              repository: widget.onExitPilot == null
+                  ? widget.repository
+                  : null,
+              onGoHome: () => _selectTab(0),
+              onExitPilot: widget.onExitPilot,
+            ),
+          ];
 
     return Scaffold(
       body: pages[_index],
@@ -65,6 +167,507 @@ class _ShellScreenState extends State<ShellScreen> {
   void _selectTab(int index) {
     setState(() => _index = index);
   }
+}
+
+class _AuthenticatedProfileState extends StatelessWidget {
+  const _AuthenticatedProfileState({
+    required this.failure,
+    required this.loading,
+    required this.onRetry,
+  });
+
+  final ProfileFailure? failure;
+  final bool loading;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppPage(
+      title: 'Sua conta',
+      subtitle: 'Dados autorizados pelo Supabase.',
+      showBackButton: false,
+      dataStatus: AppDataStatus.remote,
+      child: loading || failure == null
+          ? const BingoDataState(
+              kind: BingoDataStateKind.loading,
+              title: 'Carregando perfil',
+              message: 'Consultando os dados permitidos para esta sessão.',
+            )
+          : BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: _profileFailureTitle(failure!.kind),
+              message: failure!.message,
+              icon: Icons.cloud_off_rounded,
+              action: failure!.kind == ProfileFailureKind.sessionInvalid
+                  ? null
+                  : BingoActionButton(
+                      label: 'Tentar novamente',
+                      icon: Icons.refresh_rounded,
+                      onPressed: onRetry,
+                    ),
+            ),
+    );
+  }
+}
+
+class _AuthenticatedHomeScreen extends StatelessWidget {
+  const _AuthenticatedHomeScreen({
+    required this.profile,
+    required this.onOpenTab,
+  });
+
+  final AuthenticatedStudentProfile profile;
+  final ValueChanged<int> onOpenTab;
+
+  @override
+  Widget build(BuildContext context) {
+    final firstName = profile.name.trim().split(RegExp(r'\s+')).first;
+    return AppPage(
+      title: 'Olá, $firstName!',
+      subtitle: '${profile.schoolName} · ${profile.className}',
+      showBackButton: false,
+      dataStatus: AppDataStatus.remote,
+      child: Column(
+        children: [
+          const ImageHeroCard(
+            image: AppAssets.bingopolisMap,
+            badge: 'Jornada da turma',
+            title: 'Cenário indisponível',
+            subtitle:
+                'O mapa será exibido quando impacto e progresso tiverem uma fonte autenticada.',
+          ),
+          const SizedBox(height: 8),
+          const B1nDialogueStrip(
+            message:
+                'Seu perfil está conectado. Missões e progresso ainda não possuem dados autorizados.',
+            portrait: B1nPortraitVariant.instruction,
+          ),
+          const SizedBox(height: 8),
+          const BingoActionButton(
+            label: 'Preparo para o Totem indisponível',
+            icon: Icons.directions_walk,
+            tone: BingoActionTone.green,
+            onPressed: null,
+          ),
+          const SizedBox(height: 18),
+          _SoftAction(
+            label: 'Ver missões indisponíveis',
+            icon: Icons.flag_outlined,
+            onTap: () => onOpenTab(2),
+          ),
+          _SoftAction(
+            label: 'Ver ranking indisponível',
+            icon: Icons.emoji_events_outlined,
+            onTap: () => onOpenTab(3),
+          ),
+          const _UnavailableSurface(
+            title: 'Impacto da turma indisponível',
+            message:
+                'Nenhum número, cenário ou progresso simulado é atribuído à conta autenticada.',
+            icon: Icons.auto_graph_outlined,
+          ),
+          const SizedBox(height: 12),
+          BingoActionButton(
+            onPressed: () => _push(context, const HowItWorksScreen()),
+            icon: Icons.info_outline,
+            label: 'Como funciona o BinGo',
+            style: BingoActionStyle.quiet,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthenticatedWalletScreen extends StatefulWidget {
+  const _AuthenticatedWalletScreen({required this.profile});
+
+  final AuthenticatedStudentProfile profile;
+
+  @override
+  State<_AuthenticatedWalletScreen> createState() =>
+      _AuthenticatedWalletScreenState();
+}
+
+class _AuthenticatedWalletScreenState
+    extends State<_AuthenticatedWalletScreen> {
+  WalletSection _section = WalletSection.transactions;
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
+    return AppPage(
+      title: 'Carteira',
+      subtitle: 'Suas BinCoins e as validações recebidas do Totem.',
+      showBackButton: false,
+      dataStatus: AppDataStatus.remote,
+      child: Column(
+        children: [
+          _AuthenticatedWalletHero(balance: profile.binCoinsBalance),
+          const SizedBox(height: 14),
+          const _AuthenticatedBazaarCard(),
+          const SizedBox(height: 18),
+          _WalletSectionSelector(
+            value: _section,
+            onChanged: (value) => setState(() => _section = value),
+          ),
+          const SizedBox(height: 14),
+          BingoDataState(
+            kind: BingoDataStateKind.empty,
+            title: _section == WalletSection.transactions
+                ? 'Extrato indisponível'
+                : 'Descartes indisponíveis',
+            message: _section == WalletSection.transactions
+                ? 'As movimentações ainda não possuem uma fonte autenticada.'
+                : 'O histórico de descartes ainda não possui uma fonte autenticada.',
+            icon: _section == WalletSection.transactions
+                ? Icons.receipt_long_outlined
+                : Icons.recycling_outlined,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthenticatedWalletHero extends StatelessWidget {
+  const _AuthenticatedWalletHero({required this.balance});
+
+  final int balance;
+
+  @override
+  Widget build(BuildContext context) {
+    return PeriodicHighlight(
+      colors: [
+        AppColors.blue.withValues(alpha: 0.03),
+        Colors.white.withValues(alpha: 0.48),
+        AppColors.green.withValues(alpha: 0.08),
+      ],
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFE2FBFF),
+              Colors.white,
+              AppColors.green.withValues(alpha: 0.13),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.blue.withValues(alpha: 0.42)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.blue.withValues(alpha: 0.18),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Suas BinCoins',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                const BinCoinIcon(size: 38),
+              ],
+            ),
+            const SizedBox(height: 14),
+            BinCoinAmount(
+              value: balance,
+              size: 34,
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                color: AppColors.navy,
+                fontSize: 38,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const BadgeLabel(
+              label: 'Saldo autenticado',
+              color: AppColors.green,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthenticatedBazaarCard extends StatelessWidget {
+  const _AuthenticatedBazaarCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 62,
+            height: 64,
+            child: Image.asset(
+              AppAssets.profileAvatarB3n,
+              fit: BoxFit.contain,
+              alignment: Alignment.bottomCenter,
+              filterQuality: FilterQuality.high,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'BinBazar indisponível',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 3),
+                const Text(
+                  'Recompensas e resgates ainda não estão conectados.',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthenticatedMissionsScreen extends StatelessWidget {
+  const _AuthenticatedMissionsScreen({required this.profile});
+
+  final AuthenticatedStudentProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppPage(
+      title: 'Missões de restauração',
+      subtitle: '${profile.schoolName} · ${profile.className}',
+      showBackButton: false,
+      dataStatus: AppDataStatus.remote,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ImageHeroCard(
+            image: AppAssets.howItWorksScene,
+            badge: 'Missões',
+            title: 'Nenhuma missão autenticada',
+            subtitle:
+                'Metas e progresso aparecerão quando houver uma fonte autorizada.',
+          ),
+          const SizedBox(height: 18),
+          const B1nDialogueStrip(
+            message:
+                'Sua conta está pronta. As próximas missões ainda não foram conectadas.',
+            portrait: B1nPortraitVariant.question,
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Força-tarefa em destaque',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          const _UnavailableSurface(
+            title: 'Indisponível',
+            message: 'Nenhuma força-tarefa possui dados autenticados.',
+            icon: Icons.shield_outlined,
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Outras etapas da jornada',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          const _UnavailableSurface(
+            title: '—',
+            message: 'Não há progresso de missões disponível para esta conta.',
+            icon: Icons.flag_outlined,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthenticatedRankingScreen extends StatelessWidget {
+  const _AuthenticatedRankingScreen({required this.profile});
+
+  final AuthenticatedStudentProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppPage(
+      title: 'Ranking das turmas',
+      subtitle: 'Compare posições e acompanhe a restauração coletiva.',
+      showBackButton: false,
+      dataStatus: AppDataStatus.remote,
+      child: Column(
+        children: [
+          _AuthenticatedRankingHero(profile: profile),
+          const SizedBox(height: 18),
+          const _AuthenticatedPodiumPlaceholder(),
+          const SizedBox(height: 18),
+          const ImageHeroCard(
+            image: AppAssets.bingopolisMap,
+            badge: 'Impacto',
+            title: 'Mapa indisponível',
+            subtitle:
+                'Posições, cenários e impacto aguardam dados e autorização próprios.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthenticatedRankingHero extends StatelessWidget {
+  const _AuthenticatedRankingHero({required this.profile});
+
+  final AuthenticatedStudentProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      color: AppColors.blue.withValues(alpha: 0.08),
+      child: Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.emoji_events_rounded,
+              color: AppColors.warning,
+              size: 34,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile.className,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                Text('${profile.classXpBalance} XP da turma'),
+                const SizedBox(height: 8),
+                const BadgeLabel(label: 'Posição —', color: AppColors.blue),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthenticatedPodiumPlaceholder extends StatelessWidget {
+  const _AuthenticatedPodiumPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      child: Column(
+        children: [
+          Text(
+            'Pódio indisponível',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 16),
+          const Row(
+            children: [
+              Expanded(child: _UnavailablePosition(label: 'Turma —')),
+              SizedBox(width: 8),
+              Expanded(child: _UnavailablePosition(label: 'Turma —')),
+              SizedBox(width: 8),
+              Expanded(child: _UnavailablePosition(label: 'Turma —')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnavailablePosition extends StatelessWidget {
+  const _UnavailablePosition({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted),
+          const SizedBox(height: 8),
+          Text(label, textAlign: TextAlign.center),
+          const SizedBox(height: 4),
+          const Text('—'),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnavailableSurface extends StatelessWidget {
+  const _UnavailableSurface({
+    required this.title,
+    required this.message,
+    required this.icon,
+  });
+
+  final String title;
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SurfaceCard(
+      child: Column(
+        children: [
+          Icon(icon, size: 40, color: AppColors.textMuted),
+          const SizedBox(height: 12),
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(message, textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+}
+
+String _profileFailureTitle(ProfileFailureKind kind) {
+  return switch (kind) {
+    ProfileFailureKind.network => 'Sem conexão com o perfil',
+    ProfileFailureKind.sessionInvalid => 'Sessão expirada',
+    ProfileFailureKind.authLinkMissing => 'Conta sem vínculo de aluno',
+    ProfileFailureKind.notFound => 'Perfil incompleto',
+    ProfileFailureKind.malformedData => 'Perfil remoto inválido',
+    ProfileFailureKind.unknown => 'Erro ao carregar perfil',
+  };
 }
 
 class HomeScreen extends StatelessWidget {

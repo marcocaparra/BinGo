@@ -77,9 +77,12 @@ void main() {
     ) async {
       await pumpAtSize(tester, size);
 
-      expect(find.text('Criar meu PIN'), findsOneWidget);
-      expect(find.text('Já tenho PIN'), findsOneWidget);
+      expect(find.text('Pronto para continuar sua jornada?'), findsOneWidget);
+      expect(find.text('Entrar com e-mail'), findsOneWidget);
       expect(find.text('Entrar no modo piloto'), findsOneWidget);
+      expect(find.byKey(const ValueKey('auth-email')), findsNothing);
+      expect(find.text('Criar meu PIN'), findsNothing);
+      expect(find.text('Já tenho PIN'), findsNothing);
     });
   }
 
@@ -88,7 +91,8 @@ void main() {
   ) async {
     await pumpAtSize(tester, const Size(390, 844));
 
-    expect(find.text('Criar meu PIN'), findsOneWidget);
+    expect(find.text('Pronto para continuar sua jornada?'), findsOneWidget);
+    expect(find.text('Entrar com e-mail'), findsOneWidget);
 
     await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
@@ -321,10 +325,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Suas BinCoins'), findsOneWidget);
-      expect(
-        find.text('3 opções disponíveis na simulação'),
-        findsOneWidget,
-      );
+      expect(find.text('3 opções disponíveis na simulação'), findsOneWidget);
       expect(find.text('Crédito'), findsNWidgets(2));
       expect(find.text('Uso'), findsOneWidget);
       expect(find.byIcon(Icons.add_rounded), findsNWidgets(2));
@@ -502,10 +503,7 @@ void main() {
       const RewardsScreen(items: []),
       'Nenhuma opção disponível',
     );
-    await expectEmpty(
-      const MissionsScreen(items: []),
-      'Nenhuma missão ativa',
-    );
+    await expectEmpty(const MissionsScreen(items: []), 'Nenhuma missão ativa');
     await expectEmpty(
       const RankingScreen(rows: []),
       'Ranking ainda sem resultados',

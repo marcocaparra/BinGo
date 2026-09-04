@@ -1,3 +1,4 @@
+import 'package:bingo_app/src/auth/auth_gateway.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/access_flow_screen.dart';
 import 'package:bingo_app/src/screens/change_pin_screen.dart';
@@ -68,6 +69,18 @@ class _ProfileRepository
     return true;
   }
 }
+
+const _authenticatedProfile = AuthenticatedStudentProfile(
+  id: 'student-id',
+  name: 'Aluno do Backend',
+  schoolId: 'school-id',
+  schoolName: 'Escola Backend',
+  classId: 'class-id',
+  className: 'Turma Backend',
+  pointsStudentBalance: 321,
+  pointsClassBalance: 654,
+  status: 'ACTIVE',
+);
 
 void main() {
   void reduceMotion(WidgetTester tester) {
@@ -307,5 +320,80 @@ void main() {
 
     expect(find.byType(AccessFlowScreen), findsOneWidget);
     expect(find.byType(SplashScreen), findsNothing);
+  });
+
+  testWidgets('perfil autenticado usa o frontend final sem vazar mocks', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen.authenticated(
+          profile: _authenticatedProfile,
+          onLogout: () async => null,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aluno do Backend'), findsOneWidget);
+    expect(
+      find.textContaining('Escola Backend · Turma Backend'),
+      findsOneWidget,
+    );
+    expect(find.text('321'), findsOneWidget);
+    expect(find.text('654'), findsOneWidget);
+    expect(find.text('BinCoins'), findsOneWidget);
+    expect(find.text('XP da turma'), findsOneWidget);
+    expect(find.text('Trilha do restaurador'), findsOneWidget);
+    expect(find.text('Nível atual —'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -520));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Níveis, conquistas e progresso aparecerão quando tiverem uma fonte autenticada.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Marco'), findsNothing);
+    expect(find.text('ENIAC'), findsNothing);
+    expect(find.text('9ºA'), findsNothing);
+    expect(find.text('120'), findsNothing);
+    expect(find.text('760'), findsNothing);
+    expect(find.text('1.190'), findsNothing);
+    expect(find.text('Pontos pessoais'), findsNothing);
+    expect(find.text('Nível 3 · Restaurador'), findsNothing);
+    expect(find.text('Ver missões'), findsNothing);
+  });
+
+  testWidgets('logout autenticado mantém erro no Shell sem ativar piloto', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    var logoutCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen.authenticated(
+          profile: _authenticatedProfile,
+          onLogout: () async {
+            logoutCalls++;
+            return const AuthFailure(AuthFailureKind.network, 'Falha ao sair.');
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView), const Offset(0, -720));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sair da conta'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sair').last);
+    await tester.pumpAndSettle();
+
+    expect(logoutCalls, 1);
+    expect(find.text('Falha ao sair.'), findsOneWidget);
+    expect(find.textContaining('Marco'), findsNothing);
   });
 }

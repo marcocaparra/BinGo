@@ -1,6 +1,6 @@
 STATUS técnico — BinGo
 
-Atualizado em: `2026-08-15`
+Atualizado em: `2026-08-27`
 
 Este arquivo é a fonte rápida de verdade técnica do projeto. Ele consolida as decisões vigentes de `database-model.md`, `data-contracts-totem-app-backend.md`, `supabase-edge-functions-mvp.md`, `FLUXO_ECOSSISTEMA_DESCARTE_V1.md` e `operacao-offline.md`, além dos relatórios recentes da fundação de autenticação técnica de máquinas e do inventário do FastAPI. Quando um documento histórico divergir deste status, prevalecem as decisões revisadas em `2026-08-12`; código ou banco só devem prevalecer quando houver evidência de uma decisão posterior ainda não documentada.
 
@@ -26,7 +26,9 @@ O readiness central está implementado como a Edge Function `health-v1`, dispon�
 
 O baseline backend de Supabase Auth e RLS está implementado e comprovado localmente. A identidade segue `auth.uid() → students.auth_user_id → school_id/class_id`; usuários autenticados leem somente seu perfil, sua turma e sua escola, enquanto identidades sem vínculo não recebem contexto. RLS está habilitado nas onze tabelas de domínio, `anon` não acessa dados privados e não há escrita direta para `authenticated`. O catálogo `waste_categories` permanece integralmente legível por `anon` e `authenticated`, inclusive categorias inativas, por policy explícita. As policies relacionadas exigem `SELECT(auth_user_id)` para `authenticated`; teste real comprovou `42501` sem o grant, e a RLS limita sua exposição ao vínculo próprio.
 
-O Mobile Auth permanece **parcialmente funcional**: a direção oficial é Supabase Auth por e-mail e senha, associado ao domínio por `students.auth_user_id`, enquanto a identificação por PIN no Totem continua separada. Esta entrega alterou exclusivamente o backend/Supabase e não integrou nem refatorou o App. Partes da experiência mobile continuam apoiadas no piloto simulado.
+O primeiro fluxo vertical real do Mobile está implementado: login por e-mail/senha no Supabase Auth, restauração pela sessão persistida do SDK, leitura do próprio `students` por `auth_user_id`, leitura da turma e escola vinculadas sob RLS e logout. O perfil autenticado reutiliza o frontend final somente para nome, escola, turma, saldo individual de BinCoins (`students.points_student_balance`) e XP da turma (`classes.points_class_balance`); informações sem fonte real permanecem ocultas. O modo piloto continua explícito e isolado, com seus mocks locais, e a identificação por PIN no Totem permanece separada.
+
+O smoke hospedado em `bingo-dev`, executado em `2026-08-27` pelo gateway e repository reais do Mobile, comprovou login, sessão válida, uma linha própria em `students`, sua `classes`, sua `schools`, ausência de acesso a outro aluno, restauração após recriação do cliente e logout. A fotografia observada foi de `16` BinCoins e `19` XP; esses valores comprovam a leitura do estado da conta de teste e não substituem as regras de recompensa oficiais.
 
 O inventário estático do FastAPI identificou **21 operações sob `/v1`, além de `/health`**: cinco públicas, quatro de aluno com JWT próprio, cinco administrativas com JWT próprio e sete protegidas pela chave técnica da máquina. Ele também confirmou que o FastAPI ainda implementa regras e acessos que não foram integralmente migrados, não chama `register_deposit_v1` no fluxo de descarte e usa JWT próprio em vez de Supabase Auth. Esse inventário é a referência de paridade para a migração, não uma aprovação do FastAPI como arquitetura futura.
 
@@ -34,11 +36,11 @@ O inventário estático do FastAPI identificou **21 operações sob `/v1`, além
 
 O contrato público conceitual continua sendo `POST /v1/deposits`, enquanto o roteamento nativo atualmente comprovado é `POST /functions/v1/register-deposit-v1`. Um alias no gateway poderá materializar o caminho conceitual no futuro, mas ainda não foi criado. Também não há comprovação de deploy remoto da Function ou das migrations recentes.
 
-O baseline abre somente as leituras simples já comprovadas de perfil, turma, escola e catálogo. Histórico próprio de descartes, recompensas, resgates, ranking e demais necessidades do Mobile continuam fechados até decisões e policies próprias. O health central está implementado, mas sua política de consumo — polling, contadores, transições `ONLINE/OFFLINE` e endpoint `/local/status` — pertence ao futuro serviço local e não foi definida nem simulada nesta entrega. Não há SLO de 2 s/3 s nem cadência oficial fixada.
+O baseline abre somente as leituras simples já comprovadas de perfil, turma, escola e catálogo. O Mobile consome apenas perfil, turma e escola nesta integração. Histórico próprio de descartes, recompensas, resgates, ranking e demais necessidades continuam fechados até decisões e policies próprias. O health central está implementado, mas sua política de consumo — polling, contadores, transições `ONLINE/OFFLINE` e endpoint `/local/status` — pertence ao futuro serviço local e não foi definida nem simulada nesta entrega. Não há SLO de 2 s/3 s nem cadência oficial fixada.
 
 A integração com o Orange Pi está pendente porque o hardware e seu serviço local ainda não existem em condição de integração; atualmente há somente o Totem Web. Na versão física, a API key deverá ficar no serviço local controlado e jamais no frontend kiosk. A chave de demonstração serve apenas ao ambiente de desenvolvimento. Também permanecem pendentes regras futuras de ciclo de vida da credencial, como rotação mais elaborada, expiração e auditoria de tentativas, sem que isso invalide a revogação MVP por substituição ou remoção de `machines.api_key_hash`.
 
-Não há comprovação de deploy remoto das Edge Functions, das migrations V1 ou das demais mudanças recentes. Antes de qualquer afirmação sobre produção, é obrigatório comparar o histórico de migrations do repositório com o projeto vinculado, executar a validação local completa e verificar explicitamente o ambiente hospedado.
+Não há comprovação completa de paridade entre todas as migrations e Edge Functions do repositório e o ambiente remoto. O smoke do Mobile comprova somente o recorte hospedado de Auth e das leituras RLS de `students`, `classes` e `schools` em `bingo-dev`. Antes de qualquer afirmação sobre produção ou sobre os demais contratos, ainda é obrigatório comparar o histórico de migrations, executar a validação local correspondente e verificar explicitamente o ambiente hospedado.
 
 ## Divergências históricas
 
