@@ -52,6 +52,8 @@ supabase db reset
 
 O reset aplica as migrations existentes em `supabase/migrations/`, incluindo o baseline atual de Auth/RLS. O vínculo continua sendo provisionado por `students.auth_user_id`; usuário Auth sem aluno associado recebe resultado vazio, e aluno sem `auth_user_id` não é visível por uma sessão autenticada.
 
+Em `2026-09-04`, o projeto hospedado `bingo-dev` (`ddxmohrjcxuibswmrtla`) possuía as nove migrations atuais do repositório e as Edge Functions `register-deposit-v1` e `health-v1` ativas. A seed `database/seeds/010_bingo_dev_demo_dataset.sql` foi aplicada uma única vez e deixou o conjunto demo com sete turmas e setenta alunos, dez alunos determinísticos por turma. O aluno smoke permaneceu vinculado ao Supabase Auth com `16` BinCoins, sua turma preservou `19` XP, e o depósito e o audit log preexistentes permaneceram únicos. O postflight confirmou que a seed não alterou usuários Auth, RLS, policies, migrations ou Edge Functions e não criou depósitos, resgates, recompensas ou logs adicionais.
+
 Historicamente, a fixture de domínio era executada de forma explícita em desenvolvimento com o comando abaixo. O arquivo referenciado não existe no baseline atual; o comando fica preservado apenas como registro e não deve ser tratado como executável nesta branch:
 
 ```powershell
@@ -62,6 +64,8 @@ Use `staging` no lugar de `development` somente no ambiente correspondente. Qual
 
 ## Provisionamento da conta demo
 
+No `bingo-dev`, a conta smoke já está vinculada ao aluno `30000000-0000-4000-8000-000000000001`; não repita o provisionamento nesse projeto. Para provisionar uma conta equivalente em outro ambiente de desenvolvimento ou staging:
+
 1. Crie o usuário de e-mail/senha pelo painel administrativo do Supabase Auth no ambiente de desenvolvimento ou staging. Não coloque a senha em migration, seed ou código.
 2. Copie o UUID do usuário criado.
 3. Vincule o UUID somente ao aluno determinístico da fixture:
@@ -70,7 +74,7 @@ Use `staging` no lugar de `development` somente no ambiente correspondente. Qual
 update public.students
 set auth_user_id = '<auth-user-uuid>',
     updated_at = now()
-where id = '31000000-0000-4000-8000-000000000001';
+where id = '30000000-0000-4000-8000-000000000001';
 ```
 
 4. Confirme que exatamente uma linha foi alterada e que nenhum outro aluno usa esse UUID.
@@ -96,6 +100,8 @@ powershell -ExecutionPolicy Bypass -File tool/run_hosted_mobile_smoke.ps1
 O runner exige `BINGO_MOBILE_TEST_EMAIL` e `BINGO_MOBILE_TEST_PASSWORD`, obtém a configuração pública do projeto Supabase vinculado sem imprimi-la e executa apenas `test/hosted_mobile_smoke_test.dart`. Senha, access token, refresh token e chaves não são registrados. O teste é ignorado pela suíte comum, salvo quando o runner define explicitamente `BINGO_HOSTED_SMOKE=1`.
 
 Em `2026-08-27`, o smoke contra `bingo-dev` comprovou login, sessão válida, leitura de uma linha própria em `students`, uma turma, uma escola, `16` BinCoins, `19` XP, zero linhas de outro aluno, restauração após recriação do cliente e logout. BinCoins e XP são uma fotografia da conta de teste, não parâmetros de regra.
+
+Após a aplicação da seed 010 em `2026-09-04`, um novo hosted smoke do Mobile foi executado e aprovado. Ele comprovou login e sessão válida, exatamente uma linha própria em `students`, a turma e a escola relacionadas, invisibilidade dos outros 69 alunos sob RLS, `16` BinCoins, `19` XP, restauração da sessão após recriação do cliente e logout. Assim, o fluxo de Auth, perfil e leituras RLS permaneceu válido com o conjunto demo de setenta alunos.
 
 O baseline estrutural é validado junto da suíte pgTAP:
 
