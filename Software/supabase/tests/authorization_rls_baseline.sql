@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select extensions.plan(38);
+select extensions.plan(45);
 
 select extensions.is(
     (
@@ -18,8 +18,8 @@ select extensions.is(
 
 select extensions.is(
     (select count(*)::integer from pg_policies where schemaname = 'public'),
-    4,
-    'somente as quatro policies aprovadas existem'
+    5,
+    'somente as cinco policies aprovadas existem'
 );
 
 select extensions.ok(
@@ -69,6 +69,89 @@ select extensions.ok(
           and qual = 'true'
     ),
     'waste_categories preserva catalogo integralmente publico por policy'
+);
+
+select extensions.ok(
+    exists (
+        select 1 from pg_policies
+        where schemaname = 'public'
+          and tablename = 'deposits'
+          and policyname = 'deposits_select_own_history_v1'
+          and permissive = 'PERMISSIVE'
+          and cmd = 'SELECT'
+          and roles = array['authenticated']::name[]
+    ),
+    'deposits possui uma policy SELECT explicita somente para authenticated'
+);
+
+select extensions.ok(
+    exists (
+        select 1 from pg_policies
+        where schemaname = 'public'
+          and tablename = 'deposits'
+          and policyname = 'deposits_select_own_history_v1'
+          and qual ~ 'student_id IS NOT NULL'
+          and qual ~ 'current_student\.auth_user_id = \( SELECT auth\.uid\(\)'
+          and qual ~ 'current_student\.id = deposits\.student_id'
+          and qual !~ 'school_id'
+    ),
+    'policy de deposits vincula Auth ao aluno e independe da escola atual'
+);
+
+select extensions.is(
+    (
+        select array_agg(attribute.attname::text order by attribute.attname)
+        from pg_attribute as attribute
+        where attribute.attrelid = 'public.deposits'::regclass
+          and attribute.attnum > 0
+          and not attribute.attisdropped
+          and has_column_privilege(
+              'authenticated',
+              'public.deposits',
+              attribute.attname,
+              'select'
+          )
+    ),
+    array[
+        'bonus_bincoins_awarded',
+        'category_source',
+        'created_at',
+        'detected_type',
+        'id',
+        'is_valid',
+        'points_awarded_class',
+        'points_awarded_student',
+        'student_id',
+        'waste_category_id'
+    ]::text[],
+    'authenticated recebe exatamente as colunas da primeira consulta de historico'
+);
+
+select extensions.ok(
+    not has_table_privilege('authenticated', 'public.deposits', 'select'),
+    'authenticated nao recebe SELECT amplo em deposits'
+);
+
+select extensions.ok(
+    not has_column_privilege('authenticated', 'public.deposits', 'event_id', 'select')
+    and not has_column_privilege('authenticated', 'public.deposits', 'machine_id', 'select')
+    and not has_column_privilege('authenticated', 'public.deposits', 'school_id', 'select')
+    and not has_column_privilege('authenticated', 'public.deposits', 'class_id', 'select')
+    and not has_column_privilege('authenticated', 'public.deposits', 'bonus_rate_applied', 'select'),
+    'colunas internas de deposits permanecem sem grant para authenticated'
+);
+
+select extensions.ok(
+    not has_table_privilege('authenticated', 'public.deposits', 'insert')
+    and not has_table_privilege('authenticated', 'public.deposits', 'update')
+    and not has_table_privilege('authenticated', 'public.deposits', 'delete'),
+    'authenticated permanece sem escrita em deposits'
+);
+
+select extensions.ok(
+    not has_table_privilege('anon', 'public.deposits', 'select')
+    and not has_any_column_privilege('anon', 'public.deposits', 'select'),
+    'anon permanece sem qualquer leitura de deposits'
 );
 
 select extensions.ok(
