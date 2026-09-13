@@ -4,6 +4,7 @@ import 'package:bingo_app/src/app.dart';
 import 'package:bingo_app/src/auth/access_restore_store.dart';
 import 'package:bingo_app/src/auth/auth_gateway.dart';
 import 'package:bingo_app/src/config/supabase_config.dart';
+import 'package:bingo_app/src/data/deposit_history_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/access_flow_screen.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
@@ -106,10 +107,13 @@ class _FakeGateway implements AuthGateway {
     required this.profileRepository,
     this.restoreSessionResult = false,
     this.signInFailure,
-  });
+  }) : depositHistoryRepository = const _EmptyDepositHistoryRepository();
 
   @override
   final AuthenticatedProfileRepository profileRepository;
+
+  @override
+  final AuthenticatedDepositHistoryRepository depositHistoryRepository;
   final bool restoreSessionResult;
   final AuthFailure? signInFailure;
   final StreamController<AuthSessionEvent> events =
@@ -140,6 +144,16 @@ class _FakeGateway implements AuthGateway {
   }
 }
 
+class _EmptyDepositHistoryRepository
+    implements AuthenticatedDepositHistoryRepository {
+  const _EmptyDepositHistoryRepository();
+
+  @override
+  Future<List<AuthenticatedDepositHistoryEntry>> loadHistory({
+    required String studentId,
+  }) async => const [];
+}
+
 class _FakeFactory implements AuthGatewayFactory {
   _FakeFactory(this.gateway);
 
@@ -154,8 +168,11 @@ class _FakeFactory implements AuthGatewayFactory {
 }
 
 class _MissingConfigFactory implements AuthGatewayFactory {
+  int createCalls = 0;
+
   @override
   Future<AuthGateway> create() async {
+    createCalls++;
     throw const SupabaseConfigurationException([
       'SUPABASE_URL',
       'SUPABASE_PUBLISHABLE_KEY',
@@ -312,7 +329,7 @@ void main() {
     });
   }
 
-  testWidgets('sessão Supabase válida abre o Shell final sem mocks', (
+  testWidgets('configuração Supabase válida cria gateway e abre o Shell', (
     tester,
   ) async {
     reduceMotion(tester);
@@ -321,10 +338,11 @@ void main() {
       profileRepository: _FakeRemoteRepository(),
       restoreSessionResult: true,
     );
+    final factory = _FakeFactory(gateway);
     await tester.pumpWidget(
       BingoApp(
         repository: _SessionRepository(hasSavedProfile: false),
-        authGatewayFactory: _FakeFactory(gateway),
+        authGatewayFactory: factory,
         restoreStore: store,
       ),
     );
@@ -336,6 +354,7 @@ void main() {
     expect(find.textContaining('Marco'), findsNothing);
     expect(store.marks, 1);
     expect(store.restore, isTrue);
+    expect(factory.createCalls, 1);
   });
 
   testWidgets('ausência de sessão SDK limpa marcador e abre acesso final', (
@@ -454,10 +473,11 @@ void main() {
     tester,
   ) async {
     reduceMotion(tester);
+    final factory = _MissingConfigFactory();
     await tester.pumpWidget(
       BingoApp(
         repository: _SessionRepository(hasSavedProfile: false),
-        authGatewayFactory: _MissingConfigFactory(),
+        authGatewayFactory: factory,
         restoreStore: _FakeRestoreStore(false),
       ),
     );
@@ -474,7 +494,37 @@ void main() {
     await tester.tap(find.text('Entrar no modo piloto'));
     await tester.pumpAndSettle();
     expect(find.byType(ShellScreen), findsOneWidget);
+    expect(factory.createCalls, 2);
   });
+
+  testWidgets(
+    'configuração ausente com marcador antigo não vaza exceção assíncrona',
+    (tester) async {
+      final store = _FakeRestoreStore(true);
+      final factory = _MissingConfigFactory();
+      await tester.pumpWidget(
+        BingoApp(
+          repository: _SessionRepository(hasSavedProfile: false),
+          authGatewayFactory: factory,
+          restoreStore: store,
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 2800));
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AccessFlowScreen), findsOneWidget);
+      expect(store.restore, isFalse);
+      expect(factory.createCalls, 1);
+
+      await tester.ensureVisible(find.text('Entrar no modo piloto'));
+      await tester.tap(find.text('Entrar no modo piloto'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(find.byType(ShellScreen), findsOneWidget);
+    },
+  );
 
   testWidgets('credenciais inválidas permanecem no acesso autenticado', (
     tester,

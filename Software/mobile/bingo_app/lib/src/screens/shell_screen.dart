@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../auth/auth_gateway.dart';
 import '../data/demo_data.dart';
+import '../data/deposit_history_adapter.dart';
+import '../data/deposit_history_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/session_wallet_controller.dart';
 import '../theme/app_assets.dart';
@@ -22,11 +25,13 @@ class ShellScreen extends StatefulWidget {
     this.onExitPilot,
     super.key,
   }) : authenticatedRepository = null,
+       depositHistoryRepository = null,
        onLogout = null,
        onSessionInvalid = null;
 
   const ShellScreen.authenticated({
     required AuthenticatedProfileRepository repository,
+    required this.depositHistoryRepository,
     required this.onLogout,
     required this.onSessionInvalid,
     this.initialIndex = 0,
@@ -39,6 +44,7 @@ class ShellScreen extends StatefulWidget {
   final ProfileRepository? repository;
   final Future<void> Function()? onExitPilot;
   final AuthenticatedProfileRepository? authenticatedRepository;
+  final AuthenticatedDepositHistoryRepository? depositHistoryRepository;
   final Future<AuthFailure?> Function()? onLogout;
   final Future<void> Function()? onSessionInvalid;
 
@@ -122,7 +128,11 @@ class _ShellScreenState extends State<ShellScreen> {
                     profile: profile,
                     onOpenTab: _selectTab,
                   ),
-                  _AuthenticatedWalletScreen(profile: profile),
+                  _AuthenticatedWalletScreen(
+                    profile: profile,
+                    repository: widget.depositHistoryRepository!,
+                    onSessionInvalid: widget.onSessionInvalid!,
+                  ),
                   _AuthenticatedMissionsScreen(profile: profile),
                   _AuthenticatedRankingScreen(profile: profile),
                   ProfileScreen.authenticated(
@@ -280,9 +290,15 @@ class _AuthenticatedHomeScreen extends StatelessWidget {
 }
 
 class _AuthenticatedWalletScreen extends StatefulWidget {
-  const _AuthenticatedWalletScreen({required this.profile});
+  const _AuthenticatedWalletScreen({
+    required this.profile,
+    required this.repository,
+    required this.onSessionInvalid,
+  });
 
   final AuthenticatedStudentProfile profile;
+  final AuthenticatedDepositHistoryRepository repository;
+  final Future<void> Function() onSessionInvalid;
 
   @override
   State<_AuthenticatedWalletScreen> createState() =>
@@ -291,7 +307,65 @@ class _AuthenticatedWalletScreen extends StatefulWidget {
 
 class _AuthenticatedWalletScreenState
     extends State<_AuthenticatedWalletScreen> {
+  final DepositHistoryAdapter _adapter = DepositHistoryAdapter();
   WalletSection _section = WalletSection.transactions;
+  List<DiscardRecord> _discards = const [];
+  DepositHistoryFailure? _historyFailure;
+  var _loadingHistory = true;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadHistory());
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() {
+      _loadingHistory = true;
+      _historyFailure = null;
+    });
+    try {
+      final history = await widget.repository.loadHistory(
+        studentId: widget.profile.id,
+      );
+      final discards = history.map(_adapter.toDiscardRecord).toList();
+      if (!mounted) return;
+      setState(() {
+        _discards = discards;
+        _loadingHistory = false;
+      });
+    } on DepositHistoryFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _discards = const [];
+        _historyFailure = failure;
+        _loadingHistory = false;
+      });
+      if (failure.kind == DepositHistoryFailureKind.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(widget.onSessionInvalid());
+        });
+      }
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[deposit_history] Wallet mapping failure: $error');
+        debugPrintStack(
+          label: '[deposit_history] wallet stack trace',
+          stackTrace: stackTrace,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _discards = const [];
+        _historyFailure = DepositHistoryFailure(
+          DepositHistoryFailureKind.unknown,
+          'Não foi possível carregar os descartes agora.',
+          error,
+        );
+        _loadingHistory = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -312,18 +386,42 @@ class _AuthenticatedWalletScreenState
             onChanged: (value) => setState(() => _section = value),
           ),
           const SizedBox(height: 14),
-          BingoDataState(
-            kind: BingoDataStateKind.empty,
-            title: _section == WalletSection.transactions
-                ? 'Extrato indisponível'
-                : 'Descartes indisponíveis',
-            message: _section == WalletSection.transactions
-                ? 'As movimentações ainda não possuem uma fonte autenticada.'
-                : 'O histórico de descartes ainda não possui uma fonte autenticada.',
-            icon: _section == WalletSection.transactions
-                ? Icons.receipt_long_outlined
-                : Icons.recycling_outlined,
-          ),
+          if (_section == WalletSection.transactions)
+            const BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: 'Extrato indisponível',
+              message:
+                  'As movimentações ainda não possuem uma fonte autenticada.',
+              icon: Icons.receipt_long_outlined,
+            )
+          else if (_loadingHistory)
+            const BingoDataState(
+              kind: BingoDataStateKind.loading,
+              title: 'Carregando histórico',
+              message: 'Organizando as informações do Totem.',
+            )
+          else if (_historyFailure != null)
+            BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: 'Descartes indisponíveis',
+              message: _historyFailure!.message,
+              icon: Icons.cloud_off_rounded,
+              action: BingoActionButton(
+                label: 'Tentar novamente',
+                icon: Icons.refresh_rounded,
+                onPressed: _loadHistory,
+              ),
+            )
+          else if (_discards.isEmpty)
+            const BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: 'Nenhum descarte validado',
+              message: 'Os descartes confirmados pelo Totem aparecerão aqui.',
+              icon: Icons.recycling_outlined,
+            )
+          else
+            for (final discard in _discards)
+              _DiscardHistoryTile(discard: discard),
         ],
       ),
     );
