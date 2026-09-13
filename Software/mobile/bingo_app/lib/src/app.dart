@@ -101,8 +101,6 @@ class _SessionGateState extends State<SessionGate> {
   _resolveSession() async {
     final localRepository = await _localRepository();
     final store = await _store();
-    final expectedAuthenticatedSession = await store
-        .shouldRestoreAuthenticatedSession();
 
     try {
       final gateway = await _createGateway();
@@ -114,9 +112,8 @@ class _SessionGateState extends State<SessionGate> {
         );
       }
       await store.clearAuthenticatedSession();
-    } on SupabaseConfigurationException catch (error) {
-      if (expectedAuthenticatedSession) rethrow;
-      _error = error;
+    } on SupabaseConfigurationException {
+      await store.clearAuthenticatedSession();
     }
 
     final hasLocalProfile = await localRepository.hasProfile();
@@ -135,12 +132,9 @@ class _SessionGateState extends State<SessionGate> {
     if (mounted) setState(() {});
     try {
       final reduceMotion = MediaQuery.disableAnimationsOf(context);
-      final sessionFuture = _resolveSession();
-      if (!reduceMotion) await WidgetsBinding.instance.endOfFrame;
       final results = await Future.wait<dynamic>([
-        sessionFuture,
-        if (!reduceMotion)
-          Future<void>.delayed(const Duration(milliseconds: 2800)),
+        _resolveSession(),
+        if (!reduceMotion) _waitForSplashReveal(),
       ]);
       if (!mounted) return;
       setState(() {
@@ -161,6 +155,11 @@ class _SessionGateState extends State<SessionGate> {
             'Não foi possível restaurar a sessão. Verifique sua conexão.',
       );
     }
+  }
+
+  Future<void> _waitForSplashReveal() async {
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(const Duration(milliseconds: 2800));
   }
 
   Future<AuthFailure?> _signIn(String email, String password) async {
@@ -273,6 +272,7 @@ class _SessionGateState extends State<SessionGate> {
             AccessPhase.authenticated => ShellScreen.authenticated(
               key: const ValueKey('authenticated-shell'),
               repository: _gateway!.profileRepository,
+              depositHistoryRepository: _gateway!.depositHistoryRepository,
               onLogout: _signOut,
               onSessionInvalid: _returnToEntry,
             ),

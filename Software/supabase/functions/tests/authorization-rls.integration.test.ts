@@ -18,10 +18,18 @@ type Fixture = Readonly<{
   classA: string;
   classB: string;
   classC: string;
+  machineA: string;
+  machineB: string;
   studentA: string;
   studentB: string;
   studentC: string;
   studentWithoutAuth: string;
+  depositOwnOlder: string;
+  depositOwnNewer: string;
+  depositSameSchoolOther: string;
+  depositOtherSchool: string;
+  depositAnonymous: string;
+  wasteCategory: string;
   authUserA: string;
 }>;
 
@@ -33,7 +41,7 @@ type AuthenticatedFixture = Readonly<{
 }>;
 
 Deno.test({
-  name: "Supabase Auth and RLS isolate students, schools and classes",
+  name: "Supabase Auth and RLS isolate profile and personal deposit history",
   ignore: !integrationEnabled,
   sanitizeOps: false,
   sanitizeResources: false,
@@ -78,6 +86,7 @@ Deno.test({
       const anonClient = createClient(supabaseUrl, anonKey, clientOptions());
 
       await assertStudentIsolation(clientA, fixture);
+      await assertDepositReadIsolation(clientA, fixture);
       await assertSchoolAndClassIsolation(
         clientA,
         clientB,
@@ -91,6 +100,11 @@ Deno.test({
       await assertAnonymousAccess(anonClient);
       await assertCriticalWritesAreDenied(clientA, database, fixture);
       await assertServiceRoleRemainsMinimal(admin, machineId);
+      await assertDepositHistorySurvivesStudentTransfer(
+        clientA,
+        database,
+        fixture,
+      );
     } finally {
       if (fixture !== null) {
         await removeDomainFixture(database, fixture);
@@ -159,16 +173,33 @@ async function createDomainFixture(
   database: TestDatabase,
   auth: AuthenticatedFixture,
 ): Promise<Fixture> {
+  const [category] = await database`
+    select id
+    from public.waste_categories
+    where code = 'BATTERY'
+  `;
+  if (category === undefined) {
+    throw new Error("Unable to find the BATTERY waste category fixture.");
+  }
+
   const fixture: Fixture = {
     schoolA: crypto.randomUUID(),
     schoolB: crypto.randomUUID(),
     classA: crypto.randomUUID(),
     classB: crypto.randomUUID(),
     classC: crypto.randomUUID(),
+    machineA: crypto.randomUUID(),
+    machineB: crypto.randomUUID(),
     studentA: crypto.randomUUID(),
     studentB: crypto.randomUUID(),
     studentC: crypto.randomUUID(),
     studentWithoutAuth: crypto.randomUUID(),
+    depositOwnOlder: crypto.randomUUID(),
+    depositOwnNewer: crypto.randomUUID(),
+    depositSameSchoolOther: crypto.randomUUID(),
+    depositOtherSchool: crypto.randomUUID(),
+    depositAnonymous: crypto.randomUUID(),
+    wasteCategory: category.id,
     authUserA: auth.userA.id,
   };
 
@@ -191,6 +222,12 @@ async function createDomainFixture(
         (${fixture.classC}::uuid, ${fixture.schoolB}::uuid, 'TEST', '3', 'Turma RLS C', 303)
     `;
     await sql`
+      insert into public.machines (id, school_id, name, status)
+      values
+        (${fixture.machineA}::uuid, ${fixture.schoolA}::uuid, 'Maquina RLS A', 'ONLINE'),
+        (${fixture.machineB}::uuid, ${fixture.schoolB}::uuid, 'Maquina RLS B', 'ONLINE')
+    `;
+    await sql`
       insert into public.students (
         id, school_id, class_id, name, points_student_balance, status, auth_user_id
       )
@@ -200,9 +237,109 @@ async function createDomainFixture(
         (${fixture.studentC}::uuid, ${fixture.schoolB}::uuid, ${fixture.classC}::uuid, 'Aluno RLS C', 33, 'ACTIVE', ${auth.userC.id}::uuid),
         (${fixture.studentWithoutAuth}::uuid, ${fixture.schoolA}::uuid, ${fixture.classA}::uuid, 'Aluno sem Auth', 44, 'ACTIVE', null)
     `;
+    await sql`
+      insert into public.deposits (
+        id,
+        event_id,
+        school_id,
+        machine_id,
+        class_id,
+        student_id,
+        is_valid,
+        detected_type,
+        points_awarded_student,
+        points_awarded_class,
+        created_at,
+        waste_category_id,
+        category_source,
+        bonus_rate_applied,
+        bonus_bincoins_awarded
+      )
+      values
+        (
+          ${fixture.depositOwnOlder}::uuid, gen_random_uuid(), ${fixture.schoolA}::uuid,
+          ${fixture.machineA}::uuid, ${fixture.classA}::uuid, ${fixture.studentA}::uuid,
+          true, 'battery-own-older', 16, 19, '2026-01-01T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 8
+        ),
+        (
+          ${fixture.depositOwnNewer}::uuid, gen_random_uuid(), ${fixture.schoolA}::uuid,
+          ${fixture.machineA}::uuid, ${fixture.classA}::uuid, ${fixture.studentA}::uuid,
+          true, 'battery-own-newer', 16, 19, '2026-01-02T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'USER_CORRECTED', 1, 8
+        ),
+        (
+          ${fixture.depositSameSchoolOther}::uuid, gen_random_uuid(), ${fixture.schoolA}::uuid,
+          ${fixture.machineA}::uuid, ${fixture.classB}::uuid, ${fixture.studentB}::uuid,
+          true, 'battery-same-school-other', 16, 19, '2026-01-03T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 8
+        ),
+        (
+          ${fixture.depositOtherSchool}::uuid, gen_random_uuid(), ${fixture.schoolB}::uuid,
+          ${fixture.machineB}::uuid, ${fixture.classC}::uuid, ${fixture.studentC}::uuid,
+          true, 'battery-other-school', 16, 19, '2026-01-04T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 8
+        ),
+        (
+          ${fixture.depositAnonymous}::uuid, gen_random_uuid(), ${fixture.schoolA}::uuid,
+          ${fixture.machineA}::uuid, ${fixture.classA}::uuid, null,
+          true, 'battery-anonymous', 0, 19, '2026-01-05T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 0, 0
+        )
+    `;
   });
 
   return fixture;
+}
+
+async function assertDepositReadIsolation(
+  clientA: SupabaseClient,
+  fixture: Fixture,
+): Promise<void> {
+  const { data: ownDeposits, error: ownDepositsError } = await clientA
+    .from("deposits")
+    .select(
+      "id, student_id, created_at, is_valid, detected_type, waste_category_id, category_source, bonus_bincoins_awarded, points_awarded_student, points_awarded_class",
+    )
+    .eq("student_id", fixture.studentA)
+    .order("created_at", { ascending: false });
+  assertNoError(ownDepositsError, "student A reads own deposit history");
+  deepStrictEqual(
+    ownDeposits?.map((deposit) => deposit.id),
+    [fixture.depositOwnNewer, fixture.depositOwnOlder],
+  );
+
+  for (
+    const [depositId, context] of [
+      [fixture.depositSameSchoolOther, "another student from the same school"],
+      [fixture.depositOtherSchool, "a student from another school"],
+      [fixture.depositAnonymous, "an anonymous deposit"],
+    ] as const
+  ) {
+    const { data, error } = await clientA
+      .from("deposits")
+      .select("id")
+      .eq("id", depositId);
+    assertNoError(error, `student A probes ${context}`);
+    deepStrictEqual(data, []);
+  }
+
+  const { data: category, error: categoryError } = await clientA
+    .from("waste_categories")
+    .select("id, code, display_name")
+    .eq("id", ownDeposits?.[0].waste_category_id ?? "")
+    .single();
+  assertNoError(categoryError, "student A reads the related waste category");
+  equal(category?.id, fixture.wasteCategory);
+  equal(category?.code, "BATTERY");
+
+  const { error: internalColumnsError } = await clientA
+    .from("deposits")
+    .select("event_id, machine_id, school_id, class_id, bonus_rate_applied");
+  assertDenied(
+    internalColumnsError,
+    "deposit history does not expose internal columns",
+  );
 }
 
 async function assertStudentIsolation(
@@ -289,15 +426,17 @@ async function assertUnlinkedIdentityHasNoDomainContext(
   unlinkedClient: SupabaseClient,
   fixture: Fixture,
 ): Promise<void> {
-  const [students, schools, classes] = await Promise.all([
+  const [students, schools, classes, deposits] = await Promise.all([
     readIds(unlinkedClient, "students", "id, name"),
     readIds(unlinkedClient, "schools", "id, name"),
     readIds(unlinkedClient, "classes", "id, name"),
+    readIds(unlinkedClient, "deposits", "id, student_id"),
   ]);
   ok(!students.includes(fixture.studentWithoutAuth));
   equal(students.length, 0);
   equal(schools.length, 0);
   equal(classes.length, 0);
+  equal(deposits.length, 0);
 }
 
 async function assertAnonymousAccess(anonClient: SupabaseClient) {
@@ -305,6 +444,11 @@ async function assertAnonymousAccess(anonClient: SupabaseClient) {
     .from("students")
     .select("id, name");
   assertDenied(studentsError, "anon cannot read students");
+
+  const { error: depositsError } = await anonClient
+    .from("deposits")
+    .select("id");
+  assertDenied(depositsError, "anon cannot read deposits");
 
   const { data: categories, error: categoriesError } = await anonClient
     .from("waste_categories")
@@ -354,6 +498,16 @@ async function assertCriticalWritesAreDenied(
     "authenticated cannot insert a deposit",
   );
   assertDenied(
+    (await clientA.from("deposits").update({ detected_type: "forged" })
+      .eq("id", fixture.depositOwnOlder)).error,
+    "authenticated cannot update a deposit",
+  );
+  assertDenied(
+    (await clientA.from("deposits").delete()
+      .eq("id", fixture.depositOwnOlder)).error,
+    "authenticated cannot delete a deposit",
+  );
+  assertDenied(
     (await clientA.from("audit_logs").insert({
       school_id: fixture.schoolA,
       actor_type: "STUDENT",
@@ -379,11 +533,50 @@ async function assertCriticalWritesAreDenied(
     from public.classes
     where id = ${fixture.classA}::uuid
   `;
+  const [depositAfter] = await database`
+    select detected_type
+    from public.deposits
+    where id = ${fixture.depositOwnOlder}::uuid
+  `;
   equal(
     studentAfter.points_student_balance,
     studentBefore.points_student_balance,
   );
   equal(classAfter.points_class_balance, classBefore.points_class_balance);
+  equal(depositAfter.detected_type, "battery-own-older");
+}
+
+async function assertDepositHistorySurvivesStudentTransfer(
+  clientA: SupabaseClient,
+  database: TestDatabase,
+  fixture: Fixture,
+): Promise<void> {
+  await database`
+    update public.students
+    set school_id = ${fixture.schoolB}::uuid,
+        class_id = ${fixture.classC}::uuid,
+        updated_at = now()
+    where id = ${fixture.studentA}::uuid
+  `;
+
+  const [movedStudent] = await database`
+    select school_id, class_id
+    from public.students
+    where id = ${fixture.studentA}::uuid
+  `;
+  equal(movedStudent.school_id, fixture.schoolB);
+  equal(movedStudent.class_id, fixture.classC);
+
+  const { data: historicalDeposits, error } = await clientA
+    .from("deposits")
+    .select("id, student_id, created_at")
+    .eq("student_id", fixture.studentA)
+    .order("created_at", { ascending: false });
+  assertNoError(error, "student A reads history after changing schools");
+  deepStrictEqual(
+    historicalDeposits?.map((deposit) => deposit.id),
+    [fixture.depositOwnNewer, fixture.depositOwnOlder],
+  );
 }
 
 async function assertServiceRoleRemainsMinimal(
@@ -428,6 +621,17 @@ async function removeDomainFixture(
 ): Promise<void> {
   await database.begin(async (sql) => {
     for (
+      const depositId of [
+        fixture.depositOwnOlder,
+        fixture.depositOwnNewer,
+        fixture.depositSameSchoolOther,
+        fixture.depositOtherSchool,
+        fixture.depositAnonymous,
+      ]
+    ) {
+      await sql`delete from public.deposits where id = ${depositId}::uuid`;
+    }
+    for (
       const studentId of [
         fixture.studentA,
         fixture.studentB,
@@ -436,6 +640,9 @@ async function removeDomainFixture(
       ]
     ) {
       await sql`delete from public.students where id = ${studentId}::uuid`;
+    }
+    for (const machineId of [fixture.machineA, fixture.machineB]) {
+      await sql`delete from public.machines where id = ${machineId}::uuid`;
     }
     for (const classId of [fixture.classA, fixture.classB, fixture.classC]) {
       await sql`delete from public.classes where id = ${classId}::uuid`;

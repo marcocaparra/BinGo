@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
+import '../data/deposit_history_repository.dart';
 import '../data/profile_repository.dart';
+import '../data/supabase_deposit_history_repository.dart';
 import '../data/supabase_profile_repository.dart';
 import 'auth_gateway.dart';
 
@@ -39,7 +41,10 @@ class SupabaseAuthGatewayFactory implements AuthGatewayFactory {
 
 class SupabaseAuthGateway implements AuthGateway {
   SupabaseAuthGateway(this._client)
-    : _profileRepository = RemoteProfileRepository(
+    : _depositHistoryRepository = RemoteDepositHistoryRepository(
+        SupabaseDepositHistoryDataSource(_client),
+      ),
+      _profileRepository = RemoteProfileRepository(
         SupabaseProfileDataSource(_client),
       ) {
     _authSubscription = _client.auth.onAuthStateChange.listen(
@@ -51,10 +56,15 @@ class SupabaseAuthGateway implements AuthGateway {
   }
 
   final SupabaseClient _client;
+  final AuthenticatedDepositHistoryRepository _depositHistoryRepository;
   final AuthenticatedProfileRepository _profileRepository;
   final StreamController<AuthSessionEvent> _sessionEvents =
       StreamController<AuthSessionEvent>.broadcast();
   late final StreamSubscription<AuthState> _authSubscription;
+
+  @override
+  AuthenticatedDepositHistoryRepository get depositHistoryRepository =>
+      _depositHistoryRepository;
 
   @override
   AuthenticatedProfileRepository get profileRepository => _profileRepository;
