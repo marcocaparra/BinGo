@@ -1,8 +1,8 @@
 # Supabase Edge Functions MVP — descarte e pontuação
 
-Revisão: `2026-08-15`
+Revisão: `2026-09-13`
 
-Status: schema, contrato, RPCs PostgreSQL, autenticação técnica e as Edge Functions HTTP de descarte e readiness implementados e comprovados localmente. Não há comprovação de deploy no Supabase hospedado.
+Status: schema, contrato, RPCs PostgreSQL, autenticação técnica e as Edge Functions HTTP de descarte e readiness implementados e comprovados localmente na unidade antiga. A redenominação oficial por fator `100` está aprovada apenas documentalmente e ainda não foi implementada. Não há nesta revisão comprovação de conversão no Supabase hospedado ou em produção.
 
 ## Arquitetura
 
@@ -70,7 +70,9 @@ A chamada usa um cliente server-side com `service_role`. A chave deve permanecer
 
 ## Pontuação
 
-`school_settings` fornece 8 BinCoins de base, 19 XP e meta semanal de 100 XP por padrão. O bônus individual é arredondado ao inteiro mais próximo e somado à base. O XP não recebe multiplicador.
+O runtime atualmente versionado ainda usa, por padrão, `8` BinCoins de base, `19` XP e meta semanal de `100` XP em `school_settings`. A regra-alvo aprovada redenomina esses valores para `800`, `1900` e `10000`, respectivamente, mantendo equivalência econômica. Uma migration futura deverá fazer a mudança de forma coordenada; `register_deposit_v1` ainda não usa os novos valores por força desta documentação.
+
+O bônus individual continua sendo `round(base × bonus_rate)` e somado à base. `bonus_rate` não é multiplicado por `100`, e o XP não recebe multiplicador. A normalização futura deverá abranger configurações, saldos, snapshots, custos de resgate e valores de missões sem misturar escalas.
 
 O catálogo de produção nasce com taxas zero. A matriz `BATTERY 100%`, `MOBILE_DEVICE 50%` e `CABLE_WIRE 25%` existe somente nas seeds de desenvolvimento. A Edge Function nunca contém essa matriz em código.
 

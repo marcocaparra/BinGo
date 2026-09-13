@@ -10,7 +10,7 @@ Este documento consolida as decisões de produto, domínio, histórico, tempo, s
 
 ## Contexto e estado atual
 
-As missões são metas globais do ecossistema BinGo acompanhadas por aluno ou turma. No primeiro slice, seu progresso será derivado dos eventos persistidos em `deposits`, sem contador mantido pelo Mobile e sem alterar o fluxo físico de descarte.
+As missões são metas globais do ecossistema BinGo acompanhadas por aluno ou turma. No primeiro slice, seu progresso será derivado dos eventos persistidos em `deposits`, sem contador mantido pelo Mobile e sem alterar o fluxo físico de descarte. Ao atingir a meta, porém, uma conclusão materializada deverá aplicar uma ou mais recompensas fixas de forma server-side.
 
 O repositório já preserva em cada depósito os elementos históricos necessários para as métricas inicialmente aprovadas: `event_id`, `student_id`, `class_id`, `is_valid`, `points_awarded_class` e `created_at`. Também preserva os snapshots econômicos `bonus_rate_applied` e `bonus_bincoins_awarded`. Esses fatos não significam que o motor de missões exista.
 
@@ -30,9 +30,11 @@ Nesta etapa não foram criados artefatos de runtime: não há migration, tabela,
 - As métricas aprovadas para o primeiro slice são quantidade de descartes válidos e XP conquistado pela turma durante o ciclo.
 - `ENVIRONMENTAL_IMPACT` permanece planejada, mas sem unidade oficial e fora da primeira implementação.
 - `deposits` é a fonte de verdade histórica do progresso inicial.
-- A conclusão de um participante não encerra o ciclo para os demais.
+- A conclusão de um participante é materializada quando a meta é atingida e não encerra o ciclo para os demais.
 - O timezone oficial de negócio é `America/Sao_Paulo`, com intervalos fechados no início e abertos no fim.
-- Recompensa econômica por conclusão não faz parte do primeiro slice.
+- Toda missão possui pelo menos uma recompensa e pode possuir várias; o primeiro slice suporta recompensas fixas de BinCoins e XP.
+- Métrica e recompensa são conceitos independentes: o tipo da métrica não restringe rigidamente o tipo ou a quantidade de recompensas.
+- Conclusões e aplicações de recompensas são efeitos server-side, materializados, idempotentes e auditáveis, com transação quando necessária.
 
 ## Conceitos do domínio
 
@@ -48,7 +50,7 @@ Não se fixa nesta documentação quais colunas guardarão esse snapshot. O requ
 
 ### Resultado do participante
 
-Representa o progresso e a eventual conclusão de um aluno ou de uma turma em um ciclo. O estado do resultado é independente do estado temporal do ciclo: um aluno pode concluir uma missão mensal no dia 12, enquanto o ciclo continua vigente até o primeiro dia do mês seguinte para os demais participantes.
+Representa o progresso derivado e a conclusão materializada de um aluno ou de uma turma em um ciclo. O estado do resultado é independente do estado temporal do ciclo: um aluno pode concluir uma missão mensal no dia 12, receber os efeitos aprovados e o ciclo continuar vigente até o primeiro dia do mês seguinte para os demais participantes.
 
 Os nomes exatos de tabelas, campos e enums desses conceitos serão definidos no desenho do schema posterior.
 
@@ -66,6 +68,10 @@ DEPOSITS
 PROGRESS
     ↓
 COMPLETION
+    ↓
+REWARD APPLICATION
+    ↓
+BALANCE / XP / AUDIT
     ↓
 FUTURE CAMPAIGN / BINGÓPOLIS
 ```
@@ -128,7 +134,9 @@ No primeiro slice, o progresso deve ser derivável de `deposits`. O Mobile não 
 
 O fluxo crítico `register_deposit_v1` não deve ser acoplado ao novo motor apenas para manter progresso de missão. O registro físico do descarte não pode falhar porque um subsistema de gamificação falhou.
 
-Se uma conclusão futuramente produzir recompensa, desbloqueio ou outro efeito persistente, a conclusão e o efeito deverão possuir idempotência e auditoria próprias, além de atomicidade quando necessária.
+Quando `progress >= target`, a conclusão deverá ser materializada para suportar a aplicação persistente das recompensas. Mesmo ciclo mais mesmo participante admite no máximo uma conclusão; a mesma conclusão mais a mesma recompensa admite no máximo uma aplicação. Aberturas repetidas do App, retries server-side, concorrência ou reavaliações de progresso não podem duplicar conclusão, BinCoins, XP ou audit logs relacionados.
+
+Conclusão e aplicação das recompensas críticas deverão ocorrer server-side, com idempotência e auditoria próprias e dentro de uma transação quando a consistência dos efeitos assim exigir. O Mobile pode solicitar ou consultar o processamento, mas nunca credita recompensa por conta própria. O desenho de schema e a fronteira de execução serão definidos em etapa posterior.
 
 ## Transferência de turma
 
@@ -146,13 +154,15 @@ A leitura no Mobile deverá ser autenticada e autorizada server-side. O próximo
 
 ## Templates recorrentes iniciais
 
-| Template oficial planejado | Escopo | Métrica | Recorrência | Situação da meta |
-| --- | --- | --- | --- | --- |
-| Consistência Sustentável | `STUDENT` | quantidade de descartes válidos | mensal | valor numérico configurável e ainda pendente |
-| Juntos pela Praça | `CLASS` | XP conquistado pela turma no ciclo | mensal | valor numérico configurável e ainda pendente |
-| Salve o Planeta | pendente | impacto ambiental | mensal pretendida | fora do primeiro slice; unidade, escopo final e meta pendentes |
+| Template oficial planejado | Escopo | Métrica | Recorrência | Meta | Recompensa |
+| --- | --- | --- | --- | --- | --- |
+| Consistência Sustentável | `STUDENT` | `VALID_DEPOSIT_COUNT` | `MONTHLY` | valor numérico configurável e ainda pendente | uma ou mais recompensas fixas obrigatórias; tipos e valores ainda pendentes |
+| Juntos pela Praça | `CLASS` | `CLASS_XP_EARNED` | `MONTHLY` | valor numérico configurável, na nova unidade de XP, ainda pendente | uma ou mais recompensas fixas obrigatórias; tipos e valores ainda pendentes |
+| Salve o Planeta | pendente | impacto ambiental | mensal pretendida | fora do primeiro slice; unidade, escopo final e meta pendentes | a definir quando entrar no escopo; também deverá possuir ao menos uma recompensa |
 
 `Juntos pela Praça` soma o XP histórico ganho durante o ciclo e nunca lê o saldo acumulado `classes.points_class_balance` como progresso mensal.
+
+Sua meta não deve reutilizar automaticamente `school_settings.class_weekly_xp_goal`, pois se trata de missão mensal com regra própria. Nenhum valor numérico de meta ou recompensa está aprovado por exemplos ou mocks.
 
 `Salve o Planeta` não deve ser implementada enquanto a unidade de impacto ambiental e seu escopo não forem aprovados. `bonus_bincoins_awarded` não é sua unidade por padrão.
 
@@ -166,11 +176,19 @@ O domínio de missões não altera a regra vigente de recompensa por descarte:
 - `bonus_rate_applied` e `bonus_bincoins_awarded` são snapshots históricos;
 - taxas usadas somente em seeds de desenvolvimento não constituem política de produção.
 
+A unidade oficial aprovada foi redenominada por fator `100`: `8` BinCoins antigos correspondem a `800` BinCoins novos e `19` XP antigos correspondem a `1900` XP novos. Isso não multiplica `bonus_rate` nem representa aumento econômico real. A conversão ainda não está implementada; até a migração coordenada, snapshots e runtime podem permanecer na unidade antiga e não devem ser misturados com novos valores.
+
 ## Recompensas de missão
 
-O primeiro slice não concede crédito extra de BinCoins, XP extra, estoque, recompensa física, resgate ou ledger de recompensa por conclusão. Textos de recompensa presentes nos mocks do Mobile não aprovam esses efeitos econômicos.
+Toda missão deve possuir pelo menos uma recompensa e pode possuir mais de uma. No primeiro slice, os tipos suportados são recompensas fixas de BinCoins e XP. Métrica e recompensa não são acopladas: uma missão de `VALID_DEPOSIT_COUNT` pode conceder BinCoins, e uma missão de `CLASS_XP_EARNED` pode conceder XP, BinCoins ou ambos.
 
-Uma missão poderá gerar efeitos adicionais no futuro. Qualquer efeito econômico deverá ser executado server-side, ser idempotente, auditável e transacional quando necessário.
+Os valores numéricos ainda dependem de aprovação explícita e deverão usar a nova unidade oficial. Textos e números presentes nos mocks do Mobile continuam sem força normativa. Estoque, recompensa física e resgate permanecem fora do primeiro slice.
+
+### Boosts e efeitos temporários
+
+Boosts como percentual adicional de BinCoins por sete dias ou percentual adicional de XP durante determinado período são uma evolução futura, fora do primeiro slice. Não se define schema nem fórmula para eles neste contrato.
+
+Se um boost vier a afetar um descarte, deverá ser processado server-side, ter período de validade, garantia de idempotência e snapshot do efeito efetivamente aplicado ao evento. Essa evolução exige revisão explícita do cálculo transacional de `register_deposit_v1`; a operação não é alterada nesta etapa.
 
 ## Relação futura com campanha
 
@@ -196,6 +214,9 @@ O primeiro slice futuro fica limitado a:
 - Consistência Sustentável;
 - Juntos pela Praça;
 - progresso derivado de `deposits`;
+- conclusão materializada e idempotente quando a meta for atingida;
+- uma ou mais recompensas fixas de BinCoins e/ou XP por missão;
+- aplicação server-side, idempotente, auditável e transacional das recompensas;
 - leitura autenticada autorizada;
 - integração com a tela autenticada de Missões no Mobile.
 
@@ -204,7 +225,8 @@ O primeiro slice futuro fica limitado a:
 - Salve o Planeta enquanto a métrica ambiental não estiver fechada;
 - campanha/BinGópolis e progressão de mapa;
 - ranking e trilhas;
-- recompensas econômicas de missões;
+- boosts e outros efeitos temporários;
+- estoque, recompensa física e resgate de recompensa de missão;
 - notificações;
 - CRUD real pelo Admin;
 - nova autenticação administrativa;
@@ -216,7 +238,7 @@ O primeiro slice futuro fica limitado a:
 
 - desenho do schema e nomes definitivos de tabelas, campos, constraints e enums;
 - representação exata do snapshot imutável das regras de cada ciclo;
-- metas numéricas de Consistência Sustentável e Juntos pela Praça;
+- metas numéricas e tipos/valores concretos das recompensas de Consistência Sustentável e Juntos pela Praça;
 - unidade, escopo e meta de Salve o Planeta/`ENVIRONMENTAL_IMPACT`;
 - mecanismo automático de criação de ciclos recorrentes;
 - estados exatos do ciclo e do resultado do participante;
@@ -224,12 +246,17 @@ O primeiro slice futuro fica limitado a:
 - policies RLS, grants e eventual fronteira server-side de leitura;
 - autenticação/autorização Supabase de `BINGO_ADMIN` e futuro CRUD global;
 - comportamento e autorização do início manual futuro;
-- modelo idempotente, auditável e transacional para eventuais efeitos de conclusão.
+- desenho exato da conclusão materializada, da aplicação idempotente de cada recompensa e dos audit logs correspondentes;
+- destino do XP concedido por missão `STUDENT`, comportamento após mudança de turma e eventual snapshot da `class_id` recebedora; creditar a turma do aluno no momento da conclusão é apenas hipótese ainda não aprovada;
+- detalhes de atribuição de XP em missão `CLASS`, além da tendência de a própria turma ser a recebedora;
+- estratégia coordenada para usar a nova unidade oficial em metas, recompensas, saldos e snapshots sem misturar escalas;
+- eventual modelo futuro de boosts, incluindo validade, snapshot do efeito e fórmula, sem mudança atual em `register_deposit_v1`.
 
 ## Próximos passos de implementação
 
-1. Desenhar o schema incremental sem alterar `register_deposit_v1`, incluindo as garantias de unicidade do ciclo e snapshot histórico.
+1. Desenhar o schema incremental sem alterar `register_deposit_v1`, incluindo unicidade do ciclo, snapshot histórico, conclusão materializada e aplicação idempotente de múltiplas recompensas.
 2. Definir o contrato de leitura autenticada e sua matriz de autorização para `STUDENT` e `CLASS`.
-3. Criar migrations e testes de banco em tarefa própria, incluindo fronteiras temporais, idempotência de ciclo, transferência de turma e isolamento por autorização.
-4. Provisionar somente os dois templates aprovados para o primeiro slice, com metas configuradas após decisão explícita.
-5. Implementar a leitura no Mobile autenticado somente depois que a fonte real e as políticas correspondentes estiverem comprovadas.
+3. Definir a estratégia de redenominação e normalização histórica antes de criar migrations, inclusive para saldos, depósitos, recompensas e auditoria.
+4. Criar migrations e testes de banco em tarefa própria, incluindo fronteiras temporais, idempotência de ciclo/conclusão/recompensa, transferência de turma e isolamento por autorização.
+5. Provisionar somente os dois templates aprovados para o primeiro slice, com metas e recompensas configuradas após decisão explícita.
+6. Implementar a leitura no Mobile autenticado somente depois que a fonte real e as políticas correspondentes estiverem comprovadas.
