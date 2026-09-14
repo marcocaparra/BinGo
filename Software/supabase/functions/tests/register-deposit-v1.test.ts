@@ -21,9 +21,9 @@ const CREATED_ROW: RegisterDepositRpcRow = {
   waste_category_code: "BATTERY",
   category_source: "AI_CONFIRMED",
   bonus_rate_applied: "1.0000",
-  bonus_bincoins_awarded: 8,
-  points_awarded_student: 16,
-  points_awarded_class: 19,
+  bonus_bincoins_awarded: 800,
+  points_awarded_student: 1600,
+  points_awarded_class: 1900,
   created_at: "2026-08-13T00:00:00.000Z",
   was_replayed: false,
 };
@@ -136,9 +136,9 @@ Deno.test("returns persisted RPC snapshot for an identified valid deposit", asyn
     waste_category_code: "BATTERY",
     category_source: "AI_CONFIRMED",
     bonus_rate_applied: "1.0000",
-    bonus_bincoins_awarded: 8,
-    points_awarded_student: 16,
-    points_awarded_class: 19,
+    bonus_bincoins_awarded: 800,
+    points_awarded_student: 1600,
+    points_awarded_class: 1900,
     created_at: CREATED_ROW.created_at,
   });
 });
@@ -153,7 +153,7 @@ Deno.test("accepts anonymous valid and invalid deposits with documented combinat
         waste_category_code: body.waste_category_code,
         category_source: body.category_source,
         points_awarded_student: 0,
-        points_awarded_class: body.is_valid ? 19 : 0,
+        points_awarded_class: body.is_valid ? 1900 : 0,
       },
       error: null,
     });

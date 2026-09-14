@@ -408,7 +408,7 @@ void main() {
     await tester.tap(find.text('Carteira'));
     await tester.pumpAndSettle();
     expect(find.text('17'), findsOneWidget);
-    expect(find.text('120'), findsNothing);
+    expect(find.text('12.000'), findsNothing);
     expect(find.text('BinBazar indisponível'), findsOneWidget);
     expect(find.text('Extrato indisponível'), findsOneWidget);
 

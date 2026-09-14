@@ -4,7 +4,7 @@ Revisão: `2026-09-13`
 
 Este contrato define o evento entregue pelo Totem e a resposta oficial da camada server-side. O cliente descreve o ciclo físico e a classificação final; somente o servidor calcula BinCoins, bônus e XP.
 
-A unidade oficial aprovada foi redenominada por fator `100`: `8` BinCoins antigos correspondem a `800` BinCoins novos e `19` XP antigos correspondem a `1900` XP novos. A relação econômica não mudou, e isso não é formatação de frontend. A implementação atual ainda pode responder e persistir a unidade antiga até uma migration coordenada; este contrato não afirma que `register_deposit_v1`, `bingo-dev` ou produção já tenham sido convertidos.
+A unidade oficial aprovada foi redenominada por fator `100`: `8` BinCoins antigos correspondem a `800` BinCoins novos e `19` XP antigos correspondem a `1900` XP novos. A relação econômica não mudou, e isso não é formatação de frontend. A migration está versionada e validada localmente; `register_deposit_v1` continua lendo as configurações persistidas e produz a nova unidade após a conversão. Este contrato não afirma que `bingo-dev` ou produção já tenham sido convertidos.
 
 ## Responsabilidades
 
@@ -93,7 +93,7 @@ O contrato não testa IA, turma, categoria ou regras de negócio e não implemen
 }
 ```
 
-O exemplo acima representa a unidade-alvo após a implementação futura da redenominação, com bônus de `50%`. Os números efetivamente retornados são sempre a fotografia persistida, não uma simulação nem uma multiplicação visual do cliente. Enquanto a migração não ocorrer, respostas e históricos existentes podem permanecer na unidade antiga e precisam ser interpretados como tal; novos valores não deverão ser misturados a saldos antigos. Consultas de histórico devem exibir o total e podem separar o bônus usando `bonus_bincoins_awarded`.
+O exemplo acima representa a unidade oficial após a redenominação, com bônus de `50%`. Os números efetivamente retornados são sempre a fotografia persistida, não uma simulação nem uma multiplicação visual do cliente. Em ambientes nos quais a migration ainda não foi aplicada, respostas e históricos podem permanecer na unidade antiga e precisam ser interpretados como tal; novos valores não deverão ser misturados a saldos antigos. Consultas de histórico devem exibir o total e podem separar o bônus usando `bonus_bincoins_awarded`.
 
 A primeira criação retorna HTTP `201`. Um replay idêntico retorna HTTP `200` com a mesma fotografia e sem reaplicar saldos ou auditoria.
 
@@ -101,7 +101,7 @@ A primeira criação retorna HTTP `201`. Um replay idêntico retorna HTTP `200` 
 
 Com aluno identificado, evento válido concede a base configurada mais `round(base × bonus_rate)`. A regra-alvo usa base `800` BinCoins e `1900` XP; sem aluno, concede `0` BinCoins e o XP normal. Evento inválido concede `0/0`. A categoria jamais altera o XP.
 
-`bonus_rate` continua percentual e não é multiplicado por `100`. Assim, base `800` com taxa `0.50` produz bônus `400` e total `1200`. A implementação futura deverá normalizar bases, saldos, snapshots e custos relacionados em conjunto; não há conversão implementada nesta revisão documental.
+`bonus_rate` continua percentual e não é multiplicado por `100`. Assim, base `800` com taxa `0.50` produz bônus `400` e total `1200`. A redenominação de bases, saldos, snapshots e custos relacionados está implementada e validada localmente; ainda não foi aplicada no `bingo-dev`, e este documento não faz qualquer afirmação de aplicação em produção. No futuro preflight remoto, novos descartes e resgates deverão ser suspensos e as transações em voo deverão terminar antes da aplicação da migration.
 
 As taxas da migration são zero em todos os ambientes. As seeds locais usam provisoriamente 100% para bateria, 50% para dispositivo móvel e 25% para cabo ou fio. Esses números servem para desenvolvimento e teste; não são política ambiental aprovada de produção.
 

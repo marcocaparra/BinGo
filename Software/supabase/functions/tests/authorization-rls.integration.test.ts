@@ -259,31 +259,31 @@ async function createDomainFixture(
         (
           ${fixture.depositOwnOlder}::uuid, gen_random_uuid(), ${fixture.schoolA}::uuid,
           ${fixture.machineA}::uuid, ${fixture.classA}::uuid, ${fixture.studentA}::uuid,
-          true, 'battery-own-older', 16, 19, '2026-01-01T10:00:00Z'::timestamptz,
-          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 8
+          true, 'battery-own-older', 1600, 1900, '2026-01-01T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 800
         ),
         (
           ${fixture.depositOwnNewer}::uuid, gen_random_uuid(), ${fixture.schoolA}::uuid,
           ${fixture.machineA}::uuid, ${fixture.classA}::uuid, ${fixture.studentA}::uuid,
-          true, 'battery-own-newer', 16, 19, '2026-01-02T10:00:00Z'::timestamptz,
-          ${fixture.wasteCategory}::uuid, 'USER_CORRECTED', 1, 8
+          true, 'battery-own-newer', 1600, 1900, '2026-01-02T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'USER_CORRECTED', 1, 800
         ),
         (
           ${fixture.depositSameSchoolOther}::uuid, gen_random_uuid(), ${fixture.schoolA}::uuid,
           ${fixture.machineA}::uuid, ${fixture.classB}::uuid, ${fixture.studentB}::uuid,
-          true, 'battery-same-school-other', 16, 19, '2026-01-03T10:00:00Z'::timestamptz,
-          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 8
+          true, 'battery-same-school-other', 1600, 1900, '2026-01-03T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 800
         ),
         (
           ${fixture.depositOtherSchool}::uuid, gen_random_uuid(), ${fixture.schoolB}::uuid,
           ${fixture.machineB}::uuid, ${fixture.classC}::uuid, ${fixture.studentC}::uuid,
-          true, 'battery-other-school', 16, 19, '2026-01-04T10:00:00Z'::timestamptz,
-          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 8
+          true, 'battery-other-school', 1600, 1900, '2026-01-04T10:00:00Z'::timestamptz,
+          ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 1, 800
         ),
         (
           ${fixture.depositAnonymous}::uuid, gen_random_uuid(), ${fixture.schoolA}::uuid,
           ${fixture.machineA}::uuid, ${fixture.classA}::uuid, null,
-          true, 'battery-anonymous', 0, 19, '2026-01-05T10:00:00Z'::timestamptz,
+          true, 'battery-anonymous', 0, 1900, '2026-01-05T10:00:00Z'::timestamptz,
           ${fixture.wasteCategory}::uuid, 'AI_CONFIRMED', 0, 0
         )
     `;

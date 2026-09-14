@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select extensions.plan(24);
+select extensions.plan(40);
 
 select extensions.is(
     (select count(*)::integer from public.waste_categories),
@@ -74,12 +74,12 @@ select extensions.lives_ok(
 );
 select extensions.is(
     (select points_awarded_student from public.deposits where event_id = '95000000-0000-4000-8000-000000000001'),
-    16,
-    'bateria concede 8 BinCoins base e 8 de bonus'
+    1600,
+    'bateria concede 800 BinCoins base e 800 de bonus'
 );
 select extensions.is(
     (select bonus_bincoins_awarded from public.deposits where event_id = '95000000-0000-4000-8000-000000000001'),
-    8,
+    800,
     'bonus concedido fica persistido separadamente'
 );
 select extensions.is(
@@ -101,7 +101,7 @@ select extensions.is(
 );
 select extensions.is(
     (select points_awarded_class from public.deposits where event_id = '95000000-0000-4000-8000-000000000001'),
-    19,
+    1900,
     'categoria nao altera o XP da turma'
 );
 
@@ -123,18 +123,142 @@ select extensions.is(
 );
 select extensions.is(
     (select points_student_balance from public.students where id = '93000000-0000-4000-8000-000000000001'),
-    16,
+    1600,
     'retry nao duplica BinCoins'
 );
 select extensions.is(
     (select points_class_balance from public.classes where id = '92000000-0000-4000-8000-000000000001'),
-    19,
+    1900,
     'retry nao duplica XP'
 );
 select extensions.is(
     (select count(*)::integer from public.audit_logs where action = 'DEPOSIT_REGISTERED'),
     1,
     'retry nao duplica auditoria'
+);
+
+select extensions.lives_ok(
+    $$
+    select * from public.register_deposit_v1(
+        '95000000-0000-4000-8000-000000000004',
+        '94000000-0000-4000-8000-000000000001',
+        '92000000-0000-4000-8000-000000000001',
+        true,
+        '93000000-0000-4000-8000-000000000001',
+        'celular',
+        'MOBILE_DEVICE',
+        'AI_CONFIRMED'
+    )
+    $$,
+    'descarte de dispositivo movel e registrado'
+);
+select extensions.is(
+    (select points_awarded_student from public.deposits where event_id = '95000000-0000-4000-8000-000000000004'),
+    1200,
+    'dispositivo movel concede 800 BinCoins base e 400 de bonus'
+);
+select extensions.is(
+    (select bonus_bincoins_awarded from public.deposits where event_id = '95000000-0000-4000-8000-000000000004'),
+    400,
+    'dispositivo movel preserva bonus de 50 por cento'
+);
+select extensions.is(
+    (select points_awarded_class from public.deposits where event_id = '95000000-0000-4000-8000-000000000004'),
+    1900,
+    'dispositivo movel nao multiplica XP pela categoria'
+);
+
+select extensions.lives_ok(
+    $$
+    select * from public.register_deposit_v1(
+        '95000000-0000-4000-8000-000000000005',
+        '94000000-0000-4000-8000-000000000001',
+        '92000000-0000-4000-8000-000000000001',
+        true,
+        '93000000-0000-4000-8000-000000000001',
+        'cabo',
+        'CABLE_WIRE',
+        'USER_CORRECTED'
+    )
+    $$,
+    'descarte de cabo e registrado'
+);
+select extensions.is(
+    (select points_awarded_student from public.deposits where event_id = '95000000-0000-4000-8000-000000000005'),
+    1000,
+    'cabo concede 800 BinCoins base e 200 de bonus'
+);
+select extensions.is(
+    (select bonus_bincoins_awarded from public.deposits where event_id = '95000000-0000-4000-8000-000000000005'),
+    200,
+    'cabo preserva bonus de 25 por cento'
+);
+select extensions.is(
+    (select points_awarded_class from public.deposits where event_id = '95000000-0000-4000-8000-000000000005'),
+    1900,
+    'cabo nao multiplica XP pela categoria'
+);
+
+select extensions.lives_ok(
+    $$
+    select * from public.register_deposit_v1(
+        '95000000-0000-4000-8000-000000000006',
+        '94000000-0000-4000-8000-000000000001',
+        '92000000-0000-4000-8000-000000000001',
+        true,
+        '93000000-0000-4000-8000-000000000001',
+        'mouse',
+        'PERIPHERAL',
+        'AI_CONFIRMED'
+    )
+    $$,
+    'descarte sem bonus e registrado'
+);
+select extensions.is(
+    (select points_awarded_student from public.deposits where event_id = '95000000-0000-4000-8000-000000000006'),
+    800,
+    'categoria sem bonus concede somente 800 BinCoins base'
+);
+select extensions.is(
+    (select bonus_bincoins_awarded from public.deposits where event_id = '95000000-0000-4000-8000-000000000006'),
+    0,
+    'categoria sem bonus persiste bonus zero'
+);
+select extensions.is(
+    (select points_awarded_class from public.deposits where event_id = '95000000-0000-4000-8000-000000000006'),
+    1900,
+    'categoria sem bonus concede 1900 XP'
+);
+
+select extensions.lives_ok(
+    $$
+    select * from public.register_deposit_v1(
+        '95000000-0000-4000-8000-000000000007',
+        '94000000-0000-4000-8000-000000000001',
+        '92000000-0000-4000-8000-000000000001',
+        false,
+        '93000000-0000-4000-8000-000000000001',
+        'objeto invalido',
+        null,
+        null
+    )
+    $$,
+    'descarte invalido e registrado sem recompensa'
+);
+select extensions.is(
+    (select points_awarded_student from public.deposits where event_id = '95000000-0000-4000-8000-000000000007'),
+    0,
+    'descarte invalido nao concede BinCoins'
+);
+select extensions.is(
+    (select bonus_bincoins_awarded from public.deposits where event_id = '95000000-0000-4000-8000-000000000007'),
+    0,
+    'descarte invalido nao concede bonus'
+);
+select extensions.is(
+    (select points_awarded_class from public.deposits where event_id = '95000000-0000-4000-8000-000000000007'),
+    0,
+    'descarte invalido nao concede XP'
 );
 
 select extensions.throws_ok(
@@ -231,7 +355,7 @@ select extensions.is(
 );
 select extensions.is(
     (select points_awarded_class from public.deposits where event_id = '95000000-0000-4000-8000-000000000002'),
-    19,
+    1900,
     'descarte sem aluno ainda concede XP'
 );
 

@@ -157,9 +157,7 @@ class _ShellScreenState extends State<ShellScreen> {
               isPilot: widget.onExitPilot != null || widget.repository == null,
             ),
             ProfileScreen(
-              repository: widget.onExitPilot == null
-                  ? widget.repository
-                  : null,
+              repository: widget.onExitPilot == null ? widget.repository : null,
               onGoHome: () => _selectTab(0),
               onExitPilot: widget.onExitPilot,
             ),
@@ -2319,17 +2317,20 @@ class _RewardPriceBand extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: color.withValues(alpha: 0.26)),
         ),
-        child: BinCoinAmount(
-          value: value,
-          size: large ? 25 : 23,
-          style:
-              (large
-                      ? Theme.of(context).textTheme.titleLarge
-                      : Theme.of(context).textTheme.titleMedium)
-                  ?.copyWith(
-                    color: AppColors.navy,
-                    fontWeight: FontWeight.w900,
-                  ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: BinCoinAmount(
+            value: value,
+            size: large ? 25 : 23,
+            style:
+                (large
+                        ? Theme.of(context).textTheme.titleLarge
+                        : Theme.of(context).textTheme.titleMedium)
+                    ?.copyWith(
+                      color: AppColors.navy,
+                      fontWeight: FontWeight.w900,
+                    ),
+          ),
         ),
       ),
     );
@@ -3266,8 +3267,8 @@ class _RankingHero extends StatelessWidget {
     return Semantics(
       container: true,
       label:
-          'Sua turma, 9ºA, está em quarto lugar com 760 pontos. '
-          'A próxima meta é alcançar o top 3 com mais 50 pontos.',
+          'Sua turma, 9ºA, está em quarto lugar com 76000 pontos. '
+          'A próxima meta é alcançar o top 3 com mais 5000 pontos.',
       child: ExcludeSemantics(
         child: SurfaceCard(
           color: const Color(0xFFEAF6FF),
@@ -3298,7 +3299,7 @@ class _RankingHero extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Próxima meta: 50 pontos para o top 3',
+                      'Próxima meta: 5000 pontos para o top 3',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.navy,
                         fontWeight: FontWeight.w700,
@@ -3309,7 +3310,7 @@ class _RankingHero extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const AnimatedProgressPill(
-                value: 760 / 810,
+                value: 76000 / 81000,
                 color: AppColors.green,
                 backgroundColor: Colors.white,
                 height: 12,
@@ -3333,7 +3334,7 @@ class _RankingScore extends StatelessWidget {
         Text('Sua turma · 9ºA', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 4),
         Text(
-          '760 pts',
+          '76.000 pts',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             color: AppColors.blue,
             fontWeight: FontWeight.w900,
@@ -3397,7 +3398,7 @@ class _PodiumCard extends StatelessWidget {
                 child: _PodiumPlace(
                   position: '2º',
                   room: '8ºB',
-                  points: '920 pts',
+                  points: '92.000 pts',
                   height: 86,
                   color: AppColors.blue,
                 ),
@@ -3407,7 +3408,7 @@ class _PodiumCard extends StatelessWidget {
                 child: _PodiumPlace(
                   position: '1º',
                   room: '7ºA',
-                  points: '1.240 pts',
+                  points: '124.000 pts',
                   height: 112,
                   color: AppColors.warning,
                 ),
@@ -3417,7 +3418,7 @@ class _PodiumCard extends StatelessWidget {
                 child: _PodiumPlace(
                   position: '3º',
                   room: '6ºC',
-                  points: '810 pts',
+                  points: '81.000 pts',
                   height: 72,
                   color: AppColors.green,
                 ),

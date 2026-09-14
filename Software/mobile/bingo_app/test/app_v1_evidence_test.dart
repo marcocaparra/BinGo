@@ -255,7 +255,7 @@ void main() {
 
     tester
         .widget<BingoActionButton>(
-          find.widgetWithText(BingoActionButton, 'Simular por 30 BinCoins'),
+          find.widgetWithText(BingoActionButton, 'Simular por 3000 BinCoins'),
         )
         .onPressed!();
     await tester.pumpAndSettle();

@@ -47,8 +47,8 @@ void main() {
         category: null,
         categorySource: 'AI_CONFIRMED',
         bonusBinCoinsAwarded: 0,
-        pointsAwardedStudent: 8,
-        pointsAwardedClass: 19,
+        pointsAwardedStudent: 800,
+        pointsAwardedClass: 1900,
       ),
     );
 

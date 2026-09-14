@@ -292,7 +292,7 @@ const screens = [
             <div>
               <strong>1 cabo ou carregador</strong>
               <div class="ai-rewards">
-                <span class="reward-gradient"><b>+8</b> BinCoins</span>
+                <span class="reward-gradient"><b>+800</b> BinCoins</span>
                 <span class="team-reward"><b>+1</b> ponto para a turma</span>
               </div>
             </div>
@@ -315,9 +315,9 @@ const screens = [
       <section class="screen screen--big screen--success">
         ${topbar("Concluído")}
         <div class="content-zone content-zone--big">
-          ${talk(assets.b1nReward, "Boa! +8 BinCoins pra você.", "big character-reward")}
+          ${talk(assets.b1nReward, "Boa! +800 BinCoins pra você.", "big character-reward")}
           <div class="reward-card">
-            <div class="metric metric--you"><span>Você</span><strong class="score-gradient"><span class="reward-number count-pop">+8</span><span class="reward-unit"> BinCoins</span></strong></div>
+            <div class="metric metric--you"><span>Você</span><strong class="score-gradient"><span class="reward-number count-pop">+800</span><span class="reward-unit"> BinCoins</span></strong></div>
             <div class="metric metric--class"><span>Turma</span><strong class="team-reward"><span class="reward-number">+1</span><span class="reward-unit"> ponto</span></strong></div>
           </div>
         </div>

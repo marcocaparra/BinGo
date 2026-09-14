@@ -198,7 +198,7 @@ async function exerciseDepositContract(database: TestDatabase): Promise<void> {
   equal(anonymous.status, 201);
   const anonymousBody = await anonymous.json() as DepositResponse;
   equal(anonymousBody.points_awarded_student, 0);
-  equal(anonymousBody.points_awarded_class, 19);
+  equal(anonymousBody.points_awarded_class, 1900);
 
   const invalid = await post(validBody(crypto.randomUUID(), {
     student_id: null,

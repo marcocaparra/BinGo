@@ -176,7 +176,7 @@ O domínio de missões não altera a regra vigente de recompensa por descarte:
 - `bonus_rate_applied` e `bonus_bincoins_awarded` são snapshots históricos;
 - taxas usadas somente em seeds de desenvolvimento não constituem política de produção.
 
-A unidade oficial aprovada foi redenominada por fator `100`: `8` BinCoins antigos correspondem a `800` BinCoins novos e `19` XP antigos correspondem a `1900` XP novos. Isso não multiplica `bonus_rate` nem representa aumento econômico real. A conversão ainda não está implementada; até a migração coordenada, snapshots e runtime podem permanecer na unidade antiga e não devem ser misturados com novos valores.
+A unidade oficial aprovada foi redenominada por fator `100`: `8` BinCoins antigos correspondem a `800` BinCoins novos e `19` XP antigos correspondem a `1900` XP novos. Isso não multiplica `bonus_rate` nem representa aumento econômico real. A conversão está versionada e validada localmente em migrations próprias, sem implementação de schema ou recompensa de missões; ambientes ainda não migrados podem permanecer na unidade antiga e não devem misturar escalas.
 
 ## Recompensas de missão
 
@@ -256,7 +256,7 @@ O primeiro slice futuro fica limitado a:
 
 1. Desenhar o schema incremental sem alterar `register_deposit_v1`, incluindo unicidade do ciclo, snapshot histórico, conclusão materializada e aplicação idempotente de múltiplas recompensas.
 2. Definir o contrato de leitura autenticada e sua matriz de autorização para `STUDENT` e `CLASS`.
-3. Definir a estratégia de redenominação e normalização histórica antes de criar migrations, inclusive para saldos, depósitos, recompensas e auditoria.
+3. Aplicar e validar a migration de redenominação nos ambientes hospedados em tarefa própria antes de persistir metas ou recompensas de missão na nova unidade.
 4. Criar migrations e testes de banco em tarefa própria, incluindo fronteiras temporais, idempotência de ciclo/conclusão/recompensa, transferência de turma e isolamento por autorização.
 5. Provisionar somente os dois templates aprovados para o primeiro slice, com metas e recompensas configuradas após decisão explícita.
 6. Implementar a leitura no Mobile autenticado somente depois que a fonte real e as políticas correspondentes estiverem comprovadas.

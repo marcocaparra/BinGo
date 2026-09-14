@@ -175,9 +175,9 @@ void main() {
           tester.getTopLeft(coinIcon).dy,
         ];
         final valueTops = <double>[
-          tester.getTopLeft(find.text('760')).dy,
-          tester.getTopLeft(find.text('1.190')).dy,
-          tester.getTopLeft(find.text('120')).dy,
+          tester.getTopLeft(find.text('76.000')).dy,
+          tester.getTopLeft(find.text('119.000')).dy,
+          tester.getTopLeft(find.text('12.000')).dy,
         ];
         final labelTops = <double>[
           tester.getTopLeft(find.text('Pontos pessoais')).dy,
@@ -198,7 +198,7 @@ void main() {
           expect(text.overflow, isNot(TextOverflow.ellipsis));
           expect(text.style?.fontSize ?? 11, greaterThanOrEqualTo(10));
         }
-        expect(find.bySemanticsLabel('120 BinCoins'), findsOneWidget);
+        expect(find.bySemanticsLabel('12000 BinCoins'), findsOneWidget);
         expect(find.bySemanticsLabel('BinCoins'), findsNothing);
       },
     );
@@ -359,9 +359,9 @@ void main() {
     expect(find.textContaining('Marco'), findsNothing);
     expect(find.text('ENIAC'), findsNothing);
     expect(find.text('9ºA'), findsNothing);
-    expect(find.text('120'), findsNothing);
-    expect(find.text('760'), findsNothing);
-    expect(find.text('1.190'), findsNothing);
+    expect(find.text('12.000'), findsNothing);
+    expect(find.text('76.000'), findsNothing);
+    expect(find.text('119.000'), findsNothing);
     expect(find.text('Pontos pessoais'), findsNothing);
     expect(find.text('Nível 3 · Restaurador'), findsNothing);
     expect(find.text('Ver missões'), findsNothing);

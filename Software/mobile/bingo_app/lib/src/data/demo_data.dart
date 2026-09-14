@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
 
-const userBinCoins = 120;
+const userBinCoins = 12000;
 const centralSquareProgress = 0.68;
 
 class ScenarioSnapshot {
@@ -307,7 +307,7 @@ const activeMission = Mission(
   detailText:
       'Um descarte seguro e validado ajuda sua turma a restaurar BinGópolis.',
   progress: 0.68,
-  reward: '+10 BinCoins',
+  reward: '+1000 BinCoins',
   color: AppColors.green,
   image: AppAssets.sceneClean,
   state: MissionState.active,
@@ -332,7 +332,7 @@ const missions = [
     detailTitle: 'Três escolhas que contam',
     detailText: 'Três descartes seguros ajudaram o progresso da sua turma.',
     progress: 1,
-    reward: '+30 BinCoins',
+    reward: '+3000 BinCoins',
     color: AppColors.green,
     image: AppAssets.sceneClean,
     state: MissionState.completed,
@@ -345,7 +345,7 @@ const missions = [
   Mission(
     id: 'class-rank',
     title: 'Avance com sua turma',
-    subtitle: 'Faltam 50 pontos para subir uma posição',
+    subtitle: 'Faltam 5000 pontos para subir uma posição',
     detailTitle: 'Rumo ao pódio',
     detailText: 'Cada descarte validado soma pontos para a turma.',
     progress: 0.45,
@@ -354,7 +354,7 @@ const missions = [
     image: AppAssets.sceneTransition,
     state: MissionState.upcoming,
     steps: [
-      ('Veja a meta', 'Faltam 50 pontos para chegar ao 3º lugar.'),
+      ('Veja a meta', 'Faltam 5000 pontos para chegar ao 3º lugar.'),
       ('Participe com a turma', 'Cada descarte seguro e validado soma pontos.'),
       ('Abra um novo caminho', 'Ao atingir a meta, BinGópolis avança.'),
     ],
@@ -389,7 +389,7 @@ const rewards = [
   RewardItem(
     id: 'natural-juice',
     title: 'Suco natural',
-    cost: 30,
+    cost: 3000,
     icon: Icons.local_drink,
     color: AppColors.green,
     asset: AppAssets.rewardJuice,
@@ -399,7 +399,7 @@ const rewards = [
   RewardItem(
     id: 'themed-pen',
     title: 'Caneta temática',
-    cost: 70,
+    cost: 7000,
     icon: Icons.edit,
     color: AppColors.blue,
     asset: AppAssets.rewardPen,
@@ -409,7 +409,7 @@ const rewards = [
   RewardItem(
     id: 'cafeteria-ticket',
     title: 'Ticket cantina',
-    cost: 120,
+    cost: 12000,
     icon: Icons.confirmation_number,
     color: AppColors.warning,
     asset: AppAssets.rewardCafeteriaTicket,
@@ -419,7 +419,7 @@ const rewards = [
   RewardItem(
     id: 'surprise-reward',
     title: 'Prêmio surpresa',
-    cost: 180,
+    cost: 18000,
     icon: Icons.card_giftcard,
     color: AppColors.scr4p,
     asset: AppAssets.rewardSurprise,
@@ -432,19 +432,19 @@ const binCoinTransactions = [
   BinCoinTransaction(
     title: 'Crédito',
     subtitle: 'Missão de descarte consciente concluída',
-    amount: 10,
+    amount: 1000,
     kind: TransactionKind.credit,
   ),
   BinCoinTransaction(
     title: 'Uso',
     subtitle: 'Simulação: suco natural no BinBazar',
-    amount: 30,
+    amount: 3000,
     kind: TransactionKind.debit,
   ),
   BinCoinTransaction(
     title: 'Crédito',
     subtitle: 'Bônus de progresso territorial',
-    amount: 20,
+    amount: 2000,
     kind: TransactionKind.credit,
   ),
 ];
@@ -453,31 +453,31 @@ const discardHistory = [
   DiscardRecord(
     item: 'Mouse sem uso',
     dateLabel: 'Hoje · 10:24',
-    binCoins: 10,
-    classPoints: 25,
+    binCoins: 1000,
+    classPoints: 2500,
     icon: Icons.mouse_outlined,
   ),
   DiscardRecord(
     item: 'Cabo USB',
     dateLabel: '25 jul · 14:10',
-    binCoins: 8,
-    classPoints: 20,
+    binCoins: 800,
+    classPoints: 2000,
     icon: Icons.cable_outlined,
   ),
   DiscardRecord(
     item: 'Fone de ouvido',
     dateLabel: '22 jul · 09:42',
-    binCoins: 12,
-    classPoints: 30,
+    binCoins: 1200,
+    classPoints: 3000,
     icon: Icons.headphones_outlined,
   ),
 ];
 
 const classRows = [
-  ('1º', '7ºA', '1.240 pts', '+180'),
-  ('2º', '8ºB', '920 pts', '+90'),
-  ('3º', '6ºC', '810 pts', '+70'),
-  ('4º', '9ºA', '760 pts', '+210 hoje'),
+  ('1º', '7ºA', '124.000 pts', '+18.000'),
+  ('2º', '8ºB', '92.000 pts', '+9.000'),
+  ('3º', '6ºC', '81.000 pts', '+7.000'),
+  ('4º', '9ºA', '76.000 pts', '+21.000 hoje'),
 ];
 
 const impactImages = [AppAssets.sceneCorrupt, AppAssets.sceneClean];

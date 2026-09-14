@@ -8,7 +8,7 @@ void main() {
     final redemption = controller.redeem(rewards.first);
 
     expect(redemption, isNotNull);
-    expect(controller.balance, 90);
+    expect(controller.balance, 9000);
     expect(controller.transactions.first.subtitle, contains('Suco natural'));
     expect(controller.transactions.first.kind, TransactionKind.debit);
     expect(redemption!.pickupCode, startsWith('BGO-'));
@@ -30,7 +30,7 @@ void main() {
     final changed = SessionWalletController()..redeem(rewards.first);
     final restarted = SessionWalletController();
 
-    expect(changed.balance, 90);
+    expect(changed.balance, 9000);
     expect(restarted.balance, userBinCoins);
     expect(restarted.redemptions, isEmpty);
     expect(restarted.transactions, binCoinTransactions);

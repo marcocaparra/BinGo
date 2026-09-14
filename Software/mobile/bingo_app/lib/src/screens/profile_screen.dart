@@ -1199,7 +1199,7 @@ class _ResourceSummary extends StatelessWidget {
             _ResourceTile(
               key: const ValueKey('profile-resource-personal'),
               width: width,
-              value: '760',
+              value: '76.000',
               label: 'Pontos pessoais',
               icon: Icons.person_rounded,
               color: AppColors.green,
@@ -1207,7 +1207,7 @@ class _ResourceSummary extends StatelessWidget {
             _ResourceTile(
               key: const ValueKey('profile-resource-class'),
               width: width,
-              value: '1.190',
+              value: '119.000',
               label: 'Pontos da turma',
               icon: Icons.groups_rounded,
               color: AppColors.blue,
@@ -1217,7 +1217,7 @@ class _ResourceSummary extends StatelessWidget {
               width: width,
               label: 'BinCoins',
               color: AppColors.warning,
-              binCoinValue: 120,
+              binCoinValue: 12000,
             ),
           ],
         );
