@@ -1,8 +1,8 @@
 # Supabase Edge Functions MVP — descarte e pontuação
 
-Revisão: `2026-09-13`
+Revisão: `2026-09-15`
 
-Status: schema, contrato, RPCs PostgreSQL, autenticação técnica e as Edge Functions HTTP de descarte e readiness implementados e comprovados localmente. A redenominação oficial por fator `100` também está versionada e validada no ambiente local. Não há nesta revisão comprovação de conversão no Supabase hospedado ou em produção.
+Status: schema, contrato, RPCs PostgreSQL, autenticação técnica e as Edge Functions HTTP de descarte e readiness implementados e comprovados localmente. A redenominação oficial por fator `100` está versionada e validada localmente e foi aplicada e aprovada no postflight do `bingo-dev`. Não houve novo deploy de Edge Function por causa da redenominação, e não há comprovação equivalente de produção.
 
 ## Arquitetura
 
@@ -70,7 +70,7 @@ A chamada usa um cliente server-side com `service_role`. A chave deve permanecer
 
 ## Pontuação
 
-O runtime versionado passa a usar, após a migration incremental de redenominação, `800` BinCoins de base, `1900` XP e meta semanal de `10000` XP em `school_settings`. Esses valores correspondem à unidade anterior `8/19/100` multiplicada por `100`, mantendo equivalência econômica. `register_deposit_v1` não contém esses valores hardcoded: continua lendo as configurações persistidas e, por isso, produz a nova unidade após a migration. A implementação foi comprovada localmente, sem declaração de aplicação no `bingo-dev` ou em produção.
+O runtime versionado usa, após a migration incremental de redenominação, `800` BinCoins de base, `1900` XP e meta semanal de `10000` XP em `school_settings`. Esses valores correspondem à unidade anterior `8/19/100` multiplicada por `100`, mantendo equivalência econômica. `register_deposit_v1` não contém esses valores hardcoded: continua lendo as configurações persistidas e, por isso, produz a unidade configurada. A implementação foi comprovada localmente e no `bingo-dev`, onde os defaults hospedados `800/1900/10000` foram validados; isso não declara o estado de produção.
 
 O bônus individual continua sendo `round(base × bonus_rate)` e somado à base. `bonus_rate` não é multiplicado por `100`, e o XP não recebe multiplicador. A migration normaliza configurações, saldos, snapshots e custos de resgate existentes de modo atômico; valores futuros de missões deverão nascer na mesma unidade sem misturar escalas.
 

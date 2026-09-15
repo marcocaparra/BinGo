@@ -1,6 +1,6 @@
 # Contrato de domínio — Missões V1
 
-Revisão: `2026-09-13`
+Revisão: `2026-09-15`
 
 Status: contrato conceitual aprovado; implementação ainda inexistente.
 
@@ -176,7 +176,7 @@ O domínio de missões não altera a regra vigente de recompensa por descarte:
 - `bonus_rate_applied` e `bonus_bincoins_awarded` são snapshots históricos;
 - taxas usadas somente em seeds de desenvolvimento não constituem política de produção.
 
-A unidade oficial aprovada foi redenominada por fator `100`: `8` BinCoins antigos correspondem a `800` BinCoins novos e `19` XP antigos correspondem a `1900` XP novos. Isso não multiplica `bonus_rate` nem representa aumento econômico real. A conversão está versionada e validada localmente em migrations próprias, sem implementação de schema ou recompensa de missões; ambientes ainda não migrados podem permanecer na unidade antiga e não devem misturar escalas.
+A unidade oficial aprovada foi redenominada por fator `100`: `8` BinCoins antigos correspondem a `800` BinCoins novos e `19` XP antigos correspondem a `1900` XP novos. Isso não multiplica `bonus_rate` nem representa aumento econômico real. A conversão está versionada e validada localmente e foi aplicada e aprovada no postflight do `bingo-dev`, sem implementação de schema ou recompensa de missões. Metas e recompensas futuras de Missões devem nascer diretamente na unidade nova. Essa evidência é exclusiva do DEV e não permite inferir o estado de produção.
 
 ## Recompensas de missão
 
@@ -249,14 +249,13 @@ O primeiro slice futuro fica limitado a:
 - desenho exato da conclusão materializada, da aplicação idempotente de cada recompensa e dos audit logs correspondentes;
 - destino do XP concedido por missão `STUDENT`, comportamento após mudança de turma e eventual snapshot da `class_id` recebedora; creditar a turma do aluno no momento da conclusão é apenas hipótese ainda não aprovada;
 - detalhes de atribuição de XP em missão `CLASS`, além da tendência de a própria turma ser a recebedora;
-- estratégia coordenada para usar a nova unidade oficial em metas, recompensas, saldos e snapshots sem misturar escalas;
+- garantia de que metas, recompensas, saldos e snapshots futuros de Missões nasçam diretamente na nova unidade oficial, sem misturar escalas;
 - eventual modelo futuro de boosts, incluindo validade, snapshot do efeito e fórmula, sem mudança atual em `register_deposit_v1`.
 
 ## Próximos passos de implementação
 
-1. Desenhar o schema incremental sem alterar `register_deposit_v1`, incluindo unicidade do ciclo, snapshot histórico, conclusão materializada e aplicação idempotente de múltiplas recompensas.
+1. Retomar o desenho técnico do schema incremental de Missões V1 sem alterar `register_deposit_v1`, incluindo unicidade do ciclo, snapshot histórico, conclusão materializada e aplicação idempotente de múltiplas recompensas.
 2. Definir o contrato de leitura autenticada e sua matriz de autorização para `STUDENT` e `CLASS`.
-3. Aplicar e validar a migration de redenominação nos ambientes hospedados em tarefa própria antes de persistir metas ou recompensas de missão na nova unidade.
-4. Criar migrations e testes de banco em tarefa própria, incluindo fronteiras temporais, idempotência de ciclo/conclusão/recompensa, transferência de turma e isolamento por autorização.
-5. Provisionar somente os dois templates aprovados para o primeiro slice, com metas e recompensas configuradas após decisão explícita.
-6. Implementar a leitura no Mobile autenticado somente depois que a fonte real e as políticas correspondentes estiverem comprovadas.
+3. Criar migrations e testes de banco em tarefa própria, incluindo fronteiras temporais, idempotência de ciclo/conclusão/recompensa, transferência de turma e isolamento por autorização.
+4. Provisionar somente os dois templates aprovados para o primeiro slice, com metas e recompensas configuradas após decisão explícita.
+5. Implementar a leitura no Mobile autenticado somente depois que a fonte real e as políticas correspondentes estiverem comprovadas.
