@@ -898,15 +898,15 @@ select extensions.ok(
 );
 
 select extensions.ok(
-    not exists (
-        select 1
+    (
+        select count(*) = 1
         from pg_catalog.pg_proc function_row
         join pg_catalog.pg_namespace namespace
           on namespace.oid = function_row.pronamespace
         where namespace.nspname = 'public'
           and function_row.proname ~ '(mission|missions)'
     ),
-    'fundacao estrutural nao cria RPC de Missoes'
+    'runtime posterior adiciona somente a RPC autenticada de leitura de Missoes'
 );
 
 select extensions.ok(
@@ -920,7 +920,7 @@ select extensions.ok(
         from public.students
         where id = 'a3000000-0000-4000-8000-000000000002'
     ),
-    'fixture preserva que status ACTIVE, e nao is_activated, orientara a futura RPC'
+    'fixture preserva que status ACTIVE, e nao is_activated, orienta a RPC de leitura'
 );
 
 select * from extensions.finish();
