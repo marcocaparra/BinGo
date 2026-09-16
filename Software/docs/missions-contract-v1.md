@@ -2,21 +2,23 @@
 
 Revisão: `2026-09-15`
 
-Status: contrato conceitual aprovado; implementação ainda inexistente.
+Status: contrato conceitual aprovado; fundação estrutural local implementada e validada; runtime ainda pendente.
 
 ## Objetivo
 
-Este documento consolida as decisões de produto, domínio, histórico, tempo, segurança e fronteiras de implementação para Missões V1. Ele orienta o desenho técnico da etapa seguinte, mas não define schema PostgreSQL, nomes definitivos de tabelas ou campos, endpoints, RPCs, Edge Functions ou repositories Flutter.
+Este documento consolida as decisões de produto, domínio, histórico, tempo, segurança e fronteiras de implementação para Missões V1. Ele também registra a fundação estrutural PostgreSQL já implementada localmente, sem declarar como implementados RPCs, Edge Functions, processamento de conclusão ou repositories Flutter.
 
 ## Contexto e estado atual
 
-As missões são metas globais do ecossistema BinGo acompanhadas por aluno ou turma. Suas definições são globais, mas cada execução concreta ocorre em um ciclo pertencente a uma escola. No primeiro slice, o progresso será derivado dos eventos persistidos em `deposits`, sem inscrição prévia, sem contador mantido pelo Mobile e sem alterar o fluxo físico de descarte. Ao atingir a meta, uma conclusão materializada deverá aplicar server-side os valores fixos configurados de BinCoins e XP.
+As missões são metas globais do ecossistema BinGo acompanhadas por aluno ou turma. Suas definições são globais, mas cada execução concreta ocorre em um ciclo pertencente a uma escola. No primeiro slice, o progresso é derivado dos eventos persistidos em `deposits`, sem inscrição prévia, sem contador mantido pelo Mobile e sem alterar o fluxo físico de descarte. Ao atingir a meta, uma futura operação de conclusão deverá materializar e aplicar server-side os valores fixos configurados de BinCoins e XP.
 
-O repositório já preserva em cada depósito os elementos históricos necessários para as métricas inicialmente aprovadas: `event_id`, `student_id`, `class_id`, `is_valid`, `points_awarded_class` e `created_at`. Também preserva os snapshots econômicos `bonus_rate_applied` e `bonus_bincoins_awarded`. Esses fatos não significam que o motor de missões exista.
+O repositório já preserva em cada depósito os elementos históricos necessários para as métricas inicialmente aprovadas: `event_id`, `student_id`, `class_id`, `is_valid`, `points_awarded_class` e `created_at`. Também preserva os snapshots econômicos `bonus_rate_applied` e `bonus_bincoins_awarded`. A fundação estrutural de Missões existe localmente, mas esses fatos não significam que o runtime de leitura, conclusão ou recompensa exista.
 
 O Mobile contém telas e dados locais de demonstração para missões, recompensas e BinGópolis. No fluxo autenticado, a tela informa que ainda não há fonte autorizada de missões. Esses mocks são referência visual e narrativa, não contrato de backend, catálogo oficial, regra econômica ou evidência de integração real.
 
-Nesta etapa não foram criados artefatos de runtime: não há migration, tabela, função PostgreSQL, RLS, Edge Function, endpoint, repository Flutter, integração autenticada ou CRUD administrativo de missões.
+As migrations equivalentes `database/migrations/012_missions_v1_schema.sql` e `supabase/migrations/20260915120000_missions_v1_schema.sql` criam localmente `mission_definitions`, `mission_cycles`, `mission_completions` e `mission_reward_applications`, além do índice aprovado para progresso coletivo. As quatro tabelas possuem RLS estrutural fechada. O reset local aplicou `12` migrations, a suíte pgTAP passou com `163` testes e o teste específico da migration passou com `3` testes.
+
+Essa fundação não implementa runtime: ainda não existem RPC de leitura, cálculo de progresso, processamento de conclusão ou aplicação de recompensa, Edge Function de Missões, integração Mobile autenticada ou CRUD administrativo. A migration de Missões também não foi aplicada no `bingo-dev`, e não há comprovação de aplicação em produção.
 
 ## Decisões oficiais
 
@@ -39,7 +41,7 @@ Nesta etapa não foram criados artefatos de runtime: não há migration, tabela,
 - Métrica e recompensa são conceitos independentes: o tipo da métrica não restringe qual dos dois valores de recompensa é positivo.
 - Conclusões e aplicações de recompensas são efeitos server-side, materializados, idempotentes e auditáveis, com transação quando necessária.
 - Para missão `STUDENT`, os BinCoins vão ao aluno e o XP vai à turma atual do aluno no instante da materialização.
-- Para missão `CLASS`, o XP vai à própria turma e os BinCoins são concedidos integralmente a cada aluno vinculado à turma no instante da materialização.
+- Para missão `CLASS`, o XP vai à própria turma e os BinCoins são concedidos integralmente a cada aluno `ACTIVE` vinculado à turma no instante da materialização; `is_activated` não participa dessa seleção.
 - O relógio autoritativo das métricas é `deposits.created_at`; a conclusão pode ser materializada depois de `ends_at` quando a evidência que atingiu a meta estiver dentro do ciclo.
 
 ## Conceitos do domínio
@@ -60,7 +62,7 @@ Representa o progresso derivado e a conclusão materializada de um aluno ou de u
 
 A conclusão preserva tanto o instante histórico em que a meta foi atingida quanto o instante em que foi materializada. As aplicações econômicas persistidas identificam os destinatários reais e tornam-se o histórico autoritativo do efeito, sem recalcular ou redistribuir recompensas depois.
 
-Os nomes exatos de tabelas, campos e enums desses conceitos serão definidos no desenho do schema posterior.
+Esses conceitos estão representados estruturalmente pelas tabelas `mission_definitions`, `mission_cycles`, `mission_completions` e `mission_reward_applications`. O progresso permanece derivado e não possui tabela própria. A fundação física não antecipa o runtime transacional que futuramente criará conclusões e aplicações econômicas.
 
 ```text
 BINGO_ADMIN
@@ -97,11 +99,15 @@ FUTURE CAMPAIGN / BINGÓPOLIS
 
 Não existe botão obrigatório de participação, opt-in, tabela de inscrição de alunos, tabela de inscrição de turmas nem cópia prévia de missão por participante. Um ciclo `STUDENT` vale automaticamente para os alunos elegíveis da escola do ciclo; um ciclo `CLASS` vale automaticamente para as turmas elegíveis dessa escola.
 
-Onboarding, primeiro login, PIN, confirmação de e-mail e criação de conta não fazem parte desta feature. O primeiro slice trabalha sobre alunos e turmas já existentes. O modelo atual possui atributos como `students.status` e `students.is_activated`, mas a regra normativa que distingue, para Missões, uma entidade meramente existente de uma entidade elegível ainda não está definida de forma inequívoca. Essa pendência operacional não autoriza criar uma tabela de participação.
+Onboarding, primeiro login, PIN, confirmação de e-mail e criação de conta não fazem parte desta feature. O primeiro slice trabalha sobre alunos e turmas já existentes, sem criar tabela de participação.
+
+Para `STUDENT`, o aluno deve pertencer à escola do ciclo e possuir `students.status = 'ACTIVE'`. `students.is_activated` não participa da elegibilidade de Missões. Para `CLASS`, a turma deve pertencer à escola do ciclo; o modelo atual não possui status de turma aprovado para essa finalidade.
+
+Na recompensa de BinCoins de uma missão `CLASS`, recebem somente os alunos que, no instante da materialização, estejam vinculados à turma e possuam `students.status = 'ACTIVE'`. `is_activated` também é irrelevante para essa seleção.
 
 ## Métricas e filtros de progresso
 
-Os identificadores abaixo são representações conceituais sugeridas, não nomes obrigatórios de enum ou schema.
+Os identificadores abaixo são os valores V1 preservados pelas constraints estruturais atuais.
 
 ### Quantidade de descartes válidos (`VALID_DEPOSIT_COUNT`)
 
@@ -127,7 +133,7 @@ Esta métrica é apenas planejada. Sua unidade oficial ainda não foi definida e
 
 ## Tempo, recorrência e fronteiras
 
-O timezone oficial para formar períodos lógicos é `America/Sao_Paulo`. A persistência futura deverá representar instantes adequadamente, preferencialmente com `timestamptz`, sem perder a regra de calendário baseada nesse timezone.
+O timezone oficial para formar períodos lógicos é `America/Sao_Paulo`. A fundação estrutural representa os instantes dos ciclos com `timestamptz` e preserva a regra de calendário baseada nesse timezone.
 
 Todos os períodos usam a fronteira:
 
@@ -144,14 +150,34 @@ Missões poderão ser recorrentes, agendadas/eventuais e, futuramente, iniciadas
 
 O mecanismo de geração automática não foi decidido. Esta documentação não escolhe entre cron, Edge Function agendada, geração sob demanda ou outra solução.
 
+### Visibilidade temporal da primeira leitura autenticada
+
+A primeira RPC autenticada de leitura retorna somente os ciclos ativos da escola do aluno autenticado. Um ciclo está ativo quando:
+
+```text
+starts_at <= now() AND now() < ends_at
+```
+
+Ciclos futuros e ciclos encerrados não são retornados por essa primeira RPC. O estado ativo é derivado de `starts_at` e `ends_at`; não deve ser criado um status persistido `RUNNING` para representá-lo.
+
+A lista de ciclos ativos não terá paginação no primeiro slice, pois a quantidade simultânea por escola é tratada como um conjunto pequeno. Paginação poderá ser adicionada posteriormente sem alterar o domínio. A ordenação técnica determinística será:
+
+1. `starts_at ASC`;
+2. código estável da definição em ordem ascendente;
+3. `cycle_id ASC`.
+
+Essa ordenação não representa prioridade de produto. A RPC é exclusivamente de leitura e não materializa conclusão, recompensa, progresso, auditoria nem qualquer outro efeito.
+
+O recorte de ciclos ativos não invalida a conclusão tardia. Uma futura operação de materialização poderá avaliar um ciclo encerrado a partir dos depósitos históricos contidos em `[starts_at, ends_at)`.
+
 ### Conclusão tardia e instante de atingimento
 
 A conclusão pode ser materializada depois de `ends_at`. O que determina se a missão foi cumprida é a evidência histórica dos depósitos cujo `created_at` pertence ao período do ciclo; um depósito com `created_at >= ends_at` nunca completa o ciclo anterior. Não se usa `now()` para decidir se uma meta histórica foi válida.
 
-O domínio deve preservar dois momentos distintos, com nomes físicos ainda a definir:
+O domínio preserva dois momentos distintos na fundação estrutural:
 
-- instante em que a meta foi atingida, conceitualmente `achieved_at`;
-- instante em que a conclusão foi materializada e persistida.
+- instante em que a meta foi atingida, `mission_completions.achieved_at`;
+- instante em que a conclusão foi materializada e persistida, `mission_completions.materialized_at`.
 
 Em `VALID_DEPOSIT_COUNT`, `achieved_at` é o `created_at` do depósito válido que completa a quantidade-alvo em ordenação determinística. Em `CLASS_XP_EARNED`, é o primeiro `created_at` em que a soma acumulada determinística de `points_awarded_class` atinge ou ultrapassa a meta. O processamento posterior ao fim do ciclo não invalida esse resultado.
 
@@ -163,7 +189,7 @@ O fluxo crítico `register_deposit_v1` não deve ser acoplado ao novo motor apen
 
 Quando `progress >= target`, a conclusão deverá ser materializada para suportar a aplicação persistente das recompensas. Mesmo ciclo mais mesmo participante admite no máximo uma conclusão. Cada efeito econômico real admite no máximo uma aplicação para a combinação de conclusão, tipo de recompensa e destinatário. Aberturas repetidas do App, retries server-side, concorrência ou reavaliações de progresso não podem duplicar conclusão, BinCoins, XP ou audit logs relacionados.
 
-Conclusão, aplicações econômicas e auditoria deverão ocorrer server-side na mesma operação transacional. A aplicação persistida funciona como ledger histórico e barreira de idempotência; `audit_logs` não substitui esse ledger. Em missão `CLASS` com BinCoins, podem existir várias aplicações individuais, uma para cada aluno destinatário. O Mobile pode solicitar ou consultar o processamento, mas nunca credita recompensa por conta própria. O desenho de schema e a fronteira de execução serão definidos em etapa posterior.
+Conclusão, aplicações econômicas e auditoria deverão ocorrer server-side na mesma operação transacional. `mission_reward_applications` funciona como ledger histórico estrutural e futura barreira de idempotência; `audit_logs` não substitui esse ledger. Em missão `CLASS` com BinCoins, podem existir várias aplicações individuais, uma para cada aluno destinatário. O Mobile pode solicitar ou consultar o processamento, mas nunca credita recompensa por conta própria. A fronteira de execução e o mecanismo futuro de conclusão ainda serão implementados em etapa posterior.
 
 ## Transferência de turma
 
@@ -174,7 +200,7 @@ Se um aluno mudar de turma durante o ciclo, depósitos anteriores continuam cont
 Para efeitos econômicos, os vínculos são resolvidos no instante em que a conclusão é materializada:
 
 - em missão `STUDENT`, os BinCoins pertencem ao aluno e o XP pertence integralmente à turma atual desse aluno;
-- em missão `CLASS`, o XP pertence à própria turma e os BinCoins configurados pertencem integralmente a cada aluno atualmente vinculado a ela.
+- em missão `CLASS`, o XP pertence à própria turma e os BinCoins configurados pertencem integralmente a cada aluno `ACTIVE` atualmente vinculado a ela, independentemente de `is_activated`.
 
 Não se congela a turma inicial de uma missão individual, não se divide XP entre turmas históricas, não se calcula proporção por depósito e não se pré-materializa a lista de membros de uma turma. Depois da aplicação, o ledger preserva a turma e os alunos que realmente receberam os efeitos. Uma mudança posterior de turma não recalcula nem remove recompensa; aluno que entrar na turma depois da conclusão não recebe retroativamente.
 
@@ -182,9 +208,9 @@ Não se congela a turma inicial de uma missão individual, não se divide XP ent
 
 O papel já existente `BINGO_ADMIN` é a autoridade central futura sobre definições globais. Administradores escolares permanecem limitados ao seu contexto e não podem definir nem modificar essas regras globais.
 
-A existência do papel no legado não comprova autenticação administrativa equivalente na arquitetura oficial Supabase. Por isso, esta feature não implementa CRUD Admin de missões. Quando a implementação começar, templates oficiais poderão ser provisionados de forma controlada pelo backend, migrations ou seeds até que o fluxo administrativo seja desenhado e comprovado.
+A existência do papel no legado não comprova autenticação administrativa equivalente na arquitetura oficial Supabase. Por isso, esta feature não implementa CRUD Admin de missões. Enquanto esse fluxo administrativo não for desenhado e comprovado, templates oficiais poderão ser provisionados de forma controlada pelo backend, migrations ou seeds.
 
-A leitura no Mobile deverá ser autenticada e autorizada server-side. A identidade autoritativa segue `auth.uid() → student → school_id → class_id`; o Mobile não envia `student_id`, `class_id` ou `school_id` como autoridade para selecionar participante. Para cada ciclo da escola, o progresso `STUDENT` é calculado para o próprio aluno e o progresso `CLASS` para sua turma atual. O próximo desenho técnico deve definir grants, RLS e/ou fronteira server-side que exponham somente ciclos e resultados permitidos, sem ampliar RLS de `deposits` para revelar eventos privados de outros alunos da turma. Nenhum cliente deve receber `service_role`, escrever progresso autoritativo ou alterar definições e ciclos diretamente.
+A leitura no Mobile deverá ser autenticada e autorizada server-side. A identidade autoritativa segue `auth.uid() → student → school_id → class_id`; o Mobile não envia `student_id`, `class_id` ou `school_id` como autoridade para selecionar participante. Para cada ciclo ativo da escola, o progresso `STUDENT` é calculado para o próprio aluno e o progresso `CLASS` para sua turma atual. A futura RPC e seus grants devem expor somente ciclos e resultados permitidos, sem ampliar RLS de `deposits` para revelar eventos privados de outros alunos da turma. Nenhum cliente deve receber `service_role`, escrever progresso autoritativo ou alterar definições e ciclos diretamente.
 
 ## Templates recorrentes iniciais
 
@@ -223,7 +249,7 @@ O destino é determinado pelo escopo e pelo vínculo vigente na materialização
 | Escopo | BinCoins | XP |
 | --- | --- | --- |
 | `STUDENT` | integralmente ao aluno que concluiu | integralmente à turma atual do aluno |
-| `CLASS` | valor integral para cada aluno atualmente vinculado à turma | integralmente à própria turma |
+| `CLASS` | valor integral para cada aluno `ACTIVE` atualmente vinculado à turma, independentemente de `is_activated` | integralmente à própria turma |
 
 Valores iguais a zero não geram efeito econômico. Cada efeito positivo efetivamente aplicado deve ser persistido com seu destinatário real. Em `CLASS`, `reward_bincoins = 1000` significa `1000` para cada aluno destinatário, nunca divisão de `1000` entre a turma.
 
@@ -250,9 +276,9 @@ deposits
 
 O primeiro slice não implementa campanha, progressão de mapa nem desbloqueio de setores.
 
-## Primeiro vertical slice planejado
+## Primeiro vertical slice
 
-O primeiro slice futuro fica limitado a:
+O primeiro slice fica limitado a:
 
 - catálogo/definições globais de missão;
 - ciclos mensais;
@@ -282,25 +308,23 @@ O primeiro slice futuro fica limitado a:
 
 ## Decisões pendentes
 
-- desenho do schema e nomes definitivos de tabelas, campos, constraints e enums;
-- representação física do snapshot imutável, já definido como congelado atomicamente na criação do ciclo;
 - metas numéricas e valores concretos de `reward_bincoins` e `reward_xp` de Consistência Sustentável e Juntos pela Praça;
 - unidade, escopo e meta de Salve o Planeta/`ENVIRONMENTAL_IMPACT`;
 - mecanismo automático de criação de ciclos recorrentes;
-- estados exatos do ciclo e do resultado do participante;
-- regra operacional que distingue aluno/turma existente de participante elegível, inclusive o papel de `students.status` e `students.is_activated`, sem criar inscrição;
-- contrato de leitura autenticada, paginação e ordenação para o Mobile;
-- policies RLS, grants e eventual fronteira server-side de leitura;
+- estados futuros do ciclo e do resultado do participante além do estado ativo derivado usado pela primeira leitura;
+- implementação da RPC autenticada de leitura, seus grants mínimos e seu contrato técnico de retorno;
 - autenticação/autorização Supabase de `BINGO_ADMIN` e futuro CRUD global;
 - comportamento e autorização do início manual futuro;
-- desenho físico da conclusão materializada, do ledger idempotente de aplicações e dos audit logs correspondentes;
+- mecanismo server-side futuro de conclusão, aplicação transacional de recompensas e audit logs correspondentes;
 - garantia de que metas, recompensas, saldos e snapshots futuros de Missões nasçam diretamente na nova unidade oficial, sem misturar escalas;
-- eventual modelo futuro de boosts, incluindo validade, snapshot do efeito e fórmula, sem mudança atual em `register_deposit_v1`.
+- eventual modelo futuro de boosts, incluindo validade, snapshot do efeito e fórmula, sem mudança atual em `register_deposit_v1`;
+- integração da leitura autenticada na tela de Missões do Mobile;
+- campanha/BinGópolis e seus consumidores futuros de conclusões.
 
 ## Próximos passos de implementação
 
-1. Fechar o desenho técnico do schema incremental de Missões V1 sem alterar `register_deposit_v1`, incluindo ciclo por escola, snapshot histórico, conclusão materializada e ledger idempotente dos efeitos econômicos.
-2. Definir o contrato de leitura autenticada e sua matriz de autorização para `STUDENT` e `CLASS`.
-3. Criar migrations e testes de banco em tarefa própria, incluindo fronteiras temporais, idempotência de ciclo/conclusão/recompensa, transferência de turma e isolamento por autorização.
+1. Implementar e validar localmente a primeira RPC autenticada, somente leitura, para ciclos ativos e progresso derivado de `deposits`, sem efeitos colaterais e sem ampliar a exposição direta de depósitos.
+2. Implementar em tarefa separada o mecanismo server-side transacional de conclusão, aplicações idempotentes de recompensa e auditoria.
+3. Definir e implementar o mecanismo automático de criação de ciclos recorrentes.
 4. Provisionar somente os dois templates aprovados para o primeiro slice, com metas e recompensas configuradas após decisão explícita.
-5. Implementar a leitura no Mobile autenticado somente depois que a fonte real e as políticas correspondentes estiverem comprovadas.
+5. Integrar a leitura no Mobile autenticado somente depois que a RPC e sua autorização estiverem comprovadas.
