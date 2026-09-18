@@ -1,6 +1,8 @@
 import { deepStrictEqual, equal } from "node:assert/strict";
 import postgres from "postgres";
 
+import { createRegisterDepositHandler } from "../register-deposit-v1/handler.ts";
+
 const integrationEnabled =
   Deno.env.get("BINGO_EDGE_DEPOSIT_INTEGRATION") === "1";
 const MACHINE_ID = "40000000-0000-4000-8000-000000000001";
@@ -40,17 +42,21 @@ async function post(
   body: unknown,
   auth: "valid" | "missing" | "invalid" = "valid",
 ): Promise<Response> {
-  const endpoint = requireEnvironment("BINGO_EDGE_DEPOSIT_URL");
   const headers = new Headers({ "Content-Type": "application/json" });
   if (auth !== "missing") {
     headers.set("X-Machine-Id", MACHINE_ID);
     headers.set("X-Api-Key", auth === "valid" ? API_KEY : "wrong-key");
   }
-  return await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: typeof body === "string" ? body : JSON.stringify(body),
-  });
+  return await createRegisterDepositHandler()(
+    new Request(
+      "http://localhost/functions/v1/register-deposit-v1",
+      {
+        method: "POST",
+        headers,
+        body: typeof body === "string" ? body : JSON.stringify(body),
+      },
+    ),
+  );
 }
 
 async function balanceSnapshot(database: TestDatabase) {

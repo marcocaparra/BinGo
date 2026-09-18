@@ -1,6 +1,8 @@
 import { deepStrictEqual, equal } from "node:assert/strict";
 import postgres from "postgres";
 
+import { createHealthHandler } from "../health-v1/handler.ts";
+
 const integrationEnabled =
   Deno.env.get("BINGO_EDGE_HEALTH_INTEGRATION") === "1";
 const MACHINE_ID = "40000000-0000-4000-8000-000000000001";
@@ -19,10 +21,15 @@ async function callHealth(
   method = "GET",
   headers: Headers = healthHeaders(),
 ): Promise<Response> {
-  return await fetch(requireEnvironment("BINGO_EDGE_HEALTH_URL"), {
-    method,
-    headers,
-  });
+  return await createHealthHandler()(
+    new Request(
+      "http://localhost/functions/v1/health-v1",
+      {
+        method,
+        headers,
+      },
+    ),
+  );
 }
 
 async function writeSnapshot(database: TestDatabase) {

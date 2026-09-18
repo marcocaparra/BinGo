@@ -1,4 +1,7 @@
-import { getSupabaseAdminClient } from "../_shared/supabase-admin.ts";
+import {
+  getSupabaseAdminClient,
+  resolveBackendSecretKey,
+} from "../_shared/supabase-admin.ts";
 
 const BATCH_SIZE = 10;
 
@@ -42,14 +45,13 @@ function constantTimeEqual(left: string, right: string): boolean {
   return difference === 0;
 }
 
-function authorizeServiceRole(request: Request): boolean {
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const authorization = request.headers.get("Authorization");
-  if (!serviceRoleKey || !authorization) {
+function authorizeBackendSecretKey(request: Request): boolean {
+  const apiKey = request.headers.get("apikey");
+  if (!apiKey) {
     return false;
   }
 
-  return constantTimeEqual(authorization, `Bearer ${serviceRoleKey}`);
+  return constantTimeEqual(apiKey, resolveBackendSecretKey());
 }
 
 async function recoverNextServerSide(): Promise<
@@ -93,7 +95,7 @@ function isRecoveryRow(
 export function createMissionRecoveryHandler(
   dependencies: MissionRecoveryHandlerDependencies = {},
 ): (request: Request) => Promise<Response> {
-  const authorize = dependencies.authorize ?? authorizeServiceRole;
+  const authorize = dependencies.authorize ?? authorizeBackendSecretKey;
   const recoverNext = dependencies.recoverNext ?? recoverNextServerSide;
 
   return async (request: Request): Promise<Response> => {

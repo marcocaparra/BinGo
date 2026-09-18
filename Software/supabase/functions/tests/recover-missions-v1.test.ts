@@ -10,9 +10,17 @@ const EVENT_A = "a0000000-0000-4000-8000-000000000001";
 const EVENT_B = "a0000000-0000-4000-8000-000000000002";
 
 function request(
-  options: { method?: string; authorization?: string; body?: unknown } = {},
+  options: {
+    method?: string;
+    apiKey?: string;
+    authorization?: string;
+    body?: unknown;
+  } = {},
 ): Request {
   const headers = new Headers();
+  if (options.apiKey !== undefined) {
+    headers.set("apikey", options.apiKey);
+  }
   if (options.authorization !== undefined) {
     headers.set("Authorization", options.authorization);
   }
@@ -69,9 +77,17 @@ Deno.test("validates POST before technical authorization", async () => {
   equal(recoveryCount, 0);
 });
 
-Deno.test("accepts only the configured service-role bearer token", async () => {
-  const previous = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "server-only-service-role");
+Deno.test("accepts only the named backend Secret API Key via apikey", async () => {
+  const secretKeysPrevious = Deno.env.get("SUPABASE_SECRET_KEYS");
+  const localSecretPrevious = Deno.env.get("SUPABASE_SECRET_KEY");
+  const legacyPrevious = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const backendSecret = "sb_secret_backend_test_value";
+  Deno.env.set(
+    "SUPABASE_SECRET_KEYS",
+    JSON.stringify({ bingo_backend: backendSecret }),
+  );
+  Deno.env.delete("SUPABASE_SECRET_KEY");
+  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "legacy-service-role-test-value");
   try {
     let recoveryCount = 0;
     const handler = createMissionRecoveryHandler({
@@ -82,29 +98,43 @@ Deno.test("accepts only the configured service-role bearer token", async () => {
     });
 
     for (
-      const authorization of [
-        undefined,
-        "Bearer anon-token",
-        "Bearer authenticated-student-token",
-        "server-only-service-role",
-      ]
+      const candidate of [
+        {},
+        { apiKey: "sb_secret_wrong_test_value" },
+        { authorization: "Bearer legacy-service-role-test-value" },
+        {
+          apiKey: "sb_secret_wrong_test_value",
+          authorization: `Bearer ${backendSecret}`,
+        },
+      ] as const
     ) {
-      const response = await handler(request({ authorization }));
+      const response = await handler(request(candidate));
       equal(response.status, 401);
+      match(await response.text(), /^((?!sb_secret_|legacy-service-role).)*$/);
     }
 
-    equal(
-      (await handler(request({
-        authorization: "Bearer server-only-service-role",
-      }))).status,
-      200,
-    );
+    const authorized = await handler(request({
+      apiKey: backendSecret,
+      authorization: "Bearer ignored-legacy-token",
+    }));
+    equal(authorized.status, 200);
+    match(await authorized.text(), /^((?!sb_secret_|legacy-service-role).)*$/);
     equal(recoveryCount, 1);
   } finally {
-    if (previous === undefined) {
+    if (secretKeysPrevious === undefined) {
+      Deno.env.delete("SUPABASE_SECRET_KEYS");
+    } else {
+      Deno.env.set("SUPABASE_SECRET_KEYS", secretKeysPrevious);
+    }
+    if (localSecretPrevious === undefined) {
+      Deno.env.delete("SUPABASE_SECRET_KEY");
+    } else {
+      Deno.env.set("SUPABASE_SECRET_KEY", localSecretPrevious);
+    }
+    if (legacyPrevious === undefined) {
       Deno.env.delete("SUPABASE_SERVICE_ROLE_KEY");
     } else {
-      Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", previous);
+      Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", legacyPrevious);
     }
   }
 });

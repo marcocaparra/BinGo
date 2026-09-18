@@ -1,6 +1,8 @@
 import { deepStrictEqual, equal } from "node:assert/strict";
 import postgres from "postgres";
 
+import { createMissionRecoveryHandler } from "../recover-missions-v1/handler.ts";
+
 const integrationEnabled =
   Deno.env.get("BINGO_EDGE_RECOVERY_INTEGRATION") === "1";
 const MACHINE_ID = "40000000-0000-4000-8000-000000000001";
@@ -16,11 +18,25 @@ function requireEnvironment(name: string): string {
   return value;
 }
 
-async function callRecovery(authorization: string): Promise<Response> {
-  return await fetch(requireEnvironment("BINGO_EDGE_RECOVERY_URL"), {
-    method: "POST",
-    headers: { Authorization: authorization },
-  });
+async function callRecovery(
+  options: { apiKey?: string; authorization?: string } = {},
+): Promise<Response> {
+  const headers = new Headers();
+  if (options.apiKey !== undefined) {
+    headers.set("apikey", options.apiKey);
+  }
+  if (options.authorization !== undefined) {
+    headers.set("Authorization", options.authorization);
+  }
+  return await createMissionRecoveryHandler()(
+    new Request(
+      "http://localhost/functions/v1/recover-missions-v1",
+      {
+        method: "POST",
+        headers,
+      },
+    ),
+  );
 }
 
 async function createDueInvalidDeposit(
@@ -82,7 +98,7 @@ Deno.test({
       requireEnvironment("BINGO_EDGE_TEST_DATABASE_URL"),
       { max: 1, prepare: false },
     );
-    const serviceRoleKey = requireEnvironment("SUPABASE_SERVICE_ROLE_KEY");
+    const secretKey = requireEnvironment("SUPABASE_SECRET_KEY");
     const failedEventId = crypto.randomUUID();
     const successfulEventId = crypto.randomUUID();
     const neverAttemptedEventId = crypto.randomUUID();
@@ -92,10 +108,16 @@ Deno.test({
     const triggerName = triggerFunction;
 
     try {
-      const unauthorized = await callRecovery(
-        "Bearer authenticated-user-token",
-      );
-      equal(unauthorized.status, 401);
+      for (
+        const unauthorizedHeaders of [
+          {},
+          { apiKey: "sb_secret_wrong_test_value" },
+          { authorization: `Bearer ${secretKey}` },
+        ]
+      ) {
+        const unauthorized = await callRecovery(unauthorizedHeaders);
+        equal(unauthorized.status, 401);
+      }
 
       await createDueInvalidDeposit(database, failedEventId, 3);
       await createDueInvalidDeposit(database, successfulEventId, 2);
@@ -116,7 +138,7 @@ Deno.test({
         execute function public.${triggerFunction}()
       `);
 
-      const response = await callRecovery(`Bearer ${serviceRoleKey}`);
+      const response = await callRecovery({ apiKey: secretKey });
       equal(response.status, 200);
       deepStrictEqual(await response.json(), {
         events_examined: 3,
@@ -154,7 +176,7 @@ Deno.test({
       equal(neverAttemptedState.attempt_count, 0);
       equal(neverAttemptedState.next_attempt_at, null);
 
-      const repeated = await callRecovery(`Bearer ${serviceRoleKey}`);
+      const repeated = await callRecovery({ apiKey: secretKey });
       equal(repeated.status, 200);
       equal(
         (await repeated.json() as { events_examined: number }).events_examined,
