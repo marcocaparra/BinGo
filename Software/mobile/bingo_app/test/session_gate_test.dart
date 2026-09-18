@@ -5,6 +5,7 @@ import 'package:bingo_app/src/auth/access_restore_store.dart';
 import 'package:bingo_app/src/auth/auth_gateway.dart';
 import 'package:bingo_app/src/config/supabase_config.dart';
 import 'package:bingo_app/src/data/deposit_history_repository.dart';
+import 'package:bingo_app/src/data/missions_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/access_flow_screen.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
@@ -110,6 +111,10 @@ class _FakeGateway implements AuthGateway {
   }) : depositHistoryRepository = const _EmptyDepositHistoryRepository();
 
   @override
+  final AuthenticatedMissionsRepository missionsRepository =
+      const _EmptyMissionsRepository();
+
+  @override
   final AuthenticatedProfileRepository profileRepository;
 
   @override
@@ -152,6 +157,13 @@ class _EmptyDepositHistoryRepository
   Future<List<AuthenticatedDepositHistoryEntry>> loadHistory({
     required String studentId,
   }) async => const [];
+}
+
+class _EmptyMissionsRepository implements AuthenticatedMissionsRepository {
+  const _EmptyMissionsRepository();
+
+  @override
+  Future<List<AuthenticatedMission>> loadActiveMissions() async => const [];
 }
 
 class _FakeFactory implements AuthGatewayFactory {
@@ -414,9 +426,8 @@ void main() {
 
     await tester.tap(find.text('Missões'));
     await tester.pumpAndSettle();
-    expect(find.text('Nenhuma missão autenticada'), findsOneWidget);
-    expect(find.text('Força-tarefa em destaque'), findsOneWidget);
-    expect(find.text('Outras etapas da jornada'), findsOneWidget);
+    expect(find.text('Nenhuma missão ativa'), findsOneWidget);
+    expect(find.text('Força-tarefa em destaque'), findsNothing);
 
     await tester.tap(find.text('Ranking'));
     await tester.pumpAndSettle();

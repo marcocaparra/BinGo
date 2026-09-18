@@ -7,6 +7,7 @@ import '../auth/auth_gateway.dart';
 import '../data/demo_data.dart';
 import '../data/deposit_history_adapter.dart';
 import '../data/deposit_history_repository.dart';
+import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/session_wallet_controller.dart';
 import '../theme/app_assets.dart';
@@ -26,12 +27,14 @@ class ShellScreen extends StatefulWidget {
     super.key,
   }) : authenticatedRepository = null,
        depositHistoryRepository = null,
+       missionsRepository = null,
        onLogout = null,
        onSessionInvalid = null;
 
   const ShellScreen.authenticated({
     required AuthenticatedProfileRepository repository,
     required this.depositHistoryRepository,
+    required this.missionsRepository,
     required this.onLogout,
     required this.onSessionInvalid,
     this.initialIndex = 0,
@@ -45,6 +48,7 @@ class ShellScreen extends StatefulWidget {
   final Future<void> Function()? onExitPilot;
   final AuthenticatedProfileRepository? authenticatedRepository;
   final AuthenticatedDepositHistoryRepository? depositHistoryRepository;
+  final AuthenticatedMissionsRepository? missionsRepository;
   final Future<AuthFailure?> Function()? onLogout;
   final Future<void> Function()? onSessionInvalid;
 
@@ -133,7 +137,11 @@ class _ShellScreenState extends State<ShellScreen> {
                     repository: widget.depositHistoryRepository!,
                     onSessionInvalid: widget.onSessionInvalid!,
                   ),
-                  _AuthenticatedMissionsScreen(profile: profile),
+                  _AuthenticatedMissionsScreen(
+                    profile: profile,
+                    repository: widget.missionsRepository!,
+                    onSessionInvalid: widget.onSessionInvalid!,
+                  ),
                   _AuthenticatedRankingScreen(profile: profile),
                   ProfileScreen.authenticated(
                     profile: profile,
@@ -247,7 +255,7 @@ class _AuthenticatedHomeScreen extends StatelessWidget {
           const SizedBox(height: 8),
           const B1nDialogueStrip(
             message:
-                'Seu perfil está conectado. Missões e progresso ainda não possuem dados autorizados.',
+                'Seu perfil está conectado. Consulte as missões ativas da sua escola.',
             portrait: B1nPortraitVariant.instruction,
           ),
           const SizedBox(height: 8),
@@ -259,7 +267,7 @@ class _AuthenticatedHomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           _SoftAction(
-            label: 'Ver missões indisponíveis',
+            label: 'Ver missões ativas',
             icon: Icons.flag_outlined,
             onTap: () => onOpenTab(2),
           ),
@@ -540,61 +548,207 @@ class _AuthenticatedBazaarCard extends StatelessWidget {
   }
 }
 
-class _AuthenticatedMissionsScreen extends StatelessWidget {
-  const _AuthenticatedMissionsScreen({required this.profile});
+class _AuthenticatedMissionsScreen extends StatefulWidget {
+  const _AuthenticatedMissionsScreen({
+    required this.profile,
+    required this.repository,
+    required this.onSessionInvalid,
+  });
 
   final AuthenticatedStudentProfile profile;
+  final AuthenticatedMissionsRepository repository;
+  final Future<void> Function() onSessionInvalid;
+
+  @override
+  State<_AuthenticatedMissionsScreen> createState() =>
+      _AuthenticatedMissionsScreenState();
+}
+
+class _AuthenticatedMissionsScreenState
+    extends State<_AuthenticatedMissionsScreen> {
+  List<AuthenticatedMission> _missions = const [];
+  MissionsFailure? _failure;
+  var _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadMissions());
+  }
+
+  Future<void> _loadMissions() async {
+    setState(() {
+      _loading = true;
+      _failure = null;
+    });
+    try {
+      final missions = await widget.repository.loadActiveMissions();
+      if (!mounted) return;
+      setState(() {
+        _missions = missions;
+        _loading = false;
+      });
+    } on MissionsFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _missions = const [];
+        _failure = failure;
+        _loading = false;
+      });
+      if (failure.kind == MissionsFailureKind.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(widget.onSessionInvalid());
+        });
+      }
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[missions] Screen mapping failure: $error');
+        debugPrintStack(
+          label: '[missions] screen stack trace',
+          stackTrace: stackTrace,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _missions = const [];
+        _failure = MissionsFailure(
+          MissionsFailureKind.unknown,
+          'Não foi possível carregar as missões agora.',
+          error,
+        );
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Missões de restauração',
-      subtitle: '${profile.schoolName} · ${profile.className}',
+      subtitle: '${widget.profile.schoolName} · ${widget.profile.className}',
       showBackButton: false,
       dataStatus: AppDataStatus.remote,
+      child: _buildState(context),
+    );
+  }
+
+  Widget _buildState(BuildContext context) {
+    if (_loading) {
+      return const BingoDataState(
+        kind: BingoDataStateKind.loading,
+        title: 'Carregando missões',
+        message: 'Consultando as missões ativas da sua escola.',
+      );
+    }
+    final failure = _failure;
+    if (failure != null) {
+      return BingoDataState(
+        kind: BingoDataStateKind.empty,
+        title: _missionsFailureTitle(failure.kind),
+        message: failure.message,
+        icon: Icons.cloud_off_rounded,
+        action: failure.kind == MissionsFailureKind.sessionInvalid
+            ? null
+            : BingoActionButton(
+                label: 'Tentar novamente',
+                icon: Icons.refresh_rounded,
+                onPressed: _loadMissions,
+              ),
+      );
+    }
+    if (_missions.isEmpty) {
+      return const BingoDataState(
+        kind: BingoDataStateKind.empty,
+        title: 'Nenhuma missão ativa',
+        message: 'Novas missões aparecerão aqui quando um ciclo começar.',
+        icon: Icons.flag_outlined,
+      );
+    }
+    return Column(
+      children: [
+        for (var index = 0; index < _missions.length; index++) ...[
+          _AuthenticatedMissionCard(mission: _missions[index]),
+          if (index != _missions.length - 1) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+class _AuthenticatedMissionCard extends StatelessWidget {
+  const _AuthenticatedMissionCard({required this.mission});
+
+  final AuthenticatedMission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    final scopeLabel = switch (mission.scope) {
+      AuthenticatedMissionScope.student => 'Missão individual',
+      AuthenticatedMissionScope.classGroup => 'Missão da turma',
+    };
+    final stateLabel = mission.isCompleted
+        ? 'Concluída'
+        : mission.isAchieved
+        ? 'Meta atingida'
+        : 'Em andamento';
+    final stateColor = mission.isCompleted || mission.isAchieved
+        ? AppColors.green
+        : AppColors.blue;
+
+    return SurfaceCard(
+      key: ValueKey('authenticated-mission-${mission.cycleId}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ImageHeroCard(
-            image: AppAssets.howItWorksScene,
-            badge: 'Missões',
-            title: 'Nenhuma missão autenticada',
-            subtitle:
-                'Metas e progresso aparecerão quando houver uma fonte autorizada.',
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  mission.definitionTitle,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              BadgeLabel(label: stateLabel, color: stateColor),
+            ],
           ),
-          const SizedBox(height: 18),
-          const B1nDialogueStrip(
-            message:
-                'Sua conta está pronta. As próximas missões ainda não foram conectadas.',
-            portrait: B1nPortraitVariant.question,
-          ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 8),
+          Text(scopeLabel),
+          const SizedBox(height: 10),
           Text(
-            'Força-tarefa em destaque',
-            style: Theme.of(context).textTheme.titleLarge,
+            '${mission.progress} / ${mission.target}',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
-          const _UnavailableSurface(
-            title: 'Indisponível',
-            message: 'Nenhuma força-tarefa possui dados autenticados.',
-            icon: Icons.shield_outlined,
-          ),
-          const SizedBox(height: 22),
-          Text(
-            'Outras etapas da jornada',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          const _UnavailableSurface(
-            title: '—',
-            message: 'Não há progresso de missões disponível para esta conta.',
-            icon: Icons.flag_outlined,
-          ),
+          if (mission.rewardBinCoins > 0 || mission.rewardXp > 0) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (mission.rewardBinCoins > 0)
+                  BadgeLabel(
+                    label: '+${mission.rewardBinCoins} BinCoins',
+                    color: AppColors.warning,
+                  ),
+                if (mission.rewardXp > 0)
+                  BadgeLabel(
+                    label: '+${mission.rewardXp} XP',
+                    color: AppColors.blue,
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 }
+
+String _missionsFailureTitle(MissionsFailureKind kind) => switch (kind) {
+  MissionsFailureKind.sessionInvalid => 'Sessão expirada',
+  MissionsFailureKind.network => 'Sem conexão',
+  MissionsFailureKind.malformedData => 'Dados de missões inválidos',
+  MissionsFailureKind.unknown => 'Missões indisponíveis',
+};
 
 class _AuthenticatedRankingScreen extends StatelessWidget {
   const _AuthenticatedRankingScreen({required this.profile});

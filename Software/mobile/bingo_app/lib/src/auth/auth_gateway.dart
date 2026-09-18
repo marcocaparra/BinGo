@@ -1,4 +1,5 @@
 import '../data/deposit_history_repository.dart';
+import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
 
 enum AuthFailureKind {
@@ -24,6 +25,8 @@ enum AuthSessionEvent { signedOut, sessionInvalid, networkError }
 
 abstract interface class AuthGateway {
   AuthenticatedDepositHistoryRepository get depositHistoryRepository;
+
+  AuthenticatedMissionsRepository get missionsRepository;
 
   AuthenticatedProfileRepository get profileRepository;
 

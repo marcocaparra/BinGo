@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bingo_app/src/data/deposit_history_repository.dart';
+import 'package:bingo_app/src/data/missions_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
@@ -94,6 +95,7 @@ Future<void> _pumpAuthenticatedWallet(
         initialIndex: 1,
         repository: const _StaticProfileRepository(),
         depositHistoryRepository: historyRepository,
+        missionsRepository: const _EmptyMissionsRepository(),
         onLogout: () async => null,
         onSessionInvalid: () async {},
       ),
@@ -101,6 +103,13 @@ Future<void> _pumpAuthenticatedWallet(
   );
   await tester.pump();
   await tester.pump();
+}
+
+class _EmptyMissionsRepository implements AuthenticatedMissionsRepository {
+  const _EmptyMissionsRepository();
+
+  @override
+  Future<List<AuthenticatedMission>> loadActiveMissions() async => const [];
 }
 
 Future<void> _openDiscards(WidgetTester tester) async {
