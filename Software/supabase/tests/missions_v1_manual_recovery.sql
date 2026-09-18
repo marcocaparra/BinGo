@@ -157,19 +157,24 @@ select extensions.ok(
     'execucao repetida nao duplica completion, recompensa, auditoria ou saldo'
 );
 
--- next_attempt_at NULL ainda nao representa um retry elegivel neste slice.
+-- Uma pendencia nunca tentada representa o crash antes da tentativa imediata
+-- e precisa ser recuperavel sem depender de registro previo de falha.
 select * from public.register_deposit_v1(
     'e7000000-0000-4000-8000-000000000004',
     'e4000000-0000-4000-8000-000000000001',
     'e2000000-0000-4000-8000-000000000001',
     false, null, 'invalido', null, null
 );
+create temporary table recovered_never_attempted as
+select * from public.recover_next_mission_event_v1();
 select extensions.ok(
-    not exists (select 1 from public.recover_next_mission_event_v1())
-    and (select processed_at is null and next_attempt_at is null
+    (select event_id = 'e7000000-0000-4000-8000-000000000004'
+         and outcome = 'PROCESSED'
+     from recovered_never_attempted)
+    and (select processed_at is not null and next_attempt_at is null
          from public.mission_processing_queue
          where event_id = 'e7000000-0000-4000-8000-000000000004'),
-    'pendencia sem tentativa falha nao entra no conjunto estrito de retry vencido'
+    'pendencia nunca tentada e recuperada imediatamente apos crash simulado'
 );
 
 -- Duas pendencias vencidas sao consumidas em transacoes independentes.

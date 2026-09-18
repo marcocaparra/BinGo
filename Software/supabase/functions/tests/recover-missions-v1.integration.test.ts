@@ -53,6 +53,24 @@ async function createDueInvalidDeposit(
   `;
 }
 
+async function createNeverAttemptedInvalidDeposit(
+  database: TestDatabase,
+  eventId: string,
+): Promise<void> {
+  await database`
+    select * from public.register_deposit_v1(
+      ${eventId}::uuid,
+      ${MACHINE_ID}::uuid,
+      ${CLASS_ID}::uuid,
+      false,
+      null,
+      'invalido',
+      null,
+      null
+    )
+  `;
+}
+
 Deno.test({
   name:
     "recover-missions-v1 isolates failed events and keeps technical access private",
@@ -67,6 +85,7 @@ Deno.test({
     const serviceRoleKey = requireEnvironment("SUPABASE_SERVICE_ROLE_KEY");
     const failedEventId = crypto.randomUUID();
     const successfulEventId = crypto.randomUUID();
+    const neverAttemptedEventId = crypto.randomUUID();
     const triggerFunction = `test_fail_recovery_${
       crypto.randomUUID().replaceAll("-", "")
     }`;
@@ -80,6 +99,7 @@ Deno.test({
 
       await createDueInvalidDeposit(database, failedEventId, 3);
       await createDueInvalidDeposit(database, successfulEventId, 2);
+      await createNeverAttemptedInvalidDeposit(database, neverAttemptedEventId);
       await database.unsafe(`
         create function public.${triggerFunction}()
         returns trigger language plpgsql as $$
@@ -99,8 +119,8 @@ Deno.test({
       const response = await callRecovery(`Bearer ${serviceRoleKey}`);
       equal(response.status, 200);
       deepStrictEqual(await response.json(), {
-        events_examined: 2,
-        processed: 1,
+        events_examined: 3,
+        processed: 2,
         failed: 1,
         completions_created: 0,
         reward_applications_created: 0,
@@ -125,6 +145,15 @@ Deno.test({
       equal(successfulState.processed_at instanceof Date, true);
       equal(successfulState.attempt_count, 1);
 
+      const [neverAttemptedState] = await database`
+        select processed_at, attempt_count, next_attempt_at
+        from public.mission_processing_queue
+        where event_id = ${neverAttemptedEventId}::uuid
+      `;
+      equal(neverAttemptedState.processed_at instanceof Date, true);
+      equal(neverAttemptedState.attempt_count, 0);
+      equal(neverAttemptedState.next_attempt_at, null);
+
       const repeated = await callRecovery(`Bearer ${serviceRoleKey}`);
       equal(repeated.status, 200);
       equal(
@@ -141,15 +170,27 @@ Deno.test({
       );
       await database`
         delete from public.mission_processing_queue
-        where event_id in (${failedEventId}::uuid, ${successfulEventId}::uuid)
+        where event_id in (
+          ${failedEventId}::uuid,
+          ${successfulEventId}::uuid,
+          ${neverAttemptedEventId}::uuid
+        )
       `;
       await database`
         delete from public.deposits
-        where event_id in (${failedEventId}::uuid, ${successfulEventId}::uuid)
+        where event_id in (
+          ${failedEventId}::uuid,
+          ${successfulEventId}::uuid,
+          ${neverAttemptedEventId}::uuid
+        )
       `;
       await database`
         delete from public.audit_logs
-        where metadata ->> 'event_id' in (${failedEventId}, ${successfulEventId})
+        where metadata ->> 'event_id' in (
+          ${failedEventId},
+          ${successfulEventId},
+          ${neverAttemptedEventId}
+        )
       `;
       await database.end();
     }
