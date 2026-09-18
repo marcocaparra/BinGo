@@ -899,14 +899,14 @@ select extensions.ok(
 
 select extensions.ok(
     (
-        select count(*) = 3
+        select count(*) = 5
         from pg_catalog.pg_proc function_row
         join pg_catalog.pg_namespace namespace
           on namespace.oid = function_row.pronamespace
         where namespace.nspname = 'public'
           and function_row.proname ~ '(mission|missions)'
     ),
-    'runtime adiciona leitura autenticada e o nucleo server-side de processamento de Missoes'
+    'runtime adiciona leitura, nucleo economico e entradas server-side de processamento e retry'
 );
 
 select extensions.ok(

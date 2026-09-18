@@ -37,9 +37,19 @@ export type RegisterDeposit = (
   >
 >;
 
+export type ProcessMissionEvent = (
+  eventId: string,
+) => Promise<Readonly<{ error: RegisterDepositRpcError | null }>>;
+
+export type RecordMissionProcessingFailure = (
+  eventId: string,
+) => Promise<Readonly<{ error: RegisterDepositRpcError | null }>>;
+
 export type RegisterDepositHandlerDependencies = Readonly<{
   machineAuth?: MachineAuthDependencies;
   registerDeposit?: RegisterDeposit;
+  processMissionEvent?: ProcessMissionEvent;
+  recordMissionProcessingFailure?: RecordMissionProcessingFailure;
 }>;
 
 async function registerDepositServerSide(
@@ -69,6 +79,54 @@ async function registerDepositServerSide(
     row: Array.isArray(rows) && rows.length === 1 ? rows[0] : null,
     error,
   };
+}
+
+async function processMissionEventServerSide(
+  eventId: string,
+): Promise<Readonly<{ error: RegisterDepositRpcError | null }>> {
+  const { error } = await getSupabaseAdminClient().rpc(
+    "process_mission_event_v1",
+    { p_event_id: eventId },
+  );
+  return { error };
+}
+
+async function recordMissionProcessingFailureServerSide(
+  eventId: string,
+): Promise<Readonly<{ error: RegisterDepositRpcError | null }>> {
+  const { error } = await getSupabaseAdminClient().rpc(
+    "record_mission_processing_failure_v1",
+    { p_event_id: eventId },
+  );
+  return { error };
+}
+
+async function attemptMissionProcessing(
+  eventId: string,
+  processMissionEvent: ProcessMissionEvent,
+  recordMissionProcessingFailure: RecordMissionProcessingFailure,
+): Promise<void> {
+  let failed = false;
+  try {
+    const result = await processMissionEvent(eventId);
+    failed = result.error !== null;
+  } catch {
+    failed = true;
+  }
+
+  if (!failed) {
+    return;
+  }
+
+  // Esta chamada abre uma nova transacao depois do rollback economico. O
+  // erro bruto nunca e encaminhado nem persistido; a RPC grava apenas o
+  // codigo operacional sanitizado definido no banco.
+  try {
+    await recordMissionProcessingFailure(eventId);
+  } catch {
+    // A resposta do descarte confirmado continua sendo prioritaria. A linha
+    // pendente permanece recuperavel mesmo se este registro operacional falhar.
+  }
 }
 
 function isRpcRow(
@@ -111,6 +169,8 @@ async function handleAuthenticatedPost(
   request: Request,
   machine: TrustedMachineIdentity,
   registerDeposit: RegisterDeposit,
+  processMissionEvent: ProcessMissionEvent,
+  recordMissionProcessingFailure: RecordMissionProcessingFailure,
 ): Promise<Response> {
   const contentType = request.headers.get("Content-Type")?.split(";", 1)[0]
     .trim().toLowerCase();
@@ -145,6 +205,12 @@ async function handleAuthenticatedPost(
   }
 
   const row = result.row;
+  await attemptMissionProcessing(
+    row.event_id,
+    processMissionEvent,
+    recordMissionProcessingFailure,
+  );
+
   return Response.json(
     {
       id: row.deposit_id,
@@ -169,9 +235,20 @@ export function createRegisterDepositHandler(
 ): (request: Request) => Promise<Response> {
   const registerDeposit = dependencies.registerDeposit ??
     registerDepositServerSide;
+  const processMissionEvent = dependencies.processMissionEvent ??
+    processMissionEventServerSide;
+  const recordMissionProcessingFailure =
+    dependencies.recordMissionProcessingFailure ??
+      recordMissionProcessingFailureServerSide;
   const authenticatedPost = withMachineAuthentication(
     (request, machine) =>
-      handleAuthenticatedPost(request, machine, registerDeposit),
+      handleAuthenticatedPost(
+        request,
+        machine,
+        registerDeposit,
+        processMissionEvent,
+        recordMissionProcessingFailure,
+      ),
     dependencies.machineAuth,
   );
 

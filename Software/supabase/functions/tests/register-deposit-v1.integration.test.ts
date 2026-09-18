@@ -84,6 +84,24 @@ async function eventEffects(database: TestDatabase, eventId: string) {
   return { deposits: deposits.count, audits: audits.count };
 }
 
+async function processingState(database: TestDatabase, eventId: string) {
+  const [queue] = await database`
+    select
+      processed_at,
+      attempt_count,
+      last_error,
+      next_attempt_at
+    from public.mission_processing_queue
+    where event_id = ${eventId}::uuid
+  `;
+  return queue as {
+    processed_at: Date | null;
+    attempt_count: number;
+    last_error: string | null;
+    next_attempt_at: Date | null;
+  };
+}
+
 async function expectError(
   response: Response,
   status: number,
@@ -131,6 +149,11 @@ async function exerciseDepositContract(database: TestDatabase): Promise<void> {
     deposits: 1,
     audits: 1,
   });
+  const successfulProcessing = await processingState(database, eventId);
+  equal(successfulProcessing.processed_at instanceof Date, true);
+  equal(successfulProcessing.attempt_count, 0);
+  equal(successfulProcessing.last_error, null);
+  equal(successfulProcessing.next_attempt_at, null);
   equal(
     afterCreation.student - before.student,
     created.points_awarded_student,
@@ -145,6 +168,69 @@ async function exerciseDepositContract(database: TestDatabase): Promise<void> {
     audits: 1,
   });
   deepStrictEqual(await balanceSnapshot(database), afterCreation);
+
+  const failedMissionEventId = crypto.randomUUID();
+  await database.unsafe(`
+    create function public.test_fail_immediate_mission_processing()
+    returns trigger
+    language plpgsql
+    as $$
+    begin
+      raise exception using errcode = 'P0001', message = 'secret injected processing failure';
+    end;
+    $$
+  `);
+  await database.unsafe(`
+    create trigger test_fail_immediate_mission_processing
+    before update of processed_at on public.mission_processing_queue
+    for each row
+    when (new.event_id = '${failedMissionEventId}'::uuid)
+    execute function public.test_fail_immediate_mission_processing()
+  `);
+  try {
+    const failedMissionResponse = await post(validBody(failedMissionEventId, {
+      student_id: null,
+      is_valid: false,
+      waste_category_code: null,
+      category_source: null,
+    }));
+    equal(failedMissionResponse.status, 201);
+    const failedMissionBody = await failedMissionResponse
+      .json() as DepositResponse;
+    equal(failedMissionBody.event_id, failedMissionEventId);
+
+    const failedState = await processingState(database, failedMissionEventId);
+    equal(failedState.processed_at, null);
+    equal(failedState.attempt_count, 1);
+    equal(failedState.last_error, "MISSION_PROCESSING_FAILED");
+    equal(failedState.next_attempt_at instanceof Date, true);
+
+    const failedMissionReplay = await post(validBody(failedMissionEventId, {
+      student_id: null,
+      is_valid: false,
+      waste_category_code: null,
+      category_source: null,
+    }));
+    equal(failedMissionReplay.status, 200);
+    equal(
+      (await failedMissionReplay.json() as DepositResponse).event_id,
+      failedMissionEventId,
+    );
+    const replayState = await processingState(database, failedMissionEventId);
+    equal(replayState.attempt_count, 1);
+    deepStrictEqual(await eventEffects(database, failedMissionEventId), {
+      deposits: 1,
+      audits: 1,
+    });
+  } finally {
+    await database.unsafe(`
+      drop trigger if exists test_fail_immediate_mission_processing
+      on public.mission_processing_queue
+    `);
+    await database.unsafe(`
+      drop function if exists public.test_fail_immediate_mission_processing()
+    `);
+  }
 
   await expectError(
     await post(validBody(eventId, {
