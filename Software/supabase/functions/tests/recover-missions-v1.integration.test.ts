@@ -1,0 +1,157 @@
+import { deepStrictEqual, equal } from "node:assert/strict";
+import postgres from "postgres";
+
+const integrationEnabled =
+  Deno.env.get("BINGO_EDGE_RECOVERY_INTEGRATION") === "1";
+const MACHINE_ID = "40000000-0000-4000-8000-000000000001";
+const CLASS_ID = "20000000-0000-4000-8000-000000000001";
+
+type TestDatabase = ReturnType<typeof postgres>;
+
+function requireEnvironment(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) {
+    throw new Error(`Missing integration test environment: ${name}`);
+  }
+  return value;
+}
+
+async function callRecovery(authorization: string): Promise<Response> {
+  return await fetch(requireEnvironment("BINGO_EDGE_RECOVERY_URL"), {
+    method: "POST",
+    headers: { Authorization: authorization },
+  });
+}
+
+async function createDueInvalidDeposit(
+  database: TestDatabase,
+  eventId: string,
+  minutesOverdue: number,
+): Promise<void> {
+  await database`
+    select * from public.register_deposit_v1(
+      ${eventId}::uuid,
+      ${MACHINE_ID}::uuid,
+      ${CLASS_ID}::uuid,
+      false,
+      null,
+      'invalido',
+      null,
+      null
+    )
+  `;
+  await database`
+    select * from public.record_mission_processing_failure_v1(${eventId}::uuid)
+  `;
+  await database`
+    update public.mission_processing_queue
+    set enqueued_at = pg_catalog.clock_timestamp()
+            - (${minutesOverdue}::integer * interval '1 minute'),
+        next_attempt_at = pg_catalog.clock_timestamp()
+            - (${minutesOverdue}::integer * interval '1 minute')
+    where event_id = ${eventId}::uuid
+  `;
+}
+
+Deno.test({
+  name:
+    "recover-missions-v1 isolates failed events and keeps technical access private",
+  ignore: !integrationEnabled,
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const database = postgres(
+      requireEnvironment("BINGO_EDGE_TEST_DATABASE_URL"),
+      { max: 1, prepare: false },
+    );
+    const serviceRoleKey = requireEnvironment("SUPABASE_SERVICE_ROLE_KEY");
+    const failedEventId = crypto.randomUUID();
+    const successfulEventId = crypto.randomUUID();
+    const triggerFunction = `test_fail_recovery_${
+      crypto.randomUUID().replaceAll("-", "")
+    }`;
+    const triggerName = triggerFunction;
+
+    try {
+      const unauthorized = await callRecovery(
+        "Bearer authenticated-user-token",
+      );
+      equal(unauthorized.status, 401);
+
+      await createDueInvalidDeposit(database, failedEventId, 3);
+      await createDueInvalidDeposit(database, successfulEventId, 2);
+      await database.unsafe(`
+        create function public.${triggerFunction}()
+        returns trigger language plpgsql as $$
+        begin
+          raise exception using errcode = 'P0001', message = 'secret recovery failure';
+        end;
+        $$
+      `);
+      await database.unsafe(`
+        create trigger ${triggerName}
+        before update of processed_at on public.mission_processing_queue
+        for each row
+        when (new.event_id = '${failedEventId}'::uuid)
+        execute function public.${triggerFunction}()
+      `);
+
+      const response = await callRecovery(`Bearer ${serviceRoleKey}`);
+      equal(response.status, 200);
+      deepStrictEqual(await response.json(), {
+        events_examined: 2,
+        processed: 1,
+        failed: 1,
+        completions_created: 0,
+        reward_applications_created: 0,
+        batch_limit_reached: false,
+      });
+
+      const [failedState] = await database`
+        select processed_at, attempt_count, last_error, next_attempt_at
+        from public.mission_processing_queue
+        where event_id = ${failedEventId}::uuid
+      `;
+      equal(failedState.processed_at, null);
+      equal(failedState.attempt_count, 2);
+      equal(failedState.last_error, "MISSION_PROCESSING_FAILED");
+      equal(failedState.next_attempt_at instanceof Date, true);
+
+      const [successfulState] = await database`
+        select processed_at, attempt_count
+        from public.mission_processing_queue
+        where event_id = ${successfulEventId}::uuid
+      `;
+      equal(successfulState.processed_at instanceof Date, true);
+      equal(successfulState.attempt_count, 1);
+
+      const repeated = await callRecovery(`Bearer ${serviceRoleKey}`);
+      equal(repeated.status, 200);
+      equal(
+        (await repeated.json() as { events_examined: number }).events_examined,
+        0,
+      );
+    } finally {
+      await database.unsafe(`
+        drop trigger if exists ${triggerName}
+        on public.mission_processing_queue
+      `);
+      await database.unsafe(
+        `drop function if exists public.${triggerFunction}()`,
+      );
+      await database`
+        delete from public.mission_processing_queue
+        where event_id in (${failedEventId}::uuid, ${successfulEventId}::uuid)
+      `;
+      await database`
+        delete from public.deposits
+        where event_id in (${failedEventId}::uuid, ${successfulEventId}::uuid)
+      `;
+      await database`
+        delete from public.audit_logs
+        where metadata ->> 'event_id' in (${failedEventId}, ${successfulEventId})
+      `;
+      await database.end();
+    }
+  },
+});
