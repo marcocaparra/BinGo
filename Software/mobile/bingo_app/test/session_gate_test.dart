@@ -7,6 +7,7 @@ import 'package:bingo_app/src/config/supabase_config.dart';
 import 'package:bingo_app/src/data/deposit_history_repository.dart';
 import 'package:bingo_app/src/data/missions_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
+import 'package:bingo_app/src/data/ranking_repository.dart';
 import 'package:bingo_app/src/screens/access_flow_screen.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
 import 'package:bingo_app/src/screens/splash_screen.dart';
@@ -115,6 +116,10 @@ class _FakeGateway implements AuthGateway {
       const _EmptyMissionsRepository();
 
   @override
+  final AuthenticatedRankingRepository rankingRepository =
+      const _EmptyRankingRepository();
+
+  @override
   final AuthenticatedProfileRepository profileRepository;
 
   @override
@@ -164,6 +169,15 @@ class _EmptyMissionsRepository implements AuthenticatedMissionsRepository {
 
   @override
   Future<List<AuthenticatedMission>> loadActiveMissions() async => const [];
+}
+
+class _EmptyRankingRepository implements AuthenticatedRankingRepository {
+  const _EmptyRankingRepository();
+
+  @override
+  Future<ClassRanking> loadRanking({required String currentClassId}) async {
+    return const ClassRanking(entries: [], currentClassIndex: null);
+  }
 }
 
 class _FakeFactory implements AuthGatewayFactory {
@@ -450,8 +464,8 @@ void main() {
 
     await tester.tap(find.text('Ranking'));
     await tester.pumpAndSettle();
-    expect(find.text('Sua turma · Remote Class'), findsOneWidget);
-    expect(find.text('29 XP'), findsOneWidget);
+    expect(find.text('Sua turma · —'), findsOneWidget);
+    expect(find.text('— XP'), findsOneWidget);
     expect(find.text('Turmas da Praça'), findsOneWidget);
     expect(find.text('Turma —'), findsNWidgets(3));
     expect(find.text('Ainda não há dados'), findsOneWidget);

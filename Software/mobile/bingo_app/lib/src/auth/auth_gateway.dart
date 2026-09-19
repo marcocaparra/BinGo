@@ -1,6 +1,7 @@
 import '../data/deposit_history_repository.dart';
 import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
+import '../data/ranking_repository.dart';
 
 enum AuthFailureKind {
   invalidCredentials,
@@ -29,6 +30,8 @@ abstract interface class AuthGateway {
   AuthenticatedMissionsRepository get missionsRepository;
 
   AuthenticatedProfileRepository get profileRepository;
+
+  AuthenticatedRankingRepository get rankingRepository;
 
   Stream<AuthSessionEvent> get sessionEvents;
 

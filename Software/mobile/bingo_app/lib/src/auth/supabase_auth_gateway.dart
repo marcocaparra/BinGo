@@ -6,9 +6,11 @@ import '../config/supabase_config.dart';
 import '../data/deposit_history_repository.dart';
 import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
+import '../data/ranking_repository.dart';
 import '../data/supabase_deposit_history_repository.dart';
 import '../data/supabase_missions_repository.dart';
 import '../data/supabase_profile_repository.dart';
+import '../data/supabase_ranking_repository.dart';
 import 'auth_gateway.dart';
 
 class SupabaseAuthGatewayFactory implements AuthGatewayFactory {
@@ -49,6 +51,9 @@ class SupabaseAuthGateway implements AuthGateway {
       _profileRepository = RemoteProfileRepository(
         SupabaseProfileDataSource(_client),
       ),
+      _rankingRepository = RemoteRankingRepository(
+        SupabaseRankingDataSource(_client),
+      ),
       _missionsRepository = RemoteMissionsRepository(
         SupabaseMissionsDataSource(_client),
       ) {
@@ -64,6 +69,7 @@ class SupabaseAuthGateway implements AuthGateway {
   final AuthenticatedDepositHistoryRepository _depositHistoryRepository;
   final AuthenticatedMissionsRepository _missionsRepository;
   final AuthenticatedProfileRepository _profileRepository;
+  final AuthenticatedRankingRepository _rankingRepository;
   final StreamController<AuthSessionEvent> _sessionEvents =
       StreamController<AuthSessionEvent>.broadcast();
   late final StreamSubscription<AuthState> _authSubscription;
@@ -77,6 +83,9 @@ class SupabaseAuthGateway implements AuthGateway {
 
   @override
   AuthenticatedProfileRepository get profileRepository => _profileRepository;
+
+  @override
+  AuthenticatedRankingRepository get rankingRepository => _rankingRepository;
 
   @override
   Stream<AuthSessionEvent> get sessionEvents => _sessionEvents.stream;

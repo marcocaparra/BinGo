@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bingo_app/src/data/deposit_history_repository.dart';
 import 'package:bingo_app/src/data/missions_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
+import 'package:bingo_app/src/data/ranking_repository.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
 import 'package:bingo_app/src/theme/app_assets.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
@@ -112,6 +113,7 @@ Future<void> _pumpAuthenticatedMissions(
         repository: const _StaticProfileRepository(),
         depositHistoryRepository: const _EmptyDepositHistoryRepository(),
         missionsRepository: repository,
+        rankingRepository: const _EmptyRankingRepository(),
         onLogout: () async => null,
         onSessionInvalid: onSessionInvalid ?? () async {},
       ),
@@ -119,6 +121,15 @@ Future<void> _pumpAuthenticatedMissions(
   );
   await tester.pump();
   await tester.pump();
+}
+
+class _EmptyRankingRepository implements AuthenticatedRankingRepository {
+  const _EmptyRankingRepository();
+
+  @override
+  Future<ClassRanking> loadRanking({required String currentClassId}) async {
+    return const ClassRanking(entries: [], currentClassIndex: null);
+  }
 }
 
 void main() {
