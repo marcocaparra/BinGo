@@ -6,6 +6,7 @@ import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/data/ranking_repository.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
+import 'package:bingo_app/src/widgets/bingo_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -172,6 +173,15 @@ void main() {
     expect(find.text('0 XP'), findsNWidgets(2));
     expect(find.text('Turma Atual'), findsOneWidget);
     expect(find.text('Turma —'), findsNWidgets(2));
+    expect(find.text('Parabéns! Sua turma está em 1º lugar.'), findsOneWidget);
+    expect(
+      tester
+          .widget<AnimatedProgressPill>(
+            find.byKey(const Key('ranking-hero-progress')),
+          )
+          .value,
+      1,
+    );
   });
 
   testWidgets('two classes fill two podium places safely', (tester) async {
@@ -192,6 +202,18 @@ void main() {
     expect(find.text('9.000 XP'), findsOneWidget);
     expect(find.text('5.000 XP'), findsNWidgets(2));
     expect(find.text('Turma —'), findsOneWidget);
+    expect(
+      find.text('Faltam 4.000 XP para chegar ao 1º lugar.'),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<AnimatedProgressPill>(
+            find.byKey(const Key('ranking-hero-progress')),
+          )
+          .value,
+      closeTo(5000 / 9000, 0.000001),
+    );
   });
 
   testWidgets('three classes fill the complete podium', (tester) async {
@@ -246,7 +268,72 @@ void main() {
     expect(find.text('Turma B'), findsOneWidget);
     expect(find.text('Turma C'), findsOneWidget);
     expect(find.text('Próxima meta: 5000 pontos para o top 3'), findsNothing);
-    expect(find.text('Distância até o pódio: —'), findsOneWidget);
+    expect(
+      find.text('Faltam 6.000 XP para chegar ao 1º lugar.'),
+      findsOneWidget,
+    );
+    expect(find.text('76.000 pts'), findsNothing);
+    expect(find.text('5.000 pontos'), findsNothing);
+  });
+
+  testWidgets('positive XP tie shows complete progress without zero distance', (
+    tester,
+  ) async {
+    _configureSurface(tester);
+    await _pumpAuthenticatedRanking(
+      tester,
+      _FakeRankingRepository(
+        (currentClassId) async => ranking([
+          entry('class-a', 'Turma A', 9000),
+          entry('class-current', 'Turma Atual', 9000),
+        ], currentClassId: currentClassId),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Sua turma está empatada em pontos com o 1º lugar.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Faltam 0 XP'), findsNothing);
+    expect(
+      tester
+          .widget<AnimatedProgressPill>(
+            find.byKey(const Key('ranking-hero-progress')),
+          )
+          .value,
+      1,
+    );
+    expect(find.text('Turma A'), findsOneWidget);
+    expect(find.text('Turma Atual'), findsOneWidget);
+  });
+
+  testWidgets('zero-XP leader uses a neutral zero progress state', (
+    tester,
+  ) async {
+    _configureSurface(tester);
+    await _pumpAuthenticatedRanking(
+      tester,
+      _FakeRankingRepository(
+        (currentClassId) async => ranking([
+          entry('class-a', 'Turma A', 0),
+          entry('class-current', 'Turma Atual', 0),
+        ], currentClassId: currentClassId),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ainda não há XP para comparar.'), findsOneWidget);
+    expect(find.textContaining('Faltam 0 XP'), findsNothing);
+    expect(
+      tester
+          .widget<AnimatedProgressPill>(
+            find.byKey(const Key('ranking-hero-progress')),
+          )
+          .value,
+      0,
+    );
+    expect(find.text('0 XP'), findsNWidgets(3));
   });
 
   testWidgets('remote failure never activates pilot ranking', (tester) async {
