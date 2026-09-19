@@ -275,11 +275,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
       dataStatus: AppDataStatus.remote,
       child: Column(
         children: [
-          _AuthenticatedProfileHeader(profile: profile),
+          _ProfileHeader(
+            profile: StudentProfile(
+              school: profile.schoolName,
+              identifier: profile.name,
+            ),
+            className: profile.className,
+            customization: const ProfileCustomization(),
+            showJourneyData: false,
+            onEdit: null,
+          ),
           const SizedBox(height: 16),
-          _AuthenticatedResourceSummary(profile: profile),
+          _ResourceSummary(
+            personalPoints: '—',
+            classPoints: profile.classXpBalance.toString(),
+            classLabel: 'XP da turma',
+            binCoins: profile.binCoinsBalance,
+          ),
           const SizedBox(height: 16),
-          const _AuthenticatedJourneyPlaceholder(),
+          const _LevelPath(hasData: false),
           const SizedBox(height: 16),
           const B1nGuide(
             asset: AppAssets.b1nReward,
@@ -339,179 +353,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _store?.saveCustomization(selected);
     if (!mounted) return;
     setState(() => _customization = selected);
-  }
-}
-
-class _AuthenticatedProfileHeader extends StatelessWidget {
-  const _AuthenticatedProfileHeader({required this.profile});
-
-  final AuthenticatedStudentProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    return PeriodicHighlight(
-      colors: [
-        AppColors.blue.withValues(alpha: 0.04),
-        Colors.white.withValues(alpha: 0.52),
-        AppColors.green.withValues(alpha: 0.08),
-      ],
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.blue.withValues(alpha: 0.34)),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.blue.withValues(alpha: 0.22),
-              Colors.white,
-              AppColors.green.withValues(alpha: 0.16),
-            ],
-          ),
-        ),
-        child: Row(
-          children: [
-            const _ProfileAvatarFrame(
-              asset: AppAssets.b1nPortraitCelebration,
-              primary: AppColors.blue,
-              secondary: AppColors.green,
-              size: 94,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    profile.name,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 4),
-                  Text('${profile.schoolName} · ${profile.className}'),
-                  const SizedBox(height: 10),
-                  const BadgeLabel(
-                    label: 'Dados autenticados',
-                    color: AppColors.blue,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AuthenticatedResourceSummary extends StatelessWidget {
-  const _AuthenticatedResourceSummary({required this.profile});
-
-  final AuthenticatedStudentProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = (constraints.maxWidth - 10) / 2;
-        return Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            _ResourceTile(
-              key: const ValueKey('profile-resource-class'),
-              width: width,
-              value: profile.classXpBalance.toString(),
-              label: 'XP da turma',
-              icon: Icons.groups_rounded,
-              color: AppColors.blue,
-            ),
-            _ResourceTile(
-              key: const ValueKey('profile-resource-bincoins'),
-              width: width,
-              label: 'BinCoins',
-              color: AppColors.warning,
-              binCoinValue: profile.binCoinsBalance,
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _AuthenticatedJourneyPlaceholder extends StatelessWidget {
-  const _AuthenticatedJourneyPlaceholder();
-
-  static const _labels = [
-    'Aprendiz',
-    'Explorador',
-    'Restaurador',
-    'Guardião',
-    'Herói',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return SurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Trilha do restaurador',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 6),
-          const Text('Nível atual —'),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var index = 0; index < _labels.length; index++) ...[
-                Expanded(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.surface,
-                          border: Border.all(color: AppColors.line, width: 2),
-                        ),
-                        child: const Text(
-                          '—',
-                          style: TextStyle(
-                            color: AppColors.textMuted,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          _labels[index],
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (index < _labels.length - 1)
-                  Container(
-                    width: 8,
-                    height: 3,
-                    margin: const EdgeInsets.only(top: 18),
-                    color: AppColors.line,
-                  ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -616,11 +457,15 @@ class _ProfileHeader extends StatelessWidget {
     required this.profile,
     required this.customization,
     required this.onEdit,
+    this.className = '9ºA',
+    this.showJourneyData = true,
   });
 
   final StudentProfile profile;
   final ProfileCustomization customization;
   final VoidCallback? onEdit;
+  final String className;
+  final bool showJourneyData;
 
   @override
   Widget build(BuildContext context) {
@@ -692,7 +537,7 @@ class _ProfileHeader extends StatelessWidget {
                     primary: theme.primary,
                     secondary: theme.secondary,
                     size: 94,
-                    badge: 'N3',
+                    badge: showJourneyData ? 'N3' : null,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -707,23 +552,26 @@ class _ProfileHeader extends StatelessWidget {
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                             ),
-                            IconButton(
-                              tooltip: 'Personalizar perfil',
-                              onPressed: onEdit,
-                              icon: const Icon(Icons.palette_outlined),
-                              color: theme.primary,
-                            ),
+                            if (onEdit != null)
+                              IconButton(
+                                tooltip: 'Personalizar perfil',
+                                onPressed: onEdit,
+                                icon: const Icon(Icons.palette_outlined),
+                                color: theme.primary,
+                              ),
                           ],
                         ),
-                        Text('${profile.school} · 9ºA'),
+                        Text('${profile.school} · $className'),
                         const SizedBox(height: 10),
                         BadgeLabel(
-                          label: 'Nível 3 · Restaurador',
+                          label: showJourneyData
+                              ? 'Nível 3 · Restaurador'
+                              : 'Nível —',
                           color: theme.primary,
                         ),
                         const SizedBox(height: 8),
                         AnimatedProgressPill(
-                          value: 0.62,
+                          value: showJourneyData ? 0.62 : 0,
                           color: theme.secondary,
                           height: 9,
                         ),
@@ -1185,7 +1033,17 @@ class _ThemeOptionCard extends StatelessWidget {
 }
 
 class _ResourceSummary extends StatelessWidget {
-  const _ResourceSummary();
+  const _ResourceSummary({
+    this.personalPoints = '76.000',
+    this.classPoints = '119.000',
+    this.classLabel = 'Pontos da turma',
+    this.binCoins = 12000,
+  });
+
+  final String personalPoints;
+  final String classPoints;
+  final String classLabel;
+  final int binCoins;
 
   @override
   Widget build(BuildContext context) {
@@ -1199,7 +1057,7 @@ class _ResourceSummary extends StatelessWidget {
             _ResourceTile(
               key: const ValueKey('profile-resource-personal'),
               width: width,
-              value: '76.000',
+              value: personalPoints,
               label: 'Pontos pessoais',
               icon: Icons.person_rounded,
               color: AppColors.green,
@@ -1207,8 +1065,8 @@ class _ResourceSummary extends StatelessWidget {
             _ResourceTile(
               key: const ValueKey('profile-resource-class'),
               width: width,
-              value: '119.000',
-              label: 'Pontos da turma',
+              value: classPoints,
+              label: classLabel,
               icon: Icons.groups_rounded,
               color: AppColors.blue,
             ),
@@ -1217,7 +1075,7 @@ class _ResourceSummary extends StatelessWidget {
               width: width,
               label: 'BinCoins',
               color: AppColors.warning,
-              binCoinValue: 12000,
+              binCoinValue: binCoins,
             ),
           ],
         );
@@ -1315,7 +1173,9 @@ class _ResourceTile extends StatelessWidget {
 }
 
 class _LevelPath extends StatelessWidget {
-  const _LevelPath();
+  const _LevelPath({this.hasData = true});
+
+  final bool hasData;
 
   static const _levels = [
     'Aprendiz',
@@ -1335,6 +1195,10 @@ class _LevelPath extends StatelessWidget {
             'Trilha do restaurador',
             style: Theme.of(context).textTheme.titleMedium,
           ),
+          if (!hasData) ...[
+            const SizedBox(height: 6),
+            const Text('Nível atual —'),
+          ],
           const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1349,15 +1213,27 @@ class _LevelPath extends StatelessWidget {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: index < 3 ? AppColors.green : Colors.white,
+                          color: hasData && index < 3
+                              ? AppColors.green
+                              : Colors.white,
                           border: Border.all(
-                            color: index == 2
+                            color: !hasData
+                                ? AppColors.line
+                                : index == 2
                                 ? AppColors.blue
                                 : AppColors.green,
-                            width: index == 2 ? 3 : 2,
+                            width: hasData && index == 2 ? 3 : 2,
                           ),
                         ),
-                        child: index < 2
+                        child: !hasData
+                            ? const Text(
+                                '—',
+                                style: TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              )
+                            : index < 2
                             ? const Icon(
                                 Icons.check_rounded,
                                 color: Colors.white,
@@ -1389,7 +1265,9 @@ class _LevelPath extends StatelessWidget {
                     width: 8,
                     height: 3,
                     margin: const EdgeInsets.only(top: 18),
-                    color: index < 2 ? AppColors.green : AppColors.line,
+                    color: hasData && index < 2
+                        ? AppColors.green
+                        : AppColors.line,
                   ),
               ],
             ],

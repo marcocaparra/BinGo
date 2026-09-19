@@ -413,34 +413,68 @@ void main() {
 
     expect(gateway.signInCalls, 1);
     expect(find.byType(ShellScreen), findsOneWidget);
-    expect(find.text('Cenário indisponível'), findsOneWidget);
+    expect(find.text('Ainda não há dados'), findsOneWidget);
+    expect(find.text('Jornada da turma'), findsOneWidget);
+    expect(find.text('Missão ainda não vinculada'), findsOneWidget);
+    expect(find.text('Ver preparo para o Totem'), findsOneWidget);
+    expect(find.text('Alerta SCR4P'), findsOneWidget);
+    expect(find.text('68% restaurada'), findsNothing);
+    expect(find.textContaining('2 descartes'), findsNothing);
     expect(find.text('Como funciona o BinGo'), findsOneWidget);
+    expect(find.text('Dados autenticados'), findsNothing);
     expect(find.textContaining('Marco'), findsNothing);
+
+    await tester.ensureVisible(find.text('Como funciona o BinGo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Como funciona o BinGo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Como funciona'), findsOneWidget);
+    expect(find.text('Dados simulados'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Carteira'));
     await tester.pumpAndSettle();
     expect(find.text('17'), findsOneWidget);
     expect(find.text('12.000'), findsNothing);
-    expect(find.text('BinBazar indisponível'), findsOneWidget);
+    expect(find.text('Abrir BinBazar'), findsOneWidget);
     expect(find.text('Extrato indisponível'), findsOneWidget);
 
     await tester.tap(find.text('Missões'));
     await tester.pumpAndSettle();
-    expect(find.text('Nenhuma missão ativa'), findsOneWidget);
-    expect(find.text('Força-tarefa em destaque'), findsNothing);
+    expect(find.text('Nenhuma missão individual ativa'), findsOneWidget);
+    expect(find.text('Força-tarefa em destaque'), findsOneWidget);
+    expect(find.text('Nenhuma missão coletiva ativa'), findsOneWidget);
+    expect(find.text('Outras etapas da jornada'), findsOneWidget);
+    expect(find.text('Ainda não há outras etapas'), findsOneWidget);
 
     await tester.tap(find.text('Ranking'));
     await tester.pumpAndSettle();
-    expect(find.text('Remote Class'), findsOneWidget);
-    expect(find.text('29 XP da turma'), findsOneWidget);
-    expect(find.text('Pódio indisponível'), findsOneWidget);
-    expect(find.text('Mapa indisponível'), findsOneWidget);
+    expect(find.text('Sua turma · Remote Class'), findsOneWidget);
+    expect(find.text('29 XP'), findsOneWidget);
+    expect(find.text('Turmas da Praça'), findsOneWidget);
+    expect(find.text('Turma —'), findsNWidgets(3));
+    expect(find.text('Ainda não há dados'), findsOneWidget);
+    expect(find.text('7ºA'), findsNothing);
+    expect(find.text('8ºB'), findsNothing);
+    expect(find.text('6ºC'), findsNothing);
+    expect(find.text('12 dias'), findsNothing);
+
+    await tester.ensureVisible(find.text('Explorar BinGópolis'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Explorar BinGópolis'));
+    await tester.pumpAndSettle();
+    expect(find.text('BinGópolis'), findsOneWidget);
+    expect(find.text('Ainda não há dados'), findsOneWidget);
+    expect(find.text('Dados simulados'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Perfil'));
     await tester.pumpAndSettle();
     expect(find.text('29'), findsOneWidget);
     expect(find.text('XP da turma'), findsOneWidget);
-    expect(find.text('Pontos pessoais'), findsNothing);
+    expect(find.text('Pontos pessoais'), findsOneWidget);
     expect(find.text('9ºA'), findsNothing);
   });
 

@@ -225,7 +225,7 @@ class DiscardRecord {
   final IconData icon;
 }
 
-enum MissionState { active, event, completed, upcoming }
+enum MissionState { active, achieved, event, completed, upcoming }
 
 class Mission {
   const Mission({

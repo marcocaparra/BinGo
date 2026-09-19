@@ -362,8 +362,10 @@ void main() {
     expect(find.text('12.000'), findsNothing);
     expect(find.text('76.000'), findsNothing);
     expect(find.text('119.000'), findsNothing);
-    expect(find.text('Pontos pessoais'), findsNothing);
+    expect(find.text('Pontos pessoais'), findsOneWidget);
+    expect(find.text('—'), findsWidgets);
     expect(find.text('Nível 3 · Restaurador'), findsNothing);
+    expect(find.text('Dados autenticados'), findsNothing);
     expect(find.text('Ver missões'), findsNothing);
   });
 

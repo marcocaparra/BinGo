@@ -4,7 +4,9 @@ import 'package:bingo_app/src/data/deposit_history_repository.dart';
 import 'package:bingo_app/src/data/missions_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
+import 'package:bingo_app/src/theme/app_assets.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
+import 'package:bingo_app/src/widgets/bingo_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -60,17 +62,19 @@ AuthenticatedMission mission({
   int rewardXp = 0,
   bool isAchieved = false,
   bool isCompleted = false,
+  DateTime? startsAt,
+  String? definitionCode,
 }) {
   return AuthenticatedMission(
     cycleId: cycleId,
     definitionId: 'definition-$cycleId',
-    definitionCode: 'CODE_$cycleId',
+    definitionCode: definitionCode ?? 'CODE_$cycleId',
     definitionTitle: title,
     scope: scope,
     metric: scope == AuthenticatedMissionScope.student
         ? AuthenticatedMissionMetric.validDepositCount
         : AuthenticatedMissionMetric.classXpEarned,
-    startsAt: DateTime.utc(2026, 9),
+    startsAt: startsAt ?? DateTime.utc(2026, 9),
     endsAt: DateTime.utc(2026, 10),
     target: target,
     rewardBinCoins: rewardBinCoins,
@@ -143,35 +147,53 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Nenhuma missão ativa'), findsOneWidget);
+      expect(find.text('Missões de restauração'), findsOneWidget);
+      expect(
+        find.text('Acompanhe metas seguras e o progresso da sua turma.'),
+        findsOneWidget,
+      );
+      expect(find.text('Força-tarefa em destaque'), findsOneWidget);
+      expect(find.text('Outras etapas da jornada'), findsOneWidget);
+      expect(find.text('Nenhuma missão individual ativa'), findsOneWidget);
+      expect(find.text('Nenhuma missão coletiva ativa'), findsOneWidget);
+      expect(find.text('Ainda não há outras etapas'), findsOneWidget);
       expect(find.text('Descarte corretamente 1 eletrônico'), findsNothing);
     },
   );
 
-  testWidgets('renders STUDENT, CLASS, achieved and completed backend states', (
+  testWidgets('classifies real missions into the canonical pilot composition', (
     tester,
   ) async {
     _configureSurface(tester);
     final repository = _FakeMissionsRepository(
       () async => [
         mission(
+          cycleId: 'class-active',
+          title: 'Juntos pela Praça',
+          scope: AuthenticatedMissionScope.classGroup,
+          target: 10000,
+          progress: 4300,
+          rewardBinCoins: 0,
+          rewardXp: 1900,
+        ),
+        mission(
+          cycleId: 'completed',
+          title: 'Primeiro descarte sustentável',
+          scope: AuthenticatedMissionScope.student,
+          target: 1,
+          progress: 1,
+          rewardBinCoins: 100,
+          isAchieved: true,
+          isCompleted: true,
+        ),
+        mission(
           cycleId: 'student',
           title: 'Consistência Sustentável',
           scope: AuthenticatedMissionScope.student,
           target: 10,
           progress: 17,
+          rewardXp: 700,
           isAchieved: true,
-        ),
-        mission(
-          cycleId: 'class',
-          title: 'Juntos pela Praça',
-          scope: AuthenticatedMissionScope.classGroup,
-          target: 10000,
-          progress: 10000,
-          rewardBinCoins: 0,
-          rewardXp: 1900,
-          isAchieved: true,
-          isCompleted: true,
         ),
       ],
     );
@@ -179,16 +201,141 @@ void main() {
     await _pumpAuthenticatedMissions(tester, repository);
     await tester.pumpAndSettle();
 
-    expect(find.text('Consistência Sustentável'), findsOneWidget);
-    expect(find.text('Missão individual'), findsOneWidget);
-    expect(find.text('17 / 10'), findsOneWidget);
-    expect(find.text('+500 BinCoins'), findsOneWidget);
+    expect(find.text('Missões de restauração'), findsOneWidget);
+    expect(
+      find.text('Acompanhe metas seguras e o progresso da sua turma.'),
+      findsOneWidget,
+    );
+    expect(find.text('Escola BinGo · 7º B'), findsNothing);
+
+    final hero = find.byKey(const Key('missions-featured-hero'));
+    final collective = find.byKey(
+      const ValueKey('missions-collective-class-active'),
+    );
+    final completed = find.byKey(const ValueKey('missions-journey-completed'));
+
+    expect(hero, findsOneWidget);
+    expect(
+      find.descendant(
+        of: hero,
+        matching: find.text('Consistência Sustentável'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: hero, matching: find.text('Juntos pela Praça')),
+      findsNothing,
+    );
     expect(find.text('Meta atingida'), findsOneWidget);
-    expect(find.text('Juntos pela Praça'), findsOneWidget);
-    expect(find.text('Missão da turma'), findsOneWidget);
-    expect(find.text('10000 / 10000'), findsOneWidget);
+
+    expect(find.text('Força-tarefa em destaque'), findsOneWidget);
+    expect(collective, findsOneWidget);
+    expect(
+      find.descendant(of: collective, matching: find.text('Juntos pela Praça')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('4300 / 10000'), findsOneWidget);
     expect(find.text('+1900 XP'), findsOneWidget);
+
+    expect(find.text('Outras etapas da jornada'), findsOneWidget);
+    expect(completed, findsOneWidget);
+    expect(
+      find.descendant(
+        of: completed,
+        matching: find.text('Primeiro descarte sustentável'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('+100 BinCoins'), findsOneWidget);
     expect(find.text('Concluída'), findsOneWidget);
+
+    expect(find.text('+500 BinCoins · +700 XP'), findsOneWidget);
+    expect(find.text('5 descartes validados até sexta.'), findsNothing);
+    expect(find.text('+20 bônus'), findsNothing);
+
+    expect(
+      find.descendant(
+        of: hero,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Image &&
+              widget.image is AssetImage &&
+              (widget.image as AssetImage).assetName == AppAssets.sceneClean,
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: hero,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is Image &&
+              widget.image is AssetImage &&
+              (widget.image as AssetImage).assetName ==
+                  AppAssets.b1nMissionReady,
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: collective,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is BingoAssetImage &&
+              widget.asset == AppAssets.scr4pDefense &&
+              widget.fit == BoxFit.contain &&
+              widget.alignment == Alignment.bottomCenter &&
+              widget.filterQuality == FilterQuality.high,
+        ),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(hero);
+    await tester.pumpAndSettle();
+    expect(find.text('Missão'), findsOneWidget);
+    expect(find.text('Dados simulados'), findsNothing);
+    expect(find.text('+500 BinCoins · +700 XP'), findsWidgets);
+  });
+
+  testWidgets('uses deterministic dates instead of RPC order for the hero', (
+    tester,
+  ) async {
+    _configureSurface(tester);
+    final repository = _FakeMissionsRepository(
+      () async => [
+        mission(
+          cycleId: 'later',
+          title: 'Missão individual posterior',
+          scope: AuthenticatedMissionScope.student,
+          startsAt: DateTime.utc(2026, 9, 10),
+        ),
+        mission(
+          cycleId: 'earlier',
+          title: 'Missão individual prioritária',
+          scope: AuthenticatedMissionScope.student,
+          startsAt: DateTime.utc(2026, 9, 1),
+        ),
+      ],
+    );
+
+    await _pumpAuthenticatedMissions(tester, repository);
+    await tester.pumpAndSettle();
+
+    final hero = find.byKey(const Key('missions-featured-hero'));
+    expect(
+      find.descendant(
+        of: hero,
+        matching: find.text('Missão individual prioritária'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('missions-journey-later')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('remote error never activates pilot missions', (tester) async {

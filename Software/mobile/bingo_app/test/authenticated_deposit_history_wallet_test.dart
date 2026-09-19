@@ -175,6 +175,29 @@ void main() {
     );
   });
 
+  testWidgets('authenticated wallet keeps canonical BinBazar without mocks', (
+    tester,
+  ) async {
+    _configureSurface(tester);
+    final repository = _FakeDepositHistoryRepository((_, _) async => const []);
+
+    await _pumpAuthenticatedWallet(tester, repository);
+    await tester.pumpAndSettle();
+
+    expect(find.text('900'), findsOneWidget);
+    expect(find.text('Abrir BinBazar'), findsOneWidget);
+    expect(find.text('Suco natural'), findsNothing);
+    expect(find.text('Crédito'), findsNothing);
+
+    await tester.tap(find.text('Abrir BinBazar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('BinBazar'), findsOneWidget);
+    expect(find.text('Ainda não há dados'), findsOneWidget);
+    expect(find.text('Suco natural'), findsNothing);
+    expect(find.text('Caneta temática'), findsNothing);
+  });
+
   testWidgets('authenticated wallet retries after a history error', (
     tester,
   ) async {
