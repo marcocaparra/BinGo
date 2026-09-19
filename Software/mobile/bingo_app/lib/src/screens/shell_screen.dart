@@ -9,6 +9,7 @@ import '../data/deposit_history_adapter.dart';
 import '../data/deposit_history_repository.dart';
 import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
+import '../data/ranking_repository.dart';
 import '../data/session_wallet_controller.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_theme.dart';
@@ -28,6 +29,7 @@ class ShellScreen extends StatefulWidget {
   }) : authenticatedRepository = null,
        depositHistoryRepository = null,
        missionsRepository = null,
+       rankingRepository = null,
        onLogout = null,
        onSessionInvalid = null;
 
@@ -35,6 +37,7 @@ class ShellScreen extends StatefulWidget {
     required AuthenticatedProfileRepository repository,
     required this.depositHistoryRepository,
     required this.missionsRepository,
+    required this.rankingRepository,
     required this.onLogout,
     required this.onSessionInvalid,
     this.initialIndex = 0,
@@ -49,6 +52,7 @@ class ShellScreen extends StatefulWidget {
   final AuthenticatedProfileRepository? authenticatedRepository;
   final AuthenticatedDepositHistoryRepository? depositHistoryRepository;
   final AuthenticatedMissionsRepository? missionsRepository;
+  final AuthenticatedRankingRepository? rankingRepository;
   final Future<AuthFailure?> Function()? onLogout;
   final Future<void> Function()? onSessionInvalid;
 
@@ -143,9 +147,10 @@ class _ShellScreenState extends State<ShellScreen> {
                     repository: widget.missionsRepository!,
                     onSessionInvalid: widget.onSessionInvalid!,
                   ),
-                  RankingScreen.authenticated(
-                    className: profile.className,
-                    classXp: profile.classXpBalance,
+                  _AuthenticatedRankingDataSource(
+                    currentClassId: profile.classId,
+                    repository: widget.rankingRepository!,
+                    onSessionInvalid: widget.onSessionInvalid!,
                   ),
                   ProfileScreen.authenticated(
                     profile: profile,
@@ -511,11 +516,104 @@ Mission _presentAuthenticatedMission(AuthenticatedMission mission) {
   );
 }
 
+class _AuthenticatedRankingDataSource extends StatefulWidget {
+  const _AuthenticatedRankingDataSource({
+    required this.currentClassId,
+    required this.repository,
+    required this.onSessionInvalid,
+  });
+
+  final String currentClassId;
+  final AuthenticatedRankingRepository repository;
+  final Future<void> Function() onSessionInvalid;
+
+  @override
+  State<_AuthenticatedRankingDataSource> createState() =>
+      _AuthenticatedRankingDataSourceState();
+}
+
+class _AuthenticatedRankingDataSourceState
+    extends State<_AuthenticatedRankingDataSource> {
+  ClassRanking? _ranking;
+  RankingFailure? _failure;
+  var _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadRanking());
+  }
+
+  Future<void> _loadRanking() async {
+    setState(() {
+      _loading = true;
+      _failure = null;
+    });
+    try {
+      final ranking = await widget.repository.loadRanking(
+        currentClassId: widget.currentClassId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _ranking = ranking;
+        _loading = false;
+      });
+    } on RankingFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _ranking = null;
+        _failure = failure;
+        _loading = false;
+      });
+      if (failure.kind == RankingFailureKind.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(widget.onSessionInvalid());
+        });
+      }
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[ranking] Screen mapping failure: $error');
+        debugPrintStack(
+          label: '[ranking] screen stack trace',
+          stackTrace: stackTrace,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _ranking = null;
+        _failure = RankingFailure(
+          RankingFailureKind.unknown,
+          'Não foi possível carregar o Ranking agora.',
+          error,
+        );
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RankingScreen.authenticated(
+      ranking: _ranking,
+      loading: _loading,
+      failure: _failure,
+      onRetry: _loadRanking,
+    );
+  }
+}
+
 String _missionsFailureTitle(MissionsFailureKind kind) => switch (kind) {
   MissionsFailureKind.sessionInvalid => 'Sessão expirada',
   MissionsFailureKind.network => 'Sem conexão',
   MissionsFailureKind.malformedData => 'Dados de missões inválidos',
   MissionsFailureKind.unknown => 'Missões indisponíveis',
+};
+
+String _rankingFailureTitle(RankingFailureKind kind) => switch (kind) {
+  RankingFailureKind.sessionInvalid => 'Sessão expirada',
+  RankingFailureKind.network => 'Sem conexão',
+  RankingFailureKind.malformedData => 'Dados do Ranking inválidos',
+  RankingFailureKind.unknown => 'Ranking indisponível',
 };
 
 String _profileFailureTitle(ProfileFailureKind kind) {
@@ -1623,24 +1721,40 @@ class RankingScreen extends StatelessWidget {
   const RankingScreen({this.rows = classRows, this.isPilot = false, super.key})
     : className = '9ºA',
       classXp = 76000,
-      authenticated = false;
+      authenticated = false,
+      ranking = null,
+      loading = false,
+      failure = null,
+      onRetry = null;
 
   const RankingScreen.authenticated({
-    required this.className,
-    required this.classXp,
+    required this.ranking,
+    this.loading = false,
+    this.failure,
+    this.onRetry,
     super.key,
   }) : rows = const [],
        isPilot = false,
-       authenticated = true;
+       authenticated = true,
+       className = '',
+       classXp = 0;
 
   final List<(String, String, String, String)> rows;
   final bool isPilot;
   final String className;
   final int classXp;
   final bool authenticated;
+  final ClassRanking? ranking;
+  final bool loading;
+  final RankingFailure? failure;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final currentClass = ranking?.currentClass;
+    final currentPosition = ranking?.currentPosition;
+    final topThree = ranking?.topThree ?? const <ClassRankingEntry>[];
+
     return AppPage(
       title: 'Ranking das turmas',
       subtitle: 'Compare posições e acompanhe a restauração coletiva.',
@@ -1648,7 +1762,27 @@ class RankingScreen extends StatelessWidget {
       dataStatus: authenticated
           ? AppDataStatus.remote
           : AppDataStatus.simulated,
-      child: rows.isEmpty && !authenticated
+      child: loading
+          ? const BingoDataState(
+              kind: BingoDataStateKind.loading,
+              title: 'Carregando Ranking',
+              message: 'Consultando as turmas da sua escola.',
+            )
+          : failure != null
+          ? BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: _rankingFailureTitle(failure!.kind),
+              message: failure!.message,
+              icon: Icons.cloud_off_rounded,
+              action: failure!.kind == RankingFailureKind.sessionInvalid
+                  ? null
+                  : BingoActionButton(
+                      label: 'Tentar novamente',
+                      icon: Icons.refresh_rounded,
+                      onPressed: onRetry,
+                    ),
+            )
+          : rows.isEmpty && !authenticated
           ? const BingoDataState(
               kind: BingoDataStateKind.empty,
               title: 'Ranking ainda sem resultados',
@@ -1659,12 +1793,17 @@ class RankingScreen extends StatelessWidget {
           : Column(
               children: [
                 _RankingHero(
-                  className: className,
-                  classXp: classXp,
-                  hasRankingData: !authenticated,
+                  className: authenticated
+                      ? currentClass?.className
+                      : className,
+                  classXp: authenticated
+                      ? currentClass?.pointsClassBalance
+                      : classXp,
+                  position: authenticated ? currentPosition : 4,
+                  isPilot: !authenticated,
                 ),
                 const SizedBox(height: 18),
-                _PodiumCard(hasData: !authenticated),
+                _PodiumCard(isPilot: !authenticated, topThree: topThree),
                 const SizedBox(height: 18),
                 _ScenarioAccessCard(
                   hasData: !authenticated,
@@ -3340,21 +3479,27 @@ class _RankingHero extends StatelessWidget {
   const _RankingHero({
     required this.className,
     required this.classXp,
-    required this.hasRankingData,
+    required this.position,
+    required this.isPilot,
   });
 
-  final String className;
-  final int classXp;
-  final bool hasRankingData;
+  final String? className;
+  final int? classXp;
+  final int? position;
+  final bool isPilot;
 
   @override
   Widget build(BuildContext context) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final hasRankingData =
+        className != null && classXp != null && position != null;
+    final positionLabel = hasRankingData ? '$positionº lugar' : 'Posição —';
     return Semantics(
+      key: const Key('ranking-hero'),
       container: true,
       label: hasRankingData
-          ? 'Sua turma, $className, está em quarto lugar com $classXp pontos.'
-          : 'Sua turma, $className, possui $classXp XP. Posição ainda sem dados.',
+          ? 'Sua turma, $className, está na posição $position com $classXp XP.'
+          : 'Turma, saldo e posição ainda sem dados.',
       child: ExcludeSemantics(
         child: SurfaceCard(
           color: const Color(0xFFEAF6FF),
@@ -3362,15 +3507,12 @@ class _RankingHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (usesLargeText) ...[
-                BadgeLabel(
-                  label: hasRankingData ? '4º lugar' : 'Posição —',
-                  color: AppColors.warning,
-                ),
+                BadgeLabel(label: positionLabel, color: AppColors.warning),
                 const SizedBox(height: 10),
                 _RankingScore(
                   className: className,
                   classXp: classXp,
-                  hasRankingData: hasRankingData,
+                  isPilot: isPilot,
                 ),
               ] else
                 Row(
@@ -3380,14 +3522,11 @@ class _RankingHero extends StatelessWidget {
                       child: _RankingScore(
                         className: className,
                         classXp: classXp,
-                        hasRankingData: hasRankingData,
+                        isPilot: isPilot,
                       ),
                     ),
                     const SizedBox(width: 12),
-                    BadgeLabel(
-                      label: hasRankingData ? '4º lugar' : 'Posição —',
-                      color: AppColors.warning,
-                    ),
+                    BadgeLabel(label: positionLabel, color: AppColors.warning),
                   ],
                 ),
               const SizedBox(height: 12),
@@ -3402,7 +3541,9 @@ class _RankingHero extends StatelessWidget {
                   Expanded(
                     child: Text(
                       hasRankingData
-                          ? 'Próxima meta: 5000 pontos para o top 3'
+                          ? isPilot
+                                ? 'Próxima meta: 5000 pontos para o top 3'
+                                : 'Distância até o pódio: —'
                           : 'Distância até o pódio: —',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.navy,
@@ -3414,7 +3555,7 @@ class _RankingHero extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               AnimatedProgressPill(
-                value: hasRankingData ? 76000 / 81000 : 0,
+                value: isPilot ? 76000 / 81000 : 0,
                 color: AppColors.green,
                 backgroundColor: Colors.white,
                 height: 12,
@@ -3431,12 +3572,12 @@ class _RankingScore extends StatelessWidget {
   const _RankingScore({
     required this.className,
     required this.classXp,
-    required this.hasRankingData,
+    required this.isPilot,
   });
 
-  final String className;
-  final int classXp;
-  final bool hasRankingData;
+  final String? className;
+  final int? classXp;
+  final bool isPilot;
 
   @override
   Widget build(BuildContext context) {
@@ -3444,12 +3585,16 @@ class _RankingScore extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Sua turma · $className',
+          'Sua turma · ${className ?? '—'}',
           style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 4),
         Text(
-          hasRankingData ? '76.000 pts' : '$classXp XP',
+          classXp == null
+              ? '— XP'
+              : isPilot
+              ? '76.000 pts'
+              : '${_formatRankingXp(classXp!)} XP',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             color: AppColors.blue,
             fontWeight: FontWeight.w900,
@@ -3461,13 +3606,17 @@ class _RankingScore extends StatelessWidget {
 }
 
 class _PodiumCard extends StatelessWidget {
-  const _PodiumCard({required this.hasData});
+  const _PodiumCard({required this.isPilot, this.topThree = const []});
 
-  final bool hasData;
+  final bool isPilot;
+  final List<ClassRankingEntry> topThree;
 
   @override
   Widget build(BuildContext context) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final first = _rankingEntryAt(topThree, 0);
+    final second = _rankingEntryAt(topThree, 1);
+    final third = _rankingEntryAt(topThree, 2);
     final title = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -3483,6 +3632,7 @@ class _PodiumCard extends StatelessWidget {
     );
 
     return SurfaceCard(
+      key: const Key('ranking-podium'),
       color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3490,19 +3640,21 @@ class _PodiumCard extends StatelessWidget {
           if (usesLargeText) ...[
             title,
             const SizedBox(height: 10),
-            _RankingCycleBadge(hasData: hasData),
+            _RankingCycleBadge(hasData: isPilot),
           ] else
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(child: title),
                 const SizedBox(width: 12),
-                _RankingCycleBadge(hasData: hasData),
+                _RankingCycleBadge(hasData: isPilot),
               ],
             ),
           const SizedBox(height: 10),
           Text(
-            'O top 3 e a participação elegível recebem bônus no fim do ciclo.',
+            isPilot
+                ? 'O top 3 e a participação elegível recebem bônus no fim do ciclo.'
+                : 'Classificação pelo saldo atual de XP das turmas da escola.',
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
@@ -3514,8 +3666,8 @@ class _PodiumCard extends StatelessWidget {
               Expanded(
                 child: _PodiumPlace(
                   position: '2º',
-                  room: hasData ? '8ºB' : 'Turma —',
-                  points: hasData ? '92.000 pts' : '—',
+                  room: isPilot ? '8ºB' : second?.className ?? 'Turma —',
+                  points: isPilot ? '92.000 pts' : _rankingPointsLabel(second),
                   height: 86,
                   color: AppColors.blue,
                 ),
@@ -3524,8 +3676,8 @@ class _PodiumCard extends StatelessWidget {
               Expanded(
                 child: _PodiumPlace(
                   position: '1º',
-                  room: hasData ? '7ºA' : 'Turma —',
-                  points: hasData ? '124.000 pts' : '—',
+                  room: isPilot ? '7ºA' : first?.className ?? 'Turma —',
+                  points: isPilot ? '124.000 pts' : _rankingPointsLabel(first),
                   height: 112,
                   color: AppColors.warning,
                 ),
@@ -3534,8 +3686,8 @@ class _PodiumCard extends StatelessWidget {
               Expanded(
                 child: _PodiumPlace(
                   position: '3º',
-                  room: hasData ? '6ºC' : 'Turma —',
-                  points: hasData ? '81.000 pts' : '—',
+                  room: isPilot ? '6ºC' : third?.className ?? 'Turma —',
+                  points: isPilot ? '81.000 pts' : _rankingPointsLabel(third),
                   height: 72,
                   color: AppColors.green,
                 ),
@@ -3546,6 +3698,23 @@ class _PodiumCard extends StatelessWidget {
       ),
     );
   }
+}
+
+T? _rankingEntryAt<T>(List<T> entries, int index) {
+  if (index < 0 || index >= entries.length) return null;
+  return entries[index];
+}
+
+String _rankingPointsLabel(ClassRankingEntry? entry) {
+  if (entry == null) return '—';
+  return '${_formatRankingXp(entry.pointsClassBalance)} XP';
+}
+
+String _formatRankingXp(int value) {
+  return value.toString().replaceAllMapped(
+    RegExp(r'(?=(\d{3})+(?!\d))'),
+    (_) => '.',
+  );
 }
 
 class _RankingCycleBadge extends StatelessWidget {

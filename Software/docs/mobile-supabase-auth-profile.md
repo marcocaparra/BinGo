@@ -5,11 +5,11 @@
 O Mobile possui dois caminhos isolados:
 
 - modo piloto: explícito, local, sem autenticação e sem acesso ao Supabase;
-- conta autenticada: e-mail/senha no Supabase Auth e leitura remota do próprio perfil, turma e escola.
+- conta autenticada: e-mail/senha no Supabase Auth e leituras remotas autorizadas, incluindo perfil e Ranking V1 das turmas da própria escola.
 
 O perfil autenticado reutiliza o frontend final somente para nome, escola, turma, saldo individual de BinCoins e XP da turma. `students.points_student_balance` representa BinCoins no V1, e `classes.points_class_balance` representa XP da turma. Não existe um saldo separado de pontos pessoais.
 
-Recompensas, histórico, ranking, extrato/carteira, missões, níveis, conquistas, impacto e resgates continuam simulados exclusivamente dentro do modo piloto. Eles não são exibidos no fluxo autenticado.
+No Ranking V1 autenticado, `classes.points_class_balance` é a única pontuação. A RPC `get_class_ranking_v1()` deriva a escola de `auth.uid()` e retorna somente identificador, nome e saldo das turmas dessa escola, já ordenados por saldo decrescente e UUID crescente como desempate técnico temporário. O modo autenticado não usa `classRows` ou outro dado demonstrativo como fallback.
 
 ## Configuração do Flutter
 
@@ -42,6 +42,8 @@ Sem os dois `dart-define`, o piloto continua disponível e a tentativa de login 
 O baseline backend de autorização foi recriado por migrations versionadas em `database/migrations` e `supabase/migrations`. Ele habilita RLS nas tabelas de domínio e permite a `authenticated` somente a leitura do próprio registro em `students`, da própria turma em `classes` e da própria escola em `schools`.
 
 O Flutter implementa esse recorte com `SupabaseAuthGateway`, `RemoteProfileRepository` e `SupabaseProfileDataSource`. A consulta de `students` explicita `auth_user_id == currentUser.id`, sem substituir a RLS como autoridade de segurança. O repository deriva `class_id` e `school_id`, lê as relações permitidas e rejeita turma de outra escola ou dados obrigatórios malformados.
+
+O Ranking usa `RemoteRankingRepository` e `SupabaseRankingDataSource`, sem consulta Supabase dentro do widget. A RPC não aceita parâmetros e não amplia a leitura RLS global de `classes`: sua superfície dedicada valida server-side o vínculo do aluno autenticado e retorna somente as colunas necessárias. A mesma lista ordenada alimenta posição da própria turma e pódio; resposta não vazia sem a própria turma é tratada como inconsistência, não como posição zero.
 
 Com Supabase CLI e Docker disponíveis:
 
@@ -88,6 +90,7 @@ Testes Flutter, sem internet:
 ```powershell
 cd mobile/bingo_app
 flutter test test/access_flow_test.dart test/session_gate_test.dart test/profile_repository_test.dart test/profile_screen_test.dart
+flutter test test/ranking_repository_test.dart test/authenticated_ranking_screen_test.dart
 ```
 
 Smoke hospedado opt-in, com as credenciais disponíveis somente no ambiente do host:
@@ -113,10 +116,10 @@ supabase test db
 
 ## Limitações e decisões de segurança
 
-- O baseline comprova grants e policies de `students`, `classes` e `schools`, mas a integração do App e as demais áreas simuladas permanecem fora desta entrega.
+- O baseline comprova grants e policies de `students`, `classes` e `schools`; o Ranking V1 usa uma RPC autenticada dedicada e somente leitura, sem ampliar a policy global de `classes`.
 - Leituras simples usam Supabase Auth e RLS; operações críticas continuam reservadas às Edge Functions e RPCs.
 - A FK de `students.auth_user_id` para `auth.users.id` não foi criada sem validar previamente os registros do projeto remoto.
 - O indicador de restauração autenticada em `SharedPreferences` não contém sessão nem credenciais. O SDK do Supabase gerencia a sessão.
 - A sessão persistida pelo SDK é a fonte de verdade; o indicador auxiliar não impede a restauração de uma sessão válida.
 - Sessão inválida retorna à entrada. Erro de rede permanece erro e oferece nova tentativa; nenhum desses estados ativa o piloto.
-- BinCoins e XP da turma estão disponíveis no perfil autenticado. Níveis, conquistas, histórico, ranking, recompensas, resgates e métricas ambientais permanecem indisponíveis até possuírem fonte real e autorização próprias.
+- BinCoins e XP da turma estão disponíveis no perfil autenticado. O Ranking V1 usa o saldo atual de XP das turmas da mesma escola; ciclos, distância até o top 3, bônus, recompensas e progresso de BinGópolis permanecem sem fonte e aparecem como placeholders neutros.
