@@ -14,7 +14,7 @@ values
     '11111111-1111-1111-1111-111111111111',
     'Água 200ml',
     'Recompensa básica de teste',
-    30,
+    3000,
     'CANTINA',
     true,
     20
@@ -24,7 +24,7 @@ values
     '11111111-1111-1111-1111-111111111111',
     'Doce simples',
     'Recompensa doce para teste',
-    50,
+    5000,
     'CANTINA',
     true,
     15
@@ -34,7 +34,7 @@ values
     '11111111-1111-1111-1111-111111111111',
     'Caneta',
     'Item escolar de teste',
-    70,
+    7000,
     'ESCOLAR',
     true,
     10

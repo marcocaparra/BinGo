@@ -383,6 +383,9 @@ verify_jwt = false
 [functions.health-v1]
 verify_jwt = false
 
+[functions.recover-missions-v1]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

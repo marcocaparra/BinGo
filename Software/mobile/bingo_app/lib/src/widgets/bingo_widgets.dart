@@ -39,7 +39,8 @@ class AppPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         actions: [
-          if (dataStatus != null) _DataStatusNotice(status: dataStatus!),
+          if (dataStatus != null && dataStatus != AppDataStatus.remote)
+            _DataStatusNotice(status: dataStatus!),
           ...?actions,
         ],
         automaticallyImplyLeading: showBackButton,

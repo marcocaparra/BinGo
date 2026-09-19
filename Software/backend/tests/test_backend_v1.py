@@ -113,9 +113,9 @@ def test_login_student_success_and_wrong_pin(client, seeded_ids):
 def test_school_settings_use_v1_scoring_defaults(seeded_ids, session_factory):
     session = session_factory()
     settings = session.get(SchoolSetting, uuid.UUID(seeded_ids["school_id"]))
-    assert settings.deposit_bincoins_base == 8
-    assert settings.deposit_class_xp_base == 19
-    assert settings.class_weekly_xp_goal == 100
+    assert settings.deposit_bincoins_base == 800
+    assert settings.deposit_class_xp_base == 1900
+    assert settings.class_weekly_xp_goal == 10000
     session.close()
 
 
@@ -135,8 +135,8 @@ def test_valid_deposit_logged_in(client, seeded_ids, session_factory):
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["points_awarded_student"] == 8
-    assert body["points_awarded_class"] == 19
+    assert body["points_awarded_student"] == 800
+    assert body["points_awarded_class"] == 1900
     assert body["waste_category_code"] == "PERIPHERAL"
     assert body["bonus_rate_applied"] == "0.0000"
     assert body["bonus_bincoins_awarded"] == 0
@@ -144,8 +144,8 @@ def test_valid_deposit_logged_in(client, seeded_ids, session_factory):
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
     classroom = session.get(ClassRoom, uuid.UUID(seeded_ids["class_id"]))
     deposit = session.query(Deposit).one()
-    assert student.points_student_balance == 128
-    assert classroom.points_class_balance == 19
+    assert student.points_student_balance == 12800
+    assert classroom.points_class_balance == 1900
     assert deposit.waste_category.code == "PERIPHERAL"
     assert deposit.bonus_bincoins_awarded == 0
     session.close()
@@ -177,14 +177,14 @@ def test_valid_deposit_without_login_and_invalid_deposit(client, seeded_ids, ses
         },
     )
     assert no_login.json()["points_awarded_student"] == 0
-    assert no_login.json()["points_awarded_class"] == 19
+    assert no_login.json()["points_awarded_class"] == 1900
     assert no_login.json()["bonus_rate_applied"] == "1.0000"
     assert no_login.json()["bonus_bincoins_awarded"] == 0
     assert invalid.json()["points_awarded_student"] == 0
     assert invalid.json()["points_awarded_class"] == 0
     session = session_factory()
     classroom = session.get(ClassRoom, uuid.UUID(seeded_ids["class_id"]))
-    assert classroom.points_class_balance == 19
+    assert classroom.points_class_balance == 1900
     session.close()
 
 
@@ -202,16 +202,16 @@ def test_duplicate_event_id_does_not_duplicate_points(client, seeded_ids, sessio
     first = client.post("/v1/deposits/sync", headers=edge_headers(seeded_ids), json=payload)
     second = client.post("/v1/deposits/sync", headers=edge_headers(seeded_ids), json=payload)
     assert first.json()["id"] == second.json()["id"]
-    assert first.json()["points_awarded_student"] == 8
-    assert first.json()["points_awarded_class"] == 19
-    assert second.json()["points_awarded_student"] == 8
-    assert second.json()["points_awarded_class"] == 19
+    assert first.json()["points_awarded_student"] == 800
+    assert first.json()["points_awarded_class"] == 1900
+    assert second.json()["points_awarded_student"] == 800
+    assert second.json()["points_awarded_class"] == 1900
     session = session_factory()
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
     classroom = session.get(ClassRoom, uuid.UUID(seeded_ids["class_id"]))
     assert session.query(Deposit).count() == 1
-    assert student.points_student_balance == 128
-    assert classroom.points_class_balance == 19
+    assert student.points_student_balance == 12800
+    assert classroom.points_class_balance == 1900
     session.close()
 
 
@@ -224,19 +224,19 @@ def test_deposit_without_school_or_machine_in_body_is_idempotent(client, seeded_
     assert first.json()["id"] == second.json()["id"]
     session = session_factory()
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
-    assert student.points_student_balance == 128
+    assert student.points_student_balance == 12800
     session.close()
 
 
 @pytest.mark.parametrize(
     ("category", "source", "expected_total", "expected_bonus"),
     [
-        ("BATTERY", "AI_CONFIRMED", 16, 8),
-        ("MOBILE_DEVICE", "USER_CORRECTED", 12, 4),
-        ("CABLE_WIRE", "AI_CONFIRMED", 10, 2),
-        ("PERIPHERAL", "AI_CONFIRMED", 8, 0),
-        ("OTHER_EWASTE", "USER_CORRECTED", 8, 0),
-        ("UNKNOWN", "UNIDENTIFIED", 8, 0),
+        ("BATTERY", "AI_CONFIRMED", 1600, 800),
+        ("MOBILE_DEVICE", "USER_CORRECTED", 1200, 400),
+        ("CABLE_WIRE", "AI_CONFIRMED", 1000, 200),
+        ("PERIPHERAL", "AI_CONFIRMED", 800, 0),
+        ("OTHER_EWASTE", "USER_CORRECTED", 800, 0),
+        ("UNKNOWN", "UNIDENTIFIED", 800, 0),
     ],
 )
 def test_category_bonus_matrix(client, seeded_ids, category, source, expected_total, expected_bonus):
@@ -249,7 +249,7 @@ def test_category_bonus_matrix(client, seeded_ids, category, source, expected_to
     assert response.status_code == 201
     assert response.json()["points_awarded_student"] == expected_total
     assert response.json()["bonus_bincoins_awarded"] == expected_bonus
-    assert response.json()["points_awarded_class"] == 19
+    assert response.json()["points_awarded_class"] == 1900
 
 
 @pytest.mark.parametrize("legacy_field", ["size", "school_id", "machine_id", "points_awarded_student", "bonus_bincoins_awarded"])
@@ -278,8 +278,8 @@ def test_historical_bonus_snapshot_survives_catalog_change(client, seeded_ids, s
     session.commit()
     session.close()
     replay = client.post("/v1/deposits", headers=edge_headers(seeded_ids), json=payload)
-    assert first.json()["points_awarded_student"] == 16
-    assert replay.json()["points_awarded_student"] == 16
+    assert first.json()["points_awarded_student"] == 1600
+    assert replay.json()["points_awarded_student"] == 1600
     assert replay.json()["bonus_rate_applied"] == "1.0000"
 
 
@@ -310,7 +310,10 @@ def test_redemption_success_and_failures(client, seeded_ids, session_factory):
     assert success.status_code == 200
 
     session = session_factory()
+    student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
     reward = session.get(Reward, uuid.UUID(seeded_ids["reward_id"]))
+    assert reward.cost_points == 3000
+    assert student.points_student_balance == 9000
     reward.status = RewardStatus.DISABLED
     session.commit()
     session.close()
@@ -324,7 +327,7 @@ def test_redemption_fails_for_insufficient_balance_and_pending_limit(client, see
 
     session = session_factory()
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
-    student.points_student_balance = 20
+    student.points_student_balance = 2000
     session.commit()
     session.close()
     low_balance = client.post("/v1/redemptions", headers={"Authorization": f"Bearer {token}"}, json={"reward_id": seeded_ids["reward_id"]})
@@ -332,7 +335,7 @@ def test_redemption_fails_for_insufficient_balance_and_pending_limit(client, see
 
     session = session_factory()
     student = session.get(Student, uuid.UUID(seeded_ids["student_id"]))
-    student.points_student_balance = 120
+    student.points_student_balance = 12000
     session.commit()
     session.close()
     first = client.post("/v1/redemptions", headers={"Authorization": f"Bearer {token}"}, json={"reward_id": seeded_ids["reward_id"]})
@@ -480,6 +483,6 @@ def test_totem_student_summary(client, seeded_ids):
     assert body["student"]["class_name"] == "7A"
     assert body["stats"]["valid_deposits_count"] == 1
     assert body["stats"]["invalid_deposits_count"] == 1
-    assert body["stats"]["total_bins_generated"] == 8
+    assert body["stats"]["total_bins_generated"] == 800
     assert len(body["recent_deposits"]) == 2
     assert {deposit["waste_category_code"] for deposit in body["recent_deposits"]} == {None, "PERIPHERAL"}

@@ -61,12 +61,12 @@ void main() {
 
     await tester.tap(find.text('Suco natural'));
     await tester.pumpAndSettle();
-    expect(find.text('Simular por 30 BinCoins'), findsOneWidget);
-    await tester.ensureVisible(find.text('Simular por 30 BinCoins'));
-    await tester.tap(find.text('Simular por 30 BinCoins'));
+    expect(find.text('Simular por 3000 BinCoins'), findsOneWidget);
+    await tester.ensureVisible(find.text('Simular por 3000 BinCoins'));
+    await tester.tap(find.text('Simular por 3000 BinCoins'));
     await tester.pumpAndSettle();
 
-    expect(controller.balance, 90);
+    expect(controller.balance, 9000);
     expect(find.text('Simulação concluída'), findsOneWidget);
     expect(find.textContaining('BGO-'), findsAtLeastNWidgets(1));
   });
@@ -307,7 +307,7 @@ void main() {
 
     await tester.tap(find.text('Perfil'));
     await tester.pumpAndSettle();
-    expect(find.text('760'), findsOneWidget);
+    expect(find.text('76.000'), findsOneWidget);
     expect(find.text('Pontos pessoais'), findsOneWidget);
     expect(find.text('Pontos da turma'), findsOneWidget);
     expect(find.text('BinCoins'), findsOneWidget);
@@ -403,7 +403,7 @@ void main() {
       expect(find.text('Cabo USB'), findsOneWidget);
       expect(find.text('Fone de ouvido'), findsOneWidget);
       expect(find.text('Validado no Totem'), findsNWidgets(3));
-      expect(find.text('+25 pts turma'), findsOneWidget);
+      expect(find.text('+2500 pts turma'), findsOneWidget);
 
       await tester.tap(find.text('Abrir BinBazar'));
       await tester.pumpAndSettle();
@@ -413,9 +413,9 @@ void main() {
         findsAtLeastNWidgets(1),
       );
       expect(find.text('Tio B3N cuida do balcão'), findsOneWidget);
-      expect(find.bySemanticsLabel('120 BinCoins'), findsOneWidget);
+      expect(find.bySemanticsLabel('12000 BinCoins'), findsOneWidget);
       expect(find.text('Simular resgate'), findsNWidgets(3));
-      expect(find.text('Faltam 60'), findsOneWidget);
+      expect(find.text('Faltam 6000'), findsOneWidget);
     },
   );
 
@@ -536,7 +536,7 @@ void main() {
       expect(find.text('Segurança antes da recompensa'), findsOneWidget);
       expect(find.text('Caminho da missão'), findsOneWidget);
       expect(find.text('Descarte consciente'), findsOneWidget);
-      expect(find.text('+10 BinCoins'), findsOneWidget);
+      expect(find.text('+1000 BinCoins'), findsOneWidget);
       expect(find.byType(B1nDialogueStrip), findsOneWidget);
       expect(find.text('Ir ao Totem'), findsNothing);
       expect(find.text('Ver preparo para o Totem'), findsNothing);
@@ -568,8 +568,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Sua turma · 9ºA'), findsOneWidget);
-      expect(find.text('760 pts'), findsOneWidget);
-      expect(find.text('Próxima meta: 50 pontos para o top 3'), findsOneWidget);
+      expect(find.text('76.000 pts'), findsOneWidget);
+      expect(
+        find.text('Próxima meta: 5000 pontos para o top 3'),
+        findsOneWidget,
+      );
       final mapImages = tester
           .widgetList<Image>(find.byType(Image))
           .where(

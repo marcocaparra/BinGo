@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bingo_app/src/data/deposit_history_repository.dart';
+import 'package:bingo_app/src/data/missions_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/screens/shell_screen.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
@@ -94,6 +95,7 @@ Future<void> _pumpAuthenticatedWallet(
         initialIndex: 1,
         repository: const _StaticProfileRepository(),
         depositHistoryRepository: historyRepository,
+        missionsRepository: const _EmptyMissionsRepository(),
         onLogout: () async => null,
         onSessionInvalid: () async {},
       ),
@@ -101,6 +103,13 @@ Future<void> _pumpAuthenticatedWallet(
   );
   await tester.pump();
   await tester.pump();
+}
+
+class _EmptyMissionsRepository implements AuthenticatedMissionsRepository {
+  const _EmptyMissionsRepository();
+
+  @override
+  Future<List<AuthenticatedMission>> loadActiveMissions() async => const [];
 }
 
 Future<void> _openDiscards(WidgetTester tester) async {
@@ -164,6 +173,29 @@ void main() {
       find.text('Os descartes confirmados pelo Totem aparecerão aqui.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('authenticated wallet keeps canonical BinBazar without mocks', (
+    tester,
+  ) async {
+    _configureSurface(tester);
+    final repository = _FakeDepositHistoryRepository((_, _) async => const []);
+
+    await _pumpAuthenticatedWallet(tester, repository);
+    await tester.pumpAndSettle();
+
+    expect(find.text('900'), findsOneWidget);
+    expect(find.text('Abrir BinBazar'), findsOneWidget);
+    expect(find.text('Suco natural'), findsNothing);
+    expect(find.text('Crédito'), findsNothing);
+
+    await tester.tap(find.text('Abrir BinBazar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('BinBazar'), findsOneWidget);
+    expect(find.text('Ainda não há dados'), findsOneWidget);
+    expect(find.text('Suco natural'), findsNothing);
+    expect(find.text('Caneta temática'), findsNothing);
   });
 
   testWidgets('authenticated wallet retries after a history error', (

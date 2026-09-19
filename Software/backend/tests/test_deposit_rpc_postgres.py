@@ -65,13 +65,16 @@ def test_register_deposit_v1_is_concurrency_safe():
             with connection.cursor() as cursor:
                 cursor.execute("select count(*) from public.deposits where event_id = %s", (event_id,))
                 assert cursor.fetchone()[0] == 1
+                cursor.execute("select count(*) from public.mission_processing_queue where event_id = %s", (event_id,))
+                assert cursor.fetchone()[0] == 1
                 cursor.execute("select points_student_balance from public.students where id = %s", (student_id,))
-                assert cursor.fetchone()[0] == 8
+                assert cursor.fetchone()[0] == 800
                 cursor.execute("select points_class_balance from public.classes where id = %s", (class_id,))
-                assert cursor.fetchone()[0] == 19
+                assert cursor.fetchone()[0] == 1900
     finally:
         with psycopg.connect(RPC_TEST_DATABASE_URL, autocommit=True) as connection:
             with connection.cursor() as cursor:
+                cursor.execute("delete from public.mission_processing_queue where event_id = %s", (event_id,))
                 cursor.execute("delete from public.deposits where event_id = %s", (event_id,))
                 cursor.execute("delete from public.audit_logs where actor_id = %s", (machine_id,))
                 cursor.execute("delete from public.students where id = %s", (student_id,))

@@ -7,6 +7,7 @@ import '../auth/auth_gateway.dart';
 import '../data/demo_data.dart';
 import '../data/deposit_history_adapter.dart';
 import '../data/deposit_history_repository.dart';
+import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/session_wallet_controller.dart';
 import '../theme/app_assets.dart';
@@ -26,12 +27,14 @@ class ShellScreen extends StatefulWidget {
     super.key,
   }) : authenticatedRepository = null,
        depositHistoryRepository = null,
+       missionsRepository = null,
        onLogout = null,
        onSessionInvalid = null;
 
   const ShellScreen.authenticated({
     required AuthenticatedProfileRepository repository,
     required this.depositHistoryRepository,
+    required this.missionsRepository,
     required this.onLogout,
     required this.onSessionInvalid,
     this.initialIndex = 0,
@@ -45,6 +48,7 @@ class ShellScreen extends StatefulWidget {
   final Future<void> Function()? onExitPilot;
   final AuthenticatedProfileRepository? authenticatedRepository;
   final AuthenticatedDepositHistoryRepository? depositHistoryRepository;
+  final AuthenticatedMissionsRepository? missionsRepository;
   final Future<AuthFailure?> Function()? onLogout;
   final Future<void> Function()? onSessionInvalid;
 
@@ -124,17 +128,25 @@ class _ShellScreenState extends State<ShellScreen> {
     final pages = authenticated
         ? profile != null
               ? <Widget>[
-                  _AuthenticatedHomeScreen(
-                    profile: profile,
+                  HomeScreen.authenticated(
+                    firstName: profile.name.trim().split(RegExp(r'\s+')).first,
+                    schoolName: profile.schoolName,
+                    className: profile.className,
                     onOpenTab: _selectTab,
                   ),
-                  _AuthenticatedWalletScreen(
+                  _AuthenticatedWalletDataSource(
                     profile: profile,
                     repository: widget.depositHistoryRepository!,
                     onSessionInvalid: widget.onSessionInvalid!,
                   ),
-                  _AuthenticatedMissionsScreen(profile: profile),
-                  _AuthenticatedRankingScreen(profile: profile),
+                  _AuthenticatedMissionsDataSource(
+                    repository: widget.missionsRepository!,
+                    onSessionInvalid: widget.onSessionInvalid!,
+                  ),
+                  RankingScreen.authenticated(
+                    className: profile.className,
+                    classXp: profile.classXpBalance,
+                  ),
                   ProfileScreen.authenticated(
                     profile: profile,
                     onLogout: widget.onLogout!,
@@ -157,9 +169,7 @@ class _ShellScreenState extends State<ShellScreen> {
               isPilot: widget.onExitPilot != null || widget.repository == null,
             ),
             ProfileScreen(
-              repository: widget.onExitPilot == null
-                  ? widget.repository
-                  : null,
+              repository: widget.onExitPilot == null ? widget.repository : null,
               onGoHome: () => _selectTab(0),
               onExitPilot: widget.onExitPilot,
             ),
@@ -220,77 +230,8 @@ class _AuthenticatedProfileState extends StatelessWidget {
   }
 }
 
-class _AuthenticatedHomeScreen extends StatelessWidget {
-  const _AuthenticatedHomeScreen({
-    required this.profile,
-    required this.onOpenTab,
-  });
-
-  final AuthenticatedStudentProfile profile;
-  final ValueChanged<int> onOpenTab;
-
-  @override
-  Widget build(BuildContext context) {
-    final firstName = profile.name.trim().split(RegExp(r'\s+')).first;
-    return AppPage(
-      title: 'Olá, $firstName!',
-      subtitle: '${profile.schoolName} · ${profile.className}',
-      showBackButton: false,
-      dataStatus: AppDataStatus.remote,
-      child: Column(
-        children: [
-          const ImageHeroCard(
-            image: AppAssets.bingopolisMap,
-            badge: 'Jornada da turma',
-            title: 'Cenário indisponível',
-            subtitle:
-                'O mapa será exibido quando impacto e progresso tiverem uma fonte autenticada.',
-          ),
-          const SizedBox(height: 8),
-          const B1nDialogueStrip(
-            message:
-                'Seu perfil está conectado. Missões e progresso ainda não possuem dados autorizados.',
-            portrait: B1nPortraitVariant.instruction,
-          ),
-          const SizedBox(height: 8),
-          const BingoActionButton(
-            label: 'Preparo para o Totem indisponível',
-            icon: Icons.directions_walk,
-            tone: BingoActionTone.green,
-            onPressed: null,
-          ),
-          const SizedBox(height: 18),
-          _SoftAction(
-            label: 'Ver missões indisponíveis',
-            icon: Icons.flag_outlined,
-            onTap: () => onOpenTab(2),
-          ),
-          _SoftAction(
-            label: 'Ver ranking indisponível',
-            icon: Icons.emoji_events_outlined,
-            onTap: () => onOpenTab(3),
-          ),
-          const _UnavailableSurface(
-            title: 'Impacto da turma indisponível',
-            message:
-                'Nenhum número, cenário ou progresso simulado é atribuído à conta autenticada.',
-            icon: Icons.auto_graph_outlined,
-          ),
-          const SizedBox(height: 12),
-          BingoActionButton(
-            onPressed: () => _push(context, const HowItWorksScreen()),
-            icon: Icons.info_outline,
-            label: 'Como funciona o BinGo',
-            style: BingoActionStyle.quiet,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AuthenticatedWalletScreen extends StatefulWidget {
-  const _AuthenticatedWalletScreen({
+class _AuthenticatedWalletDataSource extends StatefulWidget {
+  const _AuthenticatedWalletDataSource({
     required this.profile,
     required this.repository,
     required this.onSessionInvalid,
@@ -301,14 +242,13 @@ class _AuthenticatedWalletScreen extends StatefulWidget {
   final Future<void> Function() onSessionInvalid;
 
   @override
-  State<_AuthenticatedWalletScreen> createState() =>
-      _AuthenticatedWalletScreenState();
+  State<_AuthenticatedWalletDataSource> createState() =>
+      _AuthenticatedWalletDataSourceState();
 }
 
-class _AuthenticatedWalletScreenState
-    extends State<_AuthenticatedWalletScreen> {
+class _AuthenticatedWalletDataSourceState
+    extends State<_AuthenticatedWalletDataSource> {
   final DepositHistoryAdapter _adapter = DepositHistoryAdapter();
-  WalletSection _section = WalletSection.transactions;
   List<DiscardRecord> _discards = const [];
   DepositHistoryFailure? _historyFailure;
   var _loadingHistory = true;
@@ -369,393 +309,214 @@ class _AuthenticatedWalletScreenState
 
   @override
   Widget build(BuildContext context) {
-    final profile = widget.profile;
-    return AppPage(
-      title: 'Carteira',
-      subtitle: 'Suas BinCoins e as validações recebidas do Totem.',
-      showBackButton: false,
-      dataStatus: AppDataStatus.remote,
-      child: Column(
-        children: [
-          _AuthenticatedWalletHero(balance: profile.binCoinsBalance),
-          const SizedBox(height: 14),
-          const _AuthenticatedBazaarCard(),
-          const SizedBox(height: 18),
-          _WalletSectionSelector(
-            value: _section,
-            onChanged: (value) => setState(() => _section = value),
-          ),
-          const SizedBox(height: 14),
-          if (_section == WalletSection.transactions)
-            const BingoDataState(
-              kind: BingoDataStateKind.empty,
-              title: 'Extrato indisponível',
-              message:
-                  'As movimentações ainda não possuem uma fonte autenticada.',
-              icon: Icons.receipt_long_outlined,
-            )
-          else if (_loadingHistory)
-            const BingoDataState(
-              kind: BingoDataStateKind.loading,
-              title: 'Carregando histórico',
-              message: 'Organizando as informações do Totem.',
-            )
-          else if (_historyFailure != null)
-            BingoDataState(
-              kind: BingoDataStateKind.empty,
-              title: 'Descartes indisponíveis',
-              message: _historyFailure!.message,
-              icon: Icons.cloud_off_rounded,
-              action: BingoActionButton(
-                label: 'Tentar novamente',
-                icon: Icons.refresh_rounded,
-                onPressed: _loadHistory,
-              ),
-            )
-          else if (_discards.isEmpty)
-            const BingoDataState(
-              kind: BingoDataStateKind.empty,
-              title: 'Nenhum descarte validado',
-              message: 'Os descartes confirmados pelo Totem aparecerão aqui.',
-              icon: Icons.recycling_outlined,
-            )
-          else
-            for (final discard in _discards)
-              _DiscardHistoryTile(discard: discard),
-        ],
-      ),
+    return WalletScreen.authenticated(
+      balance: widget.profile.binCoinsBalance,
+      discards: _discards,
+      isLoading: _loadingHistory,
+      historyFailure: _historyFailure,
+      onRetryHistory: _loadHistory,
     );
   }
 }
 
-class _AuthenticatedWalletHero extends StatelessWidget {
-  const _AuthenticatedWalletHero({required this.balance});
-
-  final int balance;
-
-  @override
-  Widget build(BuildContext context) {
-    return PeriodicHighlight(
-      colors: [
-        AppColors.blue.withValues(alpha: 0.03),
-        Colors.white.withValues(alpha: 0.48),
-        AppColors.green.withValues(alpha: 0.08),
-      ],
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFFE2FBFF),
-              Colors.white,
-              AppColors.green.withValues(alpha: 0.13),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.blue.withValues(alpha: 0.42)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.blue.withValues(alpha: 0.18),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Suas BinCoins',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                const BinCoinIcon(size: 38),
-              ],
-            ),
-            const SizedBox(height: 14),
-            BinCoinAmount(
-              value: balance,
-              size: 34,
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                color: AppColors.navy,
-                fontSize: 38,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const BadgeLabel(
-              label: 'Saldo autenticado',
-              color: AppColors.green,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AuthenticatedBazaarCard extends StatelessWidget {
-  const _AuthenticatedBazaarCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return SurfaceCard(
-      padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 62,
-            height: 64,
-            child: Image.asset(
-              AppAssets.profileAvatarB3n,
-              fit: BoxFit.contain,
-              alignment: Alignment.bottomCenter,
-              filterQuality: FilterQuality.high,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'BinBazar indisponível',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 3),
-                const Text(
-                  'Recompensas e resgates ainda não estão conectados.',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted),
-        ],
-      ),
-    );
-  }
-}
-
-class _AuthenticatedMissionsScreen extends StatelessWidget {
-  const _AuthenticatedMissionsScreen({required this.profile});
-
-  final AuthenticatedStudentProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Missões de restauração',
-      subtitle: '${profile.schoolName} · ${profile.className}',
-      showBackButton: false,
-      dataStatus: AppDataStatus.remote,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ImageHeroCard(
-            image: AppAssets.howItWorksScene,
-            badge: 'Missões',
-            title: 'Nenhuma missão autenticada',
-            subtitle:
-                'Metas e progresso aparecerão quando houver uma fonte autorizada.',
-          ),
-          const SizedBox(height: 18),
-          const B1nDialogueStrip(
-            message:
-                'Sua conta está pronta. As próximas missões ainda não foram conectadas.',
-            portrait: B1nPortraitVariant.question,
-          ),
-          const SizedBox(height: 22),
-          Text(
-            'Força-tarefa em destaque',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          const _UnavailableSurface(
-            title: 'Indisponível',
-            message: 'Nenhuma força-tarefa possui dados autenticados.',
-            icon: Icons.shield_outlined,
-          ),
-          const SizedBox(height: 22),
-          Text(
-            'Outras etapas da jornada',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          const _UnavailableSurface(
-            title: '—',
-            message: 'Não há progresso de missões disponível para esta conta.',
-            icon: Icons.flag_outlined,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AuthenticatedRankingScreen extends StatelessWidget {
-  const _AuthenticatedRankingScreen({required this.profile});
-
-  final AuthenticatedStudentProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppPage(
-      title: 'Ranking das turmas',
-      subtitle: 'Compare posições e acompanhe a restauração coletiva.',
-      showBackButton: false,
-      dataStatus: AppDataStatus.remote,
-      child: Column(
-        children: [
-          _AuthenticatedRankingHero(profile: profile),
-          const SizedBox(height: 18),
-          const _AuthenticatedPodiumPlaceholder(),
-          const SizedBox(height: 18),
-          const ImageHeroCard(
-            image: AppAssets.bingopolisMap,
-            badge: 'Impacto',
-            title: 'Mapa indisponível',
-            subtitle:
-                'Posições, cenários e impacto aguardam dados e autorização próprios.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AuthenticatedRankingHero extends StatelessWidget {
-  const _AuthenticatedRankingHero({required this.profile});
-
-  final AuthenticatedStudentProfile profile;
-
-  @override
-  Widget build(BuildContext context) {
-    return SurfaceCard(
-      color: AppColors.blue.withValues(alpha: 0.08),
-      child: Row(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.emoji_events_rounded,
-              color: AppColors.warning,
-              size: 34,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  profile.className,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 4),
-                Text('${profile.classXpBalance} XP da turma'),
-                const SizedBox(height: 8),
-                const BadgeLabel(label: 'Posição —', color: AppColors.blue),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AuthenticatedPodiumPlaceholder extends StatelessWidget {
-  const _AuthenticatedPodiumPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return SurfaceCard(
-      child: Column(
-        children: [
-          Text(
-            'Pódio indisponível',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 16),
-          const Row(
-            children: [
-              Expanded(child: _UnavailablePosition(label: 'Turma —')),
-              SizedBox(width: 8),
-              Expanded(child: _UnavailablePosition(label: 'Turma —')),
-              SizedBox(width: 8),
-              Expanded(child: _UnavailablePosition(label: 'Turma —')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _UnavailablePosition extends StatelessWidget {
-  const _UnavailablePosition({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted),
-          const SizedBox(height: 8),
-          Text(label, textAlign: TextAlign.center),
-          const SizedBox(height: 4),
-          const Text('—'),
-        ],
-      ),
-    );
-  }
-}
-
-class _UnavailableSurface extends StatelessWidget {
-  const _UnavailableSurface({
-    required this.title,
-    required this.message,
-    required this.icon,
+class _AuthenticatedMissionsDataSource extends StatefulWidget {
+  const _AuthenticatedMissionsDataSource({
+    required this.repository,
+    required this.onSessionInvalid,
   });
 
-  final String title;
-  final String message;
-  final IconData icon;
+  final AuthenticatedMissionsRepository repository;
+  final Future<void> Function() onSessionInvalid;
+
+  @override
+  State<_AuthenticatedMissionsDataSource> createState() =>
+      _AuthenticatedMissionsDataSourceState();
+}
+
+class _AuthenticatedMissionsDataSourceState
+    extends State<_AuthenticatedMissionsDataSource> {
+  _AuthenticatedMissionsPresentation _presentation =
+      const _AuthenticatedMissionsPresentation.empty();
+  MissionsFailure? _failure;
+  var _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadMissions());
+  }
+
+  Future<void> _loadMissions() async {
+    setState(() {
+      _loading = true;
+      _failure = null;
+    });
+    try {
+      final missions = await widget.repository.loadActiveMissions();
+      if (!mounted) return;
+      setState(() {
+        _presentation = _classifyAuthenticatedMissions(missions);
+        _loading = false;
+      });
+    } on MissionsFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _presentation = const _AuthenticatedMissionsPresentation.empty();
+        _failure = failure;
+        _loading = false;
+      });
+      if (failure.kind == MissionsFailureKind.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(widget.onSessionInvalid());
+        });
+      }
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[missions] Screen mapping failure: $error');
+        debugPrintStack(
+          label: '[missions] screen stack trace',
+          stackTrace: stackTrace,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _presentation = const _AuthenticatedMissionsPresentation.empty();
+        _failure = MissionsFailure(
+          MissionsFailureKind.unknown,
+          'Não foi possível carregar as missões agora.',
+          error,
+        );
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SurfaceCard(
-      child: Column(
-        children: [
-          Icon(icon, size: 40, color: AppColors.textMuted),
-          const SizedBox(height: 12),
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center),
-        ],
-      ),
+    return MissionsScreen.authenticated(
+      featuredMission: _presentation.featuredMission,
+      collectiveMissions: _presentation.collectiveMissions,
+      journeyMissions: _presentation.journeyMissions,
+      loading: _loading,
+      failure: _failure,
+      onRetry: _loadMissions,
     );
   }
 }
+
+class _AuthenticatedMissionsPresentation {
+  const _AuthenticatedMissionsPresentation({
+    required this.featuredMission,
+    required this.collectiveMissions,
+    required this.journeyMissions,
+  });
+
+  const _AuthenticatedMissionsPresentation.empty()
+    : featuredMission = null,
+      collectiveMissions = const [],
+      journeyMissions = const [];
+
+  final Mission? featuredMission;
+  final List<Mission> collectiveMissions;
+  final List<Mission> journeyMissions;
+}
+
+_AuthenticatedMissionsPresentation _classifyAuthenticatedMissions(
+  List<AuthenticatedMission> source,
+) {
+  final sorted = [...source]..sort(_compareAuthenticatedMissions);
+  Mission? featuredMission;
+  final collectiveMissions = <Mission>[];
+  final journeyMissions = <Mission>[];
+
+  for (final mission in sorted) {
+    final presented = _presentAuthenticatedMission(mission);
+    if (mission.isCompleted) {
+      journeyMissions.add(presented);
+    } else if (mission.scope == AuthenticatedMissionScope.classGroup) {
+      collectiveMissions.add(presented);
+    } else if (featuredMission == null) {
+      featuredMission = presented;
+    } else {
+      journeyMissions.add(presented);
+    }
+  }
+
+  return _AuthenticatedMissionsPresentation(
+    featuredMission: featuredMission,
+    collectiveMissions: collectiveMissions,
+    journeyMissions: journeyMissions,
+  );
+}
+
+int _compareAuthenticatedMissions(
+  AuthenticatedMission left,
+  AuthenticatedMission right,
+) {
+  // Prioridade técnica temporária até existir ordenação editorial: início,
+  // término, código da definição e ciclo tornam o resultado determinístico.
+  var comparison = left.startsAt.compareTo(right.startsAt);
+  if (comparison != 0) return comparison;
+  comparison = left.endsAt.compareTo(right.endsAt);
+  if (comparison != 0) return comparison;
+  comparison = left.definitionCode.compareTo(right.definitionCode);
+  if (comparison != 0) return comparison;
+  return left.cycleId.compareTo(right.cycleId);
+}
+
+Mission _presentAuthenticatedMission(AuthenticatedMission mission) {
+  final scopeLabel = switch (mission.scope) {
+    AuthenticatedMissionScope.student => 'Missão individual',
+    AuthenticatedMissionScope.classGroup => 'Missão da turma',
+  };
+  final state = mission.isCompleted
+      ? MissionState.completed
+      : mission.isAchieved
+      ? MissionState.achieved
+      : MissionState.active;
+  final stateLabel = switch (state) {
+    MissionState.completed => 'Concluída',
+    MissionState.achieved => 'Meta atingida',
+    _ => 'Em andamento',
+  };
+  final rewards = [
+    if (mission.rewardBinCoins > 0) '+${mission.rewardBinCoins} BinCoins',
+    if (mission.rewardXp > 0) '+${mission.rewardXp} XP',
+  ].join(' · ');
+  final ratio = mission.target <= 0
+      ? 0.0
+      : (mission.progress / mission.target).clamp(0.0, 1.0);
+
+  return Mission(
+    id: mission.cycleId,
+    title: mission.definitionTitle,
+    subtitle: '$scopeLabel · ${mission.progress} / ${mission.target}',
+    detailTitle: stateLabel,
+    detailText:
+        'O progresso e o estado desta missão foram recebidos da fonte autenticada.',
+    progress: ratio,
+    reward: rewards,
+    color: mission.scope == AuthenticatedMissionScope.classGroup
+        ? AppColors.scr4p
+        : AppColors.green,
+    image: mission.scope == AuthenticatedMissionScope.classGroup
+        ? AppAssets.sceneCorruptScr4p
+        : AppAssets.sceneClean,
+    state: state,
+    steps: [
+      ('Participante', scopeLabel),
+      ('Progresso', '${mission.progress} / ${mission.target}'),
+      ('Estado', stateLabel),
+    ],
+  );
+}
+
+String _missionsFailureTitle(MissionsFailureKind kind) => switch (kind) {
+  MissionsFailureKind.sessionInvalid => 'Sessão expirada',
+  MissionsFailureKind.network => 'Sem conexão',
+  MissionsFailureKind.malformedData => 'Dados de missões inválidos',
+  MissionsFailureKind.unknown => 'Missões indisponíveis',
+};
 
 String _profileFailureTitle(ProfileFailureKind kind) {
   return switch (kind) {
@@ -773,25 +534,42 @@ class HomeScreen extends StatelessWidget {
     required this.firstName,
     required this.onOpenTab,
     super.key,
-  });
+  }) : schoolName = null,
+       className = null,
+       authenticated = false;
+
+  const HomeScreen.authenticated({
+    required this.firstName,
+    required this.schoolName,
+    required this.className,
+    required this.onOpenTab,
+    super.key,
+  }) : authenticated = true;
 
   final String firstName;
+  final String? schoolName;
+  final String? className;
   final ValueChanged<int> onOpenTab;
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-    const scenario = _HomeScenarioOverview();
-    const prompt = B1nDialogueStrip(
-      message: 'Separe um eletrônico sem uso e confira se ele está seguro.',
+    final scenario = _HomeScenarioOverview(hasData: !authenticated);
+    final prompt = B1nDialogueStrip(
+      message: authenticated
+          ? 'Separe um eletrônico sem uso e confira se ele está seguro.'
+          : 'Separe um eletrônico sem uso e confira se ele está seguro.',
       portrait: B1nPortraitVariant.instruction,
     );
     final cta = BingoActionButton(
       label: 'Ver preparo para o Totem',
       tone: BingoActionTone.green,
       icon: Icons.directions_walk,
-      onPressed: () =>
-          _push(context, const TotemTrackingScreen(mission: activeMission)),
+      onPressed: () => _push(
+        context,
+        TotemTrackingScreen(mission: authenticated ? null : activeMission),
+      ),
     );
     final primaryFlow = usesLargeText
         ? <Widget>[
@@ -811,8 +589,13 @@ class HomeScreen extends StatelessWidget {
 
     return AppPage(
       title: 'Olá, $firstName!',
-      subtitle: 'Sua turma está restaurando a ${currentScenario.name}.',
+      subtitle: authenticated
+          ? '$schoolName · $className'
+          : 'Sua turma está restaurando a ${currentScenario.name}.',
       showBackButton: false,
+      dataStatus: authenticated
+          ? AppDataStatus.remote
+          : AppDataStatus.simulated,
       child: Column(
         children: [
           ...primaryFlow,
@@ -820,15 +603,22 @@ class HomeScreen extends StatelessWidget {
           _SoftAction(
             label: 'Alerta SCR4P',
             icon: Icons.warning_amber_rounded,
-            onTap: () => _push(context, const Scr4pInfoScreen()),
+            onTap: () =>
+                _push(context, Scr4pInfoScreen(authenticated: authenticated)),
           ),
           _SoftAction(
             label: 'Ver impacto da turma',
             icon: Icons.auto_graph,
-            onTap: () => _push(context, const ImpactScreen()),
+            onTap: () => _push(
+              context,
+              authenticated
+                  ? const ImpactScreen.unavailable()
+                  : const ImpactScreen(),
+            ),
           ),
           BingoActionButton(
-            onPressed: () => _push(context, const HowItWorksScreen()),
+            onPressed: () =>
+                _push(context, HowItWorksScreen(authenticated: authenticated)),
             icon: Icons.info_outline,
             label: 'Como funciona o BinGo',
             style: BingoActionStyle.quiet,
@@ -840,15 +630,23 @@ class HomeScreen extends StatelessWidget {
 }
 
 class MissionDetailScreen extends StatelessWidget {
-  const MissionDetailScreen({required this.mission, super.key});
+  const MissionDetailScreen({
+    required this.mission,
+    this.authenticated = false,
+    super.key,
+  });
 
   final Mission mission;
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Missão',
       subtitle: 'Veja a meta, prepare com segurança e acompanhe o progresso.',
+      dataStatus: authenticated
+          ? AppDataStatus.remote
+          : AppDataStatus.simulated,
       child: Column(
         children: [
           _MissionHero(mission: mission),
@@ -893,15 +691,18 @@ class MissionDetailScreen extends StatelessWidget {
 }
 
 class TotemTrackingScreen extends StatelessWidget {
-  const TotemTrackingScreen({required this.mission, super.key});
+  const TotemTrackingScreen({this.mission, super.key});
 
-  final Mission mission;
+  final Mission? mission;
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
       title: 'No Totem',
       subtitle: 'O Totem valida o descarte. O app mostra o resultado.',
+      dataStatus: mission == null
+          ? AppDataStatus.remote
+          : AppDataStatus.simulated,
       child: Column(
         children: [
           _TotemHero(mission: mission),
@@ -949,12 +750,31 @@ class WalletScreen extends StatefulWidget {
     this.isLoading = false,
     this.controller,
     super.key,
-  });
+  }) : authenticatedBalance = null,
+       historyFailure = null,
+       onRetryHistory = null,
+       authenticated = false;
+
+  const WalletScreen.authenticated({
+    required int balance,
+    required this.discards,
+    required this.isLoading,
+    required this.historyFailure,
+    required this.onRetryHistory,
+    super.key,
+  }) : transactions = const [],
+       controller = null,
+       authenticatedBalance = balance,
+       authenticated = true;
 
   final List<BinCoinTransaction> transactions;
   final List<DiscardRecord> discards;
   final bool isLoading;
   final SessionWalletController? controller;
+  final int? authenticatedBalance;
+  final DepositHistoryFailure? historyFailure;
+  final VoidCallback? onRetryHistory;
+  final bool authenticated;
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -977,10 +797,10 @@ class _WalletScreenState extends State<WalletScreen> {
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, _) {
-        final balance = _controller.balance;
-        final redeemableRewards = rewards
-            .where((reward) => reward.isAvailable(balance))
-            .length;
+        final balance = widget.authenticatedBalance ?? _controller.balance;
+        final redeemableRewards = widget.authenticated
+            ? null
+            : rewards.where((reward) => reward.isAvailable(balance)).length;
         final transactions = widget.controller == null
             ? widget.transactions
             : _controller.transactions;
@@ -988,6 +808,9 @@ class _WalletScreenState extends State<WalletScreen> {
           title: 'Carteira',
           subtitle: 'Suas BinCoins e as validações recebidas do Totem.',
           showBackButton: false,
+          dataStatus: widget.authenticated
+              ? AppDataStatus.remote
+              : AppDataStatus.simulated,
           child: Column(
             children: [
               _WalletBalanceHero(
@@ -997,8 +820,13 @@ class _WalletScreenState extends State<WalletScreen> {
               const SizedBox(height: 14),
               _BazaarAccessCard(
                 balance: balance,
-                onTap: () =>
-                    _push(context, RewardsScreen(controller: _controller)),
+                available: redeemableRewards,
+                onTap: () => _push(
+                  context,
+                  widget.authenticated
+                      ? RewardsScreen.authenticated(balance: balance)
+                      : RewardsScreen(controller: _controller),
+                ),
               ),
               const SizedBox(height: 18),
               _WalletSectionSelector(
@@ -1006,14 +834,16 @@ class _WalletScreenState extends State<WalletScreen> {
                 onChanged: (value) => setState(() => _section = value),
               ),
               const SizedBox(height: 14),
-              if (widget.isLoading)
-                const BingoDataState(
-                  kind: BingoDataStateKind.loading,
-                  title: 'Carregando histórico',
-                  message: 'Organizando as informações do Totem.',
-                )
-              else if (_section == WalletSection.transactions)
-                if (transactions.isEmpty)
+              if (_section == WalletSection.transactions)
+                if (widget.authenticated)
+                  const BingoDataState(
+                    kind: BingoDataStateKind.empty,
+                    title: 'Extrato indisponível',
+                    message:
+                        'O extrato ainda não possui uma fonte autenticada consolidada.',
+                    icon: Icons.receipt_long_outlined,
+                  )
+                else if (transactions.isEmpty)
                   const BingoDataState(
                     kind: BingoDataStateKind.empty,
                     title: 'Nenhuma movimentação',
@@ -1024,6 +854,24 @@ class _WalletScreenState extends State<WalletScreen> {
                 else
                   for (final transaction in transactions)
                     _HistoryTile(transaction: transaction)
+              else if (widget.isLoading)
+                const BingoDataState(
+                  kind: BingoDataStateKind.loading,
+                  title: 'Carregando histórico',
+                  message: 'Organizando as informações do Totem.',
+                )
+              else if (widget.historyFailure != null)
+                BingoDataState(
+                  kind: BingoDataStateKind.empty,
+                  title: 'Descartes indisponíveis',
+                  message: widget.historyFailure!.message,
+                  icon: Icons.cloud_off_rounded,
+                  action: BingoActionButton(
+                    label: 'Tentar novamente',
+                    icon: Icons.refresh_rounded,
+                    onPressed: widget.onRetryHistory,
+                  ),
+                )
               else if (widget.discards.isEmpty)
                 const BingoDataState(
                   kind: BingoDataStateKind.empty,
@@ -1050,19 +898,21 @@ class _WalletBalanceHero extends StatelessWidget {
   });
 
   final int balance;
-  final int redeemableRewards;
+  final int? redeemableRewards;
 
   @override
   Widget build(BuildContext context) {
-    final lockedRewards = rewards
-        .where((reward) => !reward.isAvailable(balance))
-        .toList();
+    final lockedRewards = redeemableRewards == null
+        ? const <RewardItem>[]
+        : rewards.where((reward) => !reward.isAvailable(balance)).toList();
     final nextReward = lockedRewards.isEmpty ? null : lockedRewards.first;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Semantics(
       container: true,
-      label: '$balance BinCoins. $redeemableRewards recompensas disponíveis.',
+      label: redeemableRewards == null
+          ? '$balance BinCoins. Catálogo ainda sem dados.'
+          : '$balance BinCoins. $redeemableRewards recompensas disponíveis.',
       child: ExcludeSemantics(
         child: PeriodicHighlight(
           colors: [
@@ -1148,7 +998,9 @@ class _WalletBalanceHero extends StatelessWidget {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        '$redeemableRewards opções disponíveis na simulação',
+                        redeemableRewards == null
+                            ? 'Ainda não há dados do catálogo'
+                            : '$redeemableRewards opções disponíveis na simulação',
                         style: Theme.of(
                           context,
                         ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
@@ -1183,17 +1035,26 @@ class _WalletBalanceHero extends StatelessWidget {
 }
 
 class _BazaarAccessCard extends StatelessWidget {
-  const _BazaarAccessCard({required this.balance, required this.onTap});
+  const _BazaarAccessCard({
+    required this.balance,
+    required this.onTap,
+    this.available,
+  });
 
   final int balance;
+  final int? available;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final available = rewards.where((item) => item.isAvailable(balance)).length;
+    final availableCount =
+        available ?? rewards.where((item) => item.isAvailable(balance)).length;
+    final hasCatalog = available != null;
     return Semantics(
       button: true,
-      label: 'Abrir BinBazar. $available recompensas disponíveis.',
+      label: hasCatalog
+          ? 'Abrir BinBazar. $availableCount recompensas disponíveis.'
+          : 'Abrir BinBazar. Ainda não há dados do catálogo.',
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -1236,7 +1097,9 @@ class _BazaarAccessCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        'Tio B3N separou $available opções para você',
+                        hasCatalog
+                            ? 'Tio B3N separou $availableCount opções para você'
+                            : 'Ainda não há dados do catálogo',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1385,10 +1248,17 @@ class _WalletSectionTab extends StatelessWidget {
 }
 
 class RewardsScreen extends StatefulWidget {
-  const RewardsScreen({this.items = rewards, this.controller, super.key});
+  const RewardsScreen({this.items = rewards, this.controller, super.key})
+    : authenticatedBalance = null;
+
+  const RewardsScreen.authenticated({required int balance, super.key})
+    : items = const [],
+      controller = null,
+      authenticatedBalance = balance;
 
   final List<RewardItem> items;
   final SessionWalletController? controller;
+  final int? authenticatedBalance;
 
   @override
   State<RewardsScreen> createState() => _RewardsScreenState();
@@ -1396,7 +1266,13 @@ class RewardsScreen extends StatefulWidget {
 
 class _RewardsScreenState extends State<RewardsScreen> {
   late final SessionWalletController _controller =
-      widget.controller ?? SessionWalletController();
+      widget.controller ??
+      SessionWalletController(
+        initialBalance: widget.authenticatedBalance ?? userBinCoins,
+        initialTransactions: widget.authenticatedBalance == null
+            ? binCoinTransactions
+            : const [],
+      );
 
   @override
   void dispose() {
@@ -1410,7 +1286,12 @@ class _RewardsScreenState extends State<RewardsScreen> {
       listenable: _controller,
       builder: (context, _) => AppPage(
         title: 'BinBazar',
-        subtitle: 'Simulação de resgate com BinCoins desta sessão.',
+        subtitle: widget.authenticatedBalance == null
+            ? 'Simulação de resgate com BinCoins desta sessão.'
+            : 'Recompensas disponíveis para a sua conta.',
+        dataStatus: widget.authenticatedBalance == null
+            ? AppDataStatus.simulated
+            : AppDataStatus.remote,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1421,11 +1302,14 @@ class _RewardsScreenState extends State<RewardsScreen> {
             ],
             const SizedBox(height: 22),
             if (widget.items.isEmpty)
-              const BingoDataState(
+              BingoDataState(
                 kind: BingoDataStateKind.empty,
-                title: 'Nenhuma opção disponível',
-                message:
-                    'Novas recompensas aparecerão quando a escola atualizar.',
+                title: widget.authenticatedBalance == null
+                    ? 'Nenhuma opção disponível'
+                    : 'Ainda não há dados',
+                message: widget.authenticatedBalance == null
+                    ? 'Novas recompensas aparecerão quando a escola atualizar.'
+                    : 'O catálogo autenticado aparecerá aqui quando estiver disponível.',
                 icon: Icons.storefront_outlined,
               )
             else ...[
@@ -1471,28 +1355,87 @@ class _RewardsScreenState extends State<RewardsScreen> {
 }
 
 class MissionsScreen extends StatelessWidget {
-  const MissionsScreen({this.items = missions, super.key});
+  const MissionsScreen({
+    this.items = missions,
+    this.subtitle = 'Acompanhe metas seguras e o progresso da sua turma.',
+    this.dataStatus = AppDataStatus.simulated,
+    this.loading = false,
+    this.failure,
+    this.onRetry,
+    super.key,
+  }) : featuredMission = null,
+       collectiveMissions = const [],
+       journeyMissions = const [];
+
+  const MissionsScreen.authenticated({
+    required this.featuredMission,
+    this.collectiveMissions = const [],
+    this.journeyMissions = const [],
+    this.loading = false,
+    this.failure,
+    this.onRetry,
+    super.key,
+  }) : items = const [],
+       subtitle = 'Acompanhe metas seguras e o progresso da sua turma.',
+       dataStatus = AppDataStatus.remote;
 
   final List<Mission> items;
+  final String subtitle;
+  final AppDataStatus dataStatus;
+  final Mission? featuredMission;
+  final List<Mission> collectiveMissions;
+  final List<Mission> journeyMissions;
+  final bool loading;
+  final MissionsFailure? failure;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
-    final eventItems = items
-        .where((mission) => mission.state == MissionState.event)
-        .toList();
-    final compactItems = items
-        .where(
-          (mission) =>
-              mission.state == MissionState.completed ||
-              mission.state == MissionState.upcoming,
-        )
-        .toList();
+    final authenticated = dataStatus == AppDataStatus.remote;
+    final heroMission = authenticated ? featuredMission : activeMission;
+    final eventItems = authenticated
+        ? collectiveMissions
+        : items
+              .where((mission) => mission.state == MissionState.event)
+              .toList();
+    final compactItems = authenticated
+        ? journeyMissions
+        : items
+              .where(
+                (mission) =>
+                    mission.state == MissionState.completed ||
+                    mission.state == MissionState.achieved ||
+                    mission.state == MissionState.active ||
+                    mission.state == MissionState.upcoming,
+              )
+              .toList();
 
     return AppPage(
       title: 'Missões de restauração',
-      subtitle: 'Acompanhe metas seguras e o progresso da sua turma.',
+      subtitle: subtitle,
       showBackButton: false,
-      child: items.isEmpty
+      dataStatus: dataStatus,
+      child: loading
+          ? const BingoDataState(
+              kind: BingoDataStateKind.loading,
+              title: 'Carregando missões',
+              message: 'Consultando as missões ativas da sua escola.',
+            )
+          : failure != null
+          ? BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: _missionsFailureTitle(failure!.kind),
+              message: failure!.message,
+              icon: Icons.cloud_off_rounded,
+              action: failure!.kind == MissionsFailureKind.sessionInvalid
+                  ? null
+                  : BingoActionButton(
+                      label: 'Tentar novamente',
+                      icon: Icons.refresh_rounded,
+                      onPressed: onRetry,
+                    ),
+            )
+          : !authenticated && items.isEmpty
           ? const BingoDataState(
               kind: BingoDataStateKind.empty,
               title: 'Nenhuma missão ativa',
@@ -1503,44 +1446,85 @@ class MissionsScreen extends StatelessWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _MissionFeaturedHero(
-                  mission: activeMission,
-                  onTap: () => _push(
-                    context,
-                    MissionDetailScreen(mission: activeMission),
+                if (heroMission != null)
+                  _MissionFeaturedHero(
+                    mission: heroMission,
+                    onTap: () => _push(
+                      context,
+                      MissionDetailScreen(
+                        mission: heroMission,
+                        authenticated: authenticated,
+                      ),
+                    ),
+                  )
+                else
+                  const BingoDataState(
+                    kind: BingoDataStateKind.empty,
+                    title: 'Nenhuma missão individual ativa',
+                    message:
+                        'A missão individual aparecerá aqui quando estiver disponível.',
+                    icon: Icons.person_search_outlined,
                   ),
-                ),
-                if (eventItems.isNotEmpty) ...[
+                if (authenticated || eventItems.isNotEmpty) ...[
                   const SizedBox(height: 22),
                   Text(
                     'Força-tarefa em destaque',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
-                  for (final mission in eventItems) ...[
-                    _MissionEventBanner(
-                      mission: mission,
-                      onTap: () =>
-                          _push(context, MissionDetailScreen(mission: mission)),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                  if (eventItems.isEmpty)
+                    const BingoDataState(
+                      kind: BingoDataStateKind.empty,
+                      title: 'Nenhuma missão coletiva ativa',
+                      message:
+                          'Os desafios da turma aparecerão aqui quando estiverem disponíveis.',
+                      icon: Icons.groups_2_outlined,
+                    )
+                  else
+                    for (final mission in eventItems) ...[
+                      _MissionEventBanner(
+                        mission: mission,
+                        onTap: () => _push(
+                          context,
+                          MissionDetailScreen(
+                            mission: mission,
+                            authenticated: authenticated,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                 ],
-                if (compactItems.isNotEmpty) ...[
+                if (authenticated || compactItems.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text(
                     'Outras etapas da jornada',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 12),
-                  for (final mission in compactItems) ...[
-                    _MissionCompactTile(
-                      mission: mission,
-                      onTap: () =>
-                          _push(context, MissionDetailScreen(mission: mission)),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                  if (compactItems.isEmpty)
+                    const BingoDataState(
+                      kind: BingoDataStateKind.empty,
+                      title: 'Ainda não há outras etapas',
+                      message:
+                          'Missões concluídas, próximas ou futuras aparecerão aqui.',
+                      icon: Icons.route_outlined,
+                    )
+                  else
+                    for (final mission in compactItems) ...[
+                      _MissionCompactTile(
+                        mission: mission,
+                        authenticated: authenticated,
+                        onTap: () => _push(
+                          context,
+                          MissionDetailScreen(
+                            mission: mission,
+                            authenticated: authenticated,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                 ],
               ],
             ),
@@ -1549,18 +1533,23 @@ class MissionsScreen extends StatelessWidget {
 }
 
 class Scr4pInfoScreen extends StatelessWidget {
-  const Scr4pInfoScreen({super.key});
+  const Scr4pInfoScreen({this.authenticated = false, super.key});
+
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Quem é SCR4P?',
       subtitle: 'A corrupção que cresce com o descarte inadequado.',
+      dataStatus: authenticated
+          ? AppDataStatus.remote
+          : AppDataStatus.simulated,
       child: Column(
         children: [
           ImageHeroCard(
             image: AppAssets.sceneCorruptScr4p,
-            badge: 'Alerta ativo',
+            badge: authenticated ? 'Sobre SCR4P' : 'Alerta ativo',
             title: 'Corrupção eletrônica',
             subtitle: 'Eletrônicos no lixo comum aumentam a corrupção.',
             height: 188,
@@ -1610,16 +1599,18 @@ class Scr4pInfoScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           BingoActionButton(
-            label: 'Ver força-tarefa ativa',
+            label: authenticated ? 'Ver missões' : 'Ver força-tarefa ativa',
             tone: BingoActionTone.purple,
             icon: Icons.shield,
             onPressed: () => _push(
               context,
-              MissionDetailScreen(
-                mission: missions.firstWhere(
-                  (mission) => mission.state == MissionState.event,
-                ),
-              ),
+              authenticated
+                  ? const MissionsScreen.authenticated(featuredMission: null)
+                  : MissionDetailScreen(
+                      mission: missions.firstWhere(
+                        (mission) => mission.state == MissionState.event,
+                      ),
+                    ),
             ),
           ),
         ],
@@ -1629,10 +1620,24 @@ class Scr4pInfoScreen extends StatelessWidget {
 }
 
 class RankingScreen extends StatelessWidget {
-  const RankingScreen({this.rows = classRows, this.isPilot = false, super.key});
+  const RankingScreen({this.rows = classRows, this.isPilot = false, super.key})
+    : className = '9ºA',
+      classXp = 76000,
+      authenticated = false;
+
+  const RankingScreen.authenticated({
+    required this.className,
+    required this.classXp,
+    super.key,
+  }) : rows = const [],
+       isPilot = false,
+       authenticated = true;
 
   final List<(String, String, String, String)> rows;
   final bool isPilot;
+  final String className;
+  final int classXp;
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
@@ -1640,7 +1645,10 @@ class RankingScreen extends StatelessWidget {
       title: 'Ranking das turmas',
       subtitle: 'Compare posições e acompanhe a restauração coletiva.',
       showBackButton: false,
-      child: rows.isEmpty
+      dataStatus: authenticated
+          ? AppDataStatus.remote
+          : AppDataStatus.simulated,
+      child: rows.isEmpty && !authenticated
           ? const BingoDataState(
               kind: BingoDataStateKind.empty,
               title: 'Ranking ainda sem resultados',
@@ -1650,15 +1658,21 @@ class RankingScreen extends StatelessWidget {
             )
           : Column(
               children: [
-                const _RankingHero(),
+                _RankingHero(
+                  className: className,
+                  classXp: classXp,
+                  hasRankingData: !authenticated,
+                ),
                 const SizedBox(height: 18),
-                const _PodiumCard(),
+                _PodiumCard(hasData: !authenticated),
                 const SizedBox(height: 18),
                 _ScenarioAccessCard(
+                  hasData: !authenticated,
                   onPressed: () => _push(
                     context,
                     CityMapScreen(
                       isPilot: isPilot,
+                      dataAvailable: !authenticated,
                       onOpenScenario: (scenario, visualProgress) => _push(
                         context,
                         CurrentScenarioScreen(
@@ -1815,21 +1829,48 @@ class ImpactScreen extends StatelessWidget {
     this.visualProgress = centralSquareProgress,
     this.isPilotSimulation = false,
     super.key,
-  });
+  }) : unavailable = false;
+
+  const ImpactScreen.unavailable({super.key})
+    : scenario = centralSquareScenario,
+      registeredProgress = 0,
+      visualProgress = 0,
+      isPilotSimulation = false,
+      unavailable = true;
 
   final CityScenario scenario;
   final double registeredProgress;
   final double visualProgress;
   final bool isPilotSimulation;
+  final bool unavailable;
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Impacto',
-      subtitle: 'Veja o resultado registrado da turma em ${scenario.name}.',
+      subtitle: unavailable
+          ? 'A superfície de impacto está pronta para receber dados reais.'
+          : 'Veja o resultado registrado da turma em ${scenario.name}.',
+      dataStatus: unavailable ? AppDataStatus.remote : AppDataStatus.simulated,
       child: Column(
         children: [
-          if (registeredProgress > 0)
+          if (unavailable) ...[
+            const ImageHeroCard(
+              image: AppAssets.bingopolisMap,
+              badge: 'Impacto da turma',
+              title: 'Ainda não há dados',
+              subtitle:
+                  'O impacto aparecerá aqui quando houver uma fonte autenticada.',
+            ),
+            const SizedBox(height: 18),
+            const BingoDataState(
+              kind: BingoDataStateKind.empty,
+              title: 'Impacto indisponível',
+              message:
+                  'Métricas e progresso de BinGópolis ainda não possuem fonte real.',
+              icon: Icons.auto_graph_outlined,
+            ),
+          ] else if (registeredProgress > 0)
             ImpactComparison(
               beforeImage: scenario.corruptAsset,
               nowImage: scenario.assetFor(registeredProgress),
@@ -1848,22 +1889,26 @@ class ImpactScreen extends StatelessWidget {
               progress: 0,
               progressColor: AppColors.scr4p,
             ),
-          if (isPilotSimulation && visualProgress != registeredProgress) ...[
+          if (!unavailable &&
+              isPilotSimulation &&
+              visualProgress != registeredProgress) ...[
             const SizedBox(height: 14),
             _PilotSimulationNotice(
               visualProgress: visualProgress,
               registeredProgress: registeredProgress,
             ),
           ],
-          const SizedBox(height: 18),
-          _ImpactHeadline(scenario: scenario, progress: registeredProgress),
-          const SizedBox(height: 18),
-          _ImpactMetricsGrid(snapshot: scenario.impact),
-          const SizedBox(height: 18),
-          _NextTransformationCard(
-            scenario: scenario,
-            progress: registeredProgress,
-          ),
+          if (!unavailable) ...[
+            const SizedBox(height: 18),
+            _ImpactHeadline(scenario: scenario, progress: registeredProgress),
+            const SizedBox(height: 18),
+            _ImpactMetricsGrid(snapshot: scenario.impact),
+            const SizedBox(height: 18),
+            _NextTransformationCard(
+              scenario: scenario,
+              progress: registeredProgress,
+            ),
+          ],
         ],
       ),
     );
@@ -1948,13 +1993,18 @@ class InfoScreen extends StatelessWidget {
 }
 
 class HowItWorksScreen extends StatelessWidget {
-  const HowItWorksScreen({super.key});
+  const HowItWorksScreen({this.authenticated = false, super.key});
+
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
       title: 'Como funciona',
       subtitle: 'Separe com segurança, valide no Totem e acompanhe no app.',
+      dataStatus: authenticated
+          ? AppDataStatus.remote
+          : AppDataStatus.simulated,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2319,17 +2369,20 @@ class _RewardPriceBand extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: color.withValues(alpha: 0.26)),
         ),
-        child: BinCoinAmount(
-          value: value,
-          size: large ? 25 : 23,
-          style:
-              (large
-                      ? Theme.of(context).textTheme.titleLarge
-                      : Theme.of(context).textTheme.titleMedium)
-                  ?.copyWith(
-                    color: AppColors.navy,
-                    fontWeight: FontWeight.w900,
-                  ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: BinCoinAmount(
+            value: value,
+            size: large ? 25 : 23,
+            style:
+                (large
+                        ? Theme.of(context).textTheme.titleLarge
+                        : Theme.of(context).textTheme.titleMedium)
+                    ?.copyWith(
+                      color: AppColors.navy,
+                      fontWeight: FontWeight.w900,
+                    ),
+          ),
         ),
       ),
     );
@@ -2772,6 +2825,14 @@ class _HowItWorksOutcome extends StatelessWidget {
   }
 }
 
+String _missionStateLabel(MissionState state) => switch (state) {
+  MissionState.active => 'Em andamento',
+  MissionState.achieved => 'Meta atingida',
+  MissionState.event => 'Evento ativo',
+  MissionState.completed => 'Concluída',
+  MissionState.upcoming => 'Próxima missão',
+};
+
 class _MissionFeaturedHero extends StatelessWidget {
   const _MissionFeaturedHero({required this.mission, required this.onTap});
 
@@ -2782,10 +2843,12 @@ class _MissionFeaturedHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     final compactWidth = MediaQuery.sizeOf(context).width < 380;
+    final hasMultipleRewards = mission.reward.contains(' · ');
     return Semantics(
+      key: const Key('missions-featured-hero'),
       button: true,
       label:
-          'Missão ativa. ${mission.title}. ${mission.subtitle}. '
+          '${_missionStateLabel(mission.state)}. ${mission.title}. ${mission.subtitle}. '
           'Recompensa ${mission.reward}.',
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -2798,6 +2861,8 @@ class _MissionFeaturedHero extends StatelessWidget {
                   ? 520
                   : compactWidth
                   ? 286
+                  : hasMultipleRewards
+                  ? 276
                   : 248,
               child: Stack(
                 children: [
@@ -2842,9 +2907,11 @@ class _MissionFeaturedHero extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const BadgeLabel(
-                            label: 'Em andamento',
-                            color: AppColors.green,
+                          BadgeLabel(
+                            label: _missionStateLabel(mission.state),
+                            color: mission.state == MissionState.active
+                                ? AppColors.green
+                                : mission.color,
                           ),
                           const SizedBox(height: 10),
                           SizedBox(
@@ -2913,9 +2980,10 @@ class _MissionEventBanner extends StatelessWidget {
     final compactWidth = MediaQuery.sizeOf(context).width < 380;
     final stackedFooter = largeText || compactWidth;
     return Semantics(
+      key: ValueKey('missions-collective-${mission.id}'),
       button: true,
       label:
-          'Evento. ${mission.title}. ${mission.subtitle}. '
+          '${_missionStateLabel(mission.state)}. ${mission.title}. ${mission.subtitle}. '
           'Recompensa ${mission.reward}.',
       child: Material(
         color: const Color(0xFFFCF9FF),
@@ -3111,18 +3179,27 @@ class _MissionEventBanner extends StatelessWidget {
 }
 
 class _MissionCompactTile extends StatelessWidget {
-  const _MissionCompactTile({required this.mission, required this.onTap});
+  const _MissionCompactTile({
+    required this.mission,
+    required this.onTap,
+    required this.authenticated,
+  });
 
   final Mission mission;
   final VoidCallback onTap;
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
     final isCompleted = mission.state == MissionState.completed;
-    final tone = isCompleted ? AppColors.green : AppColors.blue;
-    final stateLabel = isCompleted ? 'Missão concluída' : 'Próxima missão';
+    final isAchieved = mission.state == MissionState.achieved;
+    final tone = isCompleted || isAchieved ? AppColors.green : AppColors.blue;
+    final stateLabel = !authenticated && isCompleted
+        ? 'Missão concluída'
+        : _missionStateLabel(mission.state);
 
     return Semantics(
+      key: ValueKey('missions-journey-${mission.id}'),
       button: true,
       label:
           '$stateLabel. ${mission.title}. ${mission.subtitle}. '
@@ -3152,6 +3229,8 @@ class _MissionCompactTile extends StatelessWidget {
                   child: Icon(
                     isCompleted
                         ? Icons.check_rounded
+                        : isAchieved
+                        ? Icons.verified_rounded
                         : Icons.lock_clock_outlined,
                     color: tone,
                   ),
@@ -3258,16 +3337,24 @@ class _MissionEventStatus extends StatelessWidget {
 }
 
 class _RankingHero extends StatelessWidget {
-  const _RankingHero();
+  const _RankingHero({
+    required this.className,
+    required this.classXp,
+    required this.hasRankingData,
+  });
+
+  final String className;
+  final int classXp;
+  final bool hasRankingData;
 
   @override
   Widget build(BuildContext context) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     return Semantics(
       container: true,
-      label:
-          'Sua turma, 9ºA, está em quarto lugar com 760 pontos. '
-          'A próxima meta é alcançar o top 3 com mais 50 pontos.',
+      label: hasRankingData
+          ? 'Sua turma, $className, está em quarto lugar com $classXp pontos.'
+          : 'Sua turma, $className, possui $classXp XP. Posição ainda sem dados.',
       child: ExcludeSemantics(
         child: SurfaceCard(
           color: const Color(0xFFEAF6FF),
@@ -3275,16 +3362,32 @@ class _RankingHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (usesLargeText) ...[
-                const BadgeLabel(label: '4º lugar', color: AppColors.warning),
+                BadgeLabel(
+                  label: hasRankingData ? '4º lugar' : 'Posição —',
+                  color: AppColors.warning,
+                ),
                 const SizedBox(height: 10),
-                const _RankingScore(),
+                _RankingScore(
+                  className: className,
+                  classXp: classXp,
+                  hasRankingData: hasRankingData,
+                ),
               ] else
-                const Row(
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _RankingScore()),
-                    SizedBox(width: 12),
-                    BadgeLabel(label: '4º lugar', color: AppColors.warning),
+                    Expanded(
+                      child: _RankingScore(
+                        className: className,
+                        classXp: classXp,
+                        hasRankingData: hasRankingData,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    BadgeLabel(
+                      label: hasRankingData ? '4º lugar' : 'Posição —',
+                      color: AppColors.warning,
+                    ),
                   ],
                 ),
               const SizedBox(height: 12),
@@ -3298,7 +3401,9 @@ class _RankingHero extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Próxima meta: 50 pontos para o top 3',
+                      hasRankingData
+                          ? 'Próxima meta: 5000 pontos para o top 3'
+                          : 'Distância até o pódio: —',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.navy,
                         fontWeight: FontWeight.w700,
@@ -3308,8 +3413,8 @@ class _RankingHero extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              const AnimatedProgressPill(
-                value: 760 / 810,
+              AnimatedProgressPill(
+                value: hasRankingData ? 76000 / 81000 : 0,
                 color: AppColors.green,
                 backgroundColor: Colors.white,
                 height: 12,
@@ -3323,17 +3428,28 @@ class _RankingHero extends StatelessWidget {
 }
 
 class _RankingScore extends StatelessWidget {
-  const _RankingScore();
+  const _RankingScore({
+    required this.className,
+    required this.classXp,
+    required this.hasRankingData,
+  });
+
+  final String className;
+  final int classXp;
+  final bool hasRankingData;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Sua turma · 9ºA', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          'Sua turma · $className',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         const SizedBox(height: 4),
         Text(
-          '760 pts',
+          hasRankingData ? '76.000 pts' : '$classXp XP',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
             color: AppColors.blue,
             fontWeight: FontWeight.w900,
@@ -3345,7 +3461,9 @@ class _RankingScore extends StatelessWidget {
 }
 
 class _PodiumCard extends StatelessWidget {
-  const _PodiumCard();
+  const _PodiumCard({required this.hasData});
+
+  final bool hasData;
 
   @override
   Widget build(BuildContext context) {
@@ -3372,14 +3490,14 @@ class _PodiumCard extends StatelessWidget {
           if (usesLargeText) ...[
             title,
             const SizedBox(height: 10),
-            const _RankingCycleBadge(),
+            _RankingCycleBadge(hasData: hasData),
           ] else
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(child: title),
                 const SizedBox(width: 12),
-                const _RankingCycleBadge(),
+                _RankingCycleBadge(hasData: hasData),
               ],
             ),
           const SizedBox(height: 10),
@@ -3392,32 +3510,32 @@ class _PodiumCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: const [
+            children: [
               Expanded(
                 child: _PodiumPlace(
                   position: '2º',
-                  room: '8ºB',
-                  points: '920 pts',
+                  room: hasData ? '8ºB' : 'Turma —',
+                  points: hasData ? '92.000 pts' : '—',
                   height: 86,
                   color: AppColors.blue,
                 ),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: _PodiumPlace(
                   position: '1º',
-                  room: '7ºA',
-                  points: '1.240 pts',
+                  room: hasData ? '7ºA' : 'Turma —',
+                  points: hasData ? '124.000 pts' : '—',
                   height: 112,
                   color: AppColors.warning,
                 ),
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Expanded(
                 child: _PodiumPlace(
                   position: '3º',
-                  room: '6ºC',
-                  points: '810 pts',
+                  room: hasData ? '6ºC' : 'Turma —',
+                  points: hasData ? '81.000 pts' : '—',
                   height: 72,
                   color: AppColors.green,
                 ),
@@ -3431,12 +3549,16 @@ class _PodiumCard extends StatelessWidget {
 }
 
 class _RankingCycleBadge extends StatelessWidget {
-  const _RankingCycleBadge();
+  const _RankingCycleBadge({required this.hasData});
+
+  final bool hasData;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: '${currentScenario.cycleDays} dias no ciclo atual',
+      label: hasData
+          ? '${currentScenario.cycleDays} dias no ciclo atual'
+          : 'Ciclo ainda sem dados',
       child: ExcludeSemantics(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -3460,7 +3582,7 @@ class _RankingCycleBadge extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${currentScenario.cycleDays} dias',
+                    hasData ? '${currentScenario.cycleDays} dias' : '—',
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       color: AppColors.navy,
                       fontWeight: FontWeight.w900,
@@ -3552,9 +3674,10 @@ class _PodiumPlace extends StatelessWidget {
 }
 
 class _ScenarioAccessCard extends StatelessWidget {
-  const _ScenarioAccessCard({required this.onPressed});
+  const _ScenarioAccessCard({required this.onPressed, this.hasData = true});
 
   final VoidCallback onPressed;
+  final bool hasData;
 
   @override
   Widget build(BuildContext context) {
@@ -3606,7 +3729,7 @@ class _ScenarioAccessCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: AppColors.deepCyan),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
@@ -3616,8 +3739,10 @@ class _ScenarioAccessCard extends StatelessWidget {
                           ),
                           SizedBox(width: 6),
                           Text(
-                            'Jornada em expansão',
-                            style: TextStyle(
+                            hasData
+                                ? 'Jornada em expansão'
+                                : 'Ainda não há dados',
+                            style: const TextStyle(
                               fontFamily: 'Sora',
                               color: Colors.white,
                               fontSize: 12,
@@ -3653,11 +3778,13 @@ class _ScenarioAccessCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'A ${currentScenario.name} é o começo. Cada descarte validado afasta a névoa e abre novos caminhos.',
+                  hasData
+                      ? 'A ${currentScenario.name} é o começo. Cada descarte validado afasta a névoa e abre novos caminhos.'
+                      : 'O mapa permanece acessível e receberá a campanha autenticada quando houver uma fonte real.',
                 ),
                 const SizedBox(height: 12),
                 AnimatedProgressPill(
-                  value: currentScenario.restoredProgress,
+                  value: hasData ? currentScenario.restoredProgress : 0,
                   color: AppColors.green,
                 ),
                 const SizedBox(height: 14),
@@ -4327,15 +4454,16 @@ class _MissionTimelineStep extends StatelessWidget {
 class _TotemHero extends StatelessWidget {
   const _TotemHero({required this.mission});
 
-  final Mission mission;
+  final Mission? mission;
 
   @override
   Widget build(BuildContext context) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     return Semantics(
       container: true,
-      label:
-          'Totem físico do BinGo. Ele valida o descarte da missão ${mission.title}.',
+      label: mission == null
+          ? 'Totem físico do BinGo. Ele valida descartes autorizados.'
+          : 'Totem físico do BinGo. Ele valida o descarte da missão ${mission!.title}.',
       child: ExcludeSemantics(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -4405,7 +4533,7 @@ class _TotemHero extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            mission.title,
+                            mission?.title ?? 'Ainda não há missão vinculada',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.bodyMedium
@@ -5008,7 +5136,9 @@ class _StepRow extends StatelessWidget {
 }
 
 class _HomeScenarioOverview extends StatelessWidget {
-  const _HomeScenarioOverview();
+  const _HomeScenarioOverview({this.hasData = true});
+
+  final bool hasData;
 
   @override
   Widget build(BuildContext context) {
@@ -5033,7 +5163,9 @@ class _HomeScenarioOverview extends StatelessWidget {
                 Positioned(
                   left: 14,
                   top: 14,
-                  child: BadgeLabel(label: currentScenario.name),
+                  child: BadgeLabel(
+                    label: hasData ? currentScenario.name : 'Jornada da turma',
+                  ),
                 ),
               ],
             ),
@@ -5044,14 +5176,18 @@ class _HomeScenarioOverview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${currentScenario.restoredPercent}% restaurada',
+                  hasData
+                      ? '${currentScenario.restoredPercent}% restaurada'
+                      : 'Ainda não há dados',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 6),
-                AnimatedProgressPill(value: currentScenario.restoredProgress),
+                AnimatedProgressPill(
+                  value: hasData ? currentScenario.restoredProgress : 0,
+                ),
                 const SizedBox(height: 10),
                 Text(
-                  'Em andamento',
+                  hasData ? 'Em andamento' : 'Progresso —',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     color: AppColors.green,
                     fontWeight: FontWeight.w800,
@@ -5076,7 +5212,9 @@ class _HomeScenarioOverview extends StatelessWidget {
                     const SizedBox(width: 9),
                     Expanded(
                       child: Text(
-                        activeMission.title,
+                        hasData
+                            ? activeMission.title
+                            : 'Missão ainda não vinculada',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: AppColors.navy,
                           fontWeight: FontWeight.w900,
@@ -5097,8 +5235,9 @@ class _HomeScenarioOverview extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        '${currentScenario.nextSectorDiscards} descartes '
-                        'para o próximo setor',
+                        hasData
+                            ? '${currentScenario.nextSectorDiscards} descartes para o próximo setor'
+                            : 'Ainda não há dados de campanha',
                       ),
                     ),
                   ],

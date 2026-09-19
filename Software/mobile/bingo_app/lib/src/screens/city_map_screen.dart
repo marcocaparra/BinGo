@@ -29,12 +29,14 @@ class CityMapScreen extends StatefulWidget {
   const CityMapScreen({
     required this.onOpenScenario,
     this.isPilot = false,
+    this.dataAvailable = true,
     super.key,
   });
 
   final void Function(CityScenario scenario, double visualProgress)
   onOpenScenario;
   final bool isPilot;
+  final bool dataAvailable;
 
   @override
   State<CityMapScreen> createState() => _CityMapScreenState();
@@ -254,6 +256,9 @@ class _CityMapScreenState extends State<CityMapScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.dataAvailable) {
+      return _UnavailableCityMap();
+    }
     final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     final selectedIndex = cityScenarios.indexWhere(
       (scenario) => scenario.id == _selected.id,
@@ -418,6 +423,86 @@ class _CityMapScreenState extends State<CityMapScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _UnavailableCityMap extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF9ADE3D),
+      appBar: AppBar(
+        backgroundColor: const Color(0xF20B234A),
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('BinGópolis'),
+            Text(
+              'Jornada coletiva de restauração',
+              style: TextStyle(fontSize: 12, color: Color(0xFFD6E8FF)),
+            ),
+          ],
+        ),
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            AppAssets.bingopolisTerrainTile,
+            fit: BoxFit.cover,
+            opacity: const AlwaysStoppedAnimation(0.68),
+          ),
+          Container(color: const Color(0x660B234A)),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.96),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 24,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Image.asset(
+                          AppAssets.b1nMapGuide,
+                          height: 110,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Ainda não há dados',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'O mapa está pronto para receber cenários e progresso da campanha autenticada.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

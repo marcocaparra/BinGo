@@ -273,6 +273,7 @@ class _SessionGateState extends State<SessionGate> {
               key: const ValueKey('authenticated-shell'),
               repository: _gateway!.profileRepository,
               depositHistoryRepository: _gateway!.depositHistoryRepository,
+              missionsRepository: _gateway!.missionsRepository,
               onLogout: _signOut,
               onSessionInvalid: _returnToEntry,
             ),
