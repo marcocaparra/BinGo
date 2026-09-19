@@ -1800,6 +1800,15 @@ class RankingScreen extends StatelessWidget {
                       ? currentClass?.pointsClassBalance
                       : classXp,
                   position: authenticated ? currentPosition : 4,
+                  leaderXp: authenticated
+                      ? ranking?.leader?.pointsClassBalance
+                      : null,
+                  xpToFirstPlace: authenticated
+                      ? ranking?.xpToFirstPlace
+                      : null,
+                  progressToFirstPlace: authenticated
+                      ? ranking?.progressToFirstPlace
+                      : null,
                   isPilot: !authenticated,
                 ),
                 const SizedBox(height: 18),
@@ -3480,12 +3489,18 @@ class _RankingHero extends StatelessWidget {
     required this.className,
     required this.classXp,
     required this.position,
+    required this.leaderXp,
+    required this.xpToFirstPlace,
+    required this.progressToFirstPlace,
     required this.isPilot,
   });
 
   final String? className;
   final int? classXp;
   final int? position;
+  final int? leaderXp;
+  final int? xpToFirstPlace;
+  final double? progressToFirstPlace;
   final bool isPilot;
 
   @override
@@ -3494,6 +3509,14 @@ class _RankingHero extends StatelessWidget {
     final hasRankingData =
         className != null && classXp != null && position != null;
     final positionLabel = hasRankingData ? '$positionº lugar' : 'Posição —';
+    final progressMessage = isPilot
+        ? 'Próxima meta: 5000 pontos para o top 3'
+        : _authenticatedRankingProgressMessage(
+            classXp: classXp,
+            leaderXp: leaderXp,
+            position: position,
+            xpToFirstPlace: xpToFirstPlace,
+          );
     return Semantics(
       key: const Key('ranking-hero'),
       container: true,
@@ -3540,11 +3563,7 @@ class _RankingHero extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      hasRankingData
-                          ? isPilot
-                                ? 'Próxima meta: 5000 pontos para o top 3'
-                                : 'Distância até o pódio: —'
-                          : 'Distância até o pódio: —',
+                      progressMessage,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.navy,
                         fontWeight: FontWeight.w700,
@@ -3555,7 +3574,8 @@ class _RankingHero extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               AnimatedProgressPill(
-                value: isPilot ? 76000 / 81000 : 0,
+                key: const Key('ranking-hero-progress'),
+                value: isPilot ? 76000 / 81000 : progressToFirstPlace ?? 0,
                 color: AppColors.green,
                 backgroundColor: Colors.white,
                 height: 12,
@@ -3566,6 +3586,30 @@ class _RankingHero extends StatelessWidget {
       ),
     );
   }
+}
+
+String _authenticatedRankingProgressMessage({
+  required int? classXp,
+  required int? leaderXp,
+  required int? position,
+  required int? xpToFirstPlace,
+}) {
+  if (classXp == null ||
+      leaderXp == null ||
+      position == null ||
+      xpToFirstPlace == null) {
+    return 'Distância até o 1º lugar: —';
+  }
+  if (position == 1) {
+    return 'Parabéns! Sua turma está em 1º lugar.';
+  }
+  if (leaderXp == 0) {
+    return 'Ainda não há XP para comparar.';
+  }
+  if (classXp == leaderXp) {
+    return 'Sua turma está empatada em pontos com o 1º lugar.';
+  }
+  return 'Faltam ${_formatRankingXp(xpToFirstPlace)} XP para chegar ao 1º lugar.';
 }
 
 class _RankingScore extends StatelessWidget {

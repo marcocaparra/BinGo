@@ -72,6 +72,9 @@ void main() {
       expect(ranking.currentClass?.className, '8º B');
       expect(ranking.currentClass?.pointsClassBalance, 5000);
       expect(ranking.currentPosition, 2);
+      expect(ranking.leader?.classId, 'a-class');
+      expect(ranking.xpToFirstPlace, 4000);
+      expect(ranking.progressToFirstPlace, closeTo(5000 / 9000, 0.000001));
       expect(ranking.topThree.map((entry) => entry.classId), [
         'a-class',
         'b-class',
@@ -116,6 +119,34 @@ void main() {
 
     expect(ranking.topThree.map((entry) => entry.classId), ['a', 'b', 'c']);
     expect(ranking.currentPosition, 4);
+  });
+
+  test('first place and tied classes derive complete progress', () {
+    const entries = [
+      ClassRankingEntry(classId: 'a', className: 'A', pointsClassBalance: 9000),
+      ClassRankingEntry(classId: 'b', className: 'B', pointsClassBalance: 9000),
+    ];
+
+    const first = ClassRanking(entries: entries, currentClassIndex: 0);
+    const tied = ClassRanking(entries: entries, currentClassIndex: 1);
+
+    expect(first.xpToFirstPlace, 0);
+    expect(first.progressToFirstPlace, 1);
+    expect(tied.xpToFirstPlace, 0);
+    expect(tied.progressToFirstPlace, 1);
+  });
+
+  test('zero-XP leader avoids division for a class outside first place', () {
+    const ranking = ClassRanking(
+      entries: [
+        ClassRankingEntry(classId: 'a', className: 'A', pointsClassBalance: 0),
+        ClassRankingEntry(classId: 'b', className: 'B', pointsClassBalance: 0),
+      ],
+      currentClassIndex: 1,
+    );
+
+    expect(ranking.xpToFirstPlace, 0);
+    expect(ranking.progressToFirstPlace, 0);
   });
 
   test('rejects nonempty response without the current class', () async {
