@@ -65,6 +65,14 @@ const _remoteProfile = AuthenticatedStudentProfile(
   pointsStudentBalance: 17,
   pointsClassBalance: 29,
   status: 'ACTIVE',
+  progress: AuthenticatedProfileProgress(
+    studentId: 'student-id',
+    validDepositCount: 0,
+    levelNumber: 0,
+    levelCode: 'NONE',
+    remainingToNextLevel: 1,
+    progressToNextLevel: 0,
+  ),
 );
 
 class _FakeRestoreStore implements AccessRestoreStore {
@@ -488,7 +496,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('29'), findsOneWidget);
     expect(find.text('XP da turma'), findsOneWidget);
-    expect(find.text('Pontos pessoais'), findsOneWidget);
+    expect(find.text('Descartes'), findsOneWidget);
+    expect(find.text('Nível 0'), findsOneWidget);
     expect(find.text('9ºA'), findsNothing);
   });
 

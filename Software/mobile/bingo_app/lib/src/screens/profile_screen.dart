@@ -11,7 +11,7 @@ import '../widgets/periodic_highlight.dart';
 import 'change_pin_screen.dart';
 import 'access_flow_screen.dart';
 
-const _currentProfileLevel = 3;
+const _pilotProfileLevel = 3;
 
 class _ProfileAvatarOption {
   const _ProfileAvatarOption({
@@ -153,12 +153,14 @@ class ProfileScreen extends StatefulWidget {
     super.key,
   }) : authenticatedProfile = null,
        onLogout = null,
-       onOpenMissions = null;
+       onOpenMissions = null,
+       customizationStore = null;
 
   const ProfileScreen.authenticated({
     required AuthenticatedStudentProfile profile,
     required this.onLogout,
     this.onOpenMissions,
+    this.customizationStore,
     super.key,
   }) : authenticatedProfile = profile,
        repository = null,
@@ -171,6 +173,7 @@ class ProfileScreen extends StatefulWidget {
   final AuthenticatedStudentProfile? authenticatedProfile;
   final Future<AuthFailure?> Function()? onLogout;
   final VoidCallback? onOpenMissions;
+  final ProfileCustomizationStore? customizationStore;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -184,6 +187,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _logoutError;
 
   Future<_ProfileViewData> _loadData() async {
+    final authenticatedProfile = widget.authenticatedProfile;
+    if (authenticatedProfile != null) {
+      final store =
+          widget.customizationStore ??
+          await SharedPreferencesCustomizationStore.create(
+            studentId: authenticatedProfile.id,
+          );
+      final customization = await store.loadCustomization();
+      _store = store;
+      _customization = customization;
+      return _ProfileViewData(
+        profile: StudentProfile(
+          school: authenticatedProfile.schoolName,
+          identifier: authenticatedProfile.name,
+        ),
+        customization: customization,
+        store: store,
+      );
+    }
+
     final profile =
         await widget.repository?.loadProfile() ??
         const StudentProfile(school: 'ENIAC', identifier: 'Marco Caparra');
@@ -204,7 +227,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final authenticatedProfile = widget.authenticatedProfile;
     if (authenticatedProfile != null) {
-      return _buildAuthenticated(context, authenticatedProfile);
+      return FutureBuilder<_ProfileViewData>(
+        future: _data,
+        builder: (context, snapshot) {
+          final data = snapshot.data;
+          final customization =
+              _customization ??
+              data?.customization ??
+              const ProfileCustomization();
+          return _buildAuthenticated(
+            context,
+            authenticatedProfile,
+            customization,
+            customizationReady: data != null,
+          );
+        },
+      );
     }
     return FutureBuilder<_ProfileViewData>(
       future: _data,
@@ -229,12 +267,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 customization: customization,
                 onEdit: data == null
                     ? null
-                    : () => _openCustomization(context, customization),
+                    : () => _openCustomization(
+                        context,
+                        customization,
+                        currentLevel: _pilotProfileLevel,
+                      ),
               ),
               const SizedBox(height: 16),
               const _ResourceSummary(),
               const SizedBox(height: 16),
-              const _LevelPath(),
+              const _LevelPath(currentLevel: _pilotProfileLevel),
               const SizedBox(height: 16),
               const B1nGuide(
                 asset: AppAssets.b1nReward,
@@ -267,7 +309,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildAuthenticated(
     BuildContext context,
     AuthenticatedStudentProfile profile,
-  ) {
+    ProfileCustomization customization, {
+    required bool customizationReady,
+  }) {
+    final progress = profile.progress;
     return AppPage(
       title: 'Sua jornada',
       subtitle: 'Dados reais da sua conta vinculada.',
@@ -281,25 +326,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               identifier: profile.name,
             ),
             className: profile.className,
-            customization: const ProfileCustomization(),
-            showJourneyData: false,
-            onEdit: null,
+            customization: customization,
+            levelNumber: progress.levelNumber,
+            levelName: progress.levelName,
+            journeyProgress: progress.progressToNextLevel,
+            onEdit: customizationReady
+                ? () => _openCustomization(
+                    context,
+                    customization,
+                    currentLevel: progress.levelNumber,
+                  )
+                : null,
           ),
           const SizedBox(height: 16),
           _ResourceSummary(
-            personalPoints: '—',
+            personalPoints: progress.validDepositCount.toString(),
+            personalLabel: 'Descartes',
             classPoints: profile.classXpBalance.toString(),
             classLabel: 'XP da turma',
             binCoins: profile.binCoinsBalance,
           ),
           const SizedBox(height: 16),
-          const _LevelPath(hasData: false),
+          _LevelPath(currentLevel: progress.levelNumber),
           const SizedBox(height: 16),
-          const B1nGuide(
+          B1nGuide(
             asset: AppAssets.b1nReward,
-            title: 'Jornada indisponível',
-            message:
-                'Níveis, conquistas e progresso aparecerão quando tiverem uma fonte autenticada.',
+            title: 'Sua jornada está avançando!',
+            message: _journeyMessage(progress),
             tone: AppColors.green,
             compact: true,
             portrait: B1nPortraitVariant.celebration,
@@ -341,19 +394,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _openCustomization(
     BuildContext context,
-    ProfileCustomization current,
-  ) async {
+    ProfileCustomization current, {
+    required int currentLevel,
+  }) async {
     final selected = await showModalBottomSheet<ProfileCustomization>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => _ProfileCustomizationSheet(initial: current),
+      builder: (context) => _ProfileCustomizationSheet(
+        initial: current,
+        currentLevel: currentLevel,
+      ),
     );
     if (selected == null || selected == current || !mounted) return;
     await _store?.saveCustomization(selected);
     if (!mounted) return;
     setState(() => _customization = selected);
   }
+}
+
+String _journeyMessage(AuthenticatedProfileProgress progress) {
+  if (progress.levelNumber == 0) {
+    return 'Faça seu primeiro descarte válido para chegar a Aprendiz.';
+  }
+  if (progress.levelNumber == 5) {
+    return 'Você já fez ${progress.validDepositCount} descartes válidos e alcançou o nível Herói.';
+  }
+  return 'Você já fez ${progress.validDepositCount} descartes válidos. '
+      'Faltam ${progress.remainingToNextLevel} para chegar a '
+      '${progress.nextLevelName}.';
 }
 
 class _AuthenticatedAccountPanel extends StatelessWidget {
@@ -458,14 +527,18 @@ class _ProfileHeader extends StatelessWidget {
     required this.customization,
     required this.onEdit,
     this.className = '9ºA',
-    this.showJourneyData = true,
+    this.levelNumber = _pilotProfileLevel,
+    this.levelName = 'Restaurador',
+    this.journeyProgress = 0.62,
   });
 
   final StudentProfile profile;
   final ProfileCustomization customization;
   final VoidCallback? onEdit;
   final String className;
-  final bool showJourneyData;
+  final int levelNumber;
+  final String? levelName;
+  final double journeyProgress;
 
   @override
   Widget build(BuildContext context) {
@@ -537,7 +610,7 @@ class _ProfileHeader extends StatelessWidget {
                     primary: theme.primary,
                     secondary: theme.secondary,
                     size: 94,
-                    badge: showJourneyData ? 'N3' : null,
+                    badge: 'N$levelNumber',
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -564,14 +637,14 @@ class _ProfileHeader extends StatelessWidget {
                         Text('${profile.school} · $className'),
                         const SizedBox(height: 10),
                         BadgeLabel(
-                          label: showJourneyData
-                              ? 'Nível 3 · Restaurador'
-                              : 'Nível —',
+                          label: levelNumber == 0
+                              ? 'Nível 0'
+                              : 'Nível $levelNumber · $levelName',
                           color: theme.primary,
                         ),
                         const SizedBox(height: 8),
                         AnimatedProgressPill(
-                          value: showJourneyData ? 0.62 : 0,
+                          value: journeyProgress,
                           color: theme.secondary,
                           height: 9,
                         ),
@@ -709,9 +782,13 @@ class _ProfileSparkles extends StatelessWidget {
 }
 
 class _ProfileCustomizationSheet extends StatefulWidget {
-  const _ProfileCustomizationSheet({required this.initial});
+  const _ProfileCustomizationSheet({
+    required this.initial,
+    required this.currentLevel,
+  });
 
   final ProfileCustomization initial;
+  final int currentLevel;
 
   @override
   State<_ProfileCustomizationSheet> createState() =>
@@ -750,7 +827,7 @@ class _ProfileCustomizationSheetState
                     primary: selectedTheme.primary,
                     secondary: selectedTheme.secondary,
                     size: 68,
-                    badge: 'N3',
+                    badge: 'N${widget.currentLevel}',
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -797,7 +874,12 @@ class _ProfileCustomizationSheetState
                         return _AvatarOptionCard(
                           option: option,
                           selected: option.id == _avatarId,
-                          onTap: option.requiredLevel <= _currentProfileLevel
+                          onTap:
+                              _isCustomizationUnlocked(
+                                option.id,
+                                option.requiredLevel,
+                                widget.currentLevel,
+                              )
                               ? () => setState(() => _avatarId = option.id)
                               : null,
                         );
@@ -816,7 +898,12 @@ class _ProfileCustomizationSheetState
                         return _ThemeOptionCard(
                           option: option,
                           selected: option.id == _themeId,
-                          onTap: option.requiredLevel <= _currentProfileLevel
+                          onTap:
+                              _isCustomizationUnlocked(
+                                option.id,
+                                option.requiredLevel,
+                                widget.currentLevel,
+                              )
                               ? () => setState(() => _themeId = option.id)
                               : null,
                         );
@@ -840,6 +927,16 @@ class _ProfileCustomizationSheetState
       ),
     );
   }
+}
+
+bool _isCustomizationUnlocked(
+  String optionId,
+  int requiredLevel,
+  int currentLevel,
+) {
+  return optionId == 'b1n-default' ||
+      optionId == 'city-blue' ||
+      requiredLevel <= currentLevel;
 }
 
 class _AvatarOptionCard extends StatelessWidget {
@@ -1035,12 +1132,14 @@ class _ThemeOptionCard extends StatelessWidget {
 class _ResourceSummary extends StatelessWidget {
   const _ResourceSummary({
     this.personalPoints = '76.000',
+    this.personalLabel = 'Pontos pessoais',
     this.classPoints = '119.000',
     this.classLabel = 'Pontos da turma',
     this.binCoins = 12000,
   });
 
   final String personalPoints;
+  final String personalLabel;
   final String classPoints;
   final String classLabel;
   final int binCoins;
@@ -1058,7 +1157,7 @@ class _ResourceSummary extends StatelessWidget {
               key: const ValueKey('profile-resource-personal'),
               width: width,
               value: personalPoints,
-              label: 'Pontos pessoais',
+              label: personalLabel,
               icon: Icons.person_rounded,
               color: AppColors.green,
             ),
@@ -1173,9 +1272,9 @@ class _ResourceTile extends StatelessWidget {
 }
 
 class _LevelPath extends StatelessWidget {
-  const _LevelPath({this.hasData = true});
+  const _LevelPath({required this.currentLevel});
 
-  final bool hasData;
+  final int currentLevel;
 
   static const _levels = [
     'Aprendiz',
@@ -1195,10 +1294,6 @@ class _LevelPath extends StatelessWidget {
             'Trilha do restaurador',
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          if (!hasData) ...[
-            const SizedBox(height: 6),
-            const Text('Nível atual —'),
-          ],
           const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1213,27 +1308,17 @@ class _LevelPath extends StatelessWidget {
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: hasData && index < 3
+                          color: currentLevel > 0 && index < currentLevel
                               ? AppColors.green
                               : Colors.white,
                           border: Border.all(
-                            color: !hasData
-                                ? AppColors.line
-                                : index == 2
+                            color: index == currentLevel - 1
                                 ? AppColors.blue
                                 : AppColors.green,
-                            width: hasData && index == 2 ? 3 : 2,
+                            width: index == currentLevel - 1 ? 3 : 2,
                           ),
                         ),
-                        child: !hasData
-                            ? const Text(
-                                '—',
-                                style: TextStyle(
-                                  color: AppColors.textMuted,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              )
-                            : index < 2
+                        child: index < currentLevel - 1
                             ? const Icon(
                                 Icons.check_rounded,
                                 color: Colors.white,
@@ -1242,7 +1327,7 @@ class _LevelPath extends StatelessWidget {
                             : Text(
                                 '${index + 1}',
                                 style: TextStyle(
-                                  color: index == 2
+                                  color: index == currentLevel - 1
                                       ? Colors.white
                                       : AppColors.navy,
                                   fontWeight: FontWeight.w900,
@@ -1265,7 +1350,7 @@ class _LevelPath extends StatelessWidget {
                     width: 8,
                     height: 3,
                     margin: const EdgeInsets.only(top: 18),
-                    color: hasData && index < 2
+                    color: index < currentLevel - 1
                         ? AppColors.green
                         : AppColors.line,
                   ),

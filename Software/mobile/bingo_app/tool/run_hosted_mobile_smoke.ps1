@@ -46,15 +46,20 @@ $publishableKey = [Environment]::GetEnvironmentVariable(
   'SUPABASE_PUBLISHABLE_KEY'
 )
 
+$keysRaw = & $supabaseCli projects api-keys `
+  --project-ref $projectRef `
+  --reveal `
+  --output json
+if ($LASTEXITCODE -ne 0) {
+  throw 'Falha ao obter as chaves de smoke do projeto DEV.'
+}
+$keys = $keysRaw | ConvertFrom-Json
+$secretKey = ($keys |
+    Where-Object { $_.type -eq 'secret' -and $_.name -eq 'default' } |
+    Select-Object -First 1).api_key
+
 if ([string]::IsNullOrWhiteSpace($supabaseUrl) -or
     [string]::IsNullOrWhiteSpace($publishableKey)) {
-  $keysRaw = & $supabaseCli projects api-keys `
-    --project-ref $projectRef `
-    --output json
-  if ($LASTEXITCODE -ne 0) {
-    throw 'Falha ao obter a configuração pública do projeto.'
-  }
-  $keys = $keysRaw | ConvertFrom-Json
   $publishableKey = ($keys |
       Where-Object { $_.type -eq 'publishable' } |
       Select-Object -First 1).api_key
@@ -67,6 +72,9 @@ if ($supabaseUrl.TrimEnd('/') -ne $expectedUrl) {
 if ([string]::IsNullOrWhiteSpace($publishableKey)) {
   throw 'Chave pública do projeto não encontrada.'
 }
+if ([string]::IsNullOrWhiteSpace($secretKey)) {
+  throw 'Chave administrativa de smoke do projeto DEV não encontrada.'
+}
 
 $previousSmokeFlag = [Environment]::GetEnvironmentVariable(
   'BINGO_HOSTED_SMOKE'
@@ -75,11 +83,15 @@ $previousUrl = [Environment]::GetEnvironmentVariable('SUPABASE_URL')
 $previousKey = [Environment]::GetEnvironmentVariable(
   'SUPABASE_PUBLISHABLE_KEY'
 )
+$previousSecretKey = [Environment]::GetEnvironmentVariable(
+  'BINGO_DEV_SECRET_KEY'
+)
 
 try {
   $env:BINGO_HOSTED_SMOKE = '1'
   $env:SUPABASE_URL = $supabaseUrl
   $env:SUPABASE_PUBLISHABLE_KEY = $publishableKey
+  $env:BINGO_DEV_SECRET_KEY = $secretKey
 
   Push-Location $appRoot
   try {
@@ -96,4 +108,5 @@ finally {
   $env:BINGO_HOSTED_SMOKE = $previousSmokeFlag
   $env:SUPABASE_URL = $previousUrl
   $env:SUPABASE_PUBLISHABLE_KEY = $previousKey
+  $env:BINGO_DEV_SECRET_KEY = $previousSecretKey
 }

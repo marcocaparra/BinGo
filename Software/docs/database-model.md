@@ -34,6 +34,21 @@ A migration cria o catálogo com todas as taxas em zero. Somente as seeds de des
 
 `bonus_rate_applied` e `bonus_bincoins_awarded` são fotografias históricas. `points_awarded_student` guarda o total de BinCoins do evento e `points_awarded_class` guarda o XP. Alterar uma taxa ou a base no futuro não recalcula descartes anteriores.
 
+## Trilha do Restaurador V1
+
+A Trilha do Restaurador V1 é derivada exclusivamente da quantidade histórica de descartes válidos identificados do aluno. Não existe contador ou nível persistido no aluno. Missões, BinCoins e XP da turma não participam do cálculo.
+
+A fonte autoritativa é `deposits.student_id = students.id AND deposits.is_valid = true`. Descartes anônimos, inválidos ou de outro aluno não contam, e uma troca de turma não reinicia o histórico. Os thresholds são:
+
+- nível 0, `NONE`: 0 descartes;
+- nível 1, `APPRENTICE`: 1 a 4;
+- nível 2, `EXPLORER`: 5 a 9;
+- nível 3, `RESTORER`: 10 a 19;
+- nível 4, `GUARDIAN`: 20 a 49;
+- nível 5, `HERO`: 50 ou mais.
+
+`get_student_profile_progress_v1()` é uma RPC `STABLE`, `SECURITY DEFINER` e somente leitura, com `search_path` vazio e execução exclusiva de `authenticated`. Ela não recebe parâmetros: deriva `auth.uid() → students.auth_user_id → students.id`, retorna uma linha para o aluno vinculado e nenhuma linha para identidade sem vínculo. O progresso é calculado contra o próximo threshold e vale `1` no nível 5. As migrations equivalentes são `database/migrations/020_get_student_profile_progress_v1.sql` e `supabase/migrations/20260921120000_get_student_profile_progress_v1.sql`. Elas não alteram `students`, a RLS geral de `deposits` ou `register_deposit_v1`. Em `2026-09-21`, a migration Supabase foi aplicada e validada no `bingo-dev`; `anon` não executa a RPC e não houve aplicação em produção.
+
 ## Redenominação e normalização
 
 A regra-alvo `800/1900/10000` está materializada e validada localmente nas migrations incrementais `database/migrations/011_points_unit_redenomination.sql` e `supabase/migrations/20260913120000_points_unit_redenomination.sql`. Em 2026-09-14, a migration Supabase foi aplicada e aprovada no postflight do `bingo-dev`: 11 migrations locais/remotas ficaram alinhadas, os defaults hospedados passaram a `800/1900/10000` e saldos e snapshots foram convertidos por fator `100`. Essa comprovação é exclusiva do ambiente DEV e não declara o estado de produção.
@@ -64,4 +79,4 @@ O catálogo global `waste_categories` possui policy explícita de leitura para `
 
 Os arquivos de migration `005` materializam a pontuação e a RPC original. A migration `006` acrescenta `category_source` à fotografia retornada preservando o núcleo atômico já versionado, a migration `007` concede a leitura mínima de `machines` necessária à autenticação, a migration `008` estabelece grants mínimos, defaults seguros e o baseline de RLS/Auth e a migration `009` acrescenta a RPC restrita de readiness. Antes de remover `size`, descartes válidos preexistentes são associados a `UNKNOWN` com bônus zero; depois a coluna e as configurações por tamanho são eliminadas.
 
-O repositório continua sendo a fonte versionada. A migration incremental de redenominação está validada localmente e aplicada no `bingo-dev`, com 11 migrations locais/remotas alinhadas; isso não comprova aplicação em produção. Antes de qualquer aplicação em outro ambiente, ainda é necessário verificar seu próprio histórico remoto e suas precondições, além de exportar valores históricos de `size` caso tenham valor operacional fora deste baseline, sem inferir estado a partir do DEV.
+O repositório continua sendo a fonte versionada. O preflight somente leitura de `2026-09-21` confirmou o `bingo-dev` alinhado às migrations `001–019`, incluindo Missões `012–018` e Ranking `019`. Depois da promoção controlada de `20260921120000_get_student_profile_progress_v1.sql`, o postflight confirmou 20 migrations locais/remotas alinhadas e o smoke autenticado da Trilha foi aprovado. Isso não comprova aplicação em produção. Antes de qualquer aplicação em outro ambiente, ainda é necessário verificar seu próprio histórico remoto e suas precondições, além de exportar valores históricos de `size` caso tenham valor operacional fora deste baseline, sem inferir estado a partir do DEV.
