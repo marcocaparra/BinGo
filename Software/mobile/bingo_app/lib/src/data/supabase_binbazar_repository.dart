@@ -236,7 +236,7 @@ BinBazarRedemption _parseRedemption(Map<String, dynamic> row) {
     rewardId: _requiredString(row, 'reward_id'),
     rewardName: _requiredString(row, 'reward_name'),
     costPoints: _requiredPositiveInt(row, 'cost_points'),
-    code: _requiredString(row, 'code'),
+    code: _optionalString(row, 'code'),
     status: status,
     requestChannel: row['request_channel']?.toString() ?? 'MOBILE',
     createdAt: _requiredDateTime(row, 'created_at'),

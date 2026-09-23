@@ -60,6 +60,16 @@ select extensions.ok(
     'client_request_id possui unicidade parcial sem afetar linhas legadas nulas'
 );
 
+select extensions.is(
+    (select is_nullable
+     from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'redemptions'
+       and column_name = 'code'),
+    'YES',
+    'code e nullable para novos pedidos sem apagar codigos historicos'
+);
+
 insert into public.schools (id, name)
 values
     ('b1000000-0000-4000-8000-000000000001', 'Escola Bazaar A'),
@@ -131,17 +141,18 @@ select extensions.ok(
           and stock_was_finite
           and status = 'PENDING'
           and request_channel = 'MOBILE'
+          and code is null
           and expires_at is null
     ),
-    'pedido novo fotografa produto e nasce PENDING/MOBILE sem expiracao'
+    'pedido novo fotografa produto e nasce PENDING/MOBILE sem codigo ou expiracao'
 );
 
 select pg_catalog.set_config('request.jwt.claim.sub', 'b9000000-0000-4000-8000-000000000001', true);
 set local role authenticated;
 select extensions.is(
-    (select replayed from public.request_redemption_v1('ba000000-0000-4000-8000-000000000001', 'b5000000-0000-4000-8000-000000000001')),
+    (select replayed and code is null from public.request_redemption_v1('ba000000-0000-4000-8000-000000000001', 'b5000000-0000-4000-8000-000000000001')),
     true,
-    'replay do mesmo request_id devolve o mesmo pedido'
+    'replay do mesmo request_id devolve o mesmo pedido sem codigo'
 );
 select extensions.ok(
     pg_temp.raises_state(
@@ -214,6 +225,7 @@ select extensions.ok(
     (select points_student_balance = 800 from public.students where id = 'b3000000-0000-4000-8000-000000000001')
     and (select stock_qty = 1 from public.rewards where id = 'b5000000-0000-4000-8000-000000000001')
     and (select canceled_at is not null from public.redemptions where client_request_id = 'ba000000-0000-4000-8000-000000000001')
+    and (select code is null from public.redemptions where client_request_id = 'ba000000-0000-4000-8000-000000000001')
     and exists (
         select 1
         from public.audit_logs
@@ -307,6 +319,19 @@ values (
     'ba000000-0000-4000-8000-00000000000a',
     'Produto isolado', 200, false
 );
+
+select pg_catalog.set_config('request.jwt.claim.sub', 'b9000000-0000-4000-8000-000000000001', true);
+set local role authenticated;
+select extensions.ok(
+    exists (
+        select 1
+        from public.get_my_redemptions_v1()
+        where redemption_id = 'b8000000-0000-4000-8000-000000000001'
+          and code = 'BGO-ISOLATION'
+    ),
+    'linha historica com codigo permanece legivel'
+);
+reset role;
 
 select pg_catalog.set_config('request.jwt.claim.sub', 'b9000000-0000-4000-8000-000000000002', true);
 set local role authenticated;

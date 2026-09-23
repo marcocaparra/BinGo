@@ -1774,6 +1774,11 @@ class _RewardsScreenState extends State<RewardsScreen> {
         final displayItems = authenticated
             ? _remoteCatalog.map(_presentAuthenticatedReward).toList()
             : widget.items;
+        final pendingRedemptions = authenticated
+            ? _remoteRedemptions
+                  .where((redemption) => redemption.status == 'PENDING')
+                  .toList(growable: false)
+            : const <BinBazarRedemption>[];
         return AppPage(
           title: 'BinBazar',
           subtitle: !authenticated
@@ -1801,14 +1806,14 @@ class _RewardsScreenState extends State<RewardsScreen> {
                   color: AppColors.danger,
                 ),
               ],
-              if (authenticated && _remoteRedemptions.isNotEmpty) ...[
+              if (authenticated && pendingRedemptions.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 Text(
                   'Seus pedidos',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 10),
-                for (final redemption in _remoteRedemptions) ...[
+                for (final redemption in pendingRedemptions) ...[
                   _AuthenticatedRedemptionCard(
                     redemption: redemption,
                     busy: _busyRedemptionId == redemption.id,
@@ -2098,8 +2103,11 @@ class _RewardsScreenState extends State<RewardsScreen> {
               ),
               const SizedBox(height: 6),
               Text(redemption.rewardName, textAlign: TextAlign.center),
-              const SizedBox(height: 18),
-              _PickupCode(code: redemption.code, demonstrative: false),
+              const SizedBox(height: 12),
+              const Text(
+                'Retire presencialmente na escola apresentando sua carteirinha.',
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -3122,16 +3130,14 @@ Future<void> _showRewardDetails(
 }
 
 class _PickupCode extends StatelessWidget {
-  const _PickupCode({required this.code, this.demonstrative = true});
+  const _PickupCode({required this.code});
 
   final String code;
-  final bool demonstrative;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label:
-          '${demonstrative ? 'Código demonstrativo' : 'Código'} de retirada $code',
+      label: 'Código demonstrativo de retirada $code',
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -3143,9 +3149,7 @@ class _PickupCode extends StatelessWidget {
         child: Column(
           children: [
             Text(
-              demonstrative
-                  ? 'Código demonstrativo de retirada'
-                  : 'Código de retirada',
+              'Código demonstrativo de retirada',
               style: Theme.of(context).textTheme.labelMedium,
             ),
             const SizedBox(height: 5),
@@ -3221,12 +3225,6 @@ class _AuthenticatedRedemptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusLabel = switch (redemption.status) {
-      'PENDING' => 'Pendente',
-      'DELIVERED' => 'Entregue',
-      'CANCELED' => 'Cancelado',
-      _ => redemption.status,
-    };
     return SurfaceCard(
       key: ValueKey('redemption-${redemption.id}'),
       child: Column(
@@ -3234,10 +3232,7 @@ class _AuthenticatedRedemptionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.confirmation_number_rounded,
-                color: AppColors.green,
-              ),
+              const Icon(Icons.inventory_2_outlined, color: AppColors.green),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -3247,15 +3242,9 @@ class _AuthenticatedRedemptionCard extends StatelessWidget {
                       redemption.rewardName,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text('${redemption.costPoints} BinCoins · $statusLabel'),
+                    Text('${redemption.costPoints} BinCoins · Pendente'),
                   ],
                 ),
-              ),
-              Text(
-                redemption.code,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: AppColors.blue),
               ),
             ],
           ),

@@ -22,11 +22,31 @@ SUPABASE_MIGRATION = (
     / "migrations"
     / "20260923120000_binbazar_statement_v1.sql"
 )
+DATABASE_PICKUP_CODE_MIGRATION = (
+    REPOSITORY_ROOT
+    / "database"
+    / "migrations"
+    / "023_redemption_without_pickup_code.sql"
+)
+SUPABASE_PICKUP_CODE_MIGRATION = (
+    REPOSITORY_ROOT
+    / "supabase"
+    / "migrations"
+    / "20260923130000_redemption_without_pickup_code.sql"
+)
 
 
 def test_database_and_supabase_migrations_have_the_same_executable_body():
     database_sql = DATABASE_MIGRATION.read_text(encoding="utf-8")
     supabase_sql = SUPABASE_MIGRATION.read_text(encoding="utf-8")
+    assert database_sql[database_sql.index("begin;") :] == supabase_sql[
+        supabase_sql.index("begin;") :
+    ]
+
+
+def test_pickup_code_migrations_have_the_same_executable_body():
+    database_sql = DATABASE_PICKUP_CODE_MIGRATION.read_text(encoding="utf-8")
+    supabase_sql = SUPABASE_PICKUP_CODE_MIGRATION.read_text(encoding="utf-8")
     assert database_sql[database_sql.index("begin;") :] == supabase_sql[
         supabase_sql.index("begin;") :
     ]
