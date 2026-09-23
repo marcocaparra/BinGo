@@ -33,7 +33,14 @@ void main() {
       expect(repository.requestIds.toSet(), hasLength(1));
       expect(repository.lastRequestReplayed, isTrue);
       expect(find.text('Pedido confirmado'), findsOneWidget);
-      expect(find.text('BGO-MOBILE'), findsWidgets);
+      expect(
+        find.text(
+          'Seu pedido foi realizado e o produto foi reservado. Retire presencialmente na escola apresentando sua carteirinha.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('BGO-'), findsNothing);
+      expect(find.textContaining('Código'), findsNothing);
       await tester.tapAt(const Offset(10, 10));
       await _pumpFrames(tester);
 
@@ -44,10 +51,89 @@ void main() {
       await _pumpFrames(tester);
 
       expect(find.text('1.000'), findsWidgets);
-      expect(find.textContaining('Cancelado'), findsOneWidget);
+      expect(find.textContaining('Cancelado'), findsNothing);
       expect(find.text('Cancelar pedido'), findsNothing);
+      expect(find.text('Seus pedidos'), findsNothing);
       expect(find.text('Solicitar resgate'), findsOneWidget);
       expect(mutations, hasLength(2));
+    },
+  );
+
+  testWidgets(
+    'authenticated orders show only pending and never expose internal codes',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RewardsScreen.authenticated(
+            key: const ValueKey('orders-with-pending'),
+            balance: 1000,
+            catalog: const [],
+            redemptions: [
+              _redemption(
+                id: 'pending-order',
+                rewardName: 'Pedido pendente',
+                status: 'PENDING',
+                code: 'BGO-HISTORICO-PENDENTE',
+              ),
+              _redemption(
+                id: 'delivered-order',
+                rewardName: 'Pedido entregue',
+                status: 'DELIVERED',
+                code: 'BGO-HISTORICO-ENTREGUE',
+              ),
+              _redemption(
+                id: 'canceled-order',
+                rewardName: 'Pedido cancelado',
+                status: 'CANCELED',
+                code: 'BGO-HISTORICO-CANCELADO',
+              ),
+            ],
+            repository: const EmptyAuthenticatedBinBazarRepository(),
+            loading: false,
+            failure: null,
+            onRetry: () {},
+            onMutation: (_) async {},
+          ),
+        ),
+      );
+
+      expect(find.text('Seus pedidos'), findsOneWidget);
+      expect(find.text('Pedido pendente'), findsOneWidget);
+      expect(find.text('Pedido entregue'), findsNothing);
+      expect(find.text('Pedido cancelado'), findsNothing);
+      expect(find.textContaining('BGO-'), findsNothing);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RewardsScreen.authenticated(
+            key: const ValueKey('orders-without-pending'),
+            balance: 1000,
+            catalog: const [],
+            redemptions: [
+              _redemption(
+                id: 'delivered-order',
+                rewardName: 'Pedido entregue',
+                status: 'DELIVERED',
+              ),
+              _redemption(
+                id: 'canceled-order',
+                rewardName: 'Pedido cancelado',
+                status: 'CANCELED',
+              ),
+            ],
+            repository: const EmptyAuthenticatedBinBazarRepository(),
+            loading: false,
+            failure: null,
+            onRetry: () {},
+            onMutation: (_) async {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Seus pedidos'), findsNothing);
+      expect(find.text('Pedido entregue'), findsNothing);
+      expect(find.text('Pedido cancelado'), findsNothing);
     },
   );
 
@@ -222,17 +308,22 @@ class _MutableBinBazarRepository implements AuthenticatedBinBazarRepository {
   }
 }
 
-BinBazarRedemption _redemption({required String status}) {
+BinBazarRedemption _redemption({
+  required String status,
+  String id = 'order-1',
+  String rewardName = 'Produto real da escola',
+  String code = 'BGO-MOBILE',
+}) {
   return BinBazarRedemption(
-    id: 'order-1',
+    id: id,
     rewardId: 'reward-1',
-    rewardName: 'Produto real da escola',
+    rewardName: rewardName,
     costPoints: 300,
-    code: 'BGO-MOBILE',
+    code: code,
     status: status,
     requestChannel: 'MOBILE',
     createdAt: _statementDate,
-    deliveredAt: null,
+    deliveredAt: status == 'DELIVERED' ? _statementDate : null,
     canceledAt: status == 'CANCELED' ? _statementDate : null,
   );
 }

@@ -20,6 +20,7 @@ void main() {
       expect(catalog.single.name, 'Suco da escola');
       expect(catalog.single.stockQty, 2);
       expect(redemptions.single.rewardName, 'Nome fotografado');
+      expect(redemptions.single.code, 'BGO-REAL');
       expect(redemptions.single.canCancel, isTrue);
       expect(statement.single.type, 'REDEMPTION');
       expect(statement.single.amount, -300);
@@ -42,6 +43,7 @@ void main() {
       );
 
       expect(result.pointsStudentBalance, 700);
+      expect(result.redemption.code, 'BGO-REAL');
       expect(source.lastParameters, {
         'p_request_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         'p_reward_id': 'reward-1',
@@ -67,6 +69,7 @@ void main() {
 
     expect(result.pointsStudentBalance, 1000);
     expect(result.redemption.status, 'CANCELED');
+    expect(result.redemption.code, 'BGO-REAL');
     expect(source.lastParameters, {'p_redemption_id': 'order-1'});
   });
 

@@ -56,8 +56,27 @@ select extensions.ok(
           and tablename = 'redemptions'
           and indexname = 'redemptions_client_request_id_unique'
           and indexdef ilike '%where (client_request_id is not null)%'
+    )
+    and exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'redemptions'
+          and column_name = 'code'
+          and is_nullable = 'NO'
+    )
+    and exists (
+        select 1
+        from information_schema.table_constraints tc
+        join information_schema.constraint_column_usage ccu
+          on ccu.constraint_schema = tc.constraint_schema
+         and ccu.constraint_name = tc.constraint_name
+        where tc.table_schema = 'public'
+          and tc.table_name = 'redemptions'
+          and tc.constraint_type = 'UNIQUE'
+          and ccu.column_name = 'code'
     ),
-    'client_request_id possui unicidade parcial sem afetar linhas legadas nulas'
+    'client_request_id e unico quando preenchido e code permanece NOT NULL/UNIQUE'
 );
 
 insert into public.schools (id, name)
@@ -106,10 +125,11 @@ select extensions.results_eq(
     'catalogo usa escola e is_active, preserva esgotado e ignora rewards.status legado'
 );
 
-select * from public.request_redemption_v1(
+select pg_catalog.set_config('test.binbazar_first_code', requested.code, false)
+from public.request_redemption_v1(
     'ba000000-0000-4000-8000-000000000001',
     'b5000000-0000-4000-8000-000000000001'
-);
+) requested;
 reset role;
 
 select extensions.is(
@@ -131,17 +151,20 @@ select extensions.ok(
           and stock_was_finite
           and status = 'PENDING'
           and request_channel = 'MOBILE'
+          and code ~ '^BGO-[A-F0-9]{12}$'
           and expires_at is null
     ),
-    'pedido novo fotografa produto e nasce PENDING/MOBILE sem expiracao'
+    'pedido novo fotografa produto, gera codigo interno e nasce PENDING/MOBILE sem expiracao'
 );
 
 select pg_catalog.set_config('request.jwt.claim.sub', 'b9000000-0000-4000-8000-000000000001', true);
 set local role authenticated;
 select extensions.is(
-    (select replayed from public.request_redemption_v1('ba000000-0000-4000-8000-000000000001', 'b5000000-0000-4000-8000-000000000001')),
+    (select replayed
+            and code = current_setting('test.binbazar_first_code')
+     from public.request_redemption_v1('ba000000-0000-4000-8000-000000000001', 'b5000000-0000-4000-8000-000000000001')),
     true,
-    'replay do mesmo request_id devolve o mesmo pedido'
+    'replay do mesmo request_id devolve o mesmo pedido e codigo interno'
 );
 select extensions.ok(
     pg_temp.raises_state(
@@ -202,8 +225,9 @@ select extensions.ok(
         where reward_id = 'b5000000-0000-4000-8000-000000000001'
           and reward_name = 'Produto finito'
           and cost_points = 300
+          and code ~ '^BGO-[A-F0-9]{12}$'
     ),
-    'leitura historica usa snapshots mesmo apos alteracao do produto'
+    'leitura historica usa snapshots e preserva codigo interno mesmo apos alteracao do produto'
 );
 select * from public.cancel_my_redemption_v1(
     (select redemption_id from public.get_my_redemptions_v1() where reward_id = 'b5000000-0000-4000-8000-000000000001')
@@ -214,6 +238,7 @@ select extensions.ok(
     (select points_student_balance = 800 from public.students where id = 'b3000000-0000-4000-8000-000000000001')
     and (select stock_qty = 1 from public.rewards where id = 'b5000000-0000-4000-8000-000000000001')
     and (select canceled_at is not null from public.redemptions where client_request_id = 'ba000000-0000-4000-8000-000000000001')
+    and (select code is not null from public.redemptions where client_request_id = 'ba000000-0000-4000-8000-000000000001')
     and exists (
         select 1
         from public.audit_logs

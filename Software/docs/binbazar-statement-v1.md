@@ -2,7 +2,7 @@
 
 Atualizado em: `2026-09-23`
 
-Este documento registra a implementação local do BinBazar e do Extrato autenticados. O contrato funcional vigente é o de `admin-contract-v1.md`; o FastAPI permanece apenas como referência histórica e não define as novas regras.
+Este documento registra a implementação do BinBazar e do Extrato autenticados, incorporada ao `develop` pelo PR #33 e evoluída incrementalmente na branch `fix/binbazar-pickup-flow`. O contrato funcional vigente é o de `admin-contract-v1.md`; o FastAPI permanece apenas como referência histórica e não define as novas regras.
 
 ## Preflight do DEV
 
@@ -14,7 +14,7 @@ O único aluno vinculado ao Auth, `Aluno Smoke Test`, possui `3300` BinCoins. O 
 
 ## Schema local
 
-As migrations equivalentes `database/migrations/022_binbazar_statement_v1.sql` e `supabase/migrations/20260923120000_binbazar_statement_v1.sql` acrescentam a implementação local. Elas não foram aplicadas ao DEV ou à produção.
+As migrations equivalentes `database/migrations/022_binbazar_statement_v1.sql` e `supabase/migrations/20260923120000_binbazar_statement_v1.sql` acrescentaram a implementação inicial. O PR #33 foi integrado ao repositório, mas as evidências disponíveis continuam sem comprovar aplicação da `022` no DEV ou em produção.
 
 `redemptions` passa a aceitar `MOBILE` sem remover a compatibilidade histórica com `TOTEM` ou `EXPIRED`. Novos pedidos Mobile não usam expiração. Foram acrescentados:
 
@@ -27,23 +27,31 @@ As migrations equivalentes `database/migrations/022_binbazar_statement_v1.sql` e
 
 Nenhum valor é preenchido automaticamente em linha legada. O Extrato recusa explicitamente um histórico de resgate sem snapshots em vez de usar nome ou preço atuais do produto.
 
+## Decisão definitiva: código interno não exibido
+
+Em `2026-09-23`, o requisito foi corrigido para separar o identificador interno da experiência de retirada. `redemptions.code` continua `NOT NULL/UNIQUE`, e `request_redemption_v1` continua gerando e retornando um valor `BGO-*` para preservação e futura integração Admin. Esse valor não é código de retirada, PIN, QR ou mecanismo de autenticação e não é exibido em nenhuma interface Mobile.
+
+Não foi criada nova migration para essa decisão, a `022` não foi alterada e a proposta incremental `023` foi descartada antes de qualquer promoção remota. A escola identifica operacionalmente a retirada pelo aluno e pelo pedido. Nenhuma regra de idempotência, locks, saldo, estoque, snapshots, auditoria, cancelamento ou Extrato foi alterada.
+
 ## RPCs autenticadas
 
 Todas as RPCs são `SECURITY DEFINER`, usam `search_path` vazio, derivam identidade de `auth.uid()` e concedem `EXECUTE` somente a `authenticated`.
 
 `get_my_binbazar_catalog_v1()` lista somente produtos ativos da escola do aluno `ACTIVE`. `is_active` é a autoridade administrativa; `rewards.status` não participa. Estoque `NULL` permanece ilimitado e estoque zero permanece visível como esgotado.
 
-`request_redemption_v1(p_request_id, p_reward_id)` serializa a chave idempotente, bloqueia aluno e produto na mesma ordem, valida vínculo, estado, escola, disponibilidade, estoque e saldo, fotografa nome/preço/modo de estoque, debita saldo, reserva estoque finito, cria um pedido `PENDING/MOBILE`, gera código e registra uma auditoria na mesma transação. Replay idêntico retorna o pedido persistido e o saldo autoritativo sem novo efeito; reutilização divergente é conflito.
+`request_redemption_v1(p_request_id, p_reward_id)` serializa a chave idempotente, bloqueia aluno e produto na mesma ordem, valida vínculo, estado, escola, disponibilidade, estoque e saldo, fotografa nome/preço/modo de estoque, debita saldo, reserva estoque finito, cria um pedido `PENDING/MOBILE`, gera seu identificador interno único `BGO-*` e registra uma auditoria na mesma transação. Replay idêntico retorna o pedido e o código persistidos com o saldo autoritativo, sem novo efeito; reutilização divergente é conflito.
 
 `cancel_my_redemption_v1(p_redemption_id)` bloqueia primeiro o pedido para preservar a futura corrida com entrega Admin. Somente o próprio aluno e um pedido Mobile `PENDING` podem realizar a primeira transição. Essa transição devolve exatamente `cost_points_snapshot`, restaura uma unidade somente quando o pedido reservou estoque finito e o produto ainda usa estoque finito, grava `canceled_at`, muda o estado e audita. Se o produto tiver mudado de estoque finito para ilimitado, `stock_qty` permanece `NULL`; a auditoria distingue a reserva finita histórica (`finite_stock_reserved`) do incremento realmente executado (`finite_stock_restored`). Retry de `CANCELED` somente retorna a fotografia atual. `DELIVERED` é recusado.
 
-`get_my_redemptions_v1()` lista somente os pedidos do próprio aluno e usa exclusivamente snapshots. `get_my_bincoin_statement_v1()` consolida depósitos positivos, aplicações `BINCOINS` de Missão, débitos de criação e créditos de cancelamento. XP e entrega não produzem movimentos. A ordenação é `occurred_at DESC`, seguida por ordem de fonte e UUID. O saldo autoritativo permanece `students.points_student_balance`; não existe saldo paralelo e `audit_logs` não é ledger.
+`get_my_redemptions_v1()` lista somente os pedidos do próprio aluno, usa exclusivamente snapshots e preserva o retorno do `code` interno para compatibilidade e futura integração Admin. O Mobile o materializa no repository, mas não o apresenta. `get_my_bincoin_statement_v1()` consolida depósitos positivos, aplicações `BINCOINS` de Missão, débitos de criação e créditos de cancelamento. XP e entrega não produzem movimentos. A ordenação é `occurred_at DESC`, seguida por ordem de fonte e UUID. O saldo autoritativo permanece `students.points_student_balance`; não existe saldo paralelo e `audit_logs` não é ledger.
 
 ## Mobile
 
 O Mobile possui um repository autenticado próprio para catálogo, pedidos, mutações e Extrato. Widgets não consultam o Supabase diretamente. A composição visual existente foi preservada e os produtos autenticados usam uma apresentação local neutra, sem Storage ou upload.
 
-Cada intenção cria um UUID v4 uma única vez e conserva o mesmo valor após falha/retry até receber uma resposta válida. Criação e cancelamento usam o saldo retornado pelo servidor imediatamente; a própria rota aberta recarrega catálogo e pedidos mesmo quando a resposta é um replay, e a Carteira pai recarrega catálogo, pedidos e Extrato. A Wallet autenticada deriva toda informação de catálogo da resposta remota e não exibe texto ou métrica de simulação. Somente pedidos `PENDING` exibem cancelamento. O modo piloto continua usando `SessionWalletController` e os dados locais anteriores.
+Cada intenção cria um UUID v4 uma única vez e conserva o mesmo valor após falha/retry até receber uma resposta válida. Criação e cancelamento usam o saldo retornado pelo servidor imediatamente; a própria rota aberta recarrega catálogo e pedidos mesmo quando a resposta é um replay, e a Carteira pai recarrega catálogo, pedidos e Extrato. A Wallet autenticada deriva toda informação de catálogo da resposta remota e não exibe texto ou métrica de simulação.
+
+“Seus pedidos” mostra exclusivamente pedidos `PENDING`; `DELIVERED` e `CANCELED` desaparecem imediatamente após sincronização, sem apagar o histórico do banco ou do Extrato. O fluxo autenticado não mostra o identificador interno e a confirmação informa que o pedido foi realizado e reservado, orientando retirada presencial com carteirinha. O piloto continua usando `SessionWalletController` e preserva sua lógica local, mas também não renderiza código em nenhuma tela; ele não materializa redemptions reais.
 
 ## Validação local
 
@@ -52,11 +60,11 @@ Após a implementação foram aprovados:
 - `supabase db reset` com todas as `22` migrations locais e seeds;
 - `supabase test db`: `15` arquivos e `348` testes;
 - pgTAP específico do BinBazar/Extrato: `35` testes;
-- testes PostgreSQL concorrentes: `2` testes, cobrindo uma unidade de estoque e duas requisições consumindo o mesmo saldo;
-- testes Flutter relevantes: `14` testes;
-- suíte Flutter completa: `249` testes aprovados e `1` teste hospedado ignorado;
+- testes PostgreSQL de paridade e concorrência: `2` testes;
+- testes Flutter direcionados de BinBazar/repository/piloto: `42` testes;
+- suíte Flutter completa: `250` testes aprovados e `1` teste hospedado ignorado;
 - `flutter analyze` sem problemas;
 - `git diff --check` sem erros;
 - verificação equivalente com índice temporário incluindo arquivos não rastreados, sem erros.
 
-Não houve `db push`, commit, push, merge ou operação em produção.
+Nesta rodada não houve `db push`, commit, push, merge, deploy ou operação em produção. O reset local confirmou que o histórico termina na `022`; nenhuma `023` permanece na implementação.

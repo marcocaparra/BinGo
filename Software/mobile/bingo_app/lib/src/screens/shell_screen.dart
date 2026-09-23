@@ -1774,6 +1774,11 @@ class _RewardsScreenState extends State<RewardsScreen> {
         final displayItems = authenticated
             ? _remoteCatalog.map(_presentAuthenticatedReward).toList()
             : widget.items;
+        final pendingRedemptions = authenticated
+            ? _remoteRedemptions
+                  .where((redemption) => redemption.status == 'PENDING')
+                  .toList(growable: false)
+            : const <BinBazarRedemption>[];
         return AppPage(
           title: 'BinBazar',
           subtitle: !authenticated
@@ -1801,14 +1806,14 @@ class _RewardsScreenState extends State<RewardsScreen> {
                   color: AppColors.danger,
                 ),
               ],
-              if (authenticated && _remoteRedemptions.isNotEmpty) ...[
+              if (authenticated && pendingRedemptions.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 Text(
                   'Seus pedidos',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 10),
-                for (final redemption in _remoteRedemptions) ...[
+                for (final redemption in pendingRedemptions) ...[
                   _AuthenticatedRedemptionCard(
                     redemption: redemption,
                     busy: _busyRedemptionId == redemption.id,
@@ -1909,7 +1914,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
       description:
           reward.description ?? 'Produto disponibilizado pela sua escola.',
       pickupInstruction:
-          'Após solicitar, acompanhe o pedido e apresente o código na escola.',
+          'Após solicitar, acompanhe o pedido e retire presencialmente na escola com sua carteirinha.',
       isActive: reward.isActive,
       stockQty: reward.stockQty,
     );
@@ -2098,8 +2103,11 @@ class _RewardsScreenState extends State<RewardsScreen> {
               ),
               const SizedBox(height: 6),
               Text(redemption.rewardName, textAlign: TextAlign.center),
-              const SizedBox(height: 18),
-              _PickupCode(code: redemption.code, demonstrative: false),
+              const SizedBox(height: 12),
+              const Text(
+                'Seu pedido foi realizado e o produto foi reservado. Retire presencialmente na escola apresentando sua carteirinha.',
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -3107,11 +3115,9 @@ Future<void> _showRewardDetails(
             ),
             const SizedBox(height: 6),
             Text(
-              '${reward.title} foi registrado no Extrato desta simulação.',
+              '${reward.title} foi reservado nesta simulação.',
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 18),
-            _PickupCode(code: redemption.pickupCode),
             const SizedBox(height: 12),
             Text(reward.pickupInstruction, textAlign: TextAlign.center),
           ],
@@ -3119,48 +3125,6 @@ Future<void> _showRewardDetails(
       ),
     ),
   );
-}
-
-class _PickupCode extends StatelessWidget {
-  const _PickupCode({required this.code, this.demonstrative = true});
-
-  final String code;
-  final bool demonstrative;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label:
-          '${demonstrative ? 'Código demonstrativo' : 'Código'} de retirada $code',
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.blue.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.blue.withValues(alpha: 0.32)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              demonstrative
-                  ? 'Código demonstrativo de retirada'
-                  : 'Código de retirada',
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-            const SizedBox(height: 5),
-            Text(
-              code,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.blue,
-                letterSpacing: 0,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _LatestRedemptionCard extends StatelessWidget {
@@ -3179,7 +3143,7 @@ class _LatestRedemptionCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.confirmation_number_rounded, color: AppColors.green),
+          const Icon(Icons.inventory_2_outlined, color: AppColors.green),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -3195,12 +3159,6 @@ class _LatestRedemptionCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          Text(
-            redemption.pickupCode,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: AppColors.blue),
           ),
         ],
       ),
@@ -3221,12 +3179,6 @@ class _AuthenticatedRedemptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusLabel = switch (redemption.status) {
-      'PENDING' => 'Pendente',
-      'DELIVERED' => 'Entregue',
-      'CANCELED' => 'Cancelado',
-      _ => redemption.status,
-    };
     return SurfaceCard(
       key: ValueKey('redemption-${redemption.id}'),
       child: Column(
@@ -3234,10 +3186,7 @@ class _AuthenticatedRedemptionCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.confirmation_number_rounded,
-                color: AppColors.green,
-              ),
+              const Icon(Icons.inventory_2_outlined, color: AppColors.green),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -3247,15 +3196,9 @@ class _AuthenticatedRedemptionCard extends StatelessWidget {
                       redemption.rewardName,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    Text('${redemption.costPoints} BinCoins · $statusLabel'),
+                    Text('${redemption.costPoints} BinCoins · Pendente'),
                   ],
                 ),
-              ),
-              Text(
-                redemption.code,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: AppColors.blue),
               ),
             ],
           ),
