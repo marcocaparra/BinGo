@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../auth/auth_gateway.dart';
+import '../data/class_journey_repository.dart';
 import '../data/demo_data.dart';
 import '../data/deposit_history_adapter.dart';
 import '../data/deposit_history_repository.dart';
@@ -29,6 +30,7 @@ class ShellScreen extends StatefulWidget {
   }) : authenticatedRepository = null,
        depositHistoryRepository = null,
        missionsRepository = null,
+       journeyRepository = null,
        rankingRepository = null,
        onLogout = null,
        onSessionInvalid = null;
@@ -37,6 +39,7 @@ class ShellScreen extends StatefulWidget {
     required AuthenticatedProfileRepository repository,
     required this.depositHistoryRepository,
     required this.missionsRepository,
+    this.journeyRepository,
     required this.rankingRepository,
     required this.onLogout,
     required this.onSessionInvalid,
@@ -52,6 +55,7 @@ class ShellScreen extends StatefulWidget {
   final AuthenticatedProfileRepository? authenticatedRepository;
   final AuthenticatedDepositHistoryRepository? depositHistoryRepository;
   final AuthenticatedMissionsRepository? missionsRepository;
+  final AuthenticatedClassJourneyRepository? journeyRepository;
   final AuthenticatedRankingRepository? rankingRepository;
   final Future<AuthFailure?> Function()? onLogout;
   final Future<void> Function()? onSessionInvalid;
@@ -66,7 +70,10 @@ class _ShellScreenState extends State<ShellScreen> {
   final SessionWalletController _wallet = SessionWalletController();
   AuthenticatedStudentProfile? _authenticatedProfile;
   ProfileFailure? _profileFailure;
+  AuthenticatedClassJourney? _authenticatedJourney;
+  JourneyFailure? _journeyFailure;
   var _loadingProfile = false;
+  var _loadingJourney = false;
 
   @override
   void initState() {
@@ -98,6 +105,9 @@ class _ShellScreenState extends State<ShellScreen> {
         _authenticatedProfile = profile;
         _loadingProfile = false;
       });
+      if (widget.journeyRepository != null) {
+        unawaited(_loadAuthenticatedJourney());
+      }
     } on ProfileFailure catch (failure) {
       if (!mounted) return;
       setState(() {
@@ -124,6 +134,45 @@ class _ShellScreenState extends State<ShellScreen> {
     }
   }
 
+  Future<void> _loadAuthenticatedJourney() async {
+    if (_loadingJourney) return;
+    setState(() {
+      _loadingJourney = true;
+      _journeyFailure = null;
+    });
+    try {
+      final journey = await widget.journeyRepository!.loadJourney();
+      if (!mounted) return;
+      setState(() {
+        _authenticatedJourney = journey;
+        _loadingJourney = false;
+      });
+    } on JourneyFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _authenticatedJourney = null;
+        _journeyFailure = failure;
+        _loadingJourney = false;
+      });
+      if (failure.kind == JourneyFailureKind.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(widget.onSessionInvalid?.call());
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _authenticatedJourney = null;
+        _journeyFailure = JourneyFailure(
+          JourneyFailureKind.unknown,
+          'Não foi possível carregar a Jornada agora.',
+          error,
+        );
+        _loadingJourney = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authenticated = widget.authenticatedRepository != null;
@@ -132,10 +181,15 @@ class _ShellScreenState extends State<ShellScreen> {
     final pages = authenticated
         ? profile != null
               ? <Widget>[
-                  HomeScreen.authenticated(
+                  _AuthenticatedHomeDataSource(
                     firstName: profile.name.trim().split(RegExp(r'\s+')).first,
                     schoolName: profile.schoolName,
                     className: profile.className,
+                    journey: _authenticatedJourney,
+                    journeyLoading: _loadingJourney,
+                    journeyFailure: _journeyFailure,
+                    missionsRepository: widget.missionsRepository!,
+                    onSessionInvalid: widget.onSessionInvalid!,
                     onOpenTab: _selectTab,
                   ),
                   _AuthenticatedWalletDataSource(
@@ -150,6 +204,9 @@ class _ShellScreenState extends State<ShellScreen> {
                   _AuthenticatedRankingDataSource(
                     currentClassId: profile.classId,
                     repository: widget.rankingRepository!,
+                    journey: _authenticatedJourney,
+                    journeyLoading: _loadingJourney,
+                    journeyFailure: _journeyFailure,
                     onSessionInvalid: widget.onSessionInvalid!,
                   ),
                   ProfileScreen.authenticated(
@@ -320,6 +377,77 @@ class _AuthenticatedWalletDataSourceState
       isLoading: _loadingHistory,
       historyFailure: _historyFailure,
       onRetryHistory: _loadHistory,
+    );
+  }
+}
+
+class _AuthenticatedHomeDataSource extends StatefulWidget {
+  const _AuthenticatedHomeDataSource({
+    required this.firstName,
+    required this.schoolName,
+    required this.className,
+    required this.journey,
+    required this.journeyLoading,
+    required this.journeyFailure,
+    required this.missionsRepository,
+    required this.onSessionInvalid,
+    required this.onOpenTab,
+  });
+
+  final String firstName;
+  final String schoolName;
+  final String className;
+  final AuthenticatedClassJourney? journey;
+  final bool journeyLoading;
+  final JourneyFailure? journeyFailure;
+  final AuthenticatedMissionsRepository missionsRepository;
+  final Future<void> Function() onSessionInvalid;
+  final ValueChanged<int> onOpenTab;
+
+  @override
+  State<_AuthenticatedHomeDataSource> createState() =>
+      _AuthenticatedHomeDataSourceState();
+}
+
+class _AuthenticatedHomeDataSourceState
+    extends State<_AuthenticatedHomeDataSource> {
+  Mission? _featuredMission;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadMission());
+  }
+
+  Future<void> _loadMission() async {
+    try {
+      final missions = await widget.missionsRepository.loadActiveMissions();
+      if (!mounted) return;
+      setState(() {
+        _featuredMission = _classifyAuthenticatedMissions(
+          missions,
+        ).featuredMission;
+      });
+    } on MissionsFailure catch (failure) {
+      if (failure.kind == MissionsFailureKind.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(widget.onSessionInvalid());
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return HomeScreen.authenticated(
+      firstName: widget.firstName,
+      schoolName: widget.schoolName,
+      className: widget.className,
+      journey: widget.journey,
+      journeyLoading: widget.journeyLoading,
+      journeyFailure: widget.journeyFailure,
+      featuredMission: _featuredMission,
+      onOpenTab: widget.onOpenTab,
     );
   }
 }
@@ -520,11 +648,17 @@ class _AuthenticatedRankingDataSource extends StatefulWidget {
   const _AuthenticatedRankingDataSource({
     required this.currentClassId,
     required this.repository,
+    required this.journey,
+    required this.journeyLoading,
+    required this.journeyFailure,
     required this.onSessionInvalid,
   });
 
   final String currentClassId;
   final AuthenticatedRankingRepository repository;
+  final AuthenticatedClassJourney? journey;
+  final bool journeyLoading;
+  final JourneyFailure? journeyFailure;
   final Future<void> Function() onSessionInvalid;
 
   @override
@@ -595,6 +729,9 @@ class _AuthenticatedRankingDataSourceState
   Widget build(BuildContext context) {
     return RankingScreen.authenticated(
       ranking: _ranking,
+      journey: widget.journey,
+      journeyLoading: widget.journeyLoading,
+      journeyFailure: widget.journeyFailure,
       loading: _loading,
       failure: _failure,
       onRetry: _loadRanking,
@@ -627,6 +764,36 @@ String _profileFailureTitle(ProfileFailureKind kind) {
   };
 }
 
+List<CityScenario> _presentJourneyScenarios(AuthenticatedClassJourney journey) {
+  return List.unmodifiable(
+    journey.stages.map((stage) {
+      final visual = cityScenarios.firstWhere(
+        (scenario) => scenario.id == stage.scenarioId,
+      );
+      return CityScenario(
+        id: visual.id,
+        order: visual.order,
+        name: visual.name,
+        description: visual.description,
+        progress: stage.progressRatio,
+        state: switch (stage.state) {
+          JourneyStageState.active => ScenarioState.active,
+          JourneyStageState.locked => ScenarioState.locked,
+          JourneyStageState.completed => ScenarioState.completed,
+        },
+        cleanAsset: visual.cleanAsset,
+        corruptAsset: visual.corruptAsset,
+        combatAsset: visual.combatAsset,
+        mapLandmarkAsset: visual.mapLandmarkAsset,
+        corruptMapLandmarkAsset: visual.corruptMapLandmarkAsset,
+        landmarkIcon: visual.landmarkIcon,
+        unlockRequirement: visual.unlockRequirement,
+        impact: visual.impact,
+      );
+    }),
+  );
+}
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     required this.firstName,
@@ -634,12 +801,20 @@ class HomeScreen extends StatelessWidget {
     super.key,
   }) : schoolName = null,
        className = null,
+       journey = null,
+       journeyLoading = false,
+       journeyFailure = null,
+       featuredMission = null,
        authenticated = false;
 
   const HomeScreen.authenticated({
     required this.firstName,
     required this.schoolName,
     required this.className,
+    required this.journey,
+    required this.journeyLoading,
+    required this.journeyFailure,
+    required this.featuredMission,
     required this.onOpenTab,
     super.key,
   }) : authenticated = true;
@@ -647,13 +822,51 @@ class HomeScreen extends StatelessWidget {
   final String firstName;
   final String? schoolName;
   final String? className;
+  final AuthenticatedClassJourney? journey;
+  final bool journeyLoading;
+  final JourneyFailure? journeyFailure;
+  final Mission? featuredMission;
   final ValueChanged<int> onOpenTab;
   final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
     final usesLargeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-    final scenario = _HomeScenarioOverview(hasData: !authenticated);
+    final journeyScenarios = journey == null
+        ? const <CityScenario>[]
+        : _presentJourneyScenarios(journey!);
+    final currentJourneyScenario = journey == null
+        ? null
+        : journeyScenarios.firstWhere(
+            (scenario) => scenario.id == journey!.currentStage.scenarioId,
+          );
+    final scenario = _HomeScenarioOverview(
+      hasData: !authenticated || journey != null,
+      scenario: currentJourneyScenario,
+      stage: journey?.currentStage,
+      mission: authenticated ? featuredMission : activeMission,
+      onTap: () => _push(
+        context,
+        CityMapScreen(
+          isPilot: !authenticated,
+          authenticatedData: authenticated,
+          dataAvailable: !authenticated || journey != null,
+          scenarios: authenticated && journey != null
+              ? journeyScenarios
+              : cityScenarios,
+          onOpenScenario: (scenario, visualProgress) => _push(
+            context,
+            CurrentScenarioScreen(
+              scenario: scenario,
+              progress: visualProgress,
+              isPilotSimulation:
+                  !authenticated && visualProgress != scenario.progress,
+              authenticated: authenticated,
+            ),
+          ),
+        ),
+      ),
+    );
     final prompt = B1nDialogueStrip(
       message: authenticated
           ? 'Separe um eletrônico sem uso e confira se ele está seguro.'
@@ -688,7 +901,9 @@ class HomeScreen extends StatelessWidget {
     return AppPage(
       title: 'Olá, $firstName!',
       subtitle: authenticated
-          ? '$schoolName · $className'
+          ? currentJourneyScenario == null
+                ? 'Jornada da turma indisponível.'
+                : 'Sua turma está restaurando a ${currentJourneyScenario.name}.'
           : 'Sua turma está restaurando a ${currentScenario.name}.',
       showBackButton: false,
       dataStatus: authenticated
@@ -1722,6 +1937,9 @@ class RankingScreen extends StatelessWidget {
     : className = '9ºA',
       classXp = 76000,
       authenticated = false,
+      journey = null,
+      journeyLoading = false,
+      journeyFailure = null,
       ranking = null,
       loading = false,
       failure = null,
@@ -1729,6 +1947,9 @@ class RankingScreen extends StatelessWidget {
 
   const RankingScreen.authenticated({
     required this.ranking,
+    required this.journey,
+    required this.journeyLoading,
+    required this.journeyFailure,
     this.loading = false,
     this.failure,
     this.onRetry,
@@ -1744,6 +1965,9 @@ class RankingScreen extends StatelessWidget {
   final String className;
   final int classXp;
   final bool authenticated;
+  final AuthenticatedClassJourney? journey;
+  final bool journeyLoading;
+  final JourneyFailure? journeyFailure;
   final ClassRanking? ranking;
   final bool loading;
   final RankingFailure? failure;
@@ -1754,6 +1978,14 @@ class RankingScreen extends StatelessWidget {
     final currentClass = ranking?.currentClass;
     final currentPosition = ranking?.currentPosition;
     final topThree = ranking?.topThree ?? const <ClassRankingEntry>[];
+    final journeyScenarios = journey == null
+        ? const <CityScenario>[]
+        : _presentJourneyScenarios(journey!);
+    final currentJourneyScenario = journey == null
+        ? null
+        : journeyScenarios.firstWhere(
+            (scenario) => scenario.id == journey!.currentStage.scenarioId,
+          );
 
     return AppPage(
       title: 'Ranking das turmas',
@@ -1815,18 +2047,26 @@ class RankingScreen extends StatelessWidget {
                 _PodiumCard(isPilot: !authenticated, topThree: topThree),
                 const SizedBox(height: 18),
                 _ScenarioAccessCard(
-                  hasData: !authenticated,
+                  hasData: !authenticated || journey != null,
+                  scenario: currentJourneyScenario,
+                  stage: journey?.currentStage,
                   onPressed: () => _push(
                     context,
                     CityMapScreen(
                       isPilot: isPilot,
-                      dataAvailable: !authenticated,
+                      authenticatedData: authenticated,
+                      dataAvailable: !authenticated || journey != null,
+                      scenarios: authenticated && journey != null
+                          ? journeyScenarios
+                          : cityScenarios,
                       onOpenScenario: (scenario, visualProgress) => _push(
                         context,
                         CurrentScenarioScreen(
                           scenario: scenario,
                           progress: visualProgress,
+                          authenticated: authenticated,
                           isPilotSimulation:
+                              !authenticated &&
                               visualProgress != scenario.progress,
                         ),
                       ),
@@ -1844,12 +2084,14 @@ class CurrentScenarioScreen extends StatelessWidget {
     this.scenario = centralSquareScenario,
     this.progress = centralSquareProgress,
     this.isPilotSimulation = false,
+    this.authenticated = false,
     super.key,
   });
 
   final CityScenario scenario;
   final double progress;
   final bool isPilotSimulation;
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
@@ -1862,7 +2104,11 @@ class CurrentScenarioScreen extends StatelessWidget {
       child: Column(
         children: [
           B1nDialogueStrip(
-            message: progress > 0
+            message: authenticated
+                ? progress > 0
+                      ? 'Descartes válidos e missões concluídas ajudam a tempestade a recuar.'
+                      : 'Este setor ainda está sob corrupção. A próxima etapa começa aqui.'
+                : progress > 0
                 ? 'Cada descarte validado ajuda a tempestade a recuar.'
                 : 'Este setor ainda está sob corrupção. A próxima etapa começa aqui.',
             portrait: B1nPortraitVariant.celebration,
@@ -1889,10 +2135,14 @@ class CurrentScenarioScreen extends StatelessWidget {
                   icon: scenario.id == centralSquareScenario.id
                       ? Icons.recycling_rounded
                       : Icons.route_rounded,
-                  value: scenario.id == centralSquareScenario.id
+                  value: authenticated
+                      ? '${scenario.order}/3'
+                      : scenario.id == centralSquareScenario.id
                       ? '${currentScenario.nextSectorDiscards}'
                       : '${scenario.order}/3',
-                  label: scenario.id == centralSquareScenario.id
+                  label: authenticated
+                      ? 'setor da jornada'
+                      : scenario.id == centralSquareScenario.id
                       ? 'descartes para avançar'
                       : 'setor da jornada',
                   color: AppColors.green,
@@ -1904,12 +2154,16 @@ class CurrentScenarioScreen extends StatelessWidget {
                   icon: scenario.id == centralSquareScenario.id
                       ? Icons.schedule_rounded
                       : Icons.science_outlined,
-                  value: scenario.id == centralSquareScenario.id
+                  value: authenticated
+                      ? '${(progress * 100).round()}%'
+                      : scenario.id == centralSquareScenario.id
                       ? '${currentScenario.cycleDays}'
                       : isPilotSimulation
                       ? 'Visual'
                       : '${(scenario.progress * 100).round()}%',
-                  label: scenario.id == centralSquareScenario.id
+                  label: authenticated
+                      ? 'progresso registrado'
+                      : scenario.id == centralSquareScenario.id
                       ? 'dias neste ciclo'
                       : isPilotSimulation
                       ? 'simulação do mapa'
@@ -1935,7 +2189,9 @@ class CurrentScenarioScreen extends StatelessWidget {
                 _ScenarioInfoLine(
                   icon: Icons.grid_view_rounded,
                   title: 'Como restaurar',
-                  text: 'Descartes seguros e validados reduzem a corrupção.',
+                  text: authenticated
+                      ? 'Descartes válidos e missões concluídas restauram este setor.'
+                      : 'Descartes seguros e validados reduzem a corrupção.',
                   color: AppColors.blue,
                 ),
                 Divider(height: 24, color: AppColors.line),
@@ -1956,12 +2212,14 @@ class CurrentScenarioScreen extends StatelessWidget {
             tone: BingoActionTone.green,
             onPressed: () => _push(
               context,
-              ImpactScreen(
-                scenario: scenario,
-                registeredProgress: scenario.progress,
-                visualProgress: progress,
-                isPilotSimulation: isPilotSimulation,
-              ),
+              authenticated
+                  ? const ImpactScreen.unavailable()
+                  : ImpactScreen(
+                      scenario: scenario,
+                      registeredProgress: scenario.progress,
+                      visualProgress: progress,
+                      isPilotSimulation: isPilotSimulation,
+                    ),
             ),
           ),
         ],
@@ -3887,10 +4145,17 @@ class _PodiumPlace extends StatelessWidget {
 }
 
 class _ScenarioAccessCard extends StatelessWidget {
-  const _ScenarioAccessCard({required this.onPressed, this.hasData = true});
+  const _ScenarioAccessCard({
+    required this.onPressed,
+    this.hasData = true,
+    this.scenario,
+    this.stage,
+  });
 
   final VoidCallback onPressed;
   final bool hasData;
+  final CityScenario? scenario;
+  final AuthenticatedJourneyStage? stage;
 
   @override
   Widget build(BuildContext context) {
@@ -3992,12 +4257,16 @@ class _ScenarioAccessCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   hasData
-                      ? 'A ${currentScenario.name} é o começo. Cada descarte validado afasta a névoa e abre novos caminhos.'
+                      ? scenario == null
+                            ? 'A ${currentScenario.name} é o começo. Cada descarte validado afasta a névoa e abre novos caminhos.'
+                            : 'A ${scenario!.name} está em restauração. Faltam ${stage!.remainingUnits} para concluir este setor.'
                       : 'O mapa permanece acessível e receberá a campanha autenticada quando houver uma fonte real.',
                 ),
                 const SizedBox(height: 12),
                 AnimatedProgressPill(
-                  value: hasData ? currentScenario.restoredProgress : 0,
+                  value: hasData
+                      ? scenario?.progress ?? currentScenario.restoredProgress
+                      : 0,
                   color: AppColors.green,
                 ),
                 const SizedBox(height: 14),
@@ -5349,116 +5618,147 @@ class _StepRow extends StatelessWidget {
 }
 
 class _HomeScenarioOverview extends StatelessWidget {
-  const _HomeScenarioOverview({this.hasData = true});
+  const _HomeScenarioOverview({
+    this.hasData = true,
+    this.scenario,
+    this.stage,
+    this.mission,
+    this.onTap,
+  });
 
   final bool hasData;
+  final CityScenario? scenario;
+  final AuthenticatedJourneyStage? stage;
+  final Mission? mission;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SurfaceCard(
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            child: Stack(
-              children: [
-                SizedBox(
-                  height: 92,
-                  width: double.infinity,
-                  child: Image.asset(
-                    AppAssets.sceneClean,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                  ),
+    final displayedScenario = scenario;
+    final progress =
+        displayedScenario?.progress ??
+        (hasData ? currentScenario.restoredProgress : 0);
+    return Semantics(
+      button: onTap != null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SurfaceCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
                 ),
-                Positioned(
-                  left: 14,
-                  top: 14,
-                  child: BadgeLabel(
-                    label: hasData ? currentScenario.name : 'Jornada da turma',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  hasData
-                      ? '${currentScenario.restoredPercent}% restaurada'
-                      : 'Ainda não há dados',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 6),
-                AnimatedProgressPill(
-                  value: hasData ? currentScenario.restoredProgress : 0,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  hasData ? 'Em andamento' : 'Progresso —',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: AppColors.green,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Row(
+                child: Stack(
                   children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.green.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.recycling_rounded,
-                        color: AppColors.green,
-                        size: 21,
+                    SizedBox(
+                      height: 92,
+                      width: double.infinity,
+                      child: Image.asset(
+                        displayedScenario?.assetFor(progress) ??
+                            AppAssets.sceneClean,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.center,
                       ),
                     ),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        hasData
-                            ? activeMission.title
-                            : 'Missão ainda não vinculada',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: AppColors.navy,
-                          fontWeight: FontWeight.w900,
-                        ),
+                    Positioned(
+                      left: 14,
+                      top: 14,
+                      child: BadgeLabel(
+                        label: hasData
+                            ? displayedScenario?.name ?? currentScenario.name
+                            : 'Jornada da turma',
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Row(
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.map_outlined,
-                      color: AppColors.blue,
-                      size: 20,
+                    Text(
+                      hasData
+                          ? '${(progress * 100).round()}% restaurada'
+                          : 'Ainda não há dados',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        hasData
-                            ? '${currentScenario.nextSectorDiscards} descartes para o próximo setor'
-                            : 'Ainda não há dados de campanha',
+                    const SizedBox(height: 6),
+                    AnimatedProgressPill(value: hasData ? progress : 0),
+                    const SizedBox(height: 10),
+                    Text(
+                      hasData
+                          ? stage?.state == JourneyStageState.completed
+                                ? 'Concluído'
+                                : 'Em andamento'
+                          : 'Progresso —',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: AppColors.green,
+                        fontWeight: FontWeight.w800,
                       ),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: AppColors.green.withValues(alpha: 0.13),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.recycling_rounded,
+                            color: AppColors.green,
+                            size: 21,
+                          ),
+                        ),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            hasData
+                                ? mission?.title ?? 'Missão ainda não vinculada'
+                                : 'Missão ainda não vinculada',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: AppColors.navy,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.map_outlined,
+                          color: AppColors.blue,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            hasData
+                                ? stage == null
+                                      ? '${currentScenario.nextSectorDiscards} descartes para o próximo setor'
+                                      : 'Faltam ${stage!.remainingUnits} para o próximo setor'
+                                : 'Ainda não há dados de campanha',
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

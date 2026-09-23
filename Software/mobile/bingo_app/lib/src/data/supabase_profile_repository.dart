@@ -2,6 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'profile_repository.dart';
 
+typedef ProfileRpcInvoker = Future<Object?> Function(String functionName);
+
 abstract interface class ProfileDataSource {
   bool get hasSession;
 
@@ -12,12 +14,18 @@ abstract interface class ProfileDataSource {
   Future<Map<String, dynamic>?> fetchClass(String classId);
 
   Future<Map<String, dynamic>?> fetchSchool(String schoolId);
+
+  Future<List<Map<String, dynamic>>> fetchProgress();
 }
 
 class SupabaseProfileDataSource implements ProfileDataSource {
-  const SupabaseProfileDataSource(this._client);
+  SupabaseProfileDataSource(this._client, {ProfileRpcInvoker? rpcInvoker})
+    : _rpcInvoker = rpcInvoker ?? ((name) async => await _client.rpc(name));
+
+  static const progressRpcName = 'get_student_profile_progress_v1';
 
   final SupabaseClient _client;
+  final ProfileRpcInvoker _rpcInvoker;
 
   @override
   bool get hasSession =>
@@ -59,6 +67,29 @@ class SupabaseProfileDataSource implements ProfileDataSource {
         .select('id, name')
         .eq('id', schoolId)
         .maybeSingle();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchProgress() async {
+    final payload = await _rpcInvoker(progressRpcName);
+    if (payload is! List) {
+      throw const ProfileFailure(
+        ProfileFailureKind.malformedData,
+        'A resposta da Trilha possui formato inválido.',
+      );
+    }
+
+    return payload
+        .map((row) {
+          if (row is! Map) {
+            throw const ProfileFailure(
+              ProfileFailureKind.malformedData,
+              'A resposta da Trilha contém um item inválido.',
+            );
+          }
+          return Map<String, dynamic>.from(row);
+        })
+        .toList(growable: false);
   }
 }
 
@@ -112,6 +143,21 @@ class RemoteProfileRepository implements AuthenticatedProfileRepository {
         );
       }
 
+      final progressRows = await _dataSource.fetchProgress();
+      if (progressRows.length != 1) {
+        throw const ProfileFailure(
+          ProfileFailureKind.malformedData,
+          'A Trilha do perfil deve retornar exatamente um resultado.',
+        );
+      }
+      final progress = _parseProgress(progressRows.single);
+      if (progress.studentId != id) {
+        throw const ProfileFailure(
+          ProfileFailureKind.malformedData,
+          'A Trilha retornada não pertence ao aluno autenticado.',
+        );
+      }
+
       return AuthenticatedStudentProfile(
         id: id,
         name: name,
@@ -122,6 +168,7 @@ class RemoteProfileRepository implements AuthenticatedProfileRepository {
         pointsStudentBalance: pointsStudentBalance,
         pointsClassBalance: _requiredInt(classroom, 'points_class_balance'),
         status: status,
+        progress: progress,
       );
     } on ProfileFailure {
       rethrow;
@@ -164,6 +211,97 @@ class RemoteProfileRepository implements AuthenticatedProfileRepository {
   }
 }
 
+AuthenticatedProfileProgress _parseProgress(Map<String, dynamic> row) {
+  final studentId = _requiredString(row, 'student_id');
+  final validDepositCount = _requiredProgressInt(row, 'valid_deposit_count');
+  final levelNumber = _requiredProgressInt(row, 'level_number');
+  final levelCode = _requiredString(row, 'level_code');
+  final remainingToNextLevel = _requiredProgressInt(
+    row,
+    'remaining_to_next_level',
+  );
+  final progressToNextLevel = _requiredProgressNumber(
+    row,
+    'progress_to_next_level',
+  );
+  final expected = _expectedProgress(validDepositCount);
+
+  if (levelNumber != expected.levelNumber ||
+      levelCode != expected.levelCode ||
+      remainingToNextLevel != expected.remainingToNextLevel ||
+      (progressToNextLevel - expected.progressToNextLevel).abs() >
+          0.000000001) {
+    throw const ProfileFailure(
+      ProfileFailureKind.malformedData,
+      'A resposta da Trilha possui nível ou progresso inconsistente.',
+    );
+  }
+
+  return AuthenticatedProfileProgress(
+    studentId: studentId,
+    validDepositCount: validDepositCount,
+    levelNumber: levelNumber,
+    levelCode: levelCode,
+    remainingToNextLevel: remainingToNextLevel,
+    progressToNextLevel: progressToNextLevel,
+  );
+}
+
+({
+  int levelNumber,
+  String levelCode,
+  int remainingToNextLevel,
+  double progressToNextLevel,
+})
+_expectedProgress(int count) {
+  if (count >= 50) {
+    return (
+      levelNumber: 5,
+      levelCode: 'HERO',
+      remainingToNextLevel: 0,
+      progressToNextLevel: 1,
+    );
+  }
+  if (count >= 20) {
+    return (
+      levelNumber: 4,
+      levelCode: 'GUARDIAN',
+      remainingToNextLevel: 50 - count,
+      progressToNextLevel: count / 50,
+    );
+  }
+  if (count >= 10) {
+    return (
+      levelNumber: 3,
+      levelCode: 'RESTORER',
+      remainingToNextLevel: 20 - count,
+      progressToNextLevel: count / 20,
+    );
+  }
+  if (count >= 5) {
+    return (
+      levelNumber: 2,
+      levelCode: 'EXPLORER',
+      remainingToNextLevel: 10 - count,
+      progressToNextLevel: count / 10,
+    );
+  }
+  if (count >= 1) {
+    return (
+      levelNumber: 1,
+      levelCode: 'APPRENTICE',
+      remainingToNextLevel: 5 - count,
+      progressToNextLevel: count / 5,
+    );
+  }
+  return (
+    levelNumber: 0,
+    levelCode: 'NONE',
+    remainingToNextLevel: 1,
+    progressToNextLevel: 0,
+  );
+}
+
 String _requiredString(Map<String, dynamic> row, String key) {
   final value = row[key];
   if (value == null || value.toString().trim().isEmpty) {
@@ -182,6 +320,32 @@ int _requiredInt(Map<String, dynamic> row, String key) {
   throw ProfileFailure(
     ProfileFailureKind.malformedData,
     'O perfil remoto não contém o campo numérico obrigatório $key.',
+  );
+}
+
+int _requiredProgressInt(Map<String, dynamic> row, String key) {
+  final value = row[key];
+  if (value is int && value >= 0) return value;
+  if (value is num &&
+      value.isFinite &&
+      value >= 0 &&
+      value == value.roundToDouble()) {
+    return value.toInt();
+  }
+  throw ProfileFailure(
+    ProfileFailureKind.malformedData,
+    'A Trilha remota não contém o campo inteiro válido $key.',
+  );
+}
+
+double _requiredProgressNumber(Map<String, dynamic> row, String key) {
+  final value = row[key];
+  if (value is num && value.isFinite && value >= 0 && value <= 1) {
+    return value.toDouble();
+  }
+  throw ProfileFailure(
+    ProfileFailureKind.malformedData,
+    'A Trilha remota não contém o progresso válido $key.',
   );
 }
 

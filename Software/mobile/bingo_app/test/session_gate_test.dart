@@ -5,6 +5,7 @@ import 'package:bingo_app/src/auth/access_restore_store.dart';
 import 'package:bingo_app/src/auth/auth_gateway.dart';
 import 'package:bingo_app/src/config/supabase_config.dart';
 import 'package:bingo_app/src/data/deposit_history_repository.dart';
+import 'package:bingo_app/src/data/class_journey_repository.dart';
 import 'package:bingo_app/src/data/missions_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
 import 'package:bingo_app/src/data/ranking_repository.dart';
@@ -65,6 +66,14 @@ const _remoteProfile = AuthenticatedStudentProfile(
   pointsStudentBalance: 17,
   pointsClassBalance: 29,
   status: 'ACTIVE',
+  progress: AuthenticatedProfileProgress(
+    studentId: 'student-id',
+    validDepositCount: 0,
+    levelNumber: 0,
+    levelCode: 'NONE',
+    remainingToNextLevel: 1,
+    progressToNextLevel: 0,
+  ),
 );
 
 class _FakeRestoreStore implements AccessRestoreStore {
@@ -116,6 +125,10 @@ class _FakeGateway implements AuthGateway {
       const _EmptyMissionsRepository();
 
   @override
+  final AuthenticatedClassJourneyRepository journeyRepository =
+      const _EmptyJourneyRepository();
+
+  @override
   final AuthenticatedRankingRepository rankingRepository =
       const _EmptyRankingRepository();
 
@@ -152,6 +165,13 @@ class _FakeGateway implements AuthGateway {
   Future<void> close() async {
     await events.close();
   }
+}
+
+class _EmptyJourneyRepository implements AuthenticatedClassJourneyRepository {
+  const _EmptyJourneyRepository();
+
+  @override
+  Future<AuthenticatedClassJourney?> loadJourney() async => null;
 }
 
 class _EmptyDepositHistoryRepository
@@ -376,7 +396,8 @@ void main() {
 
     expect(find.byType(ShellScreen), findsOneWidget);
     expect(find.text('Olá, REMOTE!'), findsOneWidget);
-    expect(find.text('Remote School · Remote Class'), findsOneWidget);
+    expect(find.text('Jornada da turma indisponível.'), findsOneWidget);
+    expect(find.text('Remote School · Remote Class'), findsNothing);
     expect(find.textContaining('Marco'), findsNothing);
     expect(store.marks, 1);
     expect(store.restore, isTrue);
@@ -488,7 +509,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('29'), findsOneWidget);
     expect(find.text('XP da turma'), findsOneWidget);
-    expect(find.text('Pontos pessoais'), findsOneWidget);
+    expect(find.text('Descartes'), findsOneWidget);
+    expect(find.text('Nível 0'), findsOneWidget);
     expect(find.text('9ºA'), findsNothing);
   });
 

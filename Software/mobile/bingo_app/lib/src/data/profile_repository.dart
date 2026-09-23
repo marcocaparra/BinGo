@@ -167,32 +167,83 @@ class LocalProfileRepository
 }
 
 class SharedPreferencesCustomizationStore implements ProfileCustomizationStore {
-  const SharedPreferencesCustomizationStore(this._preferences);
+  const SharedPreferencesCustomizationStore(
+    this._preferences, {
+    this.studentId,
+  });
 
   static const _avatarKey = 'bingo.profile.avatar';
   static const _themeKey = 'bingo.profile.theme';
 
   final SharedPreferences _preferences;
+  final String? studentId;
 
-  static Future<SharedPreferencesCustomizationStore> create() async {
+  static Future<SharedPreferencesCustomizationStore> create({
+    String? studentId,
+  }) async {
     return SharedPreferencesCustomizationStore(
       await SharedPreferences.getInstance(),
+      studentId: studentId,
     );
   }
+
+  String get _avatarStorageKey => studentId == null
+      ? _avatarKey
+      : 'bingo.profile.${studentId!.trim()}.avatar';
+
+  String get _themeStorageKey => studentId == null
+      ? _themeKey
+      : 'bingo.profile.${studentId!.trim()}.theme';
 
   @override
   Future<ProfileCustomization> loadCustomization() async {
     return ProfileCustomization(
-      avatarId: _preferences.getString(_avatarKey) ?? 'b1n-default',
-      themeId: _preferences.getString(_themeKey) ?? 'city-blue',
+      avatarId: _preferences.getString(_avatarStorageKey) ?? 'b1n-default',
+      themeId: _preferences.getString(_themeStorageKey) ?? 'city-blue',
     );
   }
 
   @override
   Future<void> saveCustomization(ProfileCustomization customization) async {
-    await _preferences.setString(_avatarKey, customization.avatarId);
-    await _preferences.setString(_themeKey, customization.themeId);
+    await _preferences.setString(_avatarStorageKey, customization.avatarId);
+    await _preferences.setString(_themeStorageKey, customization.themeId);
   }
+}
+
+class AuthenticatedProfileProgress {
+  const AuthenticatedProfileProgress({
+    required this.studentId,
+    required this.validDepositCount,
+    required this.levelNumber,
+    required this.levelCode,
+    required this.remainingToNextLevel,
+    required this.progressToNextLevel,
+  });
+
+  final String studentId;
+  final int validDepositCount;
+  final int levelNumber;
+  final String levelCode;
+  final int remainingToNextLevel;
+  final double progressToNextLevel;
+
+  String? get levelName => switch (levelCode) {
+    'APPRENTICE' => 'Aprendiz',
+    'EXPLORER' => 'Explorador',
+    'RESTORER' => 'Restaurador',
+    'GUARDIAN' => 'Guardião',
+    'HERO' => 'Herói',
+    _ => null,
+  };
+
+  String? get nextLevelName => switch (levelNumber) {
+    0 => 'Aprendiz',
+    1 => 'Explorador',
+    2 => 'Restaurador',
+    3 => 'Guardião',
+    4 => 'Herói',
+    _ => null,
+  };
 }
 
 class AuthenticatedStudentProfile {
@@ -206,6 +257,7 @@ class AuthenticatedStudentProfile {
     required this.pointsStudentBalance,
     required this.pointsClassBalance,
     required this.status,
+    required this.progress,
   });
 
   final String id;
@@ -217,6 +269,7 @@ class AuthenticatedStudentProfile {
   final int pointsStudentBalance;
   final int pointsClassBalance;
   final String status;
+  final AuthenticatedProfileProgress progress;
 
   int get binCoinsBalance => pointsStudentBalance;
 

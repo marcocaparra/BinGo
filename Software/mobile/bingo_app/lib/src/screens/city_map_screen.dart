@@ -29,14 +29,18 @@ class CityMapScreen extends StatefulWidget {
   const CityMapScreen({
     required this.onOpenScenario,
     this.isPilot = false,
+    this.authenticatedData = false,
     this.dataAvailable = true,
+    this.scenarios = cityScenarios,
     super.key,
   });
 
   final void Function(CityScenario scenario, double visualProgress)
   onOpenScenario;
   final bool isPilot;
+  final bool authenticatedData;
   final bool dataAvailable;
+  final List<CityScenario> scenarios;
 
   @override
   State<CityMapScreen> createState() => _CityMapScreenState();
@@ -68,7 +72,7 @@ class _CityMapScreenState extends State<CityMapScreen>
 
   Size _viewport = Size.zero;
   int _activeScenarioIndex = 0;
-  CityScenario _selected = cityScenarios.first;
+  late CityScenario _selected;
   bool _transitioning = false;
   bool _guideExpanded = true;
   bool _initialized = false;
@@ -77,10 +81,27 @@ class _CityMapScreenState extends State<CityMapScreen>
   Matrix4? _cameraEnd;
   bool _assetsPrecached = false;
 
+  @override
+  void initState() {
+    super.initState();
+    final activeIndex = widget.scenarios.indexWhere(
+      (scenario) => scenario.state == ScenarioState.active,
+    );
+    final completedIndex = widget.scenarios.lastIndexWhere(
+      (scenario) => scenario.state == ScenarioState.completed,
+    );
+    _activeScenarioIndex = activeIndex >= 0
+        ? activeIndex
+        : completedIndex >= 0
+        ? completedIndex
+        : 0;
+    _selected = widget.scenarios[_activeScenarioIndex];
+  }
+
   List<_ScenarioMapNode> get _nodes => [
-    for (var index = 0; index < cityScenarios.length; index++)
+    for (var index = 0; index < widget.scenarios.length; index++)
       _ScenarioMapNode(
-        scenario: cityScenarios[index],
+        scenario: widget.scenarios[index],
         journeyIndex: index,
         lane: switch (index % 3) {
           0 => 0.5,
@@ -98,7 +119,7 @@ class _CityMapScreenState extends State<CityMapScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_assetsPrecached) {
-      for (final scenario in cityScenarios) {
+      for (final scenario in widget.scenarios) {
         precacheImage(
           ResizeImage(AssetImage(scenario.mapLandmarkAsset), width: 384),
           context,
@@ -187,7 +208,7 @@ class _CityMapScreenState extends State<CityMapScreen>
       if (MediaQuery.disableAnimationsOf(context)) {
         setState(() {
           _activeScenarioIndex = 0;
-          _selected = cityScenarios.first;
+          _selected = widget.scenarios.first;
         });
         _centerStage(index: 0);
       } else {
@@ -196,7 +217,7 @@ class _CityMapScreenState extends State<CityMapScreen>
         if (!mounted) return;
         setState(() {
           _activeScenarioIndex = 0;
-          _selected = cityScenarios.first;
+          _selected = widget.scenarios.first;
         });
         _progression.value = 0;
         _centerStage(index: 0);
@@ -217,7 +238,7 @@ class _CityMapScreenState extends State<CityMapScreen>
     if (!mounted) return;
     setState(() {
       _activeScenarioIndex = nextIndex;
-      _selected = cityScenarios[nextIndex];
+      _selected = widget.scenarios[nextIndex];
       _transitioning = false;
     });
     _progression.value = 0;
@@ -240,9 +261,10 @@ class _CityMapScreenState extends State<CityMapScreen>
   }
 
   double _progressFor(int index) {
+    if (!widget.isPilot) return widget.scenarios[index].progress;
     if (index < _stageIndex) return 1;
     if (index > _stageIndex) return 0;
-    final base = cityScenarios[index].progress;
+    final base = widget.scenarios[index].progress;
     final cleanup = _intervalValue(
       _progression.value,
       0.08,
@@ -252,7 +274,9 @@ class _CityMapScreenState extends State<CityMapScreen>
     return _transitioning ? base + (1 - base) * cleanup : base;
   }
 
-  bool _isDiscovered(int index) => index <= _stageIndex;
+  bool _isDiscovered(int index) => widget.isPilot
+      ? index <= _stageIndex
+      : widget.scenarios[index].state != ScenarioState.locked;
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +284,7 @@ class _CityMapScreenState extends State<CityMapScreen>
       return _UnavailableCityMap();
     }
     final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-    final selectedIndex = cityScenarios.indexWhere(
+    final selectedIndex = widget.scenarios.indexWhere(
       (scenario) => scenario.id == _selected.id,
     );
     return Scaffold(
@@ -282,7 +306,10 @@ class _CityMapScreenState extends State<CityMapScreen>
           ],
         ),
         actions: [
-          _SimulatedDataBadge(compact: largeText),
+          _SimulatedDataBadge(
+            compact: largeText,
+            simulated: !widget.authenticatedData,
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -381,7 +408,11 @@ class _CityMapScreenState extends State<CityMapScreen>
               left: 14,
               top: 14,
               child: _guideExpanded
-                  ? _B1nMapGuide(animation: _guide, onClose: _hideGuide)
+                  ? _B1nMapGuide(
+                      animation: _guide,
+                      authenticatedData: widget.authenticatedData,
+                      onClose: _hideGuide,
+                    )
                   : Tooltip(
                       message: 'Ajuda do B1N',
                       child: IconButton.filled(
@@ -411,6 +442,7 @@ class _CityMapScreenState extends State<CityMapScreen>
                 progress: _progressFor(selectedIndex),
                 discovered: _isDiscovered(selectedIndex),
                 isPilot: widget.isPilot,
+                authenticatedData: widget.authenticatedData,
                 stageIndex: _stageIndex,
                 lastStage: _nodes.length - 1,
                 transitioning: _transitioning,
@@ -1211,6 +1243,7 @@ class _ScenarioSheet extends StatelessWidget {
     required this.progress,
     required this.discovered,
     required this.isPilot,
+    required this.authenticatedData,
     required this.stageIndex,
     required this.lastStage,
     required this.transitioning,
@@ -1222,6 +1255,7 @@ class _ScenarioSheet extends StatelessWidget {
   final double progress;
   final bool discovered;
   final bool isPilot;
+  final bool authenticatedData;
   final int stageIndex;
   final int lastStage;
   final bool transitioning;
@@ -1360,7 +1394,9 @@ class _ScenarioSheet extends StatelessWidget {
             _SheetInfoLine(
               icon: Icons.recycling_rounded,
               title: 'Como a cidade avança',
-              text: 'Cada descarte validado ajuda a restaurar este setor.',
+              text: authenticatedData
+                  ? 'Descartes válidos e missões concluídas restauram este setor.'
+                  : 'Cada descarte validado ajuda a restaurar este setor.',
               color: AppColors.deepCyan,
             ),
             const SizedBox(height: 12),
@@ -1436,9 +1472,14 @@ class _SheetInfoLine extends StatelessWidget {
 }
 
 class _B1nMapGuide extends StatelessWidget {
-  const _B1nMapGuide({required this.animation, required this.onClose});
+  const _B1nMapGuide({
+    required this.animation,
+    required this.authenticatedData,
+    required this.onClose,
+  });
 
   final Animation<double> animation;
+  final bool authenticatedData;
   final VoidCallback onClose;
 
   @override
@@ -1489,8 +1530,10 @@ class _B1nMapGuide extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Eu mostro o caminho. Cada descarte validado ajuda BinGópolis a avançar.',
+                    Text(
+                      authenticatedData
+                          ? 'Eu mostro o caminho. Descartes válidos e missões concluídas ajudam BinGópolis a avançar.'
+                          : 'Eu mostro o caminho. Cada descarte validado ajuda BinGópolis a avançar.',
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1791,9 +1834,10 @@ class _LandmarkAccentPainter extends CustomPainter {
 }
 
 class _SimulatedDataBadge extends StatelessWidget {
-  const _SimulatedDataBadge({required this.compact});
+  const _SimulatedDataBadge({required this.compact, required this.simulated});
 
   final bool compact;
+  final bool simulated;
 
   @override
   Widget build(BuildContext context) {
@@ -1805,18 +1849,21 @@ class _SimulatedDataBadge extends StatelessWidget {
         border: Border.all(color: Colors.white30),
       ),
       child: compact
-          ? const Tooltip(
-              message: 'Dados simulados',
-              child: Icon(Icons.info_outline_rounded, size: 18),
+          ? Tooltip(
+              message: simulated ? 'Dados simulados' : 'Dados da turma',
+              child: const Icon(Icons.info_outline_rounded, size: 18),
             )
-          : const Row(
+          : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.info_outline_rounded, size: 16),
-                SizedBox(width: 5),
+                const Icon(Icons.info_outline_rounded, size: 16),
+                const SizedBox(width: 5),
                 Text(
-                  'Dados simulados',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                  simulated ? 'Dados simulados' : 'Dados da turma',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

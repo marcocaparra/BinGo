@@ -274,6 +274,7 @@ class _SessionGateState extends State<SessionGate> {
               repository: _gateway!.profileRepository,
               depositHistoryRepository: _gateway!.depositHistoryRepository,
               missionsRepository: _gateway!.missionsRepository,
+              journeyRepository: _gateway!.journeyRepository,
               rankingRepository: _gateway!.rankingRepository,
               onLogout: _signOut,
               onSessionInvalid: _returnToEntry,

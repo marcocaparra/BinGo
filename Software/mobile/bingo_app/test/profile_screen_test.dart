@@ -5,8 +5,7 @@ import 'package:bingo_app/src/screens/change_pin_screen.dart';
 import 'package:bingo_app/src/screens/profile_screen.dart';
 import 'package:bingo_app/src/screens/splash_screen.dart';
 import 'package:bingo_app/src/theme/app_theme.dart';
-import 'package:bingo_app/src/widgets/b1n_dialogue_strip.dart';
-import 'package:bingo_app/src/widgets/bincoin_amount.dart';
+import 'package:bingo_app/src/widgets/bingo_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -70,6 +69,31 @@ class _ProfileRepository
   }
 }
 
+class _CustomizationStore implements ProfileCustomizationStore {
+  _CustomizationStore([this.customization = const ProfileCustomization()]);
+
+  ProfileCustomization customization;
+  int saveCalls = 0;
+
+  @override
+  Future<ProfileCustomization> loadCustomization() async => customization;
+
+  @override
+  Future<void> saveCustomization(ProfileCustomization customization) async {
+    saveCalls++;
+    this.customization = customization;
+  }
+}
+
+const _level3Progress = AuthenticatedProfileProgress(
+  studentId: 'student-id',
+  validDepositCount: 12,
+  levelNumber: 3,
+  levelCode: 'RESTORER',
+  remainingToNextLevel: 8,
+  progressToNextLevel: 0.6,
+);
+
 const _authenticatedProfile = AuthenticatedStudentProfile(
   id: 'student-id',
   name: 'Aluno do Backend',
@@ -80,9 +104,29 @@ const _authenticatedProfile = AuthenticatedStudentProfile(
   pointsStudentBalance: 321,
   pointsClassBalance: 654,
   status: 'ACTIVE',
+  progress: _level3Progress,
 );
 
+AuthenticatedStudentProfile authenticatedProfileWithProgress(
+  AuthenticatedProfileProgress progress,
+) {
+  return AuthenticatedStudentProfile(
+    id: progress.studentId,
+    name: 'Aluno do Backend',
+    schoolId: 'school-id',
+    schoolName: 'Escola Backend',
+    classId: 'class-id',
+    className: 'Turma Backend',
+    pointsStudentBalance: 321,
+    pointsClassBalance: 654,
+    status: 'ACTIVE',
+    progress: progress,
+  );
+}
+
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   void reduceMotion(WidgetTester tester) {
     tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);
@@ -347,12 +391,22 @@ void main() {
     expect(find.text('BinCoins'), findsOneWidget);
     expect(find.text('XP da turma'), findsOneWidget);
     expect(find.text('Trilha do restaurador'), findsOneWidget);
-    expect(find.text('Nível atual —'), findsOneWidget);
+    expect(find.text('Nível 3 · Restaurador'), findsOneWidget);
+    expect(find.text('N3'), findsOneWidget);
+    expect(
+      tester
+          .widget<AnimatedProgressPill>(find.byType(AnimatedProgressPill))
+          .value,
+      0.6,
+    );
+    expect(find.text('12'), findsOneWidget);
+    expect(find.text('Descartes'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsNWidgets(2));
     await tester.drag(find.byType(ListView), const Offset(0, -520));
     await tester.pumpAndSettle();
     expect(
       find.text(
-        'Níveis, conquistas e progresso aparecerão quando tiverem uma fonte autenticada.',
+        'Você já fez 12 descartes válidos. Faltam 8 para chegar a Guardião.',
       ),
       findsOneWidget,
     );
@@ -362,11 +416,278 @@ void main() {
     expect(find.text('12.000'), findsNothing);
     expect(find.text('76.000'), findsNothing);
     expect(find.text('119.000'), findsNothing);
-    expect(find.text('Pontos pessoais'), findsOneWidget);
-    expect(find.text('—'), findsWidgets);
-    expect(find.text('Nível 3 · Restaurador'), findsNothing);
+    expect(find.text('Pontos pessoais'), findsNothing);
+    expect(find.text('—'), findsNothing);
+    expect(find.byTooltip('Personalizar perfil'), findsOneWidget);
     expect(find.text('Dados autenticados'), findsNothing);
     expect(find.text('Ver missões'), findsNothing);
+  });
+
+  testWidgets('nível 0 autenticado renderiza início da Trilha', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    const progress = AuthenticatedProfileProgress(
+      studentId: 'student-zero',
+      validDepositCount: 0,
+      levelNumber: 0,
+      levelCode: 'NONE',
+      remainingToNextLevel: 1,
+      progressToNextLevel: 0,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen.authenticated(
+          profile: authenticatedProfileWithProgress(progress),
+          customizationStore: _CustomizationStore(),
+          onLogout: () async => null,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('N0'), findsOneWidget);
+    expect(find.text('Nível 0'), findsOneWidget);
+    expect(
+      tester
+          .widget<AnimatedProgressPill>(find.byType(AnimatedProgressPill))
+          .value,
+      0,
+    );
+    expect(find.text('0'), findsOneWidget);
+    expect(find.text('Descartes'), findsOneWidget);
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+    expect(
+      find.text('Faça seu primeiro descarte válido para chegar a Aprendiz.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('nível 1 autenticado renderiza progresso real', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    const progress = AuthenticatedProfileProgress(
+      studentId: 'student-one',
+      validDepositCount: 1,
+      levelNumber: 1,
+      levelCode: 'APPRENTICE',
+      remainingToNextLevel: 4,
+      progressToNextLevel: 0.2,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen.authenticated(
+          profile: authenticatedProfileWithProgress(progress),
+          customizationStore: _CustomizationStore(),
+          onLogout: () async => null,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('N1'), findsOneWidget);
+    expect(find.text('Nível 1 · Aprendiz'), findsOneWidget);
+    expect(
+      tester
+          .widget<AnimatedProgressPill>(find.byType(AnimatedProgressPill))
+          .value,
+      0.2,
+    );
+    expect(find.byIcon(Icons.check_rounded), findsNothing);
+    expect(
+      find.text(
+        'Você já fez 1 descartes válidos. Faltam 4 para chegar a Explorador.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('nível 5 autenticado mantém Herói e todas as etapas anteriores', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    const progress = AuthenticatedProfileProgress(
+      studentId: 'student-hero',
+      validDepositCount: 73,
+      levelNumber: 5,
+      levelCode: 'HERO',
+      remainingToNextLevel: 0,
+      progressToNextLevel: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen.authenticated(
+          profile: authenticatedProfileWithProgress(progress),
+          customizationStore: _CustomizationStore(),
+          onLogout: () async => null,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('N5'), findsOneWidget);
+    expect(find.text('Nível 5 · Herói'), findsOneWidget);
+    expect(
+      tester
+          .widget<AnimatedProgressPill>(find.byType(AnimatedProgressPill))
+          .value,
+      1,
+    );
+    expect(find.byIcon(Icons.check_rounded), findsNWidgets(4));
+    expect(
+      find.text('Você já fez 73 descartes válidos e alcançou o nível Herói.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'personalização autenticada salva localmente e reaparece ao recriar a tela',
+    (WidgetTester tester) async {
+      reduceMotion(tester);
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final store = _CustomizationStore();
+
+      Widget buildScreen() => MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen.authenticated(
+          profile: _authenticatedProfile,
+          customizationStore: store,
+          onLogout: () async => null,
+        ),
+      );
+
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Personalizar perfil'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('B1N guia · Cidade azul'), findsOneWidget);
+      expect(find.byIcon(Icons.lock_rounded), findsNWidgets(2));
+      await tester.tap(find.text('Tio B3N'));
+      await tester.tap(find.text('Tema'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.lock_rounded), findsNWidgets(2));
+      await tester.tap(find.text('Energia SCR4P'));
+      await tester.tap(find.text('Salvar personalização'));
+      await tester.pumpAndSettle();
+
+      expect(store.saveCalls, 1);
+      expect(
+        store.customization,
+        const ProfileCustomization(
+          avatarId: 'b3n-shopkeeper',
+          themeId: 'scr4p-purple',
+        ),
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(buildScreen());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Personalizar perfil'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tio B3N · Energia SCR4P'), findsOneWidget);
+    },
+  );
+
+  testWidgets('bloqueios da personalização usam o nível real da Trilha', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Future<void> expectAvatarLocks(
+      AuthenticatedProfileProgress progress,
+      int expectedLocks,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: ProfileScreen.authenticated(
+            profile: authenticatedProfileWithProgress(progress),
+            customizationStore: _CustomizationStore(),
+            onLogout: () async => null,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Personalizar perfil'));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.lock_rounded), findsNWidgets(expectedLocks));
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+    }
+
+    await expectAvatarLocks(
+      const AuthenticatedProfileProgress(
+        studentId: 'student-zero',
+        validDepositCount: 0,
+        levelNumber: 0,
+        levelCode: 'NONE',
+        remainingToNextLevel: 1,
+        progressToNextLevel: 0,
+      ),
+      6,
+    );
+    await expectAvatarLocks(_level3Progress, 2);
+    await expectAvatarLocks(
+      const AuthenticatedProfileProgress(
+        studentId: 'student-five',
+        validDepositCount: 50,
+        levelNumber: 5,
+        levelCode: 'HERO',
+        remainingToNextLevel: 0,
+        progressToNextLevel: 1,
+      ),
+      0,
+    );
+  });
+
+  testWidgets('preferência acima do nível atual é preservada sem desbloqueio', (
+    WidgetTester tester,
+  ) async {
+    reduceMotion(tester);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = _CustomizationStore(
+      const ProfileCustomization(avatarId: 'b1n-hero', themeId: 'hero-navy'),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: ProfileScreen.authenticated(
+          profile: _authenticatedProfile,
+          customizationStore: store,
+          onLogout: () async => null,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Personalizar perfil'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('B1N restaurador · Herói da cidade'), findsOneWidget);
+    expect(find.byIcon(Icons.lock_rounded), findsNWidgets(2));
+    await tester.tap(find.text('Salvar personalização'));
+    await tester.pumpAndSettle();
+
+    expect(store.saveCalls, 0);
+    expect(
+      store.customization,
+      const ProfileCustomization(avatarId: 'b1n-hero', themeId: 'hero-navy'),
+    );
   });
 
   testWidgets('logout autenticado mantém erro no Shell sem ativar piloto', (

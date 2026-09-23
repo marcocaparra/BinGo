@@ -19,6 +19,14 @@ const _profile = AuthenticatedStudentProfile(
   pointsStudentBalance: 900,
   pointsClassBalance: 1800,
   status: 'active',
+  progress: AuthenticatedProfileProgress(
+    studentId: 'student-id',
+    validDepositCount: 0,
+    levelNumber: 0,
+    levelCode: 'NONE',
+    remainingToNextLevel: 1,
+    progressToNextLevel: 0,
+  ),
 );
 
 class _StaticProfileRepository implements AuthenticatedProfileRepository {

@@ -395,7 +395,7 @@ Continuam fora deste slice:
 - histórico visual de Missões encerradas;
 - bônus por ultrapassar a meta;
 - ranking;
-- campanha/BinGópolis;
+- cálculo ou leitura da Jornada/BinGópolis dentro do motor de Missões;
 - ENVIRONMENTAL_IMPACT;
 - boosts;
 - CRUD de BINGO_ADMIN;
@@ -403,3 +403,9 @@ Continuam fora deste slice:
 - política de monitoramento/alerta operacional;
 - aplicação no bingo-dev;
 - produção.
+
+## Integração separada com a Jornada
+
+A Jornada da Turma, definida em `class-journey-v1.md`, observa novas linhas de `mission_completions` por trigger server-side idempotente. Ela não altera `process_mission_event_v1`, recompensas, saldos, auditoria econômica ou retry de Missões.
+
+Para uma completion `STUDENT`, o destino econômico de XP continua sendo a turma atual do aluno na materialização. A contribuição da Jornada usa outra semântica: reconstrói deterministicamente o depósito válido na posição `mission_cycles.target`, ordenado por `deposits.created_at, deposits.id`, exige igualdade entre o `created_at` reconstruído e `achieved_at` e fotografa a `class_id` daquele depósito. Para `CLASS`, a Jornada usa a `class_id` persistida na completion. Essa diferença é intencional e testada.
