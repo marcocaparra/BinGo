@@ -58,11 +58,18 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/splash_logo.png
+    - assets/images/b1n_splash_flight.png
+    - assets/images/b1n_splash_descent.png
+    - assets/images/b1n_splash_hero.png
   fonts:
     - family: Sora
       fonts:
         - asset: assets/fonts/Sora[wght].ttf
     - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter[opsz,wght].ttf
+    - family: Roboto
       fonts:
         - asset: assets/fonts/Inter[opsz,wght].ttf
 

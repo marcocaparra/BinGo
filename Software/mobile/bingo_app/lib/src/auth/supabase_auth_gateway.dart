@@ -3,8 +3,18 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
+import '../data/deposit_history_repository.dart';
+import '../data/binbazar_repository.dart';
+import '../data/class_journey_repository.dart';
+import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
+import '../data/ranking_repository.dart';
+import '../data/supabase_deposit_history_repository.dart';
+import '../data/supabase_binbazar_repository.dart';
+import '../data/supabase_class_journey_repository.dart';
+import '../data/supabase_missions_repository.dart';
 import '../data/supabase_profile_repository.dart';
+import '../data/supabase_ranking_repository.dart';
 import 'auth_gateway.dart';
 
 class SupabaseAuthGatewayFactory implements AuthGatewayFactory {
@@ -39,8 +49,23 @@ class SupabaseAuthGatewayFactory implements AuthGatewayFactory {
 
 class SupabaseAuthGateway implements AuthGateway {
   SupabaseAuthGateway(this._client)
-    : _profileRepository = RemoteProfileRepository(
+    : _binBazarRepository = RemoteBinBazarRepository(
+        SupabaseBinBazarDataSource(_client),
+      ),
+      _depositHistoryRepository = RemoteDepositHistoryRepository(
+        SupabaseDepositHistoryDataSource(_client),
+      ),
+      _profileRepository = RemoteProfileRepository(
         SupabaseProfileDataSource(_client),
+      ),
+      _rankingRepository = RemoteRankingRepository(
+        SupabaseRankingDataSource(_client),
+      ),
+      _missionsRepository = RemoteMissionsRepository(
+        SupabaseMissionsDataSource(_client),
+      ),
+      _journeyRepository = RemoteClassJourneyRepository(
+        SupabaseClassJourneyDataSource(_client),
       ) {
     _authSubscription = _client.auth.onAuthStateChange.listen(
       _handleAuthState,
@@ -51,13 +76,35 @@ class SupabaseAuthGateway implements AuthGateway {
   }
 
   final SupabaseClient _client;
-  final ProfileRepository _profileRepository;
+  final AuthenticatedBinBazarRepository _binBazarRepository;
+  final AuthenticatedDepositHistoryRepository _depositHistoryRepository;
+  final AuthenticatedMissionsRepository _missionsRepository;
+  final AuthenticatedClassJourneyRepository _journeyRepository;
+  final AuthenticatedProfileRepository _profileRepository;
+  final AuthenticatedRankingRepository _rankingRepository;
   final StreamController<AuthSessionEvent> _sessionEvents =
       StreamController<AuthSessionEvent>.broadcast();
   late final StreamSubscription<AuthState> _authSubscription;
 
   @override
-  ProfileRepository get profileRepository => _profileRepository;
+  AuthenticatedBinBazarRepository get binBazarRepository => _binBazarRepository;
+
+  @override
+  AuthenticatedDepositHistoryRepository get depositHistoryRepository =>
+      _depositHistoryRepository;
+
+  @override
+  AuthenticatedMissionsRepository get missionsRepository => _missionsRepository;
+
+  @override
+  AuthenticatedClassJourneyRepository get journeyRepository =>
+      _journeyRepository;
+
+  @override
+  AuthenticatedProfileRepository get profileRepository => _profileRepository;
+
+  @override
+  AuthenticatedRankingRepository get rankingRepository => _rankingRepository;
 
   @override
   Stream<AuthSessionEvent> get sessionEvents => _sessionEvents.stream;

@@ -1,0 +1,52 @@
+CREATE TABLE classification_category_aliases (
+    id UUID PRIMARY KEY,
+    category_id UUID NOT NULL REFERENCES classification_categories(id) ON DELETE CASCADE,
+    alias VARCHAR(180) NOT NULL,
+    normalized_alias VARCHAR(180) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_classification_alias_category_normalized UNIQUE (category_id, normalized_alias)
+);
+
+CREATE INDEX idx_classification_aliases_category_id
+    ON classification_category_aliases(category_id);
+CREATE INDEX idx_classification_aliases_normalized
+    ON classification_category_aliases(normalized_alias);
+
+INSERT INTO classification_category_aliases (id, category_id, alias, normalized_alias) VALUES
+    ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'Batteries', 'batteries'),
+    ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001', 'Lithium battery', 'lithium battery'),
+    ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'Bateria', 'bateria'),
+    ('10000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000001', 'Pilha', 'pilha'),
+    ('10000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000002', 'Computer mouse', 'computer mouse'),
+    ('10000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000002', 'Pointing device', 'pointing device'),
+    ('10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000003', 'Computer keyboard', 'computer keyboard'),
+    ('10000000-0000-0000-0000-000000000008', '00000000-0000-0000-0000-000000000003', 'Teclado', 'teclado'),
+    ('10000000-0000-0000-0000-000000000009', '00000000-0000-0000-0000-000000000004', 'Wire', 'wire'),
+    ('10000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000004', 'Electrical wiring', 'electrical wiring'),
+    ('10000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000004', 'USB cable', 'usb cable'),
+    ('10000000-0000-0000-0000-000000000012', '00000000-0000-0000-0000-000000000004', 'Cabo', 'cabo'),
+    ('10000000-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000005', 'Battery charger', 'battery charger'),
+    ('10000000-0000-0000-0000-000000000014', '00000000-0000-0000-0000-000000000005', 'Power adapter', 'power adapter'),
+    ('10000000-0000-0000-0000-000000000015', '00000000-0000-0000-0000-000000000005', 'AC adapter', 'ac adapter'),
+    ('10000000-0000-0000-0000-000000000016', '00000000-0000-0000-0000-000000000005', 'Carregador', 'carregador'),
+    ('10000000-0000-0000-0000-000000000017', '00000000-0000-0000-0000-000000000006', 'PCB', 'pcb'),
+    ('10000000-0000-0000-0000-000000000018', '00000000-0000-0000-0000-000000000006', 'Circuit board', 'circuit board'),
+    ('10000000-0000-0000-0000-000000000019', '00000000-0000-0000-0000-000000000006', 'Motherboard', 'motherboard'),
+    ('10000000-0000-0000-0000-000000000020', '00000000-0000-0000-0000-000000000006', 'Placa de circuito', 'placa de circuito'),
+    ('10000000-0000-0000-0000-000000000021', '00000000-0000-0000-0000-000000000007', 'Mobile phone', 'mobile phone'),
+    ('10000000-0000-0000-0000-000000000022', '00000000-0000-0000-0000-000000000007', 'Cell phone', 'cell phone'),
+    ('10000000-0000-0000-0000-000000000023', '00000000-0000-0000-0000-000000000007', 'Smartphone', 'smartphone'),
+    ('10000000-0000-0000-0000-000000000024', '00000000-0000-0000-0000-000000000007', 'Celular', 'celular'),
+    ('10000000-0000-0000-0000-000000000025', '00000000-0000-0000-0000-000000000008', 'Headset', 'headset'),
+    ('10000000-0000-0000-0000-000000000026', '00000000-0000-0000-0000-000000000008', 'Earphones', 'earphones'),
+    ('10000000-0000-0000-0000-000000000027', '00000000-0000-0000-0000-000000000008', 'Earbuds', 'earbuds'),
+    ('10000000-0000-0000-0000-000000000028', '00000000-0000-0000-0000-000000000008', 'Fone de ouvido', 'fone de ouvido'),
+    ('10000000-0000-0000-0000-000000000029', '00000000-0000-0000-0000-000000000009', 'Remote', 'remote'),
+    ('10000000-0000-0000-0000-000000000030', '00000000-0000-0000-0000-000000000009', 'Controle remoto', 'controle remoto');
+
+ALTER TABLE provider_runs
+    ADD COLUMN classification_status VARCHAR(40),
+    ADD COLUMN classification_score NUMERIC(7, 3),
+    ADD COLUMN classification_margin NUMERIC(7, 3),
+    ADD COLUMN classification_engine_version VARCHAR(80),
+    ADD COLUMN classification_evidence JSONB NOT NULL DEFAULT '[]'::jsonb;

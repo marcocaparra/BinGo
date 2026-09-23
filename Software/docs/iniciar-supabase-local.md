@@ -138,9 +138,9 @@ O esperado e:
 {"status":"ok"}
 ```
 
-## Preparação para Edge Functions
+## Edge Functions
 
-**Estado comprovado em 2026-08-10:** o runtime de Edge Functions está habilitado em `supabase/config.toml`, mas a pasta `supabase/functions/` não existe e nenhuma Edge Function está versionada nesta branch. Os comandos abaixo preparam o ambiente; eles não comprovam uma Function entregue.
+**Estado comprovado localmente em 2026-08-15:** `register-deposit-v1` e `health-v1` estão versionadas em `supabase/functions/`, e ambas reutilizam a autenticação técnica compartilhada.
 
 Depois de iniciar a stack local:
 
@@ -149,11 +149,13 @@ supabase start
 supabase functions serve
 ```
 
-Quando uma Function vier a existir, será possível servir somente ela sem registrar antecipadamente um nome final neste documento:
+Também é possível servir uma Function isoladamente:
 
 ```powershell
-supabase functions serve <function-name>
+supabase functions serve health-v1
 ```
+
+O readiness central fica em `GET http://127.0.0.1:54321/functions/v1/health-v1` e exige `X-Machine-Id` e `X-Api-Key`. Somente HTTP `200` com `AVAILABLE` e `can_start_deposit=true` representa saúde comprovada. O `/health` do FastAPI mostrado na seção anterior pertence ao backend legado e não substitui esse contrato Supabase.
 
 Para secrets locais de desenvolvimento:
 

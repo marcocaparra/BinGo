@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: 'postgres:16-alpine'
+    container_name: vision-api-tester-postgres
+    environment:
+      - 'POSTGRES_DB=vision_api_tester'
+      - 'POSTGRES_PASSWORD=vision_api_tester'
+      - 'POSTGRES_USER=vision_api_tester'
+    ports:
+      - '5433:5432'
+    volumes:
+      - vision-api-tester-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  vision-api-tester-postgres-data:

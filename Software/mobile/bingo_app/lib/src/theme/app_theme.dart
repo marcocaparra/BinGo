@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   static const navy = Color(0xFF0A1E3F);
   static const blue = Color(0xFF00AEEF);
+  static const deepCyan = Color(0xFF007B91);
   static const green = Color(0xFF39D353);
   static const surface = Color(0xFFF4F8FC);
   static const line = Color(0xFFD8E7F5);

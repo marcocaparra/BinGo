@@ -22,7 +22,20 @@ class PinKeypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'];
+    const labels = [
+      '1',
+      '2',
+      '3',
+      '4',
+      '5',
+      '6',
+      '7',
+      '8',
+      '9',
+      '',
+      '0',
+      'back',
+    ];
 
     return Column(
       children: [
@@ -72,7 +85,11 @@ class PinKeypad extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: isBack
-                    ? () => onChanged(value.isEmpty ? value : value.substring(0, value.length - 1))
+                    ? () => onChanged(
+                        value.isEmpty
+                            ? value
+                            : value.substring(0, value.length - 1),
+                      )
                     : () => _append(label),
                 child: Container(
                   alignment: Alignment.center,
@@ -81,8 +98,14 @@ class PinKeypad extends StatelessWidget {
                     border: Border.all(color: AppColors.line),
                   ),
                   child: isBack
-                      ? const Icon(Icons.backspace_outlined, color: AppColors.navy)
-                      : Text(label, style: Theme.of(context).textTheme.titleLarge),
+                      ? const Icon(
+                          Icons.backspace_outlined,
+                          color: AppColors.navy,
+                        )
+                      : Text(
+                          label,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                 ),
               ),
             );

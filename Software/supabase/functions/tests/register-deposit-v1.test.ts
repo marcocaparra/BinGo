@@ -2,6 +2,8 @@ import { deepStrictEqual, equal, match } from "node:assert/strict";
 
 import {
   createRegisterDepositHandler,
+  type ProcessMissionEvent,
+  type RecordMissionProcessingFailure,
   type RegisterDeposit,
   type RegisterDepositRpcRow,
 } from "../register-deposit-v1/handler.ts";
@@ -21,9 +23,9 @@ const CREATED_ROW: RegisterDepositRpcRow = {
   waste_category_code: "BATTERY",
   category_source: "AI_CONFIRMED",
   bonus_rate_applied: "1.0000",
-  bonus_bincoins_awarded: 8,
-  points_awarded_student: 16,
-  points_awarded_class: 19,
+  bonus_bincoins_awarded: 800,
+  points_awarded_student: 1600,
+  points_awarded_class: 1900,
   created_at: "2026-08-13T00:00:00.000Z",
   was_replayed: false,
 };
@@ -80,7 +82,14 @@ function request(
   });
 }
 
-function handler(registerDeposit: RegisterDeposit, onLookup?: () => void) {
+function handler(
+  registerDeposit: RegisterDeposit,
+  onLookup?: () => void,
+  missionDependencies: {
+    processMissionEvent?: ProcessMissionEvent;
+    recordMissionProcessingFailure?: RecordMissionProcessingFailure;
+  } = {},
+) {
   return createRegisterDepositHandler({
     machineAuth: {
       lookupMachine: () => {
@@ -89,6 +98,11 @@ function handler(registerDeposit: RegisterDeposit, onLookup?: () => void) {
       },
     },
     registerDeposit,
+    processMissionEvent: missionDependencies.processMissionEvent ??
+      (() => Promise.resolve({ error: null })),
+    recordMissionProcessingFailure:
+      missionDependencies.recordMissionProcessingFailure ??
+        (() => Promise.resolve({ error: null })),
   });
 }
 
@@ -136,11 +150,99 @@ Deno.test("returns persisted RPC snapshot for an identified valid deposit", asyn
     waste_category_code: "BATTERY",
     category_source: "AI_CONFIRMED",
     bonus_rate_applied: "1.0000",
-    bonus_bincoins_awarded: 8,
-    points_awarded_student: 16,
-    points_awarded_class: 19,
+    bonus_bincoins_awarded: 800,
+    points_awarded_student: 1600,
+    points_awarded_class: 1900,
     created_at: CREATED_ROW.created_at,
   });
+});
+
+Deno.test("attempts mission processing only after deposit confirmation", async () => {
+  const calls: string[] = [];
+  const response = await handler(
+    () => {
+      calls.push("deposit");
+      return Promise.resolve({ row: CREATED_ROW, error: null });
+    },
+    undefined,
+    {
+      processMissionEvent: (eventId) => {
+        calls.push(`mission:${eventId}`);
+        return Promise.resolve({ error: null });
+      },
+      recordMissionProcessingFailure: () => {
+        calls.push("failure");
+        return Promise.resolve({ error: null });
+      },
+    },
+  )(request());
+
+  equal(response.status, 201);
+  deepStrictEqual(calls, ["deposit", `mission:${EVENT_ID}`]);
+});
+
+Deno.test("does not attempt missions when deposit registration fails", async () => {
+  let processingCount = 0;
+  const response = await handler(
+    () =>
+      Promise.resolve({
+        row: null,
+        error: { code: "23505", message: "raw conflict" },
+      }),
+    undefined,
+    {
+      processMissionEvent: () => {
+        processingCount += 1;
+        return Promise.resolve({ error: null });
+      },
+    },
+  )(request());
+
+  equal(response.status, 409);
+  equal(processingCount, 0);
+});
+
+Deno.test("mission failure preserves deposit success and records only sanitized operational state", async () => {
+  const recorded: string[] = [];
+  const response = await handler(
+    successfulRegister(),
+    undefined,
+    {
+      processMissionEvent: () =>
+        Promise.reject(
+          new Error("secret SQL service_role internal stack trace"),
+        ),
+      recordMissionProcessingFailure: (eventId) => {
+        recorded.push(eventId);
+        return Promise.resolve({ error: null });
+      },
+    },
+  )(request());
+  const serialized = JSON.stringify(await json(response));
+
+  equal(response.status, 201);
+  deepStrictEqual(recorded, [EVENT_ID]);
+  match(serialized, /^((?!secret|SQL|service_role|stack trace).)*$/);
+});
+
+Deno.test("failure to record retry metadata never invalidates confirmed deposit", async () => {
+  let recordCount = 0;
+  const response = await handler(
+    successfulRegister(),
+    undefined,
+    {
+      processMissionEvent: () =>
+        Promise.resolve({ error: { code: "XX000", message: "raw failure" } }),
+      recordMissionProcessingFailure: () => {
+        recordCount += 1;
+        return Promise.reject(new Error("operational write failed"));
+      },
+    },
+  )(request());
+
+  equal(response.status, 201);
+  equal(recordCount, 1);
+  equal((await json(response) as { event_id: string }).event_id, EVENT_ID);
 });
 
 Deno.test("accepts anonymous valid and invalid deposits with documented combinations", async () => {
@@ -153,7 +255,7 @@ Deno.test("accepts anonymous valid and invalid deposits with documented combinat
         waste_category_code: body.waste_category_code,
         category_source: body.category_source,
         points_awarded_student: 0,
-        points_awarded_class: body.is_valid ? 19 : 0,
+        points_awarded_class: body.is_valid ? 1900 : 0,
       },
       error: null,
     });
@@ -340,13 +442,24 @@ Deno.test("maps only the SQLSTATEs proven by the RPC tests", async () => {
 });
 
 Deno.test("uses 200 for an identical replay and omits internal replay metadata", async () => {
-  const response = await handler(successfulRegister({
-    ...CREATED_ROW,
-    was_replayed: true,
-  }))(request());
+  let processingCount = 0;
+  const response = await handler(
+    successfulRegister({
+      ...CREATED_ROW,
+      was_replayed: true,
+    }),
+    undefined,
+    {
+      processMissionEvent: () => {
+        processingCount += 1;
+        return Promise.resolve({ error: null });
+      },
+    },
+  )(request());
   const body = await json(response) as Record<string, unknown>;
 
   equal(response.status, 200);
+  equal(processingCount, 1);
   equal("was_replayed" in body, false);
 });
 

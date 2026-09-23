@@ -25,9 +25,9 @@ class SchoolSetting(Base):
     __tablename__ = "school_settings"
 
     school_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("schools.id", ondelete="RESTRICT"), primary_key=True)
-    deposit_bincoins_base: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
-    deposit_class_xp_base: Mapped[int] = mapped_column(Integer, nullable=False, default=19)
-    class_weekly_xp_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    deposit_bincoins_base: Mapped[int] = mapped_column(Integer, nullable=False, default=800)
+    deposit_class_xp_base: Mapped[int] = mapped_column(Integer, nullable=False, default=1900)
+    class_weekly_xp_goal: Mapped[int] = mapped_column(Integer, nullable=False, default=10000)
     redemption_expiration_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=72)
     redemption_daily_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     redemption_max_pending: Mapped[int] = mapped_column(Integer, nullable=False, default=3)

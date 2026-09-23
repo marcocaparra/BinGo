@@ -4,7 +4,7 @@ Protótipo Flutter criado a partir do wireframe `V7.1 B1N GUIDE`, já com os aju
 
 ## Onde Está
 
-`Software/mobile/bingo_app`
+`Software/Frontend, UI e UX/App Flutter/bingo_app`
 
 ## Decisões De UX/UI
 
@@ -51,14 +51,5 @@ flutter test
 flutter build web
 flutter run
 ```
-
-## Modos de acesso e Supabase
-
-- `flutter run`: permite usar o modo piloto sem qualquer configuração Supabase; os dados permanecem locais e simulados.
-- `flutter run --dart-define=SUPABASE_URL=<url> --dart-define=SUPABASE_PUBLISHABLE_KEY=<public-key>`: habilita o login real por e-mail/senha e o perfil remoto.
-
-Não versione valores reais e nunca use `service_role` no aplicativo. Configuração ausente bloqueia somente o login real, com erro explícito; não afeta o piloto.
-
-O guia completo de migrations, fixture, vínculo `auth_user_id` e testes está em `../../docs/mobile-supabase-auth-profile.md`.
 
 Se o Flutter reclamar de pastas `ephemeral` dentro do OneDrive, apague as pastas temporárias de plataforma e rode o comando novamente. Isso é cache gerado pelo Flutter, não código do app.

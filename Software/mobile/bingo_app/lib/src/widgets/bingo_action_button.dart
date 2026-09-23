@@ -33,12 +33,13 @@ class _BingoActionButtonState extends State<BingoActionButton>
     vsync: this,
     duration: const Duration(milliseconds: 1900),
   );
-  late final Animation<Offset> _energyPosition = Tween<Offset>(
-    begin: const Offset(-1.35, 0),
-    end: const Offset(1.35, 0),
-  ).animate(
-    CurvedAnimation(parent: _energyController, curve: Curves.easeInOutSine),
-  );
+  late final Animation<Offset> _energyPosition =
+      Tween<Offset>(
+        begin: const Offset(-1.35, 0),
+        end: const Offset(1.35, 0),
+      ).animate(
+        CurvedAnimation(parent: _energyController, curve: Curves.easeInOutSine),
+      );
 
   @override
   void didChangeDependencies() {
@@ -53,8 +54,10 @@ class _BingoActionButtonState extends State<BingoActionButton>
   }
 
   void _syncEnergyAnimation() {
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final shouldAnimate = !reduceMotion &&
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final shouldAnimate =
+        !reduceMotion &&
         widget.onPressed != null &&
         widget.style == BingoActionStyle.primary;
     if (shouldAnimate && !_energyController.isAnimating) {
@@ -84,10 +87,18 @@ class _BingoActionButtonState extends State<BingoActionButton>
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
-    final reduceMotion = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     final isPrimary = widget.style == BingoActionStyle.primary;
     final isQuiet = widget.style == BingoActionStyle.quiet;
-    final foreground = isPrimary ? Colors.white : _toneColor;
+    final foreground = isPrimary
+        ? switch (widget.tone) {
+            BingoActionTone.green => Colors.white,
+            BingoActionTone.purple => Colors.white,
+            _ => AppColors.navy,
+          }
+        : _toneColor;
     final background = isPrimary
         ? _toneColor
         : isQuiet
@@ -99,7 +110,6 @@ class _BingoActionButtonState extends State<BingoActionButton>
       enabled: enabled,
       child: SizedBox(
         width: double.infinity,
-        height: isQuiet ? 44 : 56,
         child: AnimatedScale(
           duration: Duration(milliseconds: reduceMotion ? 0 : AppMotion.fast),
           curve: Curves.easeOutCubic,
@@ -130,11 +140,17 @@ class _BingoActionButtonState extends State<BingoActionButton>
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: widget.onPressed,
-                onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-                onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-                onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+                onTapDown: enabled
+                    ? (_) => setState(() => _pressed = true)
+                    : null,
+                onTapUp: enabled
+                    ? (_) => setState(() => _pressed = false)
+                    : null,
+                onTapCancel: enabled
+                    ? () => setState(() => _pressed = false)
+                    : null,
                 child: Stack(
-                  fit: StackFit.expand,
+                  alignment: Alignment.center,
                   children: [
                     if (isPrimary && enabled)
                       Positioned.fill(
@@ -148,21 +164,31 @@ class _BingoActionButtonState extends State<BingoActionButton>
                                 ),
                         ),
                       ),
-                    Center(
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: largeText ? 8 : 16,
+                        vertical: isQuiet ? 8 : 10,
+                      ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.max,
                         children: [
-                          if (widget.icon != null) ...[
+                          if (widget.icon != null && !largeText) ...[
                             Icon(widget.icon, color: foreground, size: 20),
                             const SizedBox(width: 9),
                           ],
                           Flexible(
                             child: Text(
                               widget.label,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                color: enabled ? foreground : AppColors.textMuted,
-                              ),
+                              maxLines: largeText ? 1 : 2,
+                              softWrap: !largeText,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(
+                                    color: enabled
+                                        ? foreground
+                                        : AppColors.textMuted,
+                                  ),
                             ),
                           ),
                         ],

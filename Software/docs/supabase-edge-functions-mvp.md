@@ -1,8 +1,8 @@
 # Supabase Edge Functions MVP — descarte e pontuação
 
-Revisão: `2026-08-13`
+Revisão: `2026-09-15`
 
-Status: schema, contrato, RPC PostgreSQL, autenticação técnica e Edge Function HTTP implementados e comprovados localmente. Não há comprovação de deploy no Supabase hospedado.
+Status: schema, contrato, RPCs PostgreSQL, autenticação técnica e as Edge Functions HTTP de descarte e readiness implementados e comprovados localmente. A redenominação oficial por fator `100` está versionada e validada localmente e foi aplicada e aprovada no postflight do `bingo-dev`. Não houve novo deploy de Edge Function por causa da redenominação, e não há comprovação equivalente de produção.
 
 ## Arquitetura
 
@@ -33,6 +33,16 @@ O módulo não lê o body e não deriva autoridade de `machine_id` ou `school_id
 
 No Orange Pi, a API key pertence ao serviço local, nunca ao frontend kiosk. O serviço carrega o segredo por configuração protegida e acrescenta os headers técnicos ao fazer a chamada remota. No MVP, a revogação ocorre substituindo ou removendo `machines.api_key_hash`; não há múltiplas chaves, expiração ou rotação automática.
 
+## Health/readiness central
+
+A Function física `health-v1`, disponível localmente em `GET http://127.0.0.1:54321/functions/v1/health-v1`, materializa hoje o contrato conceitual `GET /health`. O método é validado antes da autenticação; outros métodos recebem `405`. A chamada exige os mesmos headers `X-Machine-Id` e `X-Api-Key`, sem duplicar ou alterar o módulo compartilhado. Credencial inválida continua sendo uma falha de autenticação `401`, não um estado de saúde.
+
+Depois da autenticação, a Function chama uma única vez `check_backend_readiness_v1()`. A RPC é `STABLE`, `SECURITY INVOKER`, usa `search_path` vazio e não lê nem grava dados de domínio. Ela comprova que o PostgreSQL está fora de recovery e que `default_transaction_read_only` permite escrita. O sinal default é usado porque o PostgREST executa funções `STABLE` numa transação somente leitura por segurança; testar a transação do próprio check produziria um falso negativo permanente. Sua execução foi revogada de `PUBLIC`, `anon` e `authenticated` e concedida somente a `service_role`.
+
+Uma resposta saudável é exclusivamente HTTP `200` com `status = AVAILABLE`, `can_start_deposit = true` e `scope = CENTRAL_BACKEND`. Quando o handler conclui a RPC e recebe um resultado negativo comprovado, responde `503` com `UNAVAILABLE` e `can_start_deposit = false`. Uma indisponibilidade de Data API ou PostgreSQL pode impedir a própria autenticação ou a chamada da RPC; por isso timeout, ausência de resposta, `500` ou qualquer outra falha de infraestrutura também exigem bloqueio fail-closed pelo consumidor, mas não são prometidos como `503`.
+
+O health não verifica catálogo, turma, IA, existência ou grants de `register_deposit_v1` nem outras regras estáticas ou de domínio. Essas garantias pertencem às migrations, aos testes e à operação de negócio. A Function não implementa CORS, polling, contadores, estado `ONLINE/OFFLINE`, `/local/status` ou SLO oficial. A integração deste contrato ao futuro serviço local do Orange Pi permanece uma entrega separada.
+
 ## Entrada da Function
 
 O nome físico é `register-deposit-v1` e a URL local é `POST http://127.0.0.1:54321/functions/v1/register-deposit-v1`. Esse caminho implementa hoje o contrato conceitual `POST /v1/deposits`; nenhum alias de gateway foi criado. Métodos diferentes de `POST` recebem `405` antes da autenticação. A Function não implementa CORS nesta etapa e não introduz credencial técnica no Totem Web.
@@ -60,7 +70,9 @@ A chamada usa um cliente server-side com `service_role`. A chave deve permanecer
 
 ## Pontuação
 
-`school_settings` fornece 8 BinCoins de base, 19 XP e meta semanal de 100 XP por padrão. O bônus individual é arredondado ao inteiro mais próximo e somado à base. O XP não recebe multiplicador.
+O runtime versionado usa, após a migration incremental de redenominação, `800` BinCoins de base, `1900` XP e meta semanal de `10000` XP em `school_settings`. Esses valores correspondem à unidade anterior `8/19/100` multiplicada por `100`, mantendo equivalência econômica. `register_deposit_v1` não contém esses valores hardcoded: continua lendo as configurações persistidas e, por isso, produz a unidade configurada. A implementação foi comprovada localmente e no `bingo-dev`, onde os defaults hospedados `800/1900/10000` foram validados; isso não declara o estado de produção.
+
+O bônus individual continua sendo `round(base × bonus_rate)` e somado à base. `bonus_rate` não é multiplicado por `100`, e o XP não recebe multiplicador. A migration normaliza configurações, saldos, snapshots e custos de resgate existentes de modo atômico; valores futuros de missões deverão nascer na mesma unidade sem misturar escalas.
 
 O catálogo de produção nasce com taxas zero. A matriz `BATTERY 100%`, `MOBILE_DEVICE 50%` e `CABLE_WIRE 25%` existe somente nas seeds de desenvolvimento. A Edge Function nunca contém essa matriz em código.
 
@@ -74,6 +86,12 @@ A Edge mapeia qualquer falha de autenticação técnica para `401` com `MACHINE_
 
 Uma criação responde `201`; um retry idêntico responde `200` com a mesma fotografia. O marcador interno `was_replayed` não é exposto ao cliente.
 
+## Caminho autenticado de leitura
+
+O baseline de autorização preserva os dois caminhos arquiteturais. Operações críticas continuam em cliente técnico → Edge Function → `service_role` → RPC. Leituras simples já suportadas usam usuário → Supabase Auth → RLS → PostgreSQL, sem transportar `service_role` ao cliente e sem transformar cada leitura em uma Edge Function.
+
+RLS está habilitado em todas as tabelas de domínio. Nesta primeira etapa, somente três policies privadas foram abertas: perfil próprio em `students`, turma própria em `classes` e escola própria em `schools`. `waste_categories` mantém leitura pública integral por uma quarta policy explícita para `anon` e `authenticated`. Não há escrita direta de saldos, XP, descartes, auditoria ou configurações. A regressão com usuários Auth locais comprova isolamento entre escolas, identidade sem vínculo, bloqueio de `anon` e preservação do caminho técnico da máquina e do descarte.
+
 ## Validação antes do deploy
 
-O replay completo local executa `supabase db reset`, `supabase test db`, formatação, lint, tipos, testes Deno e a integração HTTP. A inspeção de efeitos usa conexão administrativa exclusiva do banco local de teste, sem ampliar os privilégios de produção da `service_role`. A prova cobre criação, replay, conflito e duas requisições concorrentes para o mesmo `event_id`, verificando um único depósito, uma única auditoria e uma única aplicação de saldo. Antes de qualquer deploy, ainda é obrigatório comparar `supabase migration list` com o projeto vinculado.
+O replay completo local executa `supabase db reset`, `supabase test db`, formatação, lint, tipos, testes Deno, integração Auth/RLS com sessões reais e integração HTTP. A inspeção de efeitos usa conexão administrativa exclusiva do banco local de teste, sem ampliar os privilégios de produção da `service_role`. A prova cobre health autenticado sem efeitos no banco, criação, replay, conflito e duas requisições concorrentes para o mesmo `event_id`, verificando um único depósito, uma única auditoria e uma única aplicação de saldo. Antes de qualquer deploy, ainda é obrigatório comparar `supabase migration list` com o projeto vinculado.

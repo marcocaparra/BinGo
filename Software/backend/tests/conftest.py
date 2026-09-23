@@ -69,9 +69,9 @@ def seeded_ids(session_factory):
     session.add(
         SchoolSetting(
             school_id=school_id,
-            deposit_bincoins_base=8,
-            deposit_class_xp_base=19,
-            class_weekly_xp_goal=100,
+            deposit_bincoins_base=800,
+            deposit_class_xp_base=1900,
+            class_weekly_xp_goal=10000,
             redemption_expiration_hours=72,
             redemption_daily_limit=2,
             redemption_max_pending=1,
@@ -95,7 +95,7 @@ def seeded_ids(session_factory):
             class_id=class_id,
             name="Joao Teste",
             status=StudentStatus.ACTIVE,
-            points_student_balance=120,
+            points_student_balance=12000,
             is_activated=False,
         )
     )
@@ -125,7 +125,7 @@ def seeded_ids(session_factory):
             school_id=school_id,
             name="Agua",
             description="Recompensa",
-            cost_points=30,
+            cost_points=3000,
             category="CANTINA",
             is_active=True,
             status=RewardStatus.AVAILABLE,

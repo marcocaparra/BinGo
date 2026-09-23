@@ -1,12 +1,12 @@
 # Modelo de dados — descarte e bônus ambiental V1
 
-Revisão: `2026-08-13`
+Revisão: `2026-09-15`
 
 O modelo V1 separa três conceitos. BinCoins são o saldo individual e gastável do aluno; XP mede o progresso coletivo da turma; e a categoria ambiental descreve o lixo eletrônico confirmado no Totem. Todo descarte válido parte da mesma recompensa-base. A categoria pode acrescentar BinCoins, mas nunca altera o XP.
 
 ## Pontuação
 
-`school_settings.deposit_bincoins_base` guarda a base individual, inicialmente `8`. `school_settings.deposit_class_xp_base` guarda o XP por descarte válido, inicialmente `19`. `school_settings.class_weekly_xp_goal`, inicialmente `100`, é a meta usada por consultas de progresso; o saldo acumulado da turma não é zerado semanalmente.
+Na regra-alvo aprovada, `school_settings.deposit_bincoins_base` guarda `800` BinCoins, `school_settings.deposit_class_xp_base` guarda `1900` XP por descarte válido e `school_settings.class_weekly_xp_goal` guarda `10000` XP. Esses valores correspondem à redenominação por fator `100` das antigas unidades `8`, `19` e `100`; a relação econômica permanece equivalente. A nova escala é unidade oficial de domínio e persistência, não multiplicação visual aplicada pelo frontend. O saldo acumulado da turma continua sem ser zerado semanalmente.
 
 O cálculo server-side é:
 
@@ -15,6 +15,8 @@ bônus = round(deposit_bincoins_base × waste_categories.bonus_rate)
 BinCoins do evento = deposit_bincoins_base + bônus
 XP do evento = deposit_class_xp_base
 ```
+
+O percentual não é redenominado. Exemplo: na unidade antiga, base `8` com `bonus_rate = 0.50` produzia bônus `4` e total `12`; na unidade nova, base `800` com a mesma taxa produz bônus `400` e total `1200`.
 
 Sem aluno identificado, o evento válido concede `0` BinCoins, bônus efetivo `0` e o XP normal à turma. Evento inválido concede `0/0` e não recebe categoria canônica. O tamanho físico e todas as configurações `SMALL`, `MEDIUM` e `LARGE` foram removidos pela migration V1.
 
@@ -32,6 +34,29 @@ A migration cria o catálogo com todas as taxas em zero. Somente as seeds de des
 
 `bonus_rate_applied` e `bonus_bincoins_awarded` são fotografias históricas. `points_awarded_student` guarda o total de BinCoins do evento e `points_awarded_class` guarda o XP. Alterar uma taxa ou a base no futuro não recalcula descartes anteriores.
 
+## Trilha do Restaurador V1
+
+A Trilha do Restaurador V1 é derivada exclusivamente da quantidade histórica de descartes válidos identificados do aluno. Não existe contador ou nível persistido no aluno. Missões, BinCoins e XP da turma não participam do cálculo.
+
+A fonte autoritativa é `deposits.student_id = students.id AND deposits.is_valid = true`. Descartes anônimos, inválidos ou de outro aluno não contam, e uma troca de turma não reinicia o histórico. Os thresholds são:
+
+- nível 0, `NONE`: 0 descartes;
+- nível 1, `APPRENTICE`: 1 a 4;
+- nível 2, `EXPLORER`: 5 a 9;
+- nível 3, `RESTORER`: 10 a 19;
+- nível 4, `GUARDIAN`: 20 a 49;
+- nível 5, `HERO`: 50 ou mais.
+
+`get_student_profile_progress_v1()` é uma RPC `STABLE`, `SECURITY DEFINER` e somente leitura, com `search_path` vazio e execução exclusiva de `authenticated`. Ela não recebe parâmetros: deriva `auth.uid() → students.auth_user_id → students.id`, retorna uma linha para o aluno vinculado e nenhuma linha para identidade sem vínculo. O progresso é calculado contra o próximo threshold e vale `1` no nível 5. As migrations equivalentes são `database/migrations/020_get_student_profile_progress_v1.sql` e `supabase/migrations/20260921120000_get_student_profile_progress_v1.sql`. Elas não alteram `students`, a RLS geral de `deposits` ou `register_deposit_v1`. Em `2026-09-21`, a migration Supabase foi aplicada e validada no `bingo-dev`; `anon` não executa a RPC e não houve aplicação em produção.
+
+## Redenominação e normalização
+
+A regra-alvo `800/1900/10000` está materializada e validada localmente nas migrations incrementais `database/migrations/011_points_unit_redenomination.sql` e `supabase/migrations/20260913120000_points_unit_redenomination.sql`. Em 2026-09-14, a migration Supabase foi aplicada e aprovada no postflight do `bingo-dev`: 11 migrations locais/remotas ficaram alinhadas, os defaults hospedados passaram a `800/1900/10000` e saldos e snapshots foram convertidos por fator `100`. Essa comprovação é exclusiva do ambiente DEV e não declara o estado de produção.
+
+A implementação multiplica por `100` `school_settings.deposit_bincoins_base`, `school_settings.deposit_class_xp_base`, `school_settings.class_weekly_xp_goal`, `students.points_student_balance`, `classes.points_class_balance`, `deposits.points_awarded_student`, `deposits.points_awarded_class`, `deposits.bonus_bincoins_awarded` e `rewards.cost_points`. Novos lançamentos na escala nova não podem coexistir operacionalmente com saldos ou snapshots ainda interpretados na escala antiga. A conversão proporcional dos custos de resgate preserva a equivalência econômica.
+
+A estratégia implementada preserva `audit_logs.metadata` preexistente na unidade histórica e adiciona uma linha SYSTEM agregada por escola afetada, com fator, identificador da migration, contagens e totais antes/depois. No `bingo-dev`, o postflight confirmou que o log histórico permaneceu literalmente intacto, que `bonus_rate` não mudou e que `POINTS_UNIT_REDENOMINATED_V1` foi criado corretamente. Não há comprovação equivalente de produção.
+
 ## Atomicidade e acesso
 
 `register_deposit_v1` é uma função PostgreSQL `security definer` com `search_path` vazio. Ela deriva a escola da máquina, valida as relações, resolve uma categoria ativa, calcula a recompensa, insere o evento, atualiza os saldos e grava a auditoria na mesma transação.
@@ -40,8 +65,18 @@ O primeiro insert usa `event_id` como barreira de concorrência. Retry com os me
 
 A execução da RPC foi revogada de `public`, `anon` e `authenticated` e concedida somente a `service_role`. Para autenticar a máquina, esse papel recebe apenas `SELECT (id, school_id, api_key_hash)` em `machines`; não recebe leitura ampla nem escrita, e os papéis `anon` e `authenticated` continuam sem acesso ao hash. Os papéis públicos também não podem inserir, atualizar ou excluir descartes, saldos, configurações, auditoria ou categorias. A Edge Function `register-deposit-v1` autentica a máquina e chama a RPC com o papel técnico.
 
+`check_backend_readiness_v1()` é a RPC mínima e somente leitura usada por `health-v1`. Ela não consulta tabelas nem regras de domínio; verifica apenas se o PostgreSQL não está em recovery e se `default_transaction_read_only` permite escrita. A função é `STABLE`, `SECURITY INVOKER`, possui `search_path` vazio e pode ser executada somente por `service_role`; `PUBLIC`, `anon` e `authenticated` estão explicitamente revogados.
+
+## Supabase Auth e RLS
+
+O baseline V1 liga a sessão por `auth.uid() → students.auth_user_id → school_id/class_id`. `auth_user_id` continua opcional para permitir alunos ainda não vinculados ao Auth, mas possui unicidade e índice; uma identidade Auth sem aluno associado não obtém contexto de domínio. RLS está habilitado em todas as onze tabelas de domínio: `schools`, `classes`, `students`, `admins`, `machines`, `rewards`, `deposits`, `redemptions`, `audit_logs`, `school_settings` e `waste_categories`.
+
+As três policies privadas mínimas permitem a `authenticated` ler somente seu registro em `students`, sua turma em `classes` e sua escola em `schools`. Todas usam explicitamente `TO authenticated` e comparam a identidade por `(select auth.uid())`; as policies de escola e turma também conferem `school_id` para preservar o isolamento. Os grants expõem somente as colunas necessárias. O grant de `students.auth_user_id` é necessário porque as policies relacionadas consultam essa coluna sob o papel autenticado; o teste com usuários Auth reais comprovou que sua ausência produz `42501`. A própria RLS restringe essa coluna ao vínculo do usuário atual.
+
+O catálogo global `waste_categories` possui policy explícita de leitura para `anon` e `authenticated` com `USING (true)`. A leitura inclui categorias ativas e inativas; nenhuma filtragem por `is_active` foi introduzida. Não existem policies de escrita direta para clientes, e os defaults de `postgres` foram corrigidos para que novas tabelas, sequences e funções não voltem a conceder privilégios implícitos aos papéis expostos.
+
 ## Migration e compatibilidade
 
-Os arquivos de migration `005` materializam a pontuação e a RPC original. A migration `006` acrescenta `category_source` à fotografia retornada preservando o núcleo atômico já versionado, e a migration `007` concede a leitura mínima de `machines` necessária à autenticação. Antes de remover `size`, descartes válidos preexistentes são associados a `UNKNOWN` com bônus zero; depois a coluna e as configurações por tamanho são eliminadas.
+Os arquivos de migration `005` materializam a pontuação e a RPC original. A migration `006` acrescenta `category_source` à fotografia retornada preservando o núcleo atômico já versionado, a migration `007` concede a leitura mínima de `machines` necessária à autenticação, a migration `008` estabelece grants mínimos, defaults seguros e o baseline de RLS/Auth e a migration `009` acrescenta a RPC restrita de readiness. Antes de remover `size`, descartes válidos preexistentes são associados a `UNKNOWN` com bônus zero; depois a coluna e as configurações por tamanho são eliminadas.
 
-O repositório é a fonte adotada nesta etapa. A existência dos arquivos não comprova aplicação no projeto Supabase hospedado. Antes de qualquer deploy, verificar o histórico remoto e exportar valores históricos de `size` caso tenham valor operacional fora deste baseline.
+O repositório continua sendo a fonte versionada. O preflight somente leitura de `2026-09-21` confirmou o `bingo-dev` alinhado às migrations `001–019`, incluindo Missões `012–018` e Ranking `019`. Depois da promoção controlada de `20260921120000_get_student_profile_progress_v1.sql`, o postflight confirmou 20 migrations locais/remotas alinhadas e o smoke autenticado da Trilha foi aprovado. Isso não comprova aplicação em produção. Antes de qualquer aplicação em outro ambiente, ainda é necessário verificar seu próprio histórico remoto e suas precondições, além de exportar valores históricos de `size` caso tenham valor operacional fora deste baseline, sem inferir estado a partir do DEV.

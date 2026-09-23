@@ -14,12 +14,26 @@ recompensa do body e faz uma única chamada a `register_deposit_v1`. Criação
 responde `201` e replay idêntico responde `200`. Não há CORS implementado na
 Function.
 
+`health-v1` atende localmente em
+`GET http://127.0.0.1:54321/functions/v1/health-v1` e representa o contrato
+conceitual `GET /health`. Ela reutiliza a mesma autenticação técnica e chama a
+RPC somente leitura `check_backend_readiness_v1`. Somente a resposta HTTP `200`
+com `status = AVAILABLE` e `can_start_deposit = true` comprova que a parcela
+central está apta a participar do início de um descarte. Um resultado negativo
+comprovado pela RPC retorna `503/UNAVAILABLE`; timeout, ausência de resposta ou
+outro erro de infraestrutura permanecem condições fail-closed para o consumidor
+e não são prometidos como `503`. Não há CORS, polling ou estado local na
+Function.
+
 Execute `deno task fmt:check`, `deno task lint`, `deno task check` e
 `deno task test` com Deno 2. Para integração local, inicie
 `supabase functions serve --no-verify-jwt` e execute
-`deno task test:integration` com `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-`BINGO_EDGE_TEST_MACHINE_ID`, `BINGO_EDGE_TEST_API_KEY`,
-`BINGO_EDGE_TEST_SCHOOL_ID`, `BINGO_EDGE_DEPOSIT_URL` e
-`BINGO_EDGE_TEST_DATABASE_URL`. A URL de banco é usada somente pelo teste para
-inspecionar efeitos persistidos sem ampliar as permissões de produção da
-`service_role`.
+`deno task test:integration` com `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `BINGO_EDGE_TEST_MACHINE_ID`,
+`BINGO_EDGE_TEST_API_KEY`, `BINGO_EDGE_TEST_SCHOOL_ID`,
+`BINGO_EDGE_DEPOSIT_URL`, `BINGO_EDGE_HEALTH_URL` e
+`BINGO_EDGE_TEST_DATABASE_URL`. Ative os cenários com
+`BINGO_EDGE_AUTH_INTEGRATION=1`, `BINGO_EDGE_DEPOSIT_INTEGRATION=1`,
+`BINGO_EDGE_HEALTH_INTEGRATION=1` e `BINGO_AUTH_RLS_INTEGRATION=1`. A URL de
+banco é usada somente pelos testes para preparar fixtures e inspecionar efeitos
+persistidos sem ampliar as permissões de produção da `service_role`.

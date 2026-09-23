@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: vision-api-tester-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/vision_api_tester}
+    username: ${DB_USERNAME:vision_api_tester}
+    password: ${DB_PASSWORD:vision_api_tester}
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  storage:
+    root-path: ${STORAGE_ROOT:../storage/uploads}
+  aws:
+    rekognition:
+      profile: ${AWS_PROFILE:vision-api-tester}
+      region: ${AWS_REGION:us-east-1}
+      min-confidence: ${AWS_REKOGNITION_MIN_CONFIDENCE:55}
+      max-labels: ${AWS_REKOGNITION_MAX_LABELS:20}
+  google:
+    vision:
+      project-id: ${GOOGLE_CLOUD_PROJECT:vision-api-tester-503219}
+      max-results: ${GOOGLE_CLOUD_VISION_MAX_RESULTS:20}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+
+vision:
+  providers:
+    aws:
+      enabled: ${VISION_PROVIDER_AWS_ENABLED:false}

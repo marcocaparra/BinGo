@@ -1,4 +1,9 @@
+import '../data/deposit_history_repository.dart';
+import '../data/binbazar_repository.dart';
+import '../data/class_journey_repository.dart';
+import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
+import '../data/ranking_repository.dart';
 
 enum AuthFailureKind {
   invalidCredentials,
@@ -22,7 +27,17 @@ class AuthFailure implements Exception {
 enum AuthSessionEvent { signedOut, sessionInvalid, networkError }
 
 abstract interface class AuthGateway {
-  ProfileRepository get profileRepository;
+  AuthenticatedBinBazarRepository get binBazarRepository;
+
+  AuthenticatedClassJourneyRepository get journeyRepository;
+
+  AuthenticatedDepositHistoryRepository get depositHistoryRepository;
+
+  AuthenticatedMissionsRepository get missionsRepository;
+
+  AuthenticatedProfileRepository get profileRepository;
+
+  AuthenticatedRankingRepository get rankingRepository;
 
   Stream<AuthSessionEvent> get sessionEvents;
 
