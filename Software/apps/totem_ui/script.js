@@ -95,6 +95,8 @@ const students = [
   "Rafaela S.",
 ];
 
+const firstAccessDemoStudents = new Set(["Ana Clara M."]);
+
 const keyboardRows = [
   ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
   ["a", "s", "d", "f", "g", "h", "j", "k", "l", "ç"],
@@ -224,11 +226,7 @@ const screens = [
             <button class="clear-search" data-key="clear" aria-label="Limpar busca">×</button>
           </div>
           <div class="student-list">
-            ${filteredStudents().map((name) => `
-              <button class="list-button student-button" data-student="${name}" data-next>
-                <span>${name}</span>${arrowIcon("right")}
-              </button>
-            `).join("") || `<div class="empty-state">Não achei esse nome. Tente apagar uma letra.</div>`}
+            ${studentListMarkup()}
           </div>
           ${searchActive || keyboardClosing ? visualKeyboard() : ""}
         </div>
@@ -238,26 +236,7 @@ const screens = [
   {
     id: "pin",
     label: "PIN",
-    render: () => `
-      <section class="screen screen--corner screen--pin screen--with-cancel">
-        ${topbar("PIN", { back: false })}
-        <div class="content-zone content-zone--corner content-zone--pin">
-          ${talk(assets.b1nPrivacyCorner, "Digite seu PIN. Eu fecho os olhos.", "corner privacy-guide character-privacy")}
-          <div class="pin-display">
-            ${[0, 1, 2, 3].map((index) => `<span class="pin-dot ${index < pinDigits ? "filled" : ""}"></span>`).join("")}
-          </div>
-          <div class="pin-pad">
-            ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "Apagar", "0", "OK"].map((key) => `
-              <button class="key ${["Apagar", "OK"].includes(key) ? "key-action" : ""} ${key === "OK" && pinDigits < 4 ? "key-disabled" : ""}" data-pin="${key}" ${key === "OK" && pinDigits < 4 ? "disabled" : ""}>${key}</button>
-            `).join("")}
-          </div>
-          <div class="pin-hint ${pinWarning ? "show" : ""}">Digite 4 números.</div>
-        </div>
-        <div class="action-zone action-zone--cancel">
-          <button class="cancel-action" data-cancel-discard>Cancelar descarte</button>
-        </div>
-      </section>
-    `,
+    render: renderPinScreen,
   },
   {
     id: "safety",
@@ -344,19 +323,19 @@ const screens = [
     id: "camera",
     label: "Câmera",
     render: () => `
-      <section class="screen screen--camera screen--auto" data-auto-next="classification" data-auto-delay="2800">
+      <section class="screen screen--camera ${cameraMode === "simulated" ? "screen--auto" : "screen--real-camera"}" ${cameraMode === "simulated" ? 'data-auto-next="classification" data-auto-delay="2800"' : ""}>
         ${topbar("Câmera", { back: false })}
         <div class="content-zone content-zone--camera">
-          ${talk(assets.b1nAnalyze, "Vou conferir o item por dentro.", "big camera-talk character-analyze")}
-          <div class="camera-preview" aria-label="Preview da câmera interna">
-            <div class="camera-bar"><span>Câmera interna</span><strong>AO VIVO</strong></div>
+          ${talk(assets.b1nAnalyze, cameraMode === "simulated" ? "Vou conferir o item por dentro." : "Ative a câmera para conferir o enquadramento.", "big camera-talk character-analyze")}
+          <div class="camera-preview" aria-label="Preview da câmera">
+            <div class="camera-bar"><span>${cameraMode === "simulated" ? "Câmera simulada" : "Webcam do notebook"}</span><strong data-camera-badge>DESLIGADA</strong></div>
             <div class="camera-frame">
-              <div class="scan-line"></div>
-              <span class="camera-label">Item sendo identificado...</span>
+              ${cameraMode === "simulated" ? '<div class="scan-line"></div><span class="camera-label">Captura simulada</span>' : '<video data-camera-video autoplay muted playsinline hidden aria-label="Preview ao vivo da webcam"></video><canvas data-camera-canvas hidden aria-label="Imagem capturada"></canvas><span class="camera-placeholder" data-camera-placeholder>Câmera desligada</span>'}
             </div>
           </div>
-          <span class="simulation-badge">Câmera simulada</span>
+          ${cameraMode === "simulated" ? '<span class="simulation-badge">Câmera simulada</span>' : `<p class="camera-status" data-camera-status role="status" aria-live="polite">A imagem fica nesta sessão e não é armazenada. Microfone desligado.</p><span class="simulation-badge">Porta simulada fechada · ${visionMode === "remote" ? "AWS Rekognition" : "IA simulada"}</span>`}
         </div>
+        ${cameraMode === "simulated" ? "" : '<div class="action-zone camera-actions"><button class="primary-action" data-camera-action="start">Ativar câmera</button><button class="secondary-action" data-camera-retake hidden>Refazer captura</button><button class="secondary-action" data-return-start>Devolver item</button></div>'}
       </section>
     `,
   },
@@ -369,7 +348,7 @@ const screens = [
         <div class="content-zone content-zone--big content-zone--analysis">
           ${talk(assets.b1nAnalyze, "Estou identificando o eletrônico.", "big character-analyze")}
           <div class="analysis-progress"><span></span></div>
-          <span class="simulation-badge">Classificador simulado</span>
+          <span class="simulation-badge">${visionMode === "remote" ? "AWS Rekognition" : "Classificador simulado"}</span>
         </div>
       </section>
     `,
@@ -381,9 +360,9 @@ const screens = [
       <section class="screen screen--big screen--analysis screen--auto" data-process="secondary">
         ${topbar("Nova análise", { back: false })}
         <div class="content-zone content-zone--big content-zone--analysis">
-          ${talk(assets.b1nAnalyze, "Preciso conferir mais um detalhe.", "big character-analyze")}
+          ${talk(assets.b1nAnalyze, "Vou conferir mais um detalhe antes de continuar.", "big character-analyze")}
           <div class="analysis-progress analysis-progress--secondary"><span></span></div>
-          <span class="simulation-badge">Gemini simulado</span>
+          <span class="simulation-badge">${visionMode === "remote" ? "Gemini fallback" : "Gemini simulado"}</span>
         </div>
       </section>
     `,
@@ -397,6 +376,7 @@ const screens = [
         <div class="content-zone content-zone--item-focus">
           ${talk(assets.b1nCorner, "Encontrei este item. Confira comigo.", "corner")}
           ${itemSummary("Item reconhecido")}
+          <span class="simulation-badge" data-classification-origin>${classificationSourceLabel()}</span>
         </div>
         <div class="action-zone action-zone--stack">
           <button class="primary-action" data-recognition-confirm>Sim, está certo</button>
@@ -515,6 +495,23 @@ const screens = [
     `,
   },
   {
+    id: "vision-error",
+    label: "Análise indisponível",
+    render: () => `
+      <section class="screen screen--corner screen--stack-action screen--critical">
+        ${topbar("Análise indisponível", { back: false })}
+        <div class="content-zone content-zone--corner content-zone--critical">
+          ${talk(assets.b1nIdeaCorner, "Não consegui consultar os serviços de análise agora.", "corner character-idea")}
+          ${statusPanel("Vamos devolver o item", "Nada foi registrado. Retire o eletrônico e tente novamente mais tarde.", classificationSourceLabel())}
+        </div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-adjust-retry>Ajustar item e tentar de novo</button>
+          <button class="secondary-action" data-return-start>Devolver item</button>
+        </div>
+      </section>
+    `,
+  },
+  {
     id: "rejected",
     label: "Item recusado",
     render: () => `
@@ -522,9 +519,12 @@ const screens = [
         ${topbar("Item não aceito", { back: false })}
         <div class="content-zone content-zone--corner content-zone--critical">
           ${talk(assets.b1nDoubtCorner, "Não consegui confirmar este eletrônico.", "corner character-doubt")}
-          ${statusPanel("Vamos devolver o item", "Nenhum descarte será registrado e nenhum resultado será gerado.", "IA simulada")}
+          ${statusPanel("Vamos devolver o item", "Nenhum descarte será registrado e nenhum resultado será gerado.", classificationSourceLabel())}
         </div>
-        <div class="action-zone"><button class="primary-action" data-return-start>Abrir para retirar</button></div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-adjust-retry>Ajustar item e tentar de novo</button>
+          <button class="secondary-action" data-return-start>Devolver item</button>
+        </div>
       </section>
     `,
   },
@@ -620,6 +620,11 @@ let keyboardClosing = false;
 let keyboardCloseTimer = null;
 let pinDigits = 0;
 let pinWarning = false;
+let pinValue = "";
+let pendingPin = "";
+let pinSetupStep = "login";
+let pinErrorMessage = "";
+let pinSetupAttempts = 0;
 let historyStack = [];
 let autoAdvanceTimer = null;
 let recognizedItem = itemOptions.find((item) => item.id === "cable");
@@ -638,6 +643,106 @@ let recognitionOutcome = null;
 let reviewConfirmed = false;
 let mechanismStatus = "idle";
 let registrationStatus = "idle";
+const runtimeParams = new URLSearchParams(window.location.search);
+const cameraMode = runtimeParams.get("camera") === "simulated" ? "simulated" : "real";
+const visionMode = runtimeParams.get("vision") === "remote" ? "remote" : "simulated";
+const visionEndpoint = runtimeParams.get("visionEndpoint") || "http://127.0.0.1:8765/vision/analyze";
+const webcam = new BinGoCamera();
+const visionProvider = BinGoVision.createVisionProvider(visionMode === "remote" ? { remoteUrl: visionEndpoint } : {});
+let cameraUiState = "idle";
+let capturedFrame = null;
+let cameraViewVersion = 0;
+let visionOperation = null;
+
+function cameraDoorConfirmed() {
+  return doorStatus === "closed" && handConfirmed && safetyConfirmed;
+}
+
+function visionFrame() {
+  return capturedFrame
+    ? { blob: capturedFrame.blob, width: capturedFrame.width, height: capturedFrame.height, capturedAt: capturedFrame.capturedAt, simulated: false }
+    : { simulated: cameraMode === "simulated" };
+}
+
+function stopVisionAnalysis() {
+  visionOperation?.abort();
+  visionOperation = null;
+}
+
+function cameraFailureText(error) {
+  const messages = {
+    NotAllowedError: "Permissão negada. Libere a câmera nas configurações do navegador e tente novamente.",
+    NotFoundError: "Não encontrei uma câmera. Confira a webcam do notebook.",
+    NotReadableError: "Não consegui ler a câmera. Feche outros apps que estejam usando a webcam e tente novamente.",
+    NotSupportedError: "Abra o Totem em localhost ou HTTPS, em um navegador com suporte à câmera.",
+    TimeoutError: "A câmera demorou para responder. Confira a permissão e tente novamente.",
+    DoorOpenError: "Captura bloqueada: a porta precisa estar confirmada como fechada.",
+    SecurityError: "O navegador bloqueou a câmera. Confira as permissões deste endereço.",
+  };
+  return messages[error.name] || "Não consegui capturar a imagem. Tente novamente ou devolva o item.";
+}
+
+function updateCameraView(state, message) {
+  cameraUiState = state;
+  const action = kiosk.querySelector("[data-camera-action]");
+  if (!action) return;
+  const busy = state === "starting" || state === "capturing";
+  action.disabled = busy;
+  action.dataset.cameraAction = state === "ready" ? "capture" : state === "captured" ? "continue" : "start";
+  action.textContent = ({ idle: "Ativar câmera", starting: "Abrindo câmera…", ready: "Capturar imagem", capturing: "Capturando…", captured: visionMode === "remote" ? "Analisar item" : "Continuar com IA simulada", error: "Tentar novamente" })[state];
+  const badge = kiosk.querySelector("[data-camera-badge]");
+  badge.textContent = state === "ready" ? "AO VIVO" : state === "captured" ? "CAPTURADA" : "DESLIGADA";
+  kiosk.querySelector("[data-camera-status]").textContent = message;
+  kiosk.querySelector("[data-camera-retake]").hidden = state !== "captured";
+  const video = kiosk.querySelector("[data-camera-video]");
+  video.hidden = !["starting", "ready", "capturing"].includes(state);
+  kiosk.querySelector("[data-camera-canvas]").hidden = state !== "captured";
+  const placeholder = kiosk.querySelector("[data-camera-placeholder]");
+  placeholder.hidden = state === "ready" || state === "captured";
+  placeholder.textContent = busy ? "Aguarde a câmera" : "Câmera desligada";
+}
+
+async function activateWebcam() {
+  if (screens[currentIndex]?.id !== "camera" || cameraMode !== "real" || ["starting", "capturing"].includes(cameraUiState)) return;
+  const version = ++cameraViewVersion;
+  capturedFrame = null;
+  updateCameraView("starting", "Permita o acesso à webcam no navegador. O microfone não será ativado.");
+  kiosk.querySelector(".camera-preview").scrollIntoView({ block: "nearest", behavior: "auto" });
+  try {
+    await webcam.start(kiosk.querySelector("[data-camera-video]"), cameraDoorConfirmed);
+    if (version !== cameraViewVersion) return;
+    updateCameraView("ready", "Confira o enquadramento e capture a imagem. Porta fechada simulada no PC.");
+  } catch (error) {
+    if (version !== cameraViewVersion || error.name === "AbortError") return;
+    updateCameraView("error", cameraFailureText(error));
+  }
+}
+
+async function captureWebcam() {
+  if (cameraUiState !== "ready") return;
+  const version = cameraViewVersion;
+  updateCameraView("capturing", "Capturando a imagem nesta sessão…");
+  try {
+    const frame = await webcam.capture(kiosk.querySelector("[data-camera-canvas]"), cameraDoorConfirmed);
+    if (version !== cameraViewVersion) return;
+    capturedFrame = frame;
+    webcam.stop();
+    updateCameraView(
+      "captured",
+      visionMode === "remote"
+        ? "Imagem capturada nesta sessão. Selecione Analisar item para continuar."
+        : "Imagem capturada. A próxima etapa usa IA simulada; esta foto não é enviada nem classificada.",
+    );
+  } catch (error) {
+    if (version !== cameraViewVersion || error.name === "AbortError") return;
+    webcam.stop();
+    updateCameraView("error", cameraFailureText(error));
+  }
+}
+
+webcam.onDisconnected = () => {
+  if (screens[currentIndex]?.id === "camera") updateCameraView("error", "A webcam foi desconectada. Confira a câmera e tente novamente.");
+};
 
 function applyReviewParams() {
   const params = new URLSearchParams(window.location.search);
@@ -657,6 +762,8 @@ function applyReviewParams() {
   searchQuery = params.get("search") ?? "";
   searchActive = params.has("search") || params.get("searchActive") === "1";
   pinDigits = Number(params.get("pin") ?? (screenParam === "pin" ? 4 : 0));
+  pinValue = "1".repeat(Math.min(4, pinDigits));
+  pinSetupStep = params.get("firstAccess") === "1" ? "create" : "login";
   safetyConfirmed = true;
   handConfirmed = true;
   doorStatus = "closed";
@@ -778,6 +885,7 @@ function scenarioPanel() {
     ["mechanical", "Falha mecânica"],
     ["connection-before", "Conexão antes da queda"],
     ["connection-after", "Conexão depois da queda"],
+    ["pin-error", "Falha no primeiro acesso"],
   ];
   return `
     <div class="demo-panel" role="dialog" aria-label="Cenários de demonstração">
@@ -845,9 +953,94 @@ const preloadedAssets = new Set();
 function studentListMarkup() {
   return filteredStudents().map((name) => `
     <button class="list-button student-button" data-student="${name}" data-next>
-      <span>${name}</span>${arrowIcon("right")}
+      <span class="student-button-label"><strong>${name}</strong>${studentNeedsPinSetup(name) ? '<small class="first-access-badge">Primeiro acesso</small>' : ""}</span>${arrowIcon("right")}
     </button>
   `).join("") || `<div class="empty-state">Não achei esse nome. Tente apagar uma letra.</div>`;
+}
+
+function classificationSourceLabel() {
+  const labels = {
+    AWS_REKOGNITION: "AWS Rekognition",
+    GEMINI_FALLBACK: "Gemini fallback",
+    MANUAL_REVIEW: "Revisão manual",
+    VISION_CASCADE_ERROR: "Serviços de análise indisponíveis",
+    GEMINI_FALLBACK_ERROR: "Gemini indisponível",
+    USER_CORRECTED: "Corrigido pelo usuário",
+    UNIDENTIFIED: "Não identificado",
+  };
+  return labels[classificationOrigin] ?? (visionMode === "remote" ? "Análise remota" : "IA simulada");
+}
+
+function studentNeedsPinSetup(name) {
+  return firstAccessDemoStudents.has(name) || demoScenario === "pin-error";
+}
+
+function configurePinFlowForStudent(name) {
+  pinValue = "";
+  pendingPin = "";
+  pinDigits = 0;
+  pinWarning = false;
+  pinErrorMessage = "";
+  pinSetupAttempts = 0;
+  pinSetupStep = studentNeedsPinSetup(name) ? "create" : "login";
+}
+
+function pinPadMarkup() {
+  return `
+    <div class="pin-pad">
+      ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "Apagar", "0", "OK"].map((key) => `
+        <button class="key ${["Apagar", "OK"].includes(key) ? "key-action" : ""} ${key === "OK" && pinDigits < 4 ? "key-disabled" : ""}" data-pin="${key}" ${key === "OK" && pinDigits < 4 ? "disabled" : ""}>${key}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderPinScreen() {
+  if (["saving", "success"].includes(pinSetupStep)) {
+    const success = pinSetupStep === "success";
+    return `
+      <section class="screen screen--corner screen--pin screen--pin-setup-state screen--auto" data-process="${success ? "pin-success" : "pin-setup"}">
+        ${topbar(success ? "PIN criado" : "Criando PIN", { back: false })}
+        <div class="content-zone content-zone--pin-setup-state">
+          ${talk(
+            success ? assets.b1nCorner : assets.b1nPrivacyCorner,
+            success ? "Pronto! Seu PIN foi criado para esta demonstração." : "Estou preparando seu primeiro acesso.",
+            `corner privacy-guide character-${success ? "joinha" : "privacy"}`,
+          )}
+          <div class="pin-setup-status ${success ? "is-success" : ""}" role="status" aria-live="polite">
+            <span class="pin-setup-icon" aria-hidden="true">${success ? "✓" : "•••"}</span>
+            <strong>${success ? "Primeiro acesso liberado" : "Criando seu PIN"}</strong>
+            <small>${success ? "Agora vamos conferir a segurança do item." : "Nenhum contato pessoal é necessário."}</small>
+            <span class="simulation-badge">Ativação simulada</span>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  const setup = pinSetupStep !== "login";
+  const confirming = pinSetupStep === "confirm";
+  const title = setup ? (confirming ? "Confirmar PIN" : "Criar PIN") : "PIN";
+  const speech = setup
+    ? (confirming ? "Digite o mesmo PIN mais uma vez." : "Crie um PIN com 4 números. Eu fecho os olhos.")
+    : "Digite seu PIN. Eu fecho os olhos.";
+  const defaultHint = confirming ? "Os dois PINs precisam ser iguais." : "Digite 4 números.";
+  return `
+    <section class="screen screen--corner screen--pin screen--with-cancel" data-pin-step="${pinSetupStep}">
+      ${topbar(title, { back: setup })}
+      <div class="content-zone content-zone--corner content-zone--pin">
+        ${talk(assets.b1nPrivacyCorner, speech, "corner privacy-guide character-privacy")}
+        <div class="pin-display" role="img" aria-label="${pinDigits} de 4 números preenchidos">
+          ${[0, 1, 2, 3].map((index) => `<span class="pin-dot ${index < pinDigits ? "filled" : ""}" aria-hidden="true"></span>`).join("")}
+        </div>
+        ${pinPadMarkup()}
+        <div class="pin-hint ${pinWarning ? "show" : ""}" role="alert">${pinErrorMessage || defaultHint}</div>
+      </div>
+      <div class="action-zone action-zone--cancel">
+        <button class="cancel-action" data-cancel-discard>Cancelar descarte</button>
+      </div>
+    </section>
+  `;
 }
 
 function updateStudentSearch() {
@@ -925,6 +1118,13 @@ function scheduleAdjacentPreload() {
 function render() {
   const screenList = document.querySelector("#screenList");
   clearTimeout(autoAdvanceTimer);
+  stopVisionAnalysis();
+  cameraViewVersion += 1;
+  webcam.stop();
+  if (screens[currentIndex]?.id === "camera") {
+    capturedFrame = null;
+    cameraUiState = "idle";
+  }
 
   kiosk.innerHTML = screens[currentIndex].render() + scenarioPanel();
   keyboardOpening = false;
@@ -965,9 +1165,13 @@ function render() {
       jump("camera");
     }, 3200);
   } else if (process === "classification") {
-    autoAdvanceTimer = setTimeout(resolveClassification, 2400);
+    runVisionAnalysis("primary");
   } else if (process === "secondary") {
-    autoAdvanceTimer = setTimeout(resolveSecondaryClassification, 2600);
+    runVisionAnalysis("secondary");
+  } else if (process === "pin-setup") {
+    autoAdvanceTimer = setTimeout(completePinSetup, 900);
+  } else if (process === "pin-success") {
+    autoAdvanceTimer = setTimeout(() => jump("safety"), 900);
   } else if (process === "computing") {
     autoAdvanceTimer = setTimeout(completeProcessing, 4500);
   }
@@ -980,6 +1184,17 @@ function handleKioskClick(event) {
     if (searchScreen && searchActive) {
       closeSearchKeyboard();
     }
+    return;
+  }
+
+  if (target.matches("[data-camera-retake]")) {
+    activateWebcam();
+    return;
+  }
+  if (target.matches("[data-camera-action]") && !target.disabled) {
+    if (target.dataset.cameraAction === "start") activateWebcam();
+    else if (target.dataset.cameraAction === "capture") captureWebcam();
+    else if (target.dataset.cameraAction === "continue" && capturedFrame) jump("classification");
     return;
   }
 
@@ -1026,6 +1241,7 @@ function handleKioskClick(event) {
     selectedStudent = target.dataset.student;
     searchQuery = selectedStudent;
     searchActive = false;
+    configurePinFlowForStudent(selectedStudent);
   }
 
   if (target.matches("[data-start-session]")) {
@@ -1070,6 +1286,10 @@ function handleKioskClick(event) {
   }
   if (target.matches("[data-return-start]")) {
     startReturn();
+    return;
+  }
+  if (target.matches("[data-adjust-retry]")) {
+    startItemAdjustment();
     return;
   }
   if (target.matches("[data-return-confirm]")) {
@@ -1153,31 +1373,52 @@ function startDoorClose() {
   jump("door-progress");
 }
 
-function resolveClassification() {
-  classificationStatus = "complete";
-  if (demoScenario === "rejected") {
+async function runVisionAnalysis(stage) {
+  stopVisionAnalysis();
+  const operation = new AbortController();
+  visionOperation = operation;
+  classificationStatus = stage === "secondary" ? "secondary" : "processing";
+  try {
+    const result = await visionProvider.analyze({
+      frame: visionFrame(),
+      stage,
+      scenario: demoScenario,
+      signal: operation.signal,
+    });
+    if (operation.signal.aborted || visionOperation !== operation) return;
+    visionCandidateIds = result.candidateIds;
+    if (result.status === BinGoVision.VisionResult.NEEDS_SECONDARY) {
+      classificationStatus = "secondary";
+      jump("secondary-analysis");
+      return;
+    }
+    if (result.status === BinGoVision.VisionResult.REJECTED) {
+      capturedFrame = null;
+      classificationStatus = "complete";
+      recognitionOutcome = "not-electronic";
+      classificationOrigin = result.origin;
+      jump("rejected");
+      return;
+    }
+    const item = itemOptions.find((option) => option.id === result.itemId);
+    if (!item) throw Object.assign(new Error("Vision returned an unknown item"), { name: "InvalidVisionResponseError" });
+    capturedFrame = null;
+    classificationStatus = "complete";
+    recognitionOutcome = "electronic";
+    recognizedItem = item;
+    visionItem = item;
+    classificationOrigin = result.origin;
+    jump("recognized");
+  } catch (error) {
+    if (error.name === "AbortError" || operation.signal.aborted) return;
+    capturedFrame = null;
+    classificationStatus = "error";
     recognitionOutcome = "not-electronic";
-    jump("rejected");
-    return;
+    classificationOrigin = `${error.provider ?? "VISION_CASCADE"}_ERROR`;
+    jump("vision-error");
+  } finally {
+    if (visionOperation === operation) visionOperation = null;
   }
-  if (demoScenario === "uncertain") {
-    classificationStatus = "secondary";
-    jump("secondary-analysis");
-    return;
-  }
-  recognitionOutcome = "electronic";
-  recognizedItem = visionItem;
-  classificationOrigin = "VISION_PRIMARY";
-  jump("recognized");
-}
-
-function resolveSecondaryClassification() {
-  classificationStatus = "complete";
-  recognitionOutcome = "electronic";
-  visionCandidateIds = ["cable", "battery", "small"];
-  recognizedItem = visionItem;
-  classificationOrigin = "VISION_SECONDARY";
-  jump("recognized");
 }
 
 function confirmDiscard() {
@@ -1208,6 +1449,18 @@ function startReturn() {
   jump("return-progress");
 }
 
+function startItemAdjustment() {
+  stopVisionAnalysis();
+  capturedFrame = null;
+  cameraUiState = "idle";
+  recognitionOutcome = null;
+  classificationStatus = "idle";
+  classificationOrigin = null;
+  visionCandidateIds = [];
+  doorStatus = "opening";
+  jump("opening");
+}
+
 function next() {
   goToIndex(Math.min(currentIndex + 1, screens.length - 1));
 }
@@ -1229,6 +1482,7 @@ function jump(id) {
     || (id === "hand-confirm" && doorStatus !== "open")
     || (id === "door-progress" && !handConfirmed)
     || (["camera", "classification"].includes(id) && doorStatus !== "closed")
+    || (id === "classification" && cameraMode === "real" && !capturedFrame)
     || (["recognized", "review"].includes(id) && recognitionOutcome !== "electronic")
     || (id === "computing" && !reviewConfirmed)
     || (id === "success" && registrationStatus !== "complete")
@@ -1253,6 +1507,15 @@ function goToIndex(index) {
 }
 
 function back() {
+  if (screens[currentIndex]?.id === "pin" && pinSetupStep === "confirm") {
+    pinSetupStep = "create";
+    pinValue = "";
+    pinDigits = 0;
+    pinWarning = false;
+    pinErrorMessage = "";
+    render();
+    return;
+  }
   const previousIndex = historyStack.pop();
   if (previousIndex === undefined) {
     return;
@@ -1267,18 +1530,63 @@ function back() {
 
 function handlePin(key) {
   pinWarning = false;
+  pinErrorMessage = "";
   if (key === "Apagar") {
-    pinDigits = Math.max(0, pinDigits - 1);
+    pinValue = pinValue.slice(0, -1);
   } else if (key === "OK") {
-    if (pinDigits >= 4) {
-      next();
-      return;
+    if (pinValue.length === 4) {
+      if (pinSetupStep === "login") {
+        pinValue = "";
+        pinDigits = 0;
+        next();
+        return;
+      }
+      if (pinSetupStep === "create") {
+        pendingPin = pinValue;
+        pinValue = "";
+        pinDigits = 0;
+        pinSetupStep = "confirm";
+        render();
+        return;
+      }
+      if (pinSetupStep === "confirm" && pinValue !== pendingPin) {
+        pinValue = "";
+        pinDigits = 0;
+        pinWarning = true;
+        pinErrorMessage = "Os PINs não combinam. Tente novamente.";
+        render();
+        return;
+      }
+      if (pinSetupStep === "confirm") {
+        pinValue = "";
+        pinDigits = 0;
+        pinSetupAttempts += 1;
+        pinSetupStep = "saving";
+        render();
+        return;
+      }
     }
     pinWarning = true;
   } else {
-    pinDigits = Math.min(4, pinDigits + 1);
+    pinValue = `${pinValue}${key}`.slice(0, 4);
   }
+  pinDigits = pinValue.length;
   updatePinView();
+}
+
+function completePinSetup() {
+  if (demoScenario === "pin-error" && pinSetupAttempts === 1) {
+    pinSetupStep = "confirm";
+    pinValue = "";
+    pinDigits = 0;
+    pinWarning = true;
+    pinErrorMessage = "Não foi possível criar o PIN. Confira a conexão e tente novamente.";
+    render();
+    return;
+  }
+  pendingPin = "";
+  pinSetupStep = "success";
+  render();
 }
 
 function visualKeyboard() {
@@ -1299,6 +1607,11 @@ function visualKeyboard() {
 }
 
 function resetState() {
+  stopVisionAnalysis();
+  cameraViewVersion += 1;
+  webcam.stop();
+  capturedFrame = null;
+  cameraUiState = "idle";
   flowMode = "student";
   selectedSegment = null;
   selectedYear = null;
@@ -1313,6 +1626,11 @@ function resetState() {
   clearTimeout(keyboardCloseTimer);
   pinDigits = 0;
   pinWarning = false;
+  pinValue = "";
+  pendingPin = "";
+  pinSetupStep = "login";
+  pinErrorMessage = "";
+  pinSetupAttempts = 0;
   recognizedItem = itemOptions.find((item) => item.id === "cable");
   draftRecognizedItem = recognizedItem;
   visionItem = recognizedItem;
@@ -1393,3 +1711,21 @@ document.addEventListener("dragstart", (event) => {
 });
 applyReviewParams();
 render();
+window.addEventListener("pagehide", () => {
+  cameraViewVersion += 1;
+  webcam.stop();
+  capturedFrame = null;
+  const canvas = kiosk.querySelector("[data-camera-canvas]");
+  if (canvas) { canvas.width = 0; canvas.height = 0; }
+});
+window.addEventListener("pageshow", event => {
+  if (event.persisted && screens[currentIndex]?.id === "camera") render();
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden || cameraMode !== "real") return;
+  cameraViewVersion += 1;
+  webcam.stop();
+  if (screens[currentIndex]?.id === "camera" && cameraUiState !== "captured") {
+    updateCameraView("error", "A câmera foi desligada ao sair desta aba. Tente novamente para reativar.");
+  }
+});
