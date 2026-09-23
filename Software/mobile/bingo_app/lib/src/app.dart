@@ -272,6 +272,7 @@ class _SessionGateState extends State<SessionGate> {
             AccessPhase.authenticated => ShellScreen.authenticated(
               key: const ValueKey('authenticated-shell'),
               repository: _gateway!.profileRepository,
+              binBazarRepository: _gateway!.binBazarRepository,
               depositHistoryRepository: _gateway!.depositHistoryRepository,
               missionsRepository: _gateway!.missionsRepository,
               journeyRepository: _gateway!.journeyRepository,

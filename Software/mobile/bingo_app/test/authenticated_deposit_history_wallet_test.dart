@@ -145,7 +145,7 @@ void main() {
     final repository = _FakeDepositHistoryRepository((_, _) => pending.future);
 
     await _pumpAuthenticatedWallet(tester, repository);
-    expect(find.text('Extrato indisponível'), findsOneWidget);
+    expect(find.text('Nenhuma movimentação'), findsOneWidget);
 
     await _openDiscards(tester);
     expect(find.text('Carregando histórico'), findsOneWidget);

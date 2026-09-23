@@ -27,7 +27,7 @@ void main() {
         'MaterialIcons',
         File(
           '${flutterArtifacts.path}/material_fonts/'
-          'materialicons-regular.otf',
+          'MaterialIcons-Regular.otf',
         ),
       ),
     ]);

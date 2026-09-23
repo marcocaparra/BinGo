@@ -1,4 +1,5 @@
 import '../data/deposit_history_repository.dart';
+import '../data/binbazar_repository.dart';
 import '../data/class_journey_repository.dart';
 import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
@@ -26,6 +27,8 @@ class AuthFailure implements Exception {
 enum AuthSessionEvent { signedOut, sessionInvalid, networkError }
 
 abstract interface class AuthGateway {
+  AuthenticatedBinBazarRepository get binBazarRepository;
+
   AuthenticatedClassJourneyRepository get journeyRepository;
 
   AuthenticatedDepositHistoryRepository get depositHistoryRepository;
