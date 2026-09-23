@@ -5,7 +5,7 @@
 O Mobile possui dois caminhos isolados:
 
 - modo piloto: explícito, local, sem autenticação e sem acesso ao Supabase;
-- conta autenticada: e-mail/senha no Supabase Auth e leituras remotas autorizadas, incluindo perfil e Ranking V1 das turmas da própria escola.
+- conta autenticada: e-mail/senha no Supabase Auth e leituras remotas autorizadas, incluindo perfil, Ranking V1 e Jornada da própria turma.
 
 O perfil autenticado reutiliza o frontend final para nome, escola, turma, saldo individual de BinCoins, XP da turma e Trilha do Restaurador. `students.points_student_balance` representa BinCoins no V1, e `classes.points_class_balance` representa XP da turma. Não existe um saldo separado de pontos pessoais; o primeiro tile do perfil autenticado apresenta a quantidade histórica de descartes válidos identificados.
 
@@ -50,6 +50,8 @@ O Flutter implementa esse recorte com `SupabaseAuthGateway`, `RemoteProfileRepos
 O mesmo repository chama `get_student_profile_progress_v1()` sem parâmetros, exige exatamente uma linha, confere o `student_id` retornado contra o perfil já carregado e valida contagem, código, nível, restante e fração de progresso. Falhas de sessão, rede ou payload permanecem erros autenticados e nunca ativam mocks do piloto.
 
 O Ranking usa `RemoteRankingRepository` e `SupabaseRankingDataSource`, sem consulta Supabase dentro do widget. A RPC não aceita parâmetros e não amplia a leitura RLS global de `classes`: sua superfície dedicada valida server-side o vínculo do aluno autenticado e retorna somente as colunas necessárias. A mesma lista ordenada alimenta posição da própria turma e pódio; resposta não vazia sem a própria turma é tratada como inconsistência, não como posição zero.
+
+A Jornada usa `RemoteClassJourneyRepository` e `SupabaseClassJourneyDataSource`, também sem consulta dentro de widgets. `get_class_journey_v1()` não recebe identidade; deriva escola e turma de `auth.uid()` e retorna os três estágios da campanha vigente. O Shell carrega um único snapshot e o compartilha com Home, Ranking e mapa. Os códigos server-side selecionam somente os três cenários visuais existentes; nenhuma opção autenticada permite simulação local. Falha, ausência ou payload malformado nunca ativa dados demo. Métricas ambientais sem fonte aprovada continuam indisponíveis.
 
 Com Supabase CLI e Docker disponíveis:
 
@@ -101,6 +103,7 @@ Testes Flutter, sem internet:
 cd mobile/bingo_app
 flutter test test/access_flow_test.dart test/session_gate_test.dart test/profile_repository_test.dart test/profile_screen_test.dart
 flutter test test/ranking_repository_test.dart test/authenticated_ranking_screen_test.dart
+flutter test test/class_journey_repository_test.dart test/authenticated_class_journey_screen_test.dart
 ```
 
 Smoke hospedado opt-in, com as credenciais disponíveis somente no ambiente do host:
@@ -134,4 +137,4 @@ supabase test db
 - O indicador de restauração autenticada em `SharedPreferences` não contém sessão nem credenciais. O SDK do Supabase gerencia a sessão.
 - A sessão persistida pelo SDK é a fonte de verdade; o indicador auxiliar não impede a restauração de uma sessão válida.
 - Sessão inválida retorna à entrada. Erro de rede permanece erro e oferece nova tentativa; nenhum desses estados ativa o piloto.
-- BinCoins e XP da turma estão disponíveis no perfil autenticado. O Ranking V1 usa o saldo atual de XP das turmas da mesma escola; ciclos, distância até o top 3, bônus, recompensas e progresso de BinGópolis permanecem sem fonte e aparecem como placeholders neutros.
+- BinCoins e XP da turma estão disponíveis no perfil autenticado. O Ranking V1 usa o saldo atual de XP das turmas da mesma escola. A Jornada/BinGópolis possui implementação local própria, mas só ficará disponível contra o `bingo-dev` após a promoção controlada da migration `021`, provisionamento da campanha e postflight. Peso recuperado e demais métricas ambientais permanecem sem fonte e não usam os snapshots demo.

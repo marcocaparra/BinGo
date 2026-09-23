@@ -125,6 +125,32 @@ void main() {
       expect(profile.classXpBalance, greaterThanOrEqualTo(0));
       expect(profile.progress.studentId, profile.id);
 
+      final journey = await gateway.journeyRepository.loadJourney();
+      expect(journey, isNotNull);
+      expect(journey!.stages, hasLength(3));
+      expect(journey.campaignId, '61000000-0000-4000-8000-000000000001');
+
+      final List<Map<String, dynamic>> journeyRows = List.from(
+        await client.rpc('get_class_journey_v1'),
+      );
+      expect(journeyRows, hasLength(3));
+      expect(journeyRows.map((row) => row['campaign_id']).toSet(), {
+        journey.campaignId,
+      });
+      expect(journeyRows.first['total_units'], journey.totalUnits);
+      expect(
+        journeyRows.first['valid_deposit_count'],
+        journey.validDepositCount,
+      );
+      expect(
+        journeyRows.first['student_mission_completion_count'],
+        journey.studentMissionCompletionCount,
+      );
+      expect(
+        journeyRows.first['class_mission_completion_count'],
+        journey.classMissionCompletionCount,
+      );
+
       final List<Map<String, dynamic>> progressRows = List.from(
         await client.rpc('get_student_profile_progress_v1'),
       );
@@ -190,10 +216,18 @@ void main() {
         await anonClient.rpc('get_student_profile_progress_v1');
       } on PostgrestException {
         anonDenied = true;
+      }
+      expect(anonDenied, isTrue);
+
+      var anonJourneyDenied = false;
+      try {
+        await anonClient.rpc('get_class_journey_v1');
+      } on PostgrestException {
+        anonJourneyDenied = true;
       } finally {
         await anonClient.dispose();
       }
-      expect(anonDenied, isTrue);
+      expect(anonJourneyDenied, isTrue);
 
       var secretRoleDenied = false;
       try {
@@ -225,6 +259,10 @@ void main() {
         'get_student_profile_progress_v1',
       );
       expect(unlinkedProgress, isEmpty);
+      final List<dynamic> unlinkedJourney = await unlinkedClient.rpc(
+        'get_class_journey_v1',
+      );
+      expect(unlinkedJourney, isEmpty);
       final List<Map<String, dynamic>> unlinkedStudents = await unlinkedClient
           .from('students')
           .select('id')
@@ -301,8 +339,16 @@ void main() {
         'progress=${profile.progress.progressToNextLevel} '
         'other_student_rows=${otherStudents.length} '
         'unlinked_progress_rows=${unlinkedProgress.length} '
+        'unlinked_journey_rows=${unlinkedJourney.length} '
         'anon_denied=$anonDenied '
+        'anon_journey_denied=$anonJourneyDenied '
         'secret_role_denied=$secretRoleDenied '
+        'journey_campaign=${journey.campaignId} '
+        'journey_total=${journey.totalUnits} '
+        'journey_valid_deposits=${journey.validDepositCount} '
+        'journey_student_completions='
+        '${journey.studentMissionCompletionCount} '
+        'journey_class_completions=${journey.classMissionCompletionCount} '
         'customization_persisted=true customization_isolated=true '
         'profile_payload_valid=true '
         'restored=true logout=true',

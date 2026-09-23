@@ -261,9 +261,9 @@ Boosts como percentual adicional de BinCoins por sete dias ou percentual adicion
 
 Se um boost vier a afetar um descarte, deverá ser processado server-side, ter período de validade, garantia de idempotência e snapshot do efeito efetivamente aplicado ao evento. Essa evolução exige revisão explícita do cálculo transacional de `register_deposit_v1`; a operação não é alterada nesta etapa.
 
-## Relação futura com campanha
+## Relação com a Jornada da Turma
 
-Campanha/BinGópolis é uma camada posterior que poderá consumir resultados e conclusões de missões:
+Campanha/BinGópolis continua fora do motor de Missões, mas agora existe como o domínio separado documentado em `class-journey-v1.md`. Esse domínio consome `mission_completions` sem participar do progresso, da conclusão ou da recompensa econômica das Missões:
 
 ```text
 deposits
@@ -274,7 +274,7 @@ deposits
   → desbloqueio do próximo setor
 ```
 
-O primeiro slice não implementa campanha, progressão de mapa nem desbloqueio de setores.
+Para `STUDENT`, as duas semânticas são intencionalmente diferentes: XP econômico continua indo para a turma atual do aluno no instante da materialização; a contribuição da Jornada vai para a turma histórica do depósito que ocupou a posição `target` em `ORDER BY deposits.created_at, deposits.id`. Assim, a Jornada atribui restauração à turma que realizou a ação conclusiva sem reescrever o contrato econômico.
 
 ## Primeiro vertical slice
 
@@ -294,7 +294,7 @@ O primeiro slice fica limitado a:
 ## Fora de escopo
 
 - Salve o Planeta enquanto a métrica ambiental não estiver fechada;
-- campanha/BinGópolis e progressão de mapa;
+- implementação de campanha/BinGópolis dentro do motor de Missões;
 - ranking e trilhas;
 - boosts e outros efeitos temporários;
 - estoque, recompensa física e resgate de recompensa de missão;
@@ -319,7 +319,7 @@ O primeiro slice fica limitado a:
 - garantia de que metas, recompensas, saldos e snapshots futuros de Missões nasçam diretamente na nova unidade oficial, sem misturar escalas;
 - eventual modelo futuro de boosts, incluindo validade, snapshot do efeito e fórmula, sem mudança atual em `register_deposit_v1`;
 - integração da leitura autenticada na tela de Missões do Mobile;
-- campanha/BinGópolis e seus consumidores futuros de conclusões.
+- novos acoplamentos entre Missões e Jornada além do consumo server-side de `mission_completions` já contratado.
 
 ## Próximos passos de implementação
 

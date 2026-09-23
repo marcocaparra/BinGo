@@ -4,10 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
 import '../data/deposit_history_repository.dart';
+import '../data/class_journey_repository.dart';
 import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/ranking_repository.dart';
 import '../data/supabase_deposit_history_repository.dart';
+import '../data/supabase_class_journey_repository.dart';
 import '../data/supabase_missions_repository.dart';
 import '../data/supabase_profile_repository.dart';
 import '../data/supabase_ranking_repository.dart';
@@ -56,6 +58,9 @@ class SupabaseAuthGateway implements AuthGateway {
       ),
       _missionsRepository = RemoteMissionsRepository(
         SupabaseMissionsDataSource(_client),
+      ),
+      _journeyRepository = RemoteClassJourneyRepository(
+        SupabaseClassJourneyDataSource(_client),
       ) {
     _authSubscription = _client.auth.onAuthStateChange.listen(
       _handleAuthState,
@@ -68,6 +73,7 @@ class SupabaseAuthGateway implements AuthGateway {
   final SupabaseClient _client;
   final AuthenticatedDepositHistoryRepository _depositHistoryRepository;
   final AuthenticatedMissionsRepository _missionsRepository;
+  final AuthenticatedClassJourneyRepository _journeyRepository;
   final AuthenticatedProfileRepository _profileRepository;
   final AuthenticatedRankingRepository _rankingRepository;
   final StreamController<AuthSessionEvent> _sessionEvents =
@@ -80,6 +86,10 @@ class SupabaseAuthGateway implements AuthGateway {
 
   @override
   AuthenticatedMissionsRepository get missionsRepository => _missionsRepository;
+
+  @override
+  AuthenticatedClassJourneyRepository get journeyRepository =>
+      _journeyRepository;
 
   @override
   AuthenticatedProfileRepository get profileRepository => _profileRepository;

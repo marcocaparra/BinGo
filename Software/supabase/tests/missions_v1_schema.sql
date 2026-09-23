@@ -904,7 +904,14 @@ select extensions.ok(
         join pg_catalog.pg_namespace namespace
           on namespace.oid = function_row.pronamespace
         where namespace.nspname = 'public'
-          and function_row.proname ~ '(mission|missions)'
+          and function_row.proname = any (array[
+              'calculate_mission_progress_v1',
+              'get_active_missions_v1',
+              'process_mission_event_v1',
+              'process_mission_event_v1_core',
+              'record_mission_processing_failure_v1',
+              'recover_next_mission_event_v1'
+          ])
     ),
     'runtime adiciona leitura, nucleo economico e entradas server-side de processamento, retry e recuperacao'
 );
