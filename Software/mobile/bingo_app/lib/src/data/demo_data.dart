@@ -265,6 +265,8 @@ class RewardItem {
     required this.asset,
     required this.description,
     required this.pickupInstruction,
+    this.isActive = true,
+    this.stockQty,
   });
 
   final String id;
@@ -275,10 +277,18 @@ class RewardItem {
   final String asset;
   final String description;
   final String pickupInstruction;
+  final bool isActive;
+  final int? stockQty;
 
-  bool isAvailable(int balance) => balance >= cost;
-  String statusFor(int balance) =>
-      isAvailable(balance) ? 'Disponível agora' : 'Faltam ${cost - balance}';
+  bool isAvailable(int balance) =>
+      isActive && (stockQty == null || stockQty! > 0) && balance >= cost;
+  String statusFor(int balance) {
+    if (!isActive) return 'Indisponível';
+    if (stockQty == 0) return 'Esgotado';
+    return isAvailable(balance)
+        ? 'Disponível agora'
+        : 'Faltam ${cost - balance}';
+  }
 }
 
 class RewardRedemption {

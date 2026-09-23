@@ -5,6 +5,7 @@ import 'package:bingo_app/src/auth/access_restore_store.dart';
 import 'package:bingo_app/src/auth/auth_gateway.dart';
 import 'package:bingo_app/src/config/supabase_config.dart';
 import 'package:bingo_app/src/data/deposit_history_repository.dart';
+import 'package:bingo_app/src/data/binbazar_repository.dart';
 import 'package:bingo_app/src/data/class_journey_repository.dart';
 import 'package:bingo_app/src/data/missions_repository.dart';
 import 'package:bingo_app/src/data/profile_repository.dart';
@@ -123,6 +124,10 @@ class _FakeGateway implements AuthGateway {
   @override
   final AuthenticatedMissionsRepository missionsRepository =
       const _EmptyMissionsRepository();
+
+  @override
+  final AuthenticatedBinBazarRepository binBazarRepository =
+      const EmptyAuthenticatedBinBazarRepository();
 
   @override
   final AuthenticatedClassJourneyRepository journeyRepository =
@@ -473,7 +478,7 @@ void main() {
     expect(find.text('17'), findsOneWidget);
     expect(find.text('12.000'), findsNothing);
     expect(find.text('Abrir BinBazar'), findsOneWidget);
-    expect(find.text('Extrato indisponível'), findsOneWidget);
+    expect(find.text('Nenhuma movimentação'), findsOneWidget);
 
     await tester.tap(find.text('Missões'));
     await tester.pumpAndSettle();

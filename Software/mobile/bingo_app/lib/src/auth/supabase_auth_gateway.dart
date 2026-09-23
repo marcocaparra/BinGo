@@ -4,11 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/supabase_config.dart';
 import '../data/deposit_history_repository.dart';
+import '../data/binbazar_repository.dart';
 import '../data/class_journey_repository.dart';
 import '../data/missions_repository.dart';
 import '../data/profile_repository.dart';
 import '../data/ranking_repository.dart';
 import '../data/supabase_deposit_history_repository.dart';
+import '../data/supabase_binbazar_repository.dart';
 import '../data/supabase_class_journey_repository.dart';
 import '../data/supabase_missions_repository.dart';
 import '../data/supabase_profile_repository.dart';
@@ -47,7 +49,10 @@ class SupabaseAuthGatewayFactory implements AuthGatewayFactory {
 
 class SupabaseAuthGateway implements AuthGateway {
   SupabaseAuthGateway(this._client)
-    : _depositHistoryRepository = RemoteDepositHistoryRepository(
+    : _binBazarRepository = RemoteBinBazarRepository(
+        SupabaseBinBazarDataSource(_client),
+      ),
+      _depositHistoryRepository = RemoteDepositHistoryRepository(
         SupabaseDepositHistoryDataSource(_client),
       ),
       _profileRepository = RemoteProfileRepository(
@@ -71,6 +76,7 @@ class SupabaseAuthGateway implements AuthGateway {
   }
 
   final SupabaseClient _client;
+  final AuthenticatedBinBazarRepository _binBazarRepository;
   final AuthenticatedDepositHistoryRepository _depositHistoryRepository;
   final AuthenticatedMissionsRepository _missionsRepository;
   final AuthenticatedClassJourneyRepository _journeyRepository;
@@ -79,6 +85,9 @@ class SupabaseAuthGateway implements AuthGateway {
   final StreamController<AuthSessionEvent> _sessionEvents =
       StreamController<AuthSessionEvent>.broadcast();
   late final StreamSubscription<AuthState> _authSubscription;
+
+  @override
+  AuthenticatedBinBazarRepository get binBazarRepository => _binBazarRepository;
 
   @override
   AuthenticatedDepositHistoryRepository get depositHistoryRepository =>

@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../auth/auth_gateway.dart';
 import '../data/class_journey_repository.dart';
+import '../data/binbazar_repository.dart';
 import '../data/demo_data.dart';
 import '../data/deposit_history_adapter.dart';
 import '../data/deposit_history_repository.dart';
@@ -28,6 +30,7 @@ class ShellScreen extends StatefulWidget {
     this.onExitPilot,
     super.key,
   }) : authenticatedRepository = null,
+       binBazarRepository = null,
        depositHistoryRepository = null,
        missionsRepository = null,
        journeyRepository = null,
@@ -37,6 +40,7 @@ class ShellScreen extends StatefulWidget {
 
   const ShellScreen.authenticated({
     required AuthenticatedProfileRepository repository,
+    this.binBazarRepository = const EmptyAuthenticatedBinBazarRepository(),
     required this.depositHistoryRepository,
     required this.missionsRepository,
     this.journeyRepository,
@@ -53,6 +57,7 @@ class ShellScreen extends StatefulWidget {
   final ProfileRepository? repository;
   final Future<void> Function()? onExitPilot;
   final AuthenticatedProfileRepository? authenticatedRepository;
+  final AuthenticatedBinBazarRepository? binBazarRepository;
   final AuthenticatedDepositHistoryRepository? depositHistoryRepository;
   final AuthenticatedMissionsRepository? missionsRepository;
   final AuthenticatedClassJourneyRepository? journeyRepository;
@@ -69,6 +74,7 @@ class _ShellScreenState extends State<ShellScreen> {
   String _firstName = 'Marco';
   final SessionWalletController _wallet = SessionWalletController();
   AuthenticatedStudentProfile? _authenticatedProfile;
+  int? _authenticatedBalance;
   ProfileFailure? _profileFailure;
   AuthenticatedClassJourney? _authenticatedJourney;
   JourneyFailure? _journeyFailure;
@@ -103,6 +109,7 @@ class _ShellScreenState extends State<ShellScreen> {
       if (!mounted) return;
       setState(() {
         _authenticatedProfile = profile;
+        _authenticatedBalance = profile.binCoinsBalance;
         _loadingProfile = false;
       });
       if (widget.journeyRepository != null) {
@@ -194,7 +201,10 @@ class _ShellScreenState extends State<ShellScreen> {
                   ),
                   _AuthenticatedWalletDataSource(
                     profile: profile,
+                    balance: _authenticatedBalance ?? profile.binCoinsBalance,
                     repository: widget.depositHistoryRepository!,
+                    binBazarRepository: widget.binBazarRepository!,
+                    onBalanceChanged: _updateAuthenticatedBalance,
                     onSessionInvalid: widget.onSessionInvalid!,
                   ),
                   _AuthenticatedMissionsDataSource(
@@ -249,6 +259,11 @@ class _ShellScreenState extends State<ShellScreen> {
   void _selectTab(int index) {
     setState(() => _index = index);
   }
+
+  void _updateAuthenticatedBalance(int balance) {
+    if (!mounted || balance < 0) return;
+    setState(() => _authenticatedBalance = balance);
+  }
 }
 
 class _AuthenticatedProfileState extends StatelessWidget {
@@ -295,12 +310,18 @@ class _AuthenticatedProfileState extends StatelessWidget {
 class _AuthenticatedWalletDataSource extends StatefulWidget {
   const _AuthenticatedWalletDataSource({
     required this.profile,
+    required this.balance,
     required this.repository,
+    required this.binBazarRepository,
+    required this.onBalanceChanged,
     required this.onSessionInvalid,
   });
 
   final AuthenticatedStudentProfile profile;
+  final int balance;
   final AuthenticatedDepositHistoryRepository repository;
+  final AuthenticatedBinBazarRepository binBazarRepository;
+  final ValueChanged<int> onBalanceChanged;
   final Future<void> Function() onSessionInvalid;
 
   @override
@@ -312,13 +333,56 @@ class _AuthenticatedWalletDataSourceState
     extends State<_AuthenticatedWalletDataSource> {
   final DepositHistoryAdapter _adapter = DepositHistoryAdapter();
   List<DiscardRecord> _discards = const [];
+  List<BinBazarReward> _catalog = const [];
+  List<BinBazarRedemption> _redemptions = const [];
+  List<BinCoinStatementMovement> _statement = const [];
   DepositHistoryFailure? _historyFailure;
+  BinBazarFailure? _binBazarFailure;
   var _loadingHistory = true;
+  var _loadingBinBazar = true;
 
   @override
   void initState() {
     super.initState();
     unawaited(_loadHistory());
+    unawaited(_loadBinBazar());
+  }
+
+  Future<void> _loadBinBazar() async {
+    setState(() {
+      _loadingBinBazar = true;
+      _binBazarFailure = null;
+    });
+    try {
+      final results = await Future.wait<dynamic>([
+        widget.binBazarRepository.loadCatalog(),
+        widget.binBazarRepository.loadRedemptions(),
+        widget.binBazarRepository.loadStatement(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _catalog = results[0] as List<BinBazarReward>;
+        _redemptions = results[1] as List<BinBazarRedemption>;
+        _statement = results[2] as List<BinCoinStatementMovement>;
+        _loadingBinBazar = false;
+      });
+    } on BinBazarFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _binBazarFailure = failure;
+        _loadingBinBazar = false;
+      });
+      if (failure.kind == BinBazarFailureKind.sessionInvalid) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(widget.onSessionInvalid());
+        });
+      }
+    }
+  }
+
+  Future<void> _handleMutation(RedemptionMutation mutation) async {
+    widget.onBalanceChanged(mutation.pointsStudentBalance);
+    await _loadBinBazar();
   }
 
   Future<void> _loadHistory() async {
@@ -372,7 +436,15 @@ class _AuthenticatedWalletDataSourceState
   @override
   Widget build(BuildContext context) {
     return WalletScreen.authenticated(
-      balance: widget.profile.binCoinsBalance,
+      balance: widget.balance,
+      catalog: _catalog,
+      redemptions: _redemptions,
+      statement: _statement,
+      binBazarRepository: widget.binBazarRepository,
+      binBazarLoading: _loadingBinBazar,
+      binBazarFailure: _binBazarFailure,
+      onRetryBinBazar: _loadBinBazar,
+      onMutation: _handleMutation,
       discards: _discards,
       isLoading: _loadingHistory,
       historyFailure: _historyFailure,
@@ -1064,12 +1136,28 @@ class WalletScreen extends StatefulWidget {
     this.controller,
     super.key,
   }) : authenticatedBalance = null,
+       catalog = const [],
+       redemptions = const [],
+       statement = const [],
+       binBazarRepository = null,
+       binBazarLoading = false,
+       binBazarFailure = null,
+       onRetryBinBazar = null,
+       onMutation = null,
        historyFailure = null,
        onRetryHistory = null,
        authenticated = false;
 
   const WalletScreen.authenticated({
     required int balance,
+    required this.catalog,
+    required this.redemptions,
+    required this.statement,
+    required this.binBazarRepository,
+    required this.binBazarLoading,
+    required this.binBazarFailure,
+    required this.onRetryBinBazar,
+    required this.onMutation,
     required this.discards,
     required this.isLoading,
     required this.historyFailure,
@@ -1085,6 +1173,14 @@ class WalletScreen extends StatefulWidget {
   final bool isLoading;
   final SessionWalletController? controller;
   final int? authenticatedBalance;
+  final List<BinBazarReward> catalog;
+  final List<BinBazarRedemption> redemptions;
+  final List<BinCoinStatementMovement> statement;
+  final AuthenticatedBinBazarRepository? binBazarRepository;
+  final bool binBazarLoading;
+  final BinBazarFailure? binBazarFailure;
+  final VoidCallback? onRetryBinBazar;
+  final Future<void> Function(RedemptionMutation)? onMutation;
   final DepositHistoryFailure? historyFailure;
   final VoidCallback? onRetryHistory;
   final bool authenticated;
@@ -1112,7 +1208,7 @@ class _WalletScreenState extends State<WalletScreen> {
       builder: (context, _) {
         final balance = widget.authenticatedBalance ?? _controller.balance;
         final redeemableRewards = widget.authenticated
-            ? null
+            ? widget.catalog.where((reward) => reward.canRedeem(balance)).length
             : rewards.where((reward) => reward.isAvailable(balance)).length;
         final transactions = widget.controller == null
             ? widget.transactions
@@ -1129,6 +1225,9 @@ class _WalletScreenState extends State<WalletScreen> {
               _WalletBalanceHero(
                 balance: balance,
                 redeemableRewards: redeemableRewards,
+                authenticatedCatalog: widget.authenticated
+                    ? widget.catalog
+                    : null,
               ),
               const SizedBox(height: 14),
               _BazaarAccessCard(
@@ -1137,7 +1236,16 @@ class _WalletScreenState extends State<WalletScreen> {
                 onTap: () => _push(
                   context,
                   widget.authenticated
-                      ? RewardsScreen.authenticated(balance: balance)
+                      ? RewardsScreen.authenticated(
+                          balance: balance,
+                          catalog: widget.catalog,
+                          redemptions: widget.redemptions,
+                          repository: widget.binBazarRepository!,
+                          loading: widget.binBazarLoading,
+                          failure: widget.binBazarFailure,
+                          onRetry: widget.onRetryBinBazar!,
+                          onMutation: widget.onMutation!,
+                        )
                       : RewardsScreen(controller: _controller),
                 ),
               ),
@@ -1149,13 +1257,34 @@ class _WalletScreenState extends State<WalletScreen> {
               const SizedBox(height: 14),
               if (_section == WalletSection.transactions)
                 if (widget.authenticated)
-                  const BingoDataState(
-                    kind: BingoDataStateKind.empty,
-                    title: 'Extrato indisponível',
-                    message:
-                        'O extrato ainda não possui uma fonte autenticada consolidada.',
-                    icon: Icons.receipt_long_outlined,
-                  )
+                  if (widget.binBazarLoading)
+                    const BingoDataState(
+                      kind: BingoDataStateKind.loading,
+                      title: 'Carregando Extrato',
+                      message: 'Organizando suas movimentações de BinCoins.',
+                    )
+                  else if (widget.binBazarFailure != null)
+                    BingoDataState(
+                      kind: BingoDataStateKind.empty,
+                      title: 'Extrato indisponível',
+                      message: widget.binBazarFailure!.message,
+                      icon: Icons.cloud_off_rounded,
+                      action: BingoActionButton(
+                        label: 'Tentar novamente',
+                        icon: Icons.refresh_rounded,
+                        onPressed: widget.onRetryBinBazar,
+                      ),
+                    )
+                  else if (widget.statement.isEmpty)
+                    const BingoDataState(
+                      kind: BingoDataStateKind.empty,
+                      title: 'Nenhuma movimentação',
+                      message: 'Seus créditos e resgates aparecerão aqui.',
+                      icon: Icons.receipt_long_outlined,
+                    )
+                  else
+                    for (final movement in widget.statement)
+                      _StatementTile(movement: movement)
                 else if (transactions.isEmpty)
                   const BingoDataState(
                     kind: BingoDataStateKind.empty,
@@ -1208,14 +1337,22 @@ class _WalletBalanceHero extends StatelessWidget {
   const _WalletBalanceHero({
     required this.balance,
     required this.redeemableRewards,
+    this.authenticatedCatalog,
   });
 
   final int balance;
   final int? redeemableRewards;
+  final List<BinBazarReward>? authenticatedCatalog;
 
   @override
   Widget build(BuildContext context) {
-    final lockedRewards = redeemableRewards == null
+    final authenticated = authenticatedCatalog != null;
+    final remoteRedeemableRewards = authenticatedCatalog
+        ?.where((reward) => reward.canRedeem(balance))
+        .length;
+    final visibleRedeemableRewards =
+        remoteRedeemableRewards ?? redeemableRewards;
+    final lockedRewards = authenticated || redeemableRewards == null
         ? const <RewardItem>[]
         : rewards.where((reward) => !reward.isAvailable(balance)).toList();
     final nextReward = lockedRewards.isEmpty ? null : lockedRewards.first;
@@ -1223,9 +1360,9 @@ class _WalletBalanceHero extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: redeemableRewards == null
+      label: visibleRedeemableRewards == null
           ? '$balance BinCoins. Catálogo ainda sem dados.'
-          : '$balance BinCoins. $redeemableRewards recompensas disponíveis.',
+          : '$balance BinCoins. $visibleRedeemableRewards recompensas disponíveis.',
       child: ExcludeSemantics(
         child: PeriodicHighlight(
           colors: [
@@ -1311,9 +1448,11 @@ class _WalletBalanceHero extends StatelessWidget {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        redeemableRewards == null
+                        visibleRedeemableRewards == null
                             ? 'Ainda não há dados do catálogo'
-                            : '$redeemableRewards opções disponíveis na simulação',
+                            : authenticated
+                            ? '$visibleRedeemableRewards opções disponíveis no catálogo da sua escola'
+                            : '$visibleRedeemableRewards opções disponíveis na simulação',
                         style: Theme.of(
                           context,
                         ).textTheme.labelLarge?.copyWith(color: AppColors.navy),
@@ -1562,16 +1701,39 @@ class _WalletSectionTab extends StatelessWidget {
 
 class RewardsScreen extends StatefulWidget {
   const RewardsScreen({this.items = rewards, this.controller, super.key})
-    : authenticatedBalance = null;
+    : authenticatedBalance = null,
+      catalog = const [],
+      redemptions = const [],
+      repository = null,
+      loading = false,
+      failure = null,
+      onRetry = null,
+      onMutation = null;
 
-  const RewardsScreen.authenticated({required int balance, super.key})
-    : items = const [],
-      controller = null,
-      authenticatedBalance = balance;
+  const RewardsScreen.authenticated({
+    required int balance,
+    required this.catalog,
+    required this.redemptions,
+    required this.repository,
+    required this.loading,
+    required this.failure,
+    required this.onRetry,
+    required this.onMutation,
+    super.key,
+  }) : items = const [],
+       controller = null,
+       authenticatedBalance = balance;
 
   final List<RewardItem> items;
   final SessionWalletController? controller;
   final int? authenticatedBalance;
+  final List<BinBazarReward> catalog;
+  final List<BinBazarRedemption> redemptions;
+  final AuthenticatedBinBazarRepository? repository;
+  final bool loading;
+  final BinBazarFailure? failure;
+  final VoidCallback? onRetry;
+  final Future<void> Function(RedemptionMutation)? onMutation;
 
   @override
   State<RewardsScreen> createState() => _RewardsScreenState();
@@ -1586,6 +1748,15 @@ class _RewardsScreenState extends State<RewardsScreen> {
             ? binCoinTransactions
             : const [],
       );
+  late int _remoteBalance = widget.authenticatedBalance ?? _controller.balance;
+  late List<BinBazarReward> _remoteCatalog = List.of(widget.catalog);
+  late List<BinBazarRedemption> _remoteRedemptions = List.of(
+    widget.redemptions,
+  );
+  final Map<String, String> _pendingRequestIds = {};
+  BinBazarFailure? _operationFailure;
+  String? _busyRewardId;
+  String? _busyRedemptionId;
 
   @override
   void dispose() {
@@ -1597,74 +1768,357 @@ class _RewardsScreenState extends State<RewardsScreen> {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: _controller,
-      builder: (context, _) => AppPage(
-        title: 'BinBazar',
-        subtitle: widget.authenticatedBalance == null
-            ? 'Simulação de resgate com BinCoins desta sessão.'
-            : 'Recompensas disponíveis para a sua conta.',
-        dataStatus: widget.authenticatedBalance == null
-            ? AppDataStatus.simulated
-            : AppDataStatus.remote,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _BazaarHero(balance: _controller.balance),
-            if (_controller.redemptions.isNotEmpty) ...[
-              const SizedBox(height: 14),
-              _LatestRedemptionCard(redemption: _controller.redemptions.first),
+      builder: (context, _) {
+        final authenticated = widget.repository != null;
+        final balance = authenticated ? _remoteBalance : _controller.balance;
+        final displayItems = authenticated
+            ? _remoteCatalog.map(_presentAuthenticatedReward).toList()
+            : widget.items;
+        return AppPage(
+          title: 'BinBazar',
+          subtitle: !authenticated
+              ? 'Simulação de resgate com BinCoins desta sessão.'
+              : 'Recompensas disponíveis para a sua conta.',
+          dataStatus: !authenticated
+              ? AppDataStatus.simulated
+              : AppDataStatus.remote,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _BazaarHero(balance: balance),
+              if (!authenticated && _controller.redemptions.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                _LatestRedemptionCard(
+                  redemption: _controller.redemptions.first,
+                ),
+              ],
+              if (authenticated && _operationFailure != null) ...[
+                const SizedBox(height: 14),
+                _SafetyAlert(
+                  icon: Icons.error_outline_rounded,
+                  title: 'Não foi possível concluir',
+                  message: _operationFailure!.message,
+                  color: AppColors.danger,
+                ),
+              ],
+              if (authenticated && _remoteRedemptions.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'Seus pedidos',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 10),
+                for (final redemption in _remoteRedemptions) ...[
+                  _AuthenticatedRedemptionCard(
+                    redemption: redemption,
+                    busy: _busyRedemptionId == redemption.id,
+                    onCancel: redemption.canCancel
+                        ? () => _cancelRedemption(redemption)
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ],
+              const SizedBox(height: 22),
+              if (authenticated && widget.loading)
+                const BingoDataState(
+                  kind: BingoDataStateKind.loading,
+                  title: 'Carregando BinBazar',
+                  message: 'Consultando o catálogo da sua escola.',
+                )
+              else if (authenticated && widget.failure != null)
+                BingoDataState(
+                  kind: BingoDataStateKind.empty,
+                  title: 'BinBazar indisponível',
+                  message: widget.failure!.message,
+                  icon: Icons.cloud_off_rounded,
+                  action: BingoActionButton(
+                    label: 'Tentar novamente',
+                    icon: Icons.refresh_rounded,
+                    onPressed: widget.onRetry,
+                  ),
+                )
+              else if (displayItems.isEmpty)
+                BingoDataState(
+                  kind: BingoDataStateKind.empty,
+                  title: !authenticated
+                      ? 'Nenhuma opção disponível'
+                      : 'Ainda não há dados',
+                  message: !authenticated
+                      ? 'Novas recompensas aparecerão quando a escola atualizar.'
+                      : 'A escola ainda não publicou produtos ativos.',
+                  icon: Icons.storefront_outlined,
+                )
+              else ...[
+                Text(
+                  'Explore as recompensas',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final largeText =
+                        MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+                    final columns = largeText ? 1 : 2;
+                    return GridView.builder(
+                      key: const ValueKey('binbazar-reward-grid'),
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: displayItems.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        mainAxisExtent: largeText ? 372 : 308,
+                      ),
+                      itemBuilder: (context, index) {
+                        final reward = displayItems[index];
+                        return _RewardTile(
+                          reward: reward,
+                          balance: balance,
+                          busy: _busyRewardId == reward.id,
+                          authenticated: authenticated,
+                          onTap: () => authenticated
+                              ? _showAuthenticatedRewardDetails(reward)
+                              : _showRewardDetails(
+                                  context,
+                                  reward,
+                                  _controller,
+                                ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
             ],
-            const SizedBox(height: 22),
-            if (widget.items.isEmpty)
-              BingoDataState(
-                kind: BingoDataStateKind.empty,
-                title: widget.authenticatedBalance == null
-                    ? 'Nenhuma opção disponível'
-                    : 'Ainda não há dados',
-                message: widget.authenticatedBalance == null
-                    ? 'Novas recompensas aparecerão quando a escola atualizar.'
-                    : 'O catálogo autenticado aparecerá aqui quando estiver disponível.',
-                icon: Icons.storefront_outlined,
-              )
-            else ...[
-              Text(
-                'Explore as recompensas',
-                style: Theme.of(context).textTheme.titleLarge,
+          ),
+        );
+      },
+    );
+  }
+
+  RewardItem _presentAuthenticatedReward(BinBazarReward reward) {
+    return RewardItem(
+      id: reward.id,
+      title: reward.name,
+      cost: reward.costPoints,
+      icon: Icons.card_giftcard_rounded,
+      color: AppColors.green,
+      asset: AppAssets.rewardSurprise,
+      description:
+          reward.description ?? 'Produto disponibilizado pela sua escola.',
+      pickupInstruction:
+          'Após solicitar, acompanhe o pedido e apresente o código na escola.',
+      isActive: reward.isActive,
+      stockQty: reward.stockQty,
+    );
+  }
+
+  Future<void> _showAuthenticatedRewardDetails(RewardItem reward) async {
+    final available = reward.isAvailable(_remoteBalance);
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            4,
+            24,
+            28 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: SizedBox(
+                  width: 150,
+                  height: 128,
+                  child: BingoAssetImage(
+                    asset: reward.asset,
+                    fit: BoxFit.contain,
+                    semanticLabel: reward.title,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(reward.title, style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 6),
+              Text(reward.description),
+              const SizedBox(height: 14),
+              _RewardPriceBand(
+                value: reward.cost,
+                color: reward.color,
+                large: true,
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.center,
+                child: Text('Seu saldo: $_remoteBalance BinCoins'),
               ),
               const SizedBox(height: 12),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final largeText =
-                      MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-                  final columns = largeText ? 1 : 2;
-                  return GridView.builder(
-                    key: const ValueKey('binbazar-reward-grid'),
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: widget.items.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      mainAxisExtent: largeText ? 372 : 308,
-                    ),
-                    itemBuilder: (context, index) {
-                      final reward = widget.items[index];
-                      return _RewardTile(
-                        reward: reward,
-                        balance: _controller.balance,
-                        onTap: () =>
-                            _showRewardDetails(context, reward, _controller),
-                      );
-                    },
-                  );
-                },
+              _SafetyAlert(
+                icon: available
+                    ? Icons.storefront_outlined
+                    : Icons.lock_outline_rounded,
+                title: reward.statusFor(_remoteBalance),
+                message: available
+                    ? reward.pickupInstruction
+                    : reward.statusFor(_remoteBalance),
+                color: available ? AppColors.green : AppColors.blue,
+              ),
+              const SizedBox(height: 16),
+              BingoActionButton(
+                label: 'Solicitar por ${reward.cost} BinCoins',
+                icon: Icons.redeem_rounded,
+                tone: BingoActionTone.green,
+                onPressed: available
+                    ? () => Navigator.of(context).pop(true)
+                    : null,
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Agora não'),
               ),
             ],
-          ],
+          ),
+        ),
+      ),
+    );
+    if (confirmed == true && mounted) await _requestRedemption(reward);
+  }
+
+  Future<void> _requestRedemption(RewardItem reward) async {
+    final requestId = _pendingRequestIds.putIfAbsent(reward.id, _newUuidV4);
+    setState(() {
+      _busyRewardId = reward.id;
+      _operationFailure = null;
+    });
+    try {
+      final mutation = await widget.repository!.requestRedemption(
+        clientRequestId: requestId,
+        rewardId: reward.id,
+      );
+      if (!mounted) return;
+      _pendingRequestIds.remove(reward.id);
+      setState(() {
+        _remoteBalance = mutation.pointsStudentBalance;
+        _remoteRedemptions = [
+          mutation.redemption,
+          ..._remoteRedemptions.where(
+            (item) => item.id != mutation.redemption.id,
+          ),
+        ];
+        _busyRewardId = null;
+      });
+      await _synchronizeOpenBinBazar();
+      await widget.onMutation!(mutation);
+      if (!mounted) return;
+      await _showRedemptionSuccess(mutation.redemption);
+    } on BinBazarFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _operationFailure = failure;
+        _busyRewardId = null;
+      });
+    }
+  }
+
+  Future<void> _cancelRedemption(BinBazarRedemption redemption) async {
+    setState(() {
+      _busyRedemptionId = redemption.id;
+      _operationFailure = null;
+    });
+    try {
+      final mutation = await widget.repository!.cancelRedemption(
+        redemptionId: redemption.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _remoteBalance = mutation.pointsStudentBalance;
+        _remoteRedemptions = _remoteRedemptions
+            .map(
+              (item) => item.id == mutation.redemption.id
+                  ? mutation.redemption
+                  : item,
+            )
+            .toList();
+        _busyRedemptionId = null;
+      });
+      await _synchronizeOpenBinBazar();
+      await widget.onMutation!(mutation);
+    } on BinBazarFailure catch (failure) {
+      if (!mounted) return;
+      setState(() {
+        _operationFailure = failure;
+        _busyRedemptionId = null;
+      });
+    }
+  }
+
+  Future<void> _synchronizeOpenBinBazar() async {
+    try {
+      final results = await Future.wait<Object>([
+        widget.repository!.loadCatalog(),
+        widget.repository!.loadRedemptions(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _remoteCatalog = results[0] as List<BinBazarReward>;
+        _remoteRedemptions = results[1] as List<BinBazarRedemption>;
+      });
+    } on BinBazarFailure catch (failure) {
+      if (!mounted) return;
+      setState(() => _operationFailure = failure);
+    }
+  }
+
+  Future<void> _showRedemptionSuccess(BinBazarRedemption redemption) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.green,
+                size: 58,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Pedido confirmado',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 6),
+              Text(redemption.rewardName, textAlign: TextAlign.center),
+              const SizedBox(height: 18),
+              _PickupCode(code: redemption.code, demonstrative: false),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+String _newUuidV4() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final hex = bytes
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+      '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+      '${hex.substring(20)}';
 }
 
 class MissionsScreen extends StatelessWidget {
@@ -2668,14 +3122,16 @@ Future<void> _showRewardDetails(
 }
 
 class _PickupCode extends StatelessWidget {
-  const _PickupCode({required this.code});
+  const _PickupCode({required this.code, this.demonstrative = true});
 
   final String code;
+  final bool demonstrative;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Código demonstrativo de retirada $code',
+      label:
+          '${demonstrative ? 'Código demonstrativo' : 'Código'} de retirada $code',
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -2687,7 +3143,9 @@ class _PickupCode extends StatelessWidget {
         child: Column(
           children: [
             Text(
-              'Código demonstrativo de retirada',
+              demonstrative
+                  ? 'Código demonstrativo de retirada'
+                  : 'Código de retirada',
               style: Theme.of(context).textTheme.labelMedium,
             ),
             const SizedBox(height: 5),
@@ -2750,6 +3208,73 @@ class _LatestRedemptionCard extends StatelessWidget {
   }
 }
 
+class _AuthenticatedRedemptionCard extends StatelessWidget {
+  const _AuthenticatedRedemptionCard({
+    required this.redemption,
+    required this.busy,
+    required this.onCancel,
+  });
+
+  final BinBazarRedemption redemption;
+  final bool busy;
+  final VoidCallback? onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusLabel = switch (redemption.status) {
+      'PENDING' => 'Pendente',
+      'DELIVERED' => 'Entregue',
+      'CANCELED' => 'Cancelado',
+      _ => redemption.status,
+    };
+    return SurfaceCard(
+      key: ValueKey('redemption-${redemption.id}'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.confirmation_number_rounded,
+                color: AppColors.green,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      redemption.rewardName,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text('${redemption.costPoints} BinCoins · $statusLabel'),
+                  ],
+                ),
+              ),
+              Text(
+                redemption.code,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(color: AppColors.blue),
+              ),
+            ],
+          ),
+          if (onCancel != null) ...[
+            const SizedBox(height: 10),
+            BingoActionButton(
+              key: ValueKey('cancel-redemption-${redemption.id}'),
+              label: busy ? 'Cancelando...' : 'Cancelar pedido',
+              icon: Icons.cancel_outlined,
+              style: BingoActionStyle.quiet,
+              onPressed: busy ? null : onCancel,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _RewardPriceBand extends StatelessWidget {
   const _RewardPriceBand({
     required this.value,
@@ -2800,11 +3325,15 @@ class _RewardTile extends StatelessWidget {
     required this.reward,
     required this.balance,
     required this.onTap,
+    this.busy = false,
+    this.authenticated = false,
   });
 
   final RewardItem reward;
   final int balance;
   final VoidCallback onTap;
+  final bool busy;
+  final bool authenticated;
 
   @override
   Widget build(BuildContext context) {
@@ -2819,7 +3348,7 @@ class _RewardTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
+          onTap: busy ? null : onTap,
           child: Container(
             key: ValueKey('reward-card-${reward.id}'),
             padding: const EdgeInsets.all(14),
@@ -2925,9 +3454,13 @@ class _RewardTile extends StatelessWidget {
                       const SizedBox(width: 7),
                       Flexible(
                         child: Text(
-                          available
-                              ? 'Simular resgate'
-                              : 'Faltam ${reward.cost - balance}',
+                          busy
+                              ? 'Aguarde...'
+                              : available
+                              ? authenticated
+                                    ? 'Solicitar resgate'
+                                    : 'Simular resgate'
+                              : reward.statusFor(balance),
                           maxLines: 2,
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.labelMedium
@@ -5409,6 +5942,75 @@ class _SafetyAlert extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatementTile extends StatelessWidget {
+  const _StatementTile({required this.movement});
+
+  final BinCoinStatementMovement movement;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCredit = movement.isCredit;
+    final local = movement.occurredAt.toLocal();
+    final dateLabel =
+        '${local.day.toString().padLeft(2, '0')}/'
+        '${local.month.toString().padLeft(2, '0')}/'
+        '${local.year} · '
+        '${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}';
+    final typeLabel = switch (movement.type) {
+      'DEPOSIT' => 'Descarte',
+      'MISSION_REWARD' => 'Missão',
+      'REDEMPTION' => 'Resgate',
+      'REDEMPTION_REFUND' => 'Estorno de resgate',
+      _ => movement.type,
+    };
+    return Padding(
+      key: ValueKey('statement-${movement.id}'),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SurfaceCard(
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: (isCredit ? AppColors.green : AppColors.danger)
+                    .withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isCredit ? Icons.add_rounded : Icons.remove_rounded,
+                color: isCredit ? AppColors.green : AppColors.danger,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    typeLabel,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  Text('${movement.title} · $dateLabel'),
+                ],
+              ),
+            ),
+            BinCoinAmount(
+              value: movement.amount.abs(),
+              size: 18,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: isCredit ? AppColors.green : AppColors.danger,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
