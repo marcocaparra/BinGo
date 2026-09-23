@@ -35,7 +35,7 @@ void main() {
       expect(find.text('Pedido confirmado'), findsOneWidget);
       expect(
         find.text(
-          'Retire presencialmente na escola apresentando sua carteirinha.',
+          'Seu pedido foi realizado e o produto foi reservado. Retire presencialmente na escola apresentando sua carteirinha.',
         ),
         findsOneWidget,
       );
@@ -60,7 +60,7 @@ void main() {
   );
 
   testWidgets(
-    'authenticated orders show only pending and never expose pickup codes',
+    'authenticated orders show only pending and never expose internal codes',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -312,7 +312,7 @@ BinBazarRedemption _redemption({
   required String status,
   String id = 'order-1',
   String rewardName = 'Produto real da escola',
-  String? code,
+  String code = 'BGO-MOBILE',
 }) {
   return BinBazarRedemption(
     id: id,

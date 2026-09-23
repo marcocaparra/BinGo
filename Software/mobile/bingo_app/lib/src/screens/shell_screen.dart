@@ -1914,7 +1914,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
       description:
           reward.description ?? 'Produto disponibilizado pela sua escola.',
       pickupInstruction:
-          'Após solicitar, acompanhe o pedido e apresente o código na escola.',
+          'Após solicitar, acompanhe o pedido e retire presencialmente na escola com sua carteirinha.',
       isActive: reward.isActive,
       stockQty: reward.stockQty,
     );
@@ -2105,7 +2105,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
               Text(redemption.rewardName, textAlign: TextAlign.center),
               const SizedBox(height: 12),
               const Text(
-                'Retire presencialmente na escola apresentando sua carteirinha.',
+                'Seu pedido foi realizado e o produto foi reservado. Retire presencialmente na escola apresentando sua carteirinha.',
                 textAlign: TextAlign.center,
               ),
             ],
@@ -3115,11 +3115,9 @@ Future<void> _showRewardDetails(
             ),
             const SizedBox(height: 6),
             Text(
-              '${reward.title} foi registrado no Extrato desta simulação.',
+              '${reward.title} foi reservado nesta simulação.',
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 18),
-            _PickupCode(code: redemption.pickupCode),
             const SizedBox(height: 12),
             Text(reward.pickupInstruction, textAlign: TextAlign.center),
           ],
@@ -3127,44 +3125,6 @@ Future<void> _showRewardDetails(
       ),
     ),
   );
-}
-
-class _PickupCode extends StatelessWidget {
-  const _PickupCode({required this.code});
-
-  final String code;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Código demonstrativo de retirada $code',
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.blue.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.blue.withValues(alpha: 0.32)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              'Código demonstrativo de retirada',
-              style: Theme.of(context).textTheme.labelMedium,
-            ),
-            const SizedBox(height: 5),
-            Text(
-              code,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: AppColors.blue,
-                letterSpacing: 0,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _LatestRedemptionCard extends StatelessWidget {
@@ -3183,7 +3143,7 @@ class _LatestRedemptionCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.confirmation_number_rounded, color: AppColors.green),
+          const Icon(Icons.inventory_2_outlined, color: AppColors.green),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -3199,12 +3159,6 @@ class _LatestRedemptionCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          Text(
-            redemption.pickupCode,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: AppColors.blue),
           ),
         ],
       ),

@@ -3,7 +3,7 @@ import 'package:bingo_app/src/data/session_wallet_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('redeem debits balance and adds an extract entry and pickup code', () {
+  test('redeem debits balance and keeps its internal local code', () {
     final controller = SessionWalletController();
     final redemption = controller.redeem(rewards.first);
 

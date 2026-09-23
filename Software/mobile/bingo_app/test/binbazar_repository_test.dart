@@ -32,12 +32,7 @@ void main() {
     () async {
       final source = _FakeSource({
         RemoteBinBazarRepository.requestRpc: [
-          {
-            ..._redemptionRow,
-            'code': null,
-            'points_student_balance': 700,
-            'replayed': false,
-          },
+          {..._redemptionRow, 'points_student_balance': 700, 'replayed': false},
         ],
       });
       final repository = RemoteBinBazarRepository(source);
@@ -48,7 +43,7 @@ void main() {
       );
 
       expect(result.pointsStudentBalance, 700);
-      expect(result.redemption.code, isNull);
+      expect(result.redemption.code, 'BGO-REAL');
       expect(source.lastParameters, {
         'p_request_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
         'p_reward_id': 'reward-1',
@@ -61,7 +56,6 @@ void main() {
       RemoteBinBazarRepository.cancelRpc: [
         {
           ..._redemptionRow,
-          'code': null,
           'status': 'CANCELED',
           'canceled_at': '2026-09-22T12:00:00Z',
           'points_student_balance': 1000,
@@ -75,7 +69,7 @@ void main() {
 
     expect(result.pointsStudentBalance, 1000);
     expect(result.redemption.status, 'CANCELED');
-    expect(result.redemption.code, isNull);
+    expect(result.redemption.code, 'BGO-REAL');
     expect(source.lastParameters, {'p_redemption_id': 'order-1'});
   });
 

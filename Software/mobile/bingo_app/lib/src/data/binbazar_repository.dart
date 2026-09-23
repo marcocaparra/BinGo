@@ -25,7 +25,7 @@ class BinBazarRedemption {
     required this.rewardId,
     required this.rewardName,
     required this.costPoints,
-    this.code,
+    required this.code,
     required this.status,
     required this.requestChannel,
     required this.createdAt,
@@ -37,7 +37,7 @@ class BinBazarRedemption {
   final String rewardId;
   final String rewardName;
   final int costPoints;
-  final String? code;
+  final String code;
   final String status;
   final String requestChannel;
   final DateTime createdAt;

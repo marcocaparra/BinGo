@@ -404,7 +404,8 @@ const rewards = [
     color: AppColors.green,
     asset: AppAssets.rewardJuice,
     description: 'Uma opção demonstrativa de bebida natural.',
-    pickupInstruction: 'Na simulação, apresente o código no balcão da escola.',
+    pickupInstruction:
+        'Na simulação, retire presencialmente na escola com sua carteirinha.',
   ),
   RewardItem(
     id: 'themed-pen',
@@ -414,7 +415,8 @@ const rewards = [
     color: AppColors.blue,
     asset: AppAssets.rewardPen,
     description: 'Uma caneta temática da jornada de restauração.',
-    pickupInstruction: 'Na simulação, apresente o código no balcão da escola.',
+    pickupInstruction:
+        'Na simulação, retire presencialmente na escola com sua carteirinha.',
   ),
   RewardItem(
     id: 'cafeteria-ticket',
@@ -424,7 +426,8 @@ const rewards = [
     color: AppColors.warning,
     asset: AppAssets.rewardCafeteriaTicket,
     description: 'Um exemplo de ticket para a cantina.',
-    pickupInstruction: 'Na simulação, apresente o código no balcão da cantina.',
+    pickupInstruction:
+        'Na simulação, retire presencialmente na cantina com sua carteirinha.',
   ),
   RewardItem(
     id: 'surprise-reward',
@@ -434,7 +437,8 @@ const rewards = [
     color: AppColors.scr4p,
     asset: AppAssets.rewardSurprise,
     description: 'Uma opção surpresa da jornada de restauração.',
-    pickupInstruction: 'Na simulação, apresente o código no balcão da escola.',
+    pickupInstruction:
+        'Na simulação, retire presencialmente na escola com sua carteirinha.',
   ),
 ];
 

@@ -38,38 +38,45 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('BinBazar confirms a redemption and exposes its pickup code', (
-    tester,
-  ) async {
-    tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
-        const FakeAccessibilityFeatures(disableAnimations: true);
-    addTearDown(
-      tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final controller = SessionWalletController();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: RewardsScreen(controller: controller),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'BinBazar confirms a redemption without exposing its internal code',
+    (tester) async {
+      tester.binding.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.binding.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final controller = SessionWalletController();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: RewardsScreen(controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Suco natural'));
-    await tester.pumpAndSettle();
-    expect(find.text('Simular por 3000 BinCoins'), findsOneWidget);
-    await tester.ensureVisible(find.text('Simular por 3000 BinCoins'));
-    await tester.tap(find.text('Simular por 3000 BinCoins'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Suco natural'));
+      await tester.pumpAndSettle();
+      expect(find.text('Simular por 3000 BinCoins'), findsOneWidget);
+      await tester.ensureVisible(find.text('Simular por 3000 BinCoins'));
+      await tester.tap(find.text('Simular por 3000 BinCoins'));
+      await tester.pumpAndSettle();
 
-    expect(controller.balance, 9000);
-    expect(find.text('Simulação concluída'), findsOneWidget);
-    expect(find.textContaining('BGO-'), findsAtLeastNWidgets(1));
-  });
+      expect(controller.balance, 9000);
+      expect(find.text('Simulação concluída'), findsOneWidget);
+      expect(find.textContaining('BGO-'), findsNothing);
+      expect(
+        find.text(
+          'Na simulação, retire presencialmente na escola com sua carteirinha.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   for (final size in const [Size(390, 844), Size(430, 932), Size(1024, 768)]) {
     testWidgets('access flow fits ${size.width}x${size.height}', (
