@@ -1,6 +1,6 @@
-# Totem Kiosk Wireframe
+# Totem BinGo
 
-Wireframe visual navegável para o Totem BinGo em tela touch vertical de 7 polegadas.
+Interface local do Totem BinGo para tela touch vertical de 7 polegadas.
 
 ## Objetivo
 
@@ -18,10 +18,10 @@ python -m http.server 8092 --bind 127.0.0.1
 Abra:
 
 ```text
-http://127.0.0.1:8092/apps/totem_kiosk_wireframe/
+http://127.0.0.1:8092/apps/totem_ui/
 ```
 
-Se a porta `8092` ja estiver ocupada, use outra porta e mantenha o mesmo caminho `/apps/totem_kiosk_wireframe/`.
+Se a porta `8092` ja estiver ocupada, use outra porta e mantenha o mesmo caminho `/apps/totem_ui/`.
 
 ## Escopo
 
@@ -42,6 +42,14 @@ Se a porta `8092` ja estiver ocupada, use outra porta e mantenha o mesmo caminho
 - Edge local do Orange Pi.
 - Persistência de dados.
 - Integração com Supabase ou FastAPI.
+
+## Perfil de desempenho
+
+- O kiosk usa delegação de eventos e evita recriar listeners a cada tela.
+- Busca e PIN atualizam apenas seus componentes durante a digitação.
+- Assets da próxima etapa são pré-carregados quando o navegador fica ocioso.
+- Animações contínuas têm ciclos limitados e respeitam `prefers-reduced-motion`.
+- Em telas pequenas, a interface ocupa o viewport inteiro sem a moldura de revisão.
 
 ## Diretriz visual do B1N
 
