@@ -46,7 +46,19 @@ export const ADMIN_ROLES: Record<AdminRole, AdminRoleDefinition> = {
     description: 'Gestão de alunos, turmas, equipe operacional, pendências e BinBazar.',
     operatorName: 'Gustavo Alencar',
     operatorInitials: 'GA',
-    views: ['overview', 'students', 'classes', 'administrators', 'pending', 'deposits', 'help', 'products', 'redemptions', 'missions', 'machines'],
+    views: [
+      'overview',
+      'students',
+      'classes',
+      'administrators',
+      'pending',
+      'deposits',
+      'help',
+      'products',
+      'redemptions',
+      'missions',
+      'machines',
+    ],
   },
   ADMIN_C: {
     code: 'ADMIN_C',
@@ -56,7 +68,16 @@ export const ADMIN_ROLES: Record<AdminRole, AdminRoleDefinition> = {
     description: 'Consultas, solicitações, estoque, resgates e operação diária dos Totens.',
     operatorName: 'Gustavo Alencar',
     operatorInitials: 'GA',
-    views: ['overview', 'students', 'requests', 'deposits', 'help', 'products', 'redemptions', 'machines'],
+    views: [
+      'overview',
+      'students',
+      'requests',
+      'deposits',
+      'help',
+      'products',
+      'redemptions',
+      'machines',
+    ],
   },
 };
 

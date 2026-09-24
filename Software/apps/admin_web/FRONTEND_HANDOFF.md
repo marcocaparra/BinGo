@@ -14,6 +14,10 @@ O front representa tres perfis:
   estado dos Totens.
 
 A matriz de navegacao fica centralizada em `src/app/admin-access.ts`.
+O `app.ts` e o index fixo; o shell compartilhado troca explicitamente os
+componentes `AdminAComponent`, `AdminBComponent` e `AdminCComponent`.
+As telas de dominio ficam separadas em `features/` e o estado demonstrativo
+fica em `core/admin-store.ts`.
 
 ## O que funciona no prototipo
 
@@ -61,8 +65,7 @@ demonstrativos de gestao escolar e global.
 
 ## Proxima etapa
 
-Quando os endpoints e payloads estiverem definidos, substitua o estado local por
-um adapter de dados sem transferir regras de autorizacao para o navegador. A
-componentizacao por dominio pode evoluir junto dessa integracao, preservando a
-matriz de acesso e os testes de comportamento atuais.
-
+Quando os endpoints e payloads estiverem definidos, substitua o estado local em
+`core/admin-store.ts` por adapters de dados sem transferir regras de autorizacao
+para o navegador. Os componentes de dominio e a matriz de acesso devem ser
+preservados durante essa integracao.

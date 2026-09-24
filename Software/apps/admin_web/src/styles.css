@@ -1,12 +1,12 @@
 @font-face {
-  font-family: "Sora";
-  src: url("/assets/fonts/Sora.ttf") format("truetype");
+  font-family: 'Sora';
+  src: url('/assets/fonts/Sora.ttf') format('truetype');
   font-weight: 100 900;
 }
 
 @font-face {
-  font-family: "Inter";
-  src: url("/assets/fonts/Inter.ttf") format("truetype");
+  font-family: 'Inter';
+  src: url('/assets/fonts/Inter.ttf') format('truetype');
   font-weight: 100 900;
 }
 
@@ -51,7 +51,7 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--navy);
-  font-family: "Inter", sans-serif;
+  font-family: 'Inter', sans-serif;
   background:
     radial-gradient(circle at 92% 2%, rgba(18, 200, 255, 0.12), transparent 28rem),
     linear-gradient(180deg, #f8fbff 0%, #eef6fc 100%);
@@ -114,7 +114,7 @@ svg {
 .brand-lockup span {
   padding-left: 12px;
   border-left: 1px solid rgba(255, 255, 255, 0.48);
-  font-family: "Sora", sans-serif;
+  font-family: 'Sora', sans-serif;
   font-weight: 700;
 }
 
@@ -126,7 +126,7 @@ svg {
 .eyebrow {
   margin: 0 0 9px;
   color: var(--blue-strong);
-  font-family: "Sora", sans-serif;
+  font-family: 'Sora', sans-serif;
   font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.04em;
@@ -140,7 +140,7 @@ svg {
 .access-copy h1 {
   max-width: 720px;
   margin: 0 0 20px;
-  font-family: "Sora", sans-serif;
+  font-family: 'Sora', sans-serif;
   font-size: clamp(34px, 5vw, 64px);
   line-height: 1.06;
 }
@@ -185,7 +185,9 @@ svg {
 
 .access-panel h2 {
   margin: 0 0 8px;
-  font: 800 26px/1.2 "Sora", sans-serif;
+  font:
+    800 26px/1.2 'Sora',
+    sans-serif;
 }
 
 .access-panel > p {
@@ -343,7 +345,7 @@ svg {
   background: #f1f8fd;
 }
 
-.nav-button[aria-current="page"] {
+.nav-button[aria-current='page'] {
   border-color: #a9dcf0;
   color: #006e8c;
   background: #eaf9ff;
@@ -383,7 +385,7 @@ svg {
   border-top: 1px solid var(--line);
 }
 
-.sidebar-footer .text-button[data-action="logout"] {
+.sidebar-footer .text-button[data-action='logout'] {
   width: 100%;
   min-height: 42px;
   justify-content: center;
@@ -397,7 +399,7 @@ svg {
   text-align: center;
 }
 
-.sidebar-footer .text-button[data-action="logout"]:hover {
+.sidebar-footer .text-button[data-action='logout']:hover {
   border-color: #efb4bc;
   color: #a52636;
   background: #fff3f5;
@@ -418,7 +420,7 @@ svg {
   border-radius: 50%;
   color: #006e8c;
   background: #dff7ff;
-  font-family: "Sora", sans-serif;
+  font-family: 'Sora', sans-serif;
   font-weight: 900;
 }
 
@@ -472,7 +474,9 @@ svg {
 }
 
 .topbar-copy strong {
-  font: 800 15px "Sora", sans-serif;
+  font:
+    800 15px 'Sora',
+    sans-serif;
 }
 
 .topbar-copy span {
@@ -544,7 +548,9 @@ svg {
 
 .page-heading h1 {
   margin: 0;
-  font: 820 clamp(25px, 3vw, 34px)/1.2 "Sora", sans-serif;
+  font:
+    820 clamp(25px, 3vw, 34px)/1.2 'Sora',
+    sans-serif;
 }
 
 .page-heading p:not(.eyebrow) {
@@ -586,7 +592,7 @@ svg {
   inset: 0 auto 0 0;
   width: 4px;
   background: var(--accent, var(--blue));
-  content: "";
+  content: '';
 }
 
 .summary-icon {
@@ -621,7 +627,9 @@ svg {
 
 .summary-card strong {
   margin: 12px 0 7px;
-  font: 850 30px "Sora", sans-serif;
+  font:
+    850 30px 'Sora',
+    sans-serif;
 }
 
 .summary-card span {
@@ -656,7 +664,9 @@ svg {
 
 .panel-head h2 {
   margin: 0;
-  font: 800 16px "Sora", sans-serif;
+  font:
+    800 16px 'Sora',
+    sans-serif;
 }
 
 .panel-head p {
@@ -870,7 +880,9 @@ svg {
 
 .period-metric strong {
   margin-top: 3px;
-  font: 820 20px "Sora", sans-serif;
+  font:
+    820 20px 'Sora',
+    sans-serif;
 }
 
 .queue-summary {
@@ -888,7 +900,10 @@ svg {
 
 .redemption-row {
   display: grid;
-  grid-template-columns: 44px minmax(150px, 1fr) minmax(100px, 0.55fr) minmax(150px, 0.8fr) auto auto;
+  grid-template-columns: 44px minmax(150px, 1fr) minmax(100px, 0.55fr) minmax(
+      150px,
+      0.8fr
+    ) auto auto;
   align-items: center;
   gap: 14px;
   min-height: 86px;
@@ -919,7 +934,9 @@ svg {
 
 .redemption-code strong {
   margin-top: 3px;
-  font: 800 13px "Sora", sans-serif;
+  font:
+    800 13px 'Sora',
+    sans-serif;
   letter-spacing: 0.04em;
 }
 
@@ -953,7 +970,7 @@ svg {
   font-weight: 800;
 }
 
-.filter-button[aria-pressed="true"] {
+.filter-button[aria-pressed='true'] {
   border-color: #8bd9f3;
   color: #006e8c;
   background: #e7f9ff;
@@ -1044,7 +1061,9 @@ svg {
 
 .machine-card h2 {
   margin: 0;
-  font: 800 16px "Sora", sans-serif;
+  font:
+    800 16px 'Sora',
+    sans-serif;
 }
 
 .machine-card p {
@@ -1138,7 +1157,9 @@ svg {
 
 .confirm-dialog h2 {
   margin: 4px 0 8px;
-  font: 820 21px "Sora", sans-serif;
+  font:
+    820 21px 'Sora',
+    sans-serif;
 }
 
 .confirm-dialog > p:not(.eyebrow) {
@@ -1194,7 +1215,9 @@ svg {
 
 .operation-summary strong {
   color: var(--ink);
-  font: 760 15px "Sora", sans-serif;
+  font:
+    760 15px 'Sora',
+    sans-serif;
 }
 
 .operation-summary span,
@@ -1220,7 +1243,9 @@ svg {
   border-radius: 8px;
   color: #a51f2e;
   background: #fff4f5;
-  font: 760 12px "Inter", sans-serif;
+  font:
+    760 12px 'Inter',
+    sans-serif;
   cursor: pointer;
 }
 
@@ -1252,7 +1277,9 @@ svg {
   border-radius: 50%;
   color: #006e8c;
   background: #e5f8ff;
-  font: 900 20px "Sora", sans-serif;
+  font:
+    900 20px 'Sora',
+    sans-serif;
 }
 
 .state-icon svg {
@@ -1262,7 +1289,9 @@ svg {
 
 .state-panel h2 {
   margin: 0 0 8px;
-  font: 800 18px "Sora", sans-serif;
+  font:
+    800 18px 'Sora',
+    sans-serif;
 }
 
 .state-panel p {
@@ -1386,7 +1415,9 @@ svg {
 
 .setting-card strong {
   margin-top: 8px;
-  font: 820 22px "Sora", sans-serif;
+  font:
+    820 22px 'Sora',
+    sans-serif;
 }
 
 .setting-card p {
@@ -1401,8 +1432,12 @@ svg {
 }
 
 @keyframes skeleton {
-  from { background-position: 100% 0; }
-  to { background-position: -100% 0; }
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
 }
 
 @media (max-width: 1050px) {

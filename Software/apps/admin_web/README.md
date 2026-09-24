@@ -12,7 +12,23 @@ Aplicacao Angular do painel operacional do BinGo.
 - entrega e cancelamento demonstrativos de resgates, com confirmacao explicita;
 - estados de carregamento, vazio e falha disponiveis pelo seletor de demonstracao;
 - matriz de acesso centralizada em `src/app/admin-access.ts`;
-- prototipo anterior mantido em `legacy-static/` como referencia visual local.
+
+## Estrutura Angular
+
+```text
+src/app/
+  app.ts                         index e troca do perfil autenticado
+  admin-access.ts                contrato de navegacao A/B/C
+  core/admin-store.ts            estado demonstrativo compartilhado
+  layout/admin-shell.component.ts
+  roles/admin-role-components.ts componentes Admin A, B e C
+  features/                      componentes de cada dominio
+  shared/                        cards, linhas, estados e dialogos
+```
+
+O shell, a navegacao e os estilos sao compartilhados. Cada componente de papel
+monta somente os componentes permitidos pelo contrato. Nao existe mais um
+renderer monolitico dentro do codigo Angular ativo.
 
 As regras do front organizam a experiencia, mas nao substituem a autorizacao do backend. Toda consulta e operacao futura deve ser validada novamente pelo servidor, incluindo o vinculo de escola dos perfis `ADMIN_B` e `ADMIN_C`.
 
