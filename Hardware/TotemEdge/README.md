@@ -16,6 +16,7 @@ TotemEdge/
 ├── deploy/
 ├── frontend/
 └── README.md
+```
 
 ## backend/
 
@@ -79,12 +80,14 @@ Esta pasta poderá futuramente conter:
 A estratégia definitiva de deploy ainda será definida conforme a integração com o hardware real.
 Princípio geral
 A divisão de responsabilidades do Totem Edge segue este modelo:
+```
 Frontend
    ↓
 Backend local
    ├── Controller
    ├── Camera
    └── Backend remoto
+```
 O frontend representa a interação do usuário.
 O backend local controla o fluxo do Totem.
 Os módulos de controller e camera integram o Orange Pi aos dispositivos físicos.
@@ -93,14 +96,14 @@ O backend remoto continua sendo a fonte de verdade para os dados e regras de neg
 ## Princípio geral
 
 A divisão de responsabilidades do Totem Edge segue este modelo:
-
+```
 Frontend
    ↓
 Backend local
    ├── Controller
    ├── Camera
    └── Backend remoto
-
+```
 O frontend representa a interação do usuário.
 O backend local controla o fluxo do Totem.
 Os módulos de controller e camera integram o Orange Pi aos dispositivos físicos.
