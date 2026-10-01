@@ -12,8 +12,8 @@ select extensions.is(
           and relation.relkind in ('r', 'p')
           and relation.relrowsecurity
     ),
-    20,
-    'RLS esta habilitado nas vinte tabelas de dominio public'
+    21,
+    'RLS esta habilitado nas vinte e uma tabelas de dominio public'
 );
 
 select extensions.is(

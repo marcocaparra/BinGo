@@ -31,8 +31,9 @@ authenticated. `admins` permanece RLS fail-closed, sem leitura/escrita direta
 aberta ao cliente. O Angular usa Supabase Auth para login, restauração e logout,
 consulta novamente o contexto no refresh e bloqueia ausência de vínculo,
 inatividade e falhas sem fallback de autenticação demonstrativa. Alunos, turmas,
-trocas de turma e BinBazar operacional usam as fatias reais descritas abaixo; os
-outros domínios continuam com dados demonstrativos explícitos no AdminStore. `password_hash` permanece
+trocas de turma, BinBazar operacional e teto global usam as fatias reais descritas
+abaixo; os outros domínios e demais controles econômicos continuam demonstrativos
+explícitos no AdminStore. `password_hash` permanece
 legado FastAPI, sem sincronização com Auth. A migration recusa papéis históricos
 ambíguos e exige classificação manual antes de futura promoção em bancos que
 os contenham, preservando IDs e histórico. Não houve promoção desta migration
@@ -115,14 +116,58 @@ Missões e Jornada permanecem preservados, sem expiração automática.
 Angular usa repository real para produtos, fila e bloco de resgates em Pendências,
 IDs UUID, snapshots, busca pelo identificador interno BGO, estados reais e refetch,
 sem fallback mock. Trocas de turma continuam reais; overview e outros domínios
-permanecem demonstrativos. Não existe teto global persistido comprovado: criação
-de produto e edição de preço estão explicitamente bloqueadas, sem usar o 300 demo
-nem inventar configuração. Não há DELETE nem extensão econômica do ADMIN_A.
+permanecem demonstrativos. Na entrega 026 ainda não existia teto global persistido:
+criação e edição de preço estavam bloqueadas. A 027 abaixo conclui esses caminhos
+com configuração autoritativa, sem usar o 300 demo. DELETE continua fora do V1.
 Reset final com 26 migrations, 561 verificações pgTAP, 121 testes backend,
 47 browser e quatro integrações Auth/RPC/Angular locais passaram, sem skips;
 build, TypeScript, Prettier e diff-check passaram. Restam somente 13 avisos JWT
 legados preexistentes. A 026, como 023/024/025, não foi promovida ao bingo-dev.
 Contratos, limites, concorrência, reprodução e relatório em `admin-binbazar-v1.md`.
+
+O teto global real do BinBazar está implementado e comprovado somente localmente
+pelas migrations incrementais equivalentes
+`database/migrations/027_binbazar_global_price_cap_v1.sql` e
+`supabase/migrations/20261001120000_binbazar_global_price_cap_v1.sql`, sem editar
+022–026. `global_economic_settings` é singleton com teto integer positivo quando
+informado, timestamps e valor inicial NULL (ainda não configurado), sem valor
+inventado nem globalização de 800 BinCoins, 1900 XP, 10000 XP ou bônus ambientais.
+`get_binbazar_price_cap_v1()` permite consulta por A/B/C ACTIVE;
+`update_binbazar_price_cap_v1(p_max_price)` permite somente A ACTIVE, com lock,
+auditoria transacional e no-op para o mesmo valor. `audit_logs.school_id` agora
+aceita NULL como escopo global, preservando FK RESTRICT e todas as auditorias
+escolares; A não recebe escola artificial.
+B/C ACTIVE criam produtos da própria escola por
+`create_admin_binbazar_product_v1` com UUID do cliente e editam preço/categoria
+pela assinatura completa de `update_admin_binbazar_product_v1`. A assinatura
+não-preço da 026 continua compatível. Escola/ator são derivados via Auth, nome
+não vazio, preço positivo, estoque NULL/zero/finito e teto configurado são
+validados server-side. Recibo privado em rewards (`created_by_admin_id` e
+`admin_creation_payload`) preserva a intenção original sem backfill histórico:
+replay idêntico não duplica produto/auditoria mesmo após edição/consumo/redução;
+UUID divergente conflita. Update idêntico também é no-op. SECURITY DEFINER,
+search_path vazio, EXECUTE somente authenticated e RLS fail-closed permanecem;
+nenhuma policy Mobile ou escrita direta do browser foi aberta.
+Reduzir o teto não modifica preços/estoque/ativo existentes nem snapshots,
+resgates, saldo ou Extrato. Edição que mantém preço histórico acima do teto
+continua permitida; novo produto ou preço alterado deve respeitar o limite atual.
+FOR SHARE na configuração precede lock do produto e conflita com FOR UPDATE de
+A, mantendo validação até commit. Corridas reais create/update × redução
+comprovaram ambos os ordenamentos serializados, sem validação contra teto vencido.
+Angular Economia agora mostra teto real/NULL e permite A definir/editar sem
+confirmação otimista; B/C veem teto vigente, criam/editam produtos UUID e refazem
+leitura autoritativa. Ausência/erro de teto bloqueia somente criação/preço, sem
+fallback mock; outras edições continuam disponíveis. Demais controles da Economia
+e outros domínios ainda demonstrativos estão explicitamente identificados.
+Reset completo com 27 migrations, 20 arquivos/576 verificações pgTAP, 151 backend,
+55 browser e cinco integrações Auth/RPC/Angular locais passaram, sem skips.
+Build, TypeScript, Prettier e git diff-check passaram. As 13 advertências JWT
+legadas preexistentes permanecem. Regressão 022/026 confirmou solicitação e
+cancelamento Mobile, entrega/cancelamento Admin, concorrência e snapshots intactos.
+Fixtures/Auth foram removidos e a configuração original restaurada. A 027,
+como 023–026, não foi promovida ao bingo-dev; nenhum commit/push/PR/deploy/ação
+remota foi executado. Contratos técnicos, concorrência, auditoria global,
+reprodução e limites em `binbazar-global-price-cap-v1.md`.
 
 O modelo V1, o contrato de dados, as migrations correspondentes e a RPC `register_deposit_v1` estão implementados no repositório. A implementação documentada cobre snapshots de recompensa, catálogo de categorias, restrição de execução da RPC, idempotência sequencial e concorrente, atualização de saldos e auditoria transacional. A redenominação acrescentou a décima primeira migration Supabase e a migration `011` do trilho PostgreSQL; reset completo, testes específicos de conversão/rollback, pgTAP e testes de integração locais comprovaram o comportamento na nova unidade. Em `2026-09-14`, a migration `20260913120000_points_unit_redenomination.sql` foi aplicada de forma controlada no `bingo-dev`, e o postflight confirmou onze migrations locais/remotas alinhadas, defaults `800/1900/10000`, saldo smoke de `16` para `1600`, XP smoke de `19` para `1900` e o snapshot histórico do depósito convertido para bônus `800`, BinCoins `1600` e XP `1900`, sem alterar seu identificador, taxa ou instante. O `audit_logs.metadata` histórico preservou o mesmo SHA-256, e foi criado exatamente um evento SYSTEM `POINTS_UNIT_REDENOMINATED_V1` para a escola afetada. Essa comprovação é exclusiva do ambiente DEV e não declara aplicação em produção.
 

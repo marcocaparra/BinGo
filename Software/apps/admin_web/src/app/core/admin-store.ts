@@ -195,13 +195,6 @@ export class AdminStore {
       icon: 'gauge',
     },
     {
-      title: 'Teto do BinBazar',
-      value: '300',
-      unit: 'BinCoins',
-      description: 'Preço máximo permitido para produtos escolares.',
-      icon: 'badge-dollar-sign',
-    },
-    {
       title: 'Bônus por categoria',
       value: '2',
       unit: '×',

@@ -186,11 +186,13 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
           <span class="source-pill"
             ><i data-lucide="database"></i
             >{{
-              store.view() === 'pending'
-                ? 'Trocas e resgates reais'
-                : realSchoolView()
-                  ? 'Dados da escola vinculada'
-                  : 'Dados demonstrativos'
+              store.view() === 'economy'
+                ? 'Teto real · Outras regras demonstrativas'
+                : store.view() === 'pending'
+                  ? 'Trocas e resgates reais'
+                  : realSchoolView()
+                    ? 'Dados da escola vinculada'
+                    : 'Dados demonstrativos'
             }}</span
           >
         </div>
@@ -256,9 +258,15 @@ export class AdminShellComponent {
     });
   }
   realSchoolView() {
-    return ['students', 'classes', 'requests', 'pending', 'products', 'redemptions'].includes(
-      this.store.view(),
-    );
+    return [
+      'students',
+      'classes',
+      'requests',
+      'pending',
+      'products',
+      'redemptions',
+      'economy',
+    ].includes(this.store.view());
   }
   definition() {
     return ADMIN_ROLES[this.role()];

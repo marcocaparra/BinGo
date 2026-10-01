@@ -6,8 +6,8 @@ select extensions.ok(not has_function_privilege('anon',p.oid,'execute') and has_
 select extensions.ok(not has_function_privilege('authenticated','public.refund_pending_redemption_v1(uuid,text,uuid,uuid)','execute'),'Nucleo economico interno nao acessivel ao browser');
 select extensions.ok(not has_table_privilege('authenticated',t,'SELECT') and not has_table_privilege('authenticated',t,'INSERT') and not has_table_privilege('authenticated',t,'UPDATE') and not has_table_privilege('authenticated',t,'DELETE'),t || ' fechado') from unnest(array['public.rewards','public.redemptions']) t;
 select extensions.ok(c.relrowsecurity and not exists(select 1 from pg_policy p where p.polrelid=c.oid),c.relname || ' RLS fail-closed') from pg_class c where c.oid in ('public.rewards'::regclass,'public.redemptions'::regclass);
-select extensions.ok((select proargnames from pg_proc where oid='public.update_admin_binbazar_product_v1(uuid,text,text,integer,boolean)'::regprocedure)=array['p_reward_id','p_name','p_description','p_stock_qty','p_is_active'],'Sem autoridade cliente para preco/escola/ator; sem criacao ou DELETE');
-select extensions.ok(to_regprocedure('public.create_admin_binbazar_product_v1()') is null,'Criacao pendente do teto persistido');
+select extensions.ok((select proargnames from pg_proc where oid='public.update_admin_binbazar_product_v1(uuid,text,text,integer,boolean)'::regprocedure)=array['p_reward_id','p_name','p_description','p_stock_qty','p_is_active'],'Assinatura 026 preservada sem preco/escola/ator');
+select extensions.ok(to_regprocedure('public.create_admin_binbazar_product_v1()') is null,'Nao existe criacao sem dados e validacao autoritativa');
 select extensions.ok(not exists(select 1 from pg_policy where polname ilike '%admin%'),'Policies Mobile nao ampliadas');
 select * from extensions.finish();
 rollback;

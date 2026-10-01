@@ -4,9 +4,9 @@ Implementação local na branch `feature/admin-school-management-foundation`.
 
 ## Regras funcionais
 
-A fonte funcional é [admin-contract-v1.md](admin-contract-v1.md). B/C operam produtos e resgates somente da própria escola; A não participa da operação cotidiana. Produtos não são excluídos. Pedidos não expiram automaticamente no V1. O teto global de preço pertence a A, mas sua configuração econômica está fora desta fatia.
+A fonte funcional é [admin-contract-v1.md](admin-contract-v1.md). B/C operam produtos e resgates somente da própria escola; A não participa da operação cotidiana. Produtos não são excluídos. Pedidos não expiram automaticamente no V1. O teto global de preço pertence a A. A fatia 026 abaixo preserva sua implantação original; a conclusão do teto e dos produtos na 027 está documentada em [binbazar-global-price-cap-v1.md](binbazar-global-price-cap-v1.md).
 
-O preflight consultou STATUS, contrato Admin, [binbazar-statement-v1.md](binbazar-statement-v1.md), database-model, migrations 022–025, schema local de rewards/redemptions/school_settings e referências de preço/configuração no Angular e legado. Não existe fonte persistida do teto: `cost_points > 0` é apenas integridade de preço positivo; `school_settings` não contém teto; `300` existe somente no AdminStore demonstrativo. Portanto não há RPC de criação de produto, alteração de preço ou DELETE. A UI explicita a pendência e não envia preço em mutations. Nenhum valor, coluna, tabela ou configuração de teto foi inventado.
+O preflight consultou STATUS, contrato Admin, [binbazar-statement-v1.md](binbazar-statement-v1.md), database-model, migrations 022–025, schema local de rewards/redemptions/school_settings e referências de preço/configuração no Angular e legado. No preflight da 026 não existia fonte persistida do teto: `cost_points > 0` é apenas integridade de preço positivo; `school_settings` não contém teto; `300` existe somente no AdminStore demonstrativo. Portanto a 026 não oferecia criação de produto nem alteração de preço; DELETE continua fora do V1. A 027 acrescenta criação/preço validados pelo teto global, sem editar a 026. Na entrega da 026 a UI explicitava a pendência e não enviava preço em mutations. Nenhum valor, coluna, tabela ou configuração de teto foi inventado.
 
 ## O que veio da 022
 
@@ -49,9 +49,9 @@ Auditoria ADMIN usa ator derivado da sessão e as ações ADMIN_PRODUCT_UPDATED_
 
 `AdminBinbazarRepository` concentra RPCs, fotografias por domínio, geração de leitura e descarte de resposta após mudança de contexto Auth. Logout elimina listas/operação/feedback. Telas usam UUIDs, estados loading/empty/error/submitting, conflito explícito, retry e refetch autoritativo após mutations; erro não usa mocks.
 
-Produtos permite nome/descrição/estoque/ativo e mostra preço existente sem edição. Campo estoque vazio representa ilimitado; zero é finito esgotado. Criação está desabilitada com justificativa visível.
+A entrega original da 026 permitia nome/descrição/estoque/ativo, com preço e criação bloqueados. A 027 habilita criação/preço/categoria conforme o teto real; confira a documentação complementar. Campo estoque vazio representa ilimitado; zero é finito esgotado.
 
-Resgates e bloco de Pendências usam a mesma fonte real, filtros PENDING/DELIVERED/CANCELED/histórico, busca visual por código/nome/matrícula, snapshots e turma atual. Código BGO é identificador administrativo, sem PIN/QR/autenticação adicional. Expiração demonstrativa foi removida. Trocas de turma reais continuam; overview, ajuda, depósitos, máquinas, administradores, escolas, Missões e economia continuam demonstrativos. Métricas estáticas do overview permanecem explicitamente demo e separadas da fila real.
+Resgates e bloco de Pendências usam a mesma fonte real, filtros PENDING/DELIVERED/CANCELED/histórico, busca visual por código/nome/matrícula, snapshots e turma atual. Código BGO é identificador administrativo, sem PIN/QR/autenticação adicional. Expiração demonstrativa foi removida. Trocas de turma reais continuam; overview, ajuda, depósitos, máquinas, administradores, escolas e Missões continuam demonstrativos. Economia agora integra somente o teto real da 027; os demais controles continuam demonstrativos. Métricas estáticas do overview permanecem explicitamente demo e separadas da fila real.
 
 ## Reprodução local
 
@@ -78,7 +78,7 @@ node node_modules/typescript/bin/tsc --noEmit -p tsconfig.app.json
 
 A integração usa exclusivamente loopback, Auth local, credenciais aleatórias efêmeras e cleanup. Chave técnica fica no processo Node de provisionamento; browser recebe apenas anon/publicável. Não se criam usuários remotos.
 
-## Validação final local — 2026-10-01
+## Validação local da entrega 026 — 2026-10-01
 
 | Comando/suíte                                                   | Resultado                                                                                      |
 | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |

@@ -11,9 +11,9 @@ Aplicacao Angular do painel operacional do BinGo.
 - layout e componentes preservados; alunos/turmas, trocas de turma e BinBazar operacional usam dados reais;
 - perfis `ADMIN_A`, `ADMIN_B` e `ADMIN_C` alinhados ao contrato funcional V1;
 - navegacao, dashboards e acoes demonstrativas adaptados ao escopo de cada perfil;
-- formularios reais escolares e de estoque; administradores, escolas, missoes e economia continuam demonstrativos;
+- formularios reais escolares e de produtos; administradores, escolas, missoes e demais regras economicas continuam demonstrativos;
 - entrega e cancelamento reais de resgates com confirmacao, auditoria e estorno transacional;
-- criacao de produtos e edicao de preco bloqueadas ate existir teto global persistido;
+- teto global real configurado por ADMIN_A; B/C criam produtos e editam preco conforme validacao server-side; teto inicial NULL bloqueia somente criacao/preco;
 - loading/empty/error/submitting reais nas telas conectadas; seletor de demonstracao somente nos outros dominios;
 - matriz de acesso centralizada em `src/app/admin-access.ts`;
 
@@ -26,6 +26,7 @@ src/app/
   core/admin-store.ts            estado demonstrativo compartilhado
   core/admin-auth.service.ts     sessao administrativa e Supabase Auth
   core/admin-binbazar.repository.ts produtos/resgates reais da propria escola
+  core/binbazar-price-cap.repository.ts teto global real, leitura A/B/C e edicao A
   core/admin-context.ts          validacao do contexto retornado pela RPC
   core/supabase-client.ts        SDK e configuracao publica por ambiente
   layout/admin-shell.component.ts
@@ -82,6 +83,6 @@ O front controla navegacao, formularios, validacao de campos, confirmacoes e fee
 - atomicidade entre estoque, estorno e entrega de resgates;
 - telemetria e ultima comunicacao dos Totens.
 
-Autenticacao, alunos/turmas, trocas de turma e BinBazar operacional estao integrados.
+Autenticacao, alunos/turmas, trocas de turma, BinBazar operacional e teto global estao integrados.
 Overview e os outros dominios ainda usam `Dados demonstrativos`. Contratos, limites
-de preco, concorrencia e reproducao local em [Admin BinBazar V1](../../docs/admin-binbazar-v1.md).
+de preco, concorrencia e reproducao local em [Admin BinBazar V1](../../docs/admin-binbazar-v1.md) e [Teto global V1](../../docs/binbazar-global-price-cap-v1.md).

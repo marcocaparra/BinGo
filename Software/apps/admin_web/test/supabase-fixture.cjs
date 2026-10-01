@@ -14,6 +14,8 @@ async function installSupabaseFixture(page, options = {}) {
     rpcError: false,
     schoolId,
     calls: [],
+    priceCap: null,
+    productReceipts: new Map(),
     products: [
       {
         reward_id: '50000000-0000-4000-8000-000000000001',
@@ -160,6 +162,9 @@ async function installSupabaseFixture(page, options = {}) {
     assert.ok(
       [
         'get_my_admin_context_v1',
+        'get_binbazar_price_cap_v1',
+        'update_binbazar_price_cap_v1',
+        'create_admin_binbazar_product_v1',
         'get_admin_binbazar_products_v1',
         'update_admin_binbazar_product_v1',
         'get_admin_redemptions_v1',
@@ -179,6 +184,27 @@ async function installSupabaseFixture(page, options = {}) {
       ].includes(rpc),
       `RPC fora da fatia: ${rpc}`,
     );
+    if (rpc.includes('price_cap')) {
+      if (fixture.capWait) await fixture.capWait;
+      if (fixture.capError) return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      if (rpc.startsWith('get_')) {
+        assert.deepEqual(body, {});
+        return route.fulfill({ json: [{ binbazar_max_price: fixture.priceCap }] });
+      }
+      assert.deepEqual(Object.keys(body), ['p_max_price']);
+      if (fixture.capMutationWait) await fixture.capMutationWait;
+      if (fixture.capMutationError)
+        return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      if (fixture.role !== 'ADMIN_A')
+        return route.fulfill({ status: 403, json: { code: '42501' } });
+      if (!Number.isInteger(body.p_max_price) || body.p_max_price <= 0)
+        return route.fulfill({
+          status: 400,
+          json: { code: '22023', message: 'BINBAZAR_PRICE_CAP_INVALID' },
+        });
+      fixture.priceCap = body.p_max_price;
+      return route.fulfill({ json: fixture.priceCap });
+    }
     if (rpc.includes('binbazar') || rpc.includes('admin_redemption')) {
       if (fixture.binbazarWait) await fixture.binbazarWait;
       if (fixture.binbazarError)
@@ -195,19 +221,61 @@ async function installSupabaseFixture(page, options = {}) {
           status: 409,
           json: { code: fixture.binbazarMutationError, message: 'Conflict' },
         });
-      if (rpc.startsWith('update_')) {
+      if (rpc.includes('product')) {
         assert.deepEqual(
           Object.keys(body).sort(),
-          ['p_reward_id', 'p_name', 'p_description', 'p_stock_qty', 'p_is_active'].sort(),
+          [
+            'p_reward_id',
+            'p_name',
+            'p_description',
+            'p_stock_qty',
+            'p_is_active',
+            'p_cost_points',
+            'p_category',
+          ].sort(),
         );
-        const p = fixture.products.find((p) => p.reward_id === body.p_reward_id);
-        Object.assign(p, {
+        const creating = rpc.startsWith('create_');
+        const existing = fixture.products.find((p) => p.reward_id === body.p_reward_id);
+        const receipt = fixture.productReceipts.get(body.p_reward_id);
+        if (creating && receipt) {
+          if (JSON.stringify(body) !== receipt)
+            return route.fulfill({
+              status: 409,
+              json: { code: '23505', message: 'ADMIN_PRODUCT_ID_CONFLICT' },
+            });
+          return route.fulfill({ json: body.p_reward_id });
+        }
+        if (creating || body.p_cost_points !== existing.cost_points) {
+          if (fixture.priceCap === null)
+            return route.fulfill({
+              status: 400,
+              json: { code: '55000', message: 'BINBAZAR_PRICE_CAP_UNCONFIGURED' },
+            });
+          if (body.p_cost_points > fixture.priceCap)
+            return route.fulfill({
+              status: 400,
+              json: { code: '22023', message: 'BINBAZAR_PRICE_CAP_EXCEEDED' },
+            });
+        }
+        const product = {
+          reward_id: body.p_reward_id,
           name: body.p_name,
           description: body.p_description,
           stock_qty: body.p_stock_qty,
           is_active: body.p_is_active,
-        });
-        return route.fulfill({ json: p.reward_id });
+          cost_points: body.p_cost_points,
+          category: body.p_category,
+        };
+        if (creating) {
+          assert.match(body.p_reward_id, /^[0-9a-f-]{36}$/);
+          fixture.products.push(product);
+          fixture.productReceipts.set(body.p_reward_id, JSON.stringify(body));
+          if (fixture.loseProductCreateResponse) {
+            fixture.loseProductCreateResponse = false;
+            return route.abort('failed');
+          }
+        } else Object.assign(existing, product);
+        return route.fulfill({ json: body.p_reward_id });
       }
       assert.deepEqual(Object.keys(body), ['p_redemption_id']);
       const r = fixture.redemptions.find((r) => r.redemption_id === body.p_redemption_id);

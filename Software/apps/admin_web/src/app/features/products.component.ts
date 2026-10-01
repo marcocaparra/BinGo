@@ -7,12 +7,29 @@ import { StatePanelComponent } from '../shared/state-panel.component';
   imports: [EntityRowComponent, StatePanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<div class="toolbar toolbar--end">
-      <button class="primary-button compact-button" disabled type="button">
+      <button
+        class="primary-button compact-button"
+        type="button"
+        [disabled]="
+          repo.cap.state().kind !== 'loaded' || repo.cap.state().value === null || repo.submitting()
+        "
+        (click)="repo.create()"
+      >
         Cadastrar produto
       </button>
     </div>
     <p class="contract-note">
-      Criação e alteração de preço aguardam o teto global persistido do BinGo.
+      @if (repo.cap.state().kind === 'loading') {
+        Carregando teto global…
+      } @else if (repo.cap.state().kind === 'error') {
+        Não foi possível consultar o teto. Criação e alteração de preço indisponíveis.
+        <button class="text-button" (click)="repo.cap.load()">Consultar teto novamente</button>
+      } @else if (repo.cap.state().value === null) {
+        ADMIN_A precisa definir o teto global. Criação e alteração de preço indisponíveis; outras
+        edições continuam permitidas.
+      } @else {
+        Teto global vigente: {{ repo.cap.state().value }} BinCoins.
+      }
     </p>
     @if (repo.notice()) {
       <p role="status">{{ repo.notice() }}</p>
@@ -50,7 +67,7 @@ import { StatePanelComponent } from '../shared/state-panel.component';
     @if (selected(); as p) {
       <div class="dialog-backdrop">
         <section class="confirm-dialog operation-dialog" role="dialog" aria-modal="true">
-          <h2>Editar produto e estoque</h2>
+          <h2>{{ creating() ? 'Cadastrar produto' : 'Editar produto e estoque' }}</h2>
           <form (submit)="save($event)">
             <div class="operation-fields">
               <div class="field">
@@ -79,7 +96,26 @@ import { StatePanelComponent } from '../shared/state-panel.component';
                   <option value="false" [selected]="!p.is_active">Inativo</option>
                 </select>
               </div>
-              <p>Preço: {{ p.cost_points }} BinCoins. Alteração aguardando teto global.</p>
+              <div class="field">
+                <label for="product-price">Preço em BinCoins</label
+                ><input
+                  id="product-price"
+                  name="price"
+                  type="number"
+                  min="1"
+                  step="1"
+                  [value]="p.cost_points || ''"
+                  [disabled]="repo.cap.state().kind !== 'loaded' || repo.cap.state().value === null"
+                  required
+                /><small
+                  >O teto se aplica quando o preço muda; preços históricos não são reduzidos
+                  automaticamente.</small
+                >
+              </div>
+              <div class="field">
+                <label for="product-category">Categoria</label
+                ><input id="product-category" name="category" [value]="p.category || ''" />
+              </div>
             </div>
             @if (repo.error()) {
               <p role="alert">{{ repo.error() }}</p>
@@ -92,8 +128,22 @@ import { StatePanelComponent } from '../shared/state-panel.component';
                 (click)="repo.close()"
               >
                 Cancelar</button
-              ><button class="primary-button" type="submit" [disabled]="repo.submitting()">
-                {{ repo.submitting() ? 'Salvando…' : 'Salvar alterações' }}
+              ><button
+                class="primary-button"
+                type="submit"
+                [disabled]="
+                  repo.submitting() ||
+                  (creating() &&
+                    (repo.cap.state().kind !== 'loaded' || repo.cap.state().value === null))
+                "
+              >
+                {{
+                  repo.submitting()
+                    ? 'Salvando…'
+                    : creating()
+                      ? 'Cadastrar produto'
+                      : 'Salvar alterações'
+                }}
               </button>
             </div>
           </form>
@@ -105,9 +155,23 @@ export class ProductsComponent {
   readonly repo = inject(AdminBinbazarRepository);
   constructor() {
     void this.repo.load('products');
+    void this.repo.cap.load();
+  }
+  creating() {
+    return this.repo.operation()?.action === 'create-product';
   }
   selected() {
     const op = this.repo.operation();
+    if (this.creating())
+      return {
+        reward_id: op!.id,
+        name: '',
+        description: null,
+        category: null,
+        cost_points: 0,
+        is_active: true,
+        stock_qty: null,
+      };
     return op?.action === 'product'
       ? this.repo.products().rows.find((p) => p.reward_id === op.id)
       : null;
@@ -120,6 +184,8 @@ export class ProductsComponent {
       p_name: String(data.get('name')),
       p_description: String(data.get('description')) || null,
       p_stock_qty: stock === '' ? null : Number(stock),
+      p_cost_points: data.has('price') ? Number(data.get('price')) : this.selected()!.cost_points,
+      p_category: String(data.get('category')) || null,
       p_is_active: data.get('active') === 'true',
     });
   }

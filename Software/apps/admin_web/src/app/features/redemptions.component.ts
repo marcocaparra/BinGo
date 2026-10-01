@@ -176,7 +176,7 @@ export class RedemptionsComponent {
   }
   selected() {
     const op = this.repo.operation();
-    return op && op.action !== 'product'
+    return op && ['deliver', 'cancel'].includes(op.action)
       ? this.repo.redemptions().rows.find((r) => r.redemption_id === op.id)
       : null;
   }

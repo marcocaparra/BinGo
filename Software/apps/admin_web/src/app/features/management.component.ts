@@ -1,3 +1,4 @@
+import { BinbazarPriceCapComponent } from './binbazar-price-cap.component';
 import { RedemptionsComponent } from './redemptions.component';
 export { ProductsComponent } from './products.component';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
@@ -314,8 +315,11 @@ export class MissionsComponent {
 }
 @Component({
   selector: 'app-economy',
+  imports: [BinbazarPriceCapComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<section class="settings-grid">
+  template: `<app-binbazar-price-cap />
+    <p class="contract-note">Outras configurações — Dados demonstrativos</p>
+    <section class="settings-grid">
       @for (s of store.economySettings(); track s.title; let i = $index) {
         <article class="setting-card">
           <span class="activity-icon"><i [attr.data-lucide]="s.icon"></i></span>
