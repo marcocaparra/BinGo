@@ -1,27 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AdminStore } from '../core/admin-store';
 const defs: Record<string, { title: string; icon: string; submit: string }> = {
-  'product-create': {
-    title: 'Cadastrar produto',
-    icon: 'package-plus',
-    submit: 'Cadastrar produto',
-  },
-  'product-edit': {
-    title: 'Editar produto e estoque',
-    icon: 'package-open',
-    submit: 'Salvar alterações',
-  },
   'admin-create': {
     title: 'Cadastrar administrador',
     icon: 'shield-plus',
     submit: 'Cadastrar acesso',
   },
   'admin-open': { title: 'Gerenciar administrador', icon: 'shield-user', submit: 'Salvar estado' },
-  'redemption-cancel': {
-    title: 'Cancelar resgate reservado',
-    icon: 'ticket-x',
-    submit: 'Cancelar resgate',
-  },
   'school-create': { title: 'Cadastrar escola', icon: 'school', submit: 'Cadastrar escola' },
   'school-open': { title: 'Detalhes da escola', icon: 'school', submit: 'Salvar estado' },
   'mission-create': { title: 'Criar missão global', icon: 'flag', submit: 'Criar missão' },
@@ -44,38 +29,7 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
         <h2 id="operation-dialog-title">{{ def().title }}</h2>
         <form (submit)="submit($event)">
           <div class="operation-fields">
-            @if (op.action.startsWith('product-')) {
-              @let p = product();
-              <div class="field">
-                <label for="op-product">Produto</label
-                ><input id="op-product" name="name" [value]="p?.name || ''" required />
-              </div>
-              <div class="field">
-                <label for="op-price">Preço em BinCoins</label
-                ><input
-                  id="op-price"
-                  name="price"
-                  [value]="clean(p?.price, ' BinCoins') || '90'"
-                  required
-                />
-              </div>
-              <div class="field">
-                <label for="op-stock">Estoque</label
-                ><input
-                  id="op-stock"
-                  name="stock"
-                  [value]="clean(p?.stock, ' unidades') || '10'"
-                  required
-                />
-              </div>
-              <div class="field">
-                <label for="op-status">Disponibilidade</label
-                ><select id="op-status" name="status">
-                  <option [selected]="p?.status !== 'Inativo'">Ativo</option>
-                  <option [selected]="p?.status === 'Inativo'">Inativo</option>
-                </select>
-              </div>
-            } @else if (op.action.startsWith('admin-')) {
+            @if (op.action.startsWith('admin-')) {
               @let a = admin();
               <div class="field">
                 <label for="op-name">Nome</label
@@ -103,17 +57,6 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
               <div class="dialog-note">
                 <i data-lucide="shield-check"></i>O backend deverá validar escopo, impedir
                 auto-inativação e registrar auditoria.
-              </div>
-            } @else if (op.action === 'redemption-cancel') {
-              @let r = redemption();
-              <div class="operation-summary">
-                <strong>{{ r?.reward }}</strong
-                ><span>{{ r?.student }} · {{ r?.code }}</span
-                ><small>Os BinCoins deverão ser estornados pelo backend de forma atômica.</small>
-              </div>
-              <div class="dialog-note">
-                <i data-lucide="triangle-alert"></i>Confirme apenas quando a recompensa não será
-                entregue.
               </div>
             } @else if (op.action.startsWith('school-')) {
               @let s = school();
@@ -236,14 +179,8 @@ export class OperationDialogComponent {
   key() {
     return this.store.activeOperation()?.key;
   }
-  product() {
-    return this.store.products()[this.idx()];
-  }
   admin() {
     return this.store.administrators().find((x) => x.email === this.key());
-  }
-  redemption() {
-    return this.store.redemptions().find((x) => x.id === this.key());
   }
   school() {
     return this.store.schools().find((x) => x.name === this.key());

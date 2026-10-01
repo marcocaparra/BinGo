@@ -1,6 +1,6 @@
 STATUS técnico — BinGo
 
-Atualizado em: `2026-09-30`
+Atualizado em: `2026-10-01`
 
 Este arquivo é a fonte rápida de verdade técnica do projeto. Ele consolida as decisões vigentes de `database-model.md`, `data-contracts-totem-app-backend.md`, `supabase-edge-functions-mvp.md`, `FLUXO_ECOSSISTEMA_DESCARTE_V1.md`, `operacao-offline.md`, `missions-contract-v1.md` e `class-journey-v1.md`, além dos relatórios recentes da fundação de autenticação técnica de máquinas e do inventário do FastAPI. Para descartes, permanecem vigentes as decisões revisadas a partir de `2026-08-12`; para missões, prevalece o contrato conceitual revisado em `2026-09-15`; para Jornada/BinGópolis, prevalece o contrato de `2026-09-22`. Código ou banco só devem prevalecer quando houver evidência de uma decisão posterior ainda não documentada.
 
@@ -30,9 +30,9 @@ sem hashes, com SECURITY DEFINER, search_path vazio e EXECUTE exclusivo de
 authenticated. `admins` permanece RLS fail-closed, sem leitura/escrita direta
 aberta ao cliente. O Angular usa Supabase Auth para login, restauração e logout,
 consulta novamente o contexto no refresh e bloqueia ausência de vínculo,
-inatividade e falhas sem fallback de autenticação demonstrativa. Alunos e turmas
-passaram a usar a fatia escolar real descrita abaixo; os demais domínios continuam
-com dados demonstrativos explícitos no AdminStore. `password_hash` permanece
+inatividade e falhas sem fallback de autenticação demonstrativa. Alunos, turmas,
+trocas de turma e BinBazar operacional usam as fatias reais descritas abaixo; os
+outros domínios continuam com dados demonstrativos explícitos no AdminStore. `password_hash` permanece
 legado FastAPI, sem sincronização com Auth. A migration recusa papéis históricos
 ambíguos e exige classificação manual antes de futura promoção em bancos que
 os contenham, preservando IDs e histórico. Não houve promoção desta migration
@@ -60,8 +60,8 @@ amplas nem escrita direta: as cinco policies e grants Mobile continuam intactos.
 O Angular usa repository escolar, IDs reais, loading/empty/error, formulários
 restritos e recarga autoritativa após salvar, sem fallback aos mocks. Turmas
 mostram segmento/série/nome/quantidade/XP, sem status ou participação inventados.
-Solicitações de troca passaram ao fluxo real descrito abaixo; os outros domínios
-permanecem demonstrativos.
+Solicitações de troca e BinBazar operacional passaram aos fluxos reais descritos
+abaixo; os outros domínios permanecem demonstrativos.
 A assistência escolar por ADMIN_A ainda não está integrada nesta fatia; isso
 não é uma proibição permanente do contrato. As migrations 023 e 024 permanecem
 somente locais, sem promoção ao `bingo-dev`. Reset com 24 migrations, 467 testes
@@ -87,12 +87,42 @@ são transacionais; retry não duplica logs nem reaplica troca já aprovada. Som
 students.class_id muda, preservando depósitos/XP histórico/Missões/Jornada/resgates.
 Angular usa solicitações reais, alunos/turmas UUID, loading/empty/error/submitting,
 conflito explícito, aprovação bloqueada em stale e recarga autoritativa. Pendências
-combina trocas reais e resgates ainda demonstrativos, identificados separadamente.
+agora combina trocas e resgates reais, pela integração BinBazar da 026 abaixo.
 Reset com 25 migrations, 547 testes pgTAP, 87 backend, 38 browser e três integrações
 locais passaram, incluindo os smokes de aprovação, stale e cancelamento. Nenhum
 skip; somente avisos JWT legados preexistentes. A migration 025, assim como 023/024,
 não foi promovida ao bingo-dev. Regras funcionais e decisões técnicas separadas em
 `class-change-requests-v1.md`.
+
+O BinBazar operacional Admin está implementado e comprovado somente localmente
+pelas migrations equivalentes `database/migrations/026_admin_binbazar_v1.sql` e
+`supabase/migrations/20260930150000_admin_binbazar_v1.sql`. B/C ACTIVE, derivados
+por Auth/admins, leem produtos e resgates da própria escola e atualizam
+nome/descrição/estoque/ativo sem escolher escola/ator. A não participa da operação.
+As RPCs `get_admin_binbazar_products_v1`, `update_admin_binbazar_product_v1`,
+`get_admin_redemptions_v1`, `deliver_admin_redemption_v1` e
+`cancel_admin_redemption_v1` mantêm SECURITY DEFINER/search_path vazio, EXECUTE
+somente authenticated e RLS fail-closed sem acesso direto nem policies Mobile novas.
+Entrega/cancelamento bloqueiam primeiro o pedido e são idempotentes: somente uma
+transição terminal vence, inclusive Mobile cancel × Admin deliver. Entrega não
+cobra novamente nem muda estoque. Cancelamento reutiliza núcleo econômico interno
+compartilhado com a 022: refund exato do snapshot, restauração somente de reserva
+finita ainda com estoque finito; NULL ilimitado é preservado. Mutation e auditoria
+ADMIN são transacionais; retry não duplica efeitos/logs. A assinatura, autorização,
+resultado, idempotência e metadata original do cancelamento Mobile foram mantidos;
+nenhum arquivo histórico da 022 foi editado. Snapshots, Extrato, depósitos, XP,
+Missões e Jornada permanecem preservados, sem expiração automática.
+Angular usa repository real para produtos, fila e bloco de resgates em Pendências,
+IDs UUID, snapshots, busca pelo identificador interno BGO, estados reais e refetch,
+sem fallback mock. Trocas de turma continuam reais; overview e outros domínios
+permanecem demonstrativos. Não existe teto global persistido comprovado: criação
+de produto e edição de preço estão explicitamente bloqueadas, sem usar o 300 demo
+nem inventar configuração. Não há DELETE nem extensão econômica do ADMIN_A.
+Reset final com 26 migrations, 561 verificações pgTAP, 121 testes backend,
+47 browser e quatro integrações Auth/RPC/Angular locais passaram, sem skips;
+build, TypeScript, Prettier e diff-check passaram. Restam somente 13 avisos JWT
+legados preexistentes. A 026, como 023/024/025, não foi promovida ao bingo-dev.
+Contratos, limites, concorrência, reprodução e relatório em `admin-binbazar-v1.md`.
 
 O modelo V1, o contrato de dados, as migrations correspondentes e a RPC `register_deposit_v1` estão implementados no repositório. A implementação documentada cobre snapshots de recompensa, catálogo de categorias, restrição de execução da RPC, idempotência sequencial e concorrente, atualização de saldos e auditoria transacional. A redenominação acrescentou a décima primeira migration Supabase e a migration `011` do trilho PostgreSQL; reset completo, testes específicos de conversão/rollback, pgTAP e testes de integração locais comprovaram o comportamento na nova unidade. Em `2026-09-14`, a migration `20260913120000_points_unit_redenomination.sql` foi aplicada de forma controlada no `bingo-dev`, e o postflight confirmou onze migrations locais/remotas alinhadas, defaults `800/1900/10000`, saldo smoke de `16` para `1600`, XP smoke de `19` para `1900` e o snapshot histórico do depósito convertido para bônus `800`, BinCoins `1600` e XP `1900`, sem alterar seu identificador, taxa ou instante. O `audit_logs.metadata` histórico preservou o mesmo SHA-256, e foi criado exatamente um evento SYSTEM `POINTS_UNIT_REDENOMINATED_V1` para a escola afetada. Essa comprovação é exclusiva do ambiente DEV e não declara aplicação em produção.
 

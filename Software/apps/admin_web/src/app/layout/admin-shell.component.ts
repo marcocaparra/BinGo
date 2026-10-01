@@ -1,3 +1,4 @@
+import { AdminBinbazarRepository } from '../core/admin-binbazar.repository';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -186,7 +187,7 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
             ><i data-lucide="database"></i
             >{{
               store.view() === 'pending'
-                ? 'Trocas reais · Resgates demonstrativos'
+                ? 'Trocas e resgates reais'
                 : realSchoolView()
                   ? 'Dados da escola vinculada'
                   : 'Dados demonstrativos'
@@ -246,6 +247,7 @@ export class AdminShellComponent {
   readonly role = computed(() => this.admin().role);
   readonly logout = output<void>();
   readonly store = inject(AdminStore);
+  readonly binbazar = inject(AdminBinbazarRepository);
   readonly meta = meta;
   constructor() {
     effect(() => {
@@ -254,7 +256,9 @@ export class AdminShellComponent {
     });
   }
   realSchoolView() {
-    return ['students', 'classes', 'requests', 'pending'].includes(this.store.view());
+    return ['students', 'classes', 'requests', 'pending', 'products', 'redemptions'].includes(
+      this.store.view(),
+    );
   }
   definition() {
     return ADMIN_ROLES[this.role()];
@@ -293,7 +297,7 @@ export class AdminShellComponent {
     return v === 'help'
       ? this.store.openHelp()
       : v === 'redemptions' || v === 'pending'
-        ? this.store.pendingRedemptions()
+        ? this.binbazar.redemptions().rows.filter((r) => r.status === 'PENDING').length
         : 0;
   }
   select(v: AdminView) {

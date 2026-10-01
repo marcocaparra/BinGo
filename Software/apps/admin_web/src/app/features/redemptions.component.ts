@@ -1,106 +1,144 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { AdminStore } from '../core/admin-store';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { AdminBinbazarRepository } from '../core/admin-binbazar.repository';
 import { StatePanelComponent } from '../shared/state-panel.component';
 @Component({
   selector: 'app-redemptions',
   imports: [StatePanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: ` <div class="toolbar">
-      <div class="filter-group">
-        @for (f of filters; track f) {
-          <button
-            class="filter-button"
-            type="button"
-            [attr.aria-pressed]="store.redemptionFilter() === f"
-            (click)="store.redemptionFilter.set(f)"
-          >
-            {{ f }}
-          </button>
-        }
-      </div>
-      <span class="queue-summary"
-        ><i data-lucide="clock-3"></i><strong>{{ store.pendingRedemptions() }}</strong> aguardando
-        entrega</span
-      >
-    </div>
-    <section class="panel redemption-list">
-      @for (item of filtered(); track item.id) {
-        <article class="redemption-row">
-          <span class="redemption-icon"
-            ><i [attr.data-lucide]="item.status === 'Pendente' ? 'ticket' : 'badge-check'"></i
-          ></span>
-          <div class="row-copy">
-            <strong>{{ item.reward }}</strong
-            ><span>{{ item.student }} · {{ item.className }}</span>
-          </div>
-          <div class="redemption-code">
-            <small>Código</small><strong>{{ item.code }}</strong>
-          </div>
-          <div class="row-meta">
-            <strong>{{ item.requestedAt }}</strong
-            ><br />{{ item.expiresAt }}
-          </div>
-          <span
-            class="tag"
-            [class.tag--warning]="item.status === 'Pendente'"
-            [class.tag--success]="item.status === 'Entregue'"
-            [class.tag--danger]="item.status === 'Cancelado'"
-            >{{ item.status }}</span
-          >
-          @if (item.status === 'Pendente') {
-            <div class="row-actions">
-              <button
-                class="row-action row-action--primary"
-                type="button"
-                (click)="store.redemptionToDeliver.set(item.id)"
-              >
-                <i data-lucide="package-check"></i><span>Validar entrega</span></button
-              ><button
-                class="row-action"
-                type="button"
-                (click)="store.open('redemption-cancel', null, item.id)"
-              >
-                <i data-lucide="ticket-x"></i><span>Cancelar</span>
-              </button>
-            </div>
-          } @else {
-            <span class="delivered-label"
-              ><i [attr.data-lucide]="item.status === 'Entregue' ? 'check' : 'x'"></i
-              >{{ item.status === 'Entregue' ? 'Concluído' : 'Cancelado' }}</span
+  template: `@if (!compact()) {
+      <div class="toolbar">
+        <div class="filter-group">
+          @for (f of filters; track f) {
+            <button
+              class="filter-button"
+              type="button"
+              [attr.aria-pressed]="filter() === f"
+              (click)="filter.set(f)"
             >
+              {{ f }}
+            </button>
           }
-        </article>
-      } @empty {
-        <app-state-panel
-          icon="badge-check"
-          title="Fila concluída"
-          body="Não há resgates aguardando entrega neste momento."
-        />
-      }
-    </section>
-    @if (selected(); as item) {
-      <div class="dialog-backdrop" (click)="backdrop($event)">
+        </div>
+        <label
+          >Código ou aluno
+          <input aria-label="Código ou aluno" (input)="search.set($any($event.target).value)"
+        /></label>
+      </div>
+    }
+    @if (repo.notice()) {
+      <p role="status">{{ repo.notice() }}</p>
+    }
+    @if (repo.redemptions().kind === 'loading') {
+      <app-state-panel title="Carregando resgates" body="Consultando a escola vinculada." />
+    } @else if (repo.redemptions().kind === 'error') {
+      <app-state-panel
+        title="Não foi possível carregar resgates"
+        body="Confira a conexão e tente novamente."
+        [retry]="true"
+        (retryClick)="repo.load('redemptions')"
+      />
+    } @else {
+      <section class="panel redemption-list">
+        @for (r of filtered(); track r.redemption_id) {
+          <article class="redemption-row">
+            <span class="redemption-icon"><i data-lucide="ticket"></i></span>
+            <div class="row-copy">
+              <strong>{{ r.reward_name_snapshot || 'Snapshot histórico indisponível' }}</strong
+              ><span
+                >{{ r.student_name }} · {{ r.registration || 'Sem matrícula' }} ·
+                {{ r.class_name }}</span
+              ><small>{{
+                r.cost_points_snapshot === null
+                  ? 'Preço histórico indisponível'
+                  : r.cost_points_snapshot + ' BinCoins'
+              }}</small>
+            </div>
+            <div class="redemption-code">
+              <small>Código interno</small><strong>{{ r.code }}</strong>
+            </div>
+            <div class="row-meta">
+              {{ date(r.created_at) }}
+              @if (r.delivered_at) {
+                <br />Entregue {{ date(r.delivered_at) }} · {{ r.delivered_by_admin_name }}
+              }
+              @if (r.canceled_at) {
+                <br />Cancelado {{ date(r.canceled_at) }}
+              }
+            </div>
+            <span
+              class="tag"
+              [class.tag--warning]="r.status === 'PENDING'"
+              [class.tag--success]="r.status === 'DELIVERED'"
+              >{{ label(r.status) }}</span
+            >
+            @if (r.status === 'PENDING') {
+              <div class="row-actions">
+                <button
+                  class="row-action row-action--primary"
+                  type="button"
+                  (click)="repo.open('deliver', r.redemption_id)"
+                >
+                  Validar entrega</button
+                ><button
+                  class="row-action"
+                  type="button"
+                  (click)="repo.open('cancel', r.redemption_id)"
+                >
+                  Cancelar
+                </button>
+              </div>
+            }
+          </article>
+        } @empty {
+          <app-state-panel title="Nenhum resgate" body="Não há resgates neste filtro." />
+        }
+      </section>
+    }
+    @if (selected(); as r) {
+      <div class="dialog-backdrop">
         <section class="confirm-dialog" role="dialog" aria-modal="true">
-          <span class="confirm-dialog-icon"><i data-lucide="package-check"></i></span>
-          <p class="eyebrow">Simulação de resgate</p>
-          <h2>Confirmar entrega?</h2>
+          <h2>
+            {{
+              repo.operation()?.action === 'deliver'
+                ? 'Confirmar entrega?'
+                : 'Cancelar resgate reservado'
+            }}
+          </h2>
           <p>
-            Confira o código <strong>{{ item.code }}</strong> e entregue
-            <strong>{{ item.reward }}</strong> para {{ item.student }}.
+            {{ r.student_name }} · {{ r.reward_name_snapshot || 'Snapshot indisponível' }} ·
+            <strong>{{ r.code }}</strong>
           </p>
-          <div class="dialog-note">
-            <i data-lucide="shield-check"></i>Esta ação será apenas demonstrativa até a integração
-            com o backend.
-          </div>
+          <p class="dialog-note">
+            {{
+              repo.operation()?.action === 'deliver'
+                ? 'Confira o aluno e o pedido antes da entrega. O código é somente um identificador administrativo.'
+                : 'O cancelamento devolve os BinCoins debitados e restaura o estoque reservado quando aplicável.'
+            }}
+          </p>
+          @if (repo.error()) {
+            <p role="alert">{{ repo.error() }}</p>
+          }
           <div class="dialog-actions">
             <button
               class="secondary-button"
               type="button"
-              (click)="store.redemptionToDeliver.set(null)"
+              [disabled]="repo.submitting()"
+              (click)="repo.close()"
             >
-              Cancelar</button
-            ><button class="primary-button" type="button" (click)="deliver(item.id)">
-              <i data-lucide="check"></i><span>Confirmar entrega</span>
+              Voltar</button
+            ><button
+              class="primary-button"
+              type="button"
+              [disabled]="repo.submitting()"
+              (click)="repo.mutate()"
+            >
+              {{
+                repo.submitting()
+                  ? 'Processando…'
+                  : repo.operation()?.action === 'deliver'
+                    ? 'Confirmar entrega'
+                    : 'Cancelar resgate'
+              }}
             </button>
           </div>
         </section>
@@ -108,27 +146,51 @@ import { StatePanelComponent } from '../shared/state-panel.component';
     }`,
 })
 export class RedemptionsComponent {
-  readonly store = inject(AdminStore);
-  readonly filters = ['Pendentes', 'Entregues', 'Todas'];
+  readonly repo = inject(AdminBinbazarRepository);
+  readonly compact = input(false);
+  readonly filter = signal('Pendentes');
+  readonly search = signal('');
+  readonly filters = ['Pendentes', 'Entregues', 'Cancelados', 'Todas'];
+  constructor() {
+    void this.repo.load('redemptions');
+  }
   filtered() {
-    const f = this.store.redemptionFilter();
-    return f === 'Todas'
-      ? this.store.redemptions()
-      : this.store
-          .redemptions()
-          .filter((x) => x.status === (f === 'Pendentes' ? 'Pendente' : 'Entregue'));
+    const status = this.compact()
+      ? 'PENDING'
+      : (
+          { Pendentes: 'PENDING', Entregues: 'DELIVERED', Cancelados: 'CANCELED' } as Record<
+            string,
+            string
+          >
+        )[this.filter()];
+    const query = this.search().trim().toLowerCase();
+    return this.repo
+      .redemptions()
+      .rows.filter(
+        (r) =>
+          (!status || r.status === status) &&
+          [r.code, r.student_name, r.registration || ''].some((v) =>
+            v.toLowerCase().includes(query),
+          ),
+      );
   }
   selected() {
-    return this.store.redemptions().find((x) => x.id === this.store.redemptionToDeliver());
+    const op = this.repo.operation();
+    return op && op.action !== 'product'
+      ? this.repo.redemptions().rows.find((r) => r.redemption_id === op.id)
+      : null;
   }
-  backdrop(e: MouseEvent) {
-    if (e.target === e.currentTarget) this.store.redemptionToDeliver.set(null);
-  }
-  deliver(id: string) {
-    this.store.redemptions.update((a) =>
-      a.map((x) => (x.id === id ? { ...x, status: 'Entregue', expiresAt: 'Entregue agora' } : x)),
+  label(status: string) {
+    return (
+      (
+        { PENDING: 'Pendente', DELIVERED: 'Entregue', CANCELED: 'Cancelado' } as Record<
+          string,
+          string
+        >
+      )[status] || 'Registro histórico'
     );
-    this.store.redemptionToDeliver.set(null);
-    this.store.notify(`${id} entregue somente nesta demonstração.`);
+  }
+  date(value: string) {
+    return new Date(value).toLocaleString('pt-BR');
   }
 }

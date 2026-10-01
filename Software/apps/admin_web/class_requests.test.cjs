@@ -79,7 +79,7 @@ test('B approves and refreshes requests and authoritative students/classes', asy
     await page.getByText('Aprovada', { exact: true }).waitFor();
     assert.equal(fixture.students[0].class_id, fixture.classes[1].class_id);
     assert.equal(await page.getByText('Resgates reservados', { exact: true }).count(), 1);
-    assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 1);
+    assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 0);
     await page.getByRole('button', { name: 'Alunos', exact: true }).click();
     await page
       .getByRole('row')
@@ -118,7 +118,9 @@ test('stale blocks approval and still permits rejection', async () => {
   });
   try {
     await page
-      .getByText('A turma atual mudou. Solicitação obsoleta: aprovação bloqueada.', { exact: true })
+      .getByText('A turma atual mudou. Solicitação obsoleta: aprovação bloqueada.', {
+        exact: true,
+      })
       .waitFor();
     await page.getByRole('button', { name: 'Analisar' }).click();
     const dialog = page.getByRole('dialog');

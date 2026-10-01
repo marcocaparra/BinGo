@@ -67,7 +67,7 @@ test('primary views and demonstrative states are navigable', async () => {
     await page.getByRole('heading', { name: 'Resgates pendentes' }).waitFor();
     await page.getByRole('button', { name: 'Validar entrega' }).first().click();
     await page.getByRole('dialog').getByRole('button', { name: 'Confirmar entrega' }).click();
-    await page.getByText(/entregue somente nesta demonstração/).waitFor();
+    await page.getByText(/Resgate entregue/).waitFor();
 
     await page.getByRole('button', { name: 'Totens' }).click();
     await page.getByRole('heading', { name: 'Estado dos Totens' }).waitFor();
@@ -186,7 +186,7 @@ test('school RPC creation and the remaining demonstrative actions stay isolated'
     await manager.getByRole('button', { name: /Resgates/ }).click();
     await manager.getByRole('button', { name: 'Cancelar' }).first().click();
     await manager.getByRole('dialog').getByRole('button', { name: 'Cancelar resgate' }).click();
-    await manager.getByText(/concluído somente nesta demonstração/).waitFor();
+    await manager.getByText(/Resgate cancelado/).waitFor();
     await manager.close();
 
     const operator = await browser.newPage({ viewport: { width: 1280, height: 800 } });

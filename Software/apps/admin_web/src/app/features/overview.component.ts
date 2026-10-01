@@ -111,7 +111,7 @@ import { EntityRowComponent } from '../shared/entity-row.component';
           icon="users-round"
         /><app-summary-card
           label="Pendências"
-          [value]="String(store.pendingRedemptions() + 1)"
+          [value]="String(store.demoPendingRedemptions() + 1)"
           note="3 resgates · 1 troca de turma"
           accent="#ffb020"
           icon="list-todo"
@@ -146,7 +146,7 @@ import { EntityRowComponent } from '../shared/entity-row.component';
             /><ng-container
               [ngTemplateOutlet]="attention"
               [ngTemplateOutletContext]="{
-                t: store.pendingRedemptions() + ' resgates pendentes',
+                t: store.demoPendingRedemptions() + ' resgates pendentes',
                 b: 'Produtos reservados aguardam entrega.',
                 c: '#ffb020',
                 i: 'ticket-check',
@@ -198,7 +198,7 @@ import { EntityRowComponent } from '../shared/entity-row.component';
           icon="circle-help"
         /><app-summary-card
           label="Resgates pendentes"
-          [value]="String(store.pendingRedemptions())"
+          [value]="String(store.demoPendingRedemptions())"
           note="Aguardam validação da entrega"
           accent="#ffb020"
           icon="ticket-check"
@@ -262,7 +262,7 @@ import { EntityRowComponent } from '../shared/entity-row.component';
             /><ng-container
               [ngTemplateOutlet]="attention"
               [ngTemplateOutletContext]="{
-                t: store.pendingRedemptions() + ' resgates pendentes',
+                t: store.demoPendingRedemptions() + ' resgates pendentes',
                 b: 'Recompensas aguardam confirmação de entrega.',
                 c: '#ffb020',
                 i: 'ticket-check',

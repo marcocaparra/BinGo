@@ -6,8 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "node --test admin_flow.test.cjs admin_auth.test.cjs admin_school.test.cjs class_requests.test.cjs",
-    "test:integration": "node --test admin_auth.integration.test.cjs admin_school.integration.test.cjs class_requests.integration.test.cjs"
+    "test": "node --test admin_flow.test.cjs admin_auth.test.cjs admin_school.test.cjs class_requests.test.cjs binbazar.test.cjs",
+    "test:integration": "node --test admin_auth.integration.test.cjs admin_school.integration.test.cjs class_requests.integration.test.cjs binbazar.integration.test.cjs"
   },
   "private": true,
   "packageManager": "npm@10.9.8",

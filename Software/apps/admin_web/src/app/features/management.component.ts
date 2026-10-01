@@ -1,3 +1,5 @@
+import { RedemptionsComponent } from './redemptions.component';
+export { ProductsComponent } from './products.component';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { AdminRole } from '../admin-access';
 import { StatePanelComponent } from '../shared/state-panel.component';
@@ -233,7 +235,7 @@ export class ClassesComponent {
 }
 @Component({
   selector: 'app-pending',
-  imports: [EntityRowComponent, ClassRequestsComponent],
+  imports: [RedemptionsComponent, ClassRequestsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<section class="pending-groups">
     <div class="panel">
@@ -250,32 +252,19 @@ export class ClassesComponent {
       <header class="panel-head">
         <div>
           <h2>Resgates reservados</h2>
-          <p>Dados demonstrativos</p>
+          <p>Dados reais da escola vinculada</p>
           <p>Produtos aguardando entrega ou cancelamento.</p>
         </div>
         <button class="secondary-button" type="button" (click)="store.view.set('redemptions')">
           <span>Ver fila</span><i data-lucide="arrow-right"></i>
         </button>
       </header>
-      <div class="entity-list">
-        @for (r of pending(); track r.id) {
-          <app-entity-row
-            icon="ticket"
-            [title]="r.reward"
-            [subtitle]="r.student + ' · ' + r.className"
-            [meta]="r.code"
-            [status]="r.status"
-          />
-        }
-      </div>
+      <app-redemptions [compact]="true" />
     </div>
   </section>`,
 })
 export class PendingComponent {
   readonly store = inject(AdminStore);
-  pending() {
-    return this.store.redemptions().filter((x) => x.status === 'Pendente');
-  }
 }
 @Component({
   selector: 'app-requests',
@@ -284,41 +273,6 @@ export class PendingComponent {
   template: `<section class="panel"><app-class-requests /></section>`,
 })
 export class RequestsComponent {}
-@Component({
-  selector: 'app-products',
-  imports: [EntityRowComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="toolbar toolbar--end">
-      <button
-        class="primary-button compact-button"
-        type="button"
-        (click)="store.open('product-create')"
-      >
-        <i data-lucide="plus"></i><span>Cadastrar produto</span>
-      </button>
-    </div>
-    <section class="panel entity-list">
-      @for (p of store.products(); track p.name; let i = $index) {
-        <app-entity-row
-          icon="package-open"
-          [title]="p.name"
-          [subtitle]="p.stock"
-          [meta]="p.price"
-          [status]="p.status"
-          actionLabel="Editar"
-          actionIcon="square-pen"
-          (action)="store.open('product-edit', i)"
-        />
-      }
-    </section>
-    <p class="contract-note">
-      <i data-lucide="badge-dollar-sign"></i>O preço deve respeitar o teto global definido pelo
-      BinGo.
-    </p>`,
-})
-export class ProductsComponent {
-  readonly store = inject(AdminStore);
-}
 @Component({
   selector: 'app-missions',
   imports: [EntityRowComponent],

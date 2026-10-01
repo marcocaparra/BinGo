@@ -14,6 +14,46 @@ async function installSupabaseFixture(page, options = {}) {
     rpcError: false,
     schoolId,
     calls: [],
+    products: [
+      {
+        reward_id: '50000000-0000-4000-8000-000000000001',
+        name: 'Produto RPC',
+        description: 'Descrição RPC',
+        category: null,
+        cost_points: 1200,
+        is_active: true,
+        stock_qty: 8,
+      },
+      {
+        reward_id: '50000000-0000-4000-8000-000000000002',
+        name: 'Ilimitado RPC',
+        description: null,
+        category: null,
+        cost_points: 900,
+        is_active: false,
+        stock_qty: null,
+      },
+    ],
+    redemptions: [
+      {
+        redemption_id: '60000000-0000-4000-8000-000000000001',
+        code: 'BGO-123456789ABC',
+        status: 'PENDING',
+        student_id: '30000000-0000-4000-8000-000000000001',
+        student_name: 'Aluno RPC',
+        registration: '0001',
+        class_id: '20000000-0000-4000-8000-000000000001',
+        class_name: 'Turma RPC',
+        reward_id: '50000000-0000-4000-8000-000000000001',
+        reward_name_snapshot: 'Snapshot RPC',
+        cost_points_snapshot: 1000,
+        created_at: '2026-09-30T12:00:00Z',
+        delivered_at: null,
+        canceled_at: null,
+        delivered_by_admin_id: null,
+        delivered_by_admin_name: null,
+      },
+    ],
     classRequests: [
       {
         request_id: '70000000-0000-4000-8000-000000000001',
@@ -120,6 +160,11 @@ async function installSupabaseFixture(page, options = {}) {
     assert.ok(
       [
         'get_my_admin_context_v1',
+        'get_admin_binbazar_products_v1',
+        'update_admin_binbazar_product_v1',
+        'get_admin_redemptions_v1',
+        'deliver_admin_redemption_v1',
+        'cancel_admin_redemption_v1',
         'get_class_change_requests_v1',
         'create_class_change_request_v1',
         'approve_class_change_request_v1',
@@ -134,6 +179,46 @@ async function installSupabaseFixture(page, options = {}) {
       ].includes(rpc),
       `RPC fora da fatia: ${rpc}`,
     );
+    if (rpc.includes('binbazar') || rpc.includes('admin_redemption')) {
+      if (fixture.binbazarWait) await fixture.binbazarWait;
+      if (fixture.binbazarError)
+        return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      if (rpc.startsWith('get_')) {
+        assert.deepEqual(body, {});
+        return route.fulfill({
+          json: rpc.includes('products') ? fixture.products : fixture.redemptions,
+        });
+      }
+      if (fixture.binbazarMutationWait) await fixture.binbazarMutationWait;
+      if (fixture.binbazarMutationError)
+        return route.fulfill({
+          status: 409,
+          json: { code: fixture.binbazarMutationError, message: 'Conflict' },
+        });
+      if (rpc.startsWith('update_')) {
+        assert.deepEqual(
+          Object.keys(body).sort(),
+          ['p_reward_id', 'p_name', 'p_description', 'p_stock_qty', 'p_is_active'].sort(),
+        );
+        const p = fixture.products.find((p) => p.reward_id === body.p_reward_id);
+        Object.assign(p, {
+          name: body.p_name,
+          description: body.p_description,
+          stock_qty: body.p_stock_qty,
+          is_active: body.p_is_active,
+        });
+        return route.fulfill({ json: p.reward_id });
+      }
+      assert.deepEqual(Object.keys(body), ['p_redemption_id']);
+      const r = fixture.redemptions.find((r) => r.redemption_id === body.p_redemption_id);
+      r.status = rpc.startsWith('deliver') ? 'DELIVERED' : 'CANCELED';
+      if (r.status === 'DELIVERED') {
+        r.delivered_at = new Date().toISOString();
+        r.delivered_by_admin_id = adminId;
+        r.delivered_by_admin_name = 'Admin RPC';
+      } else r.canceled_at = new Date().toISOString();
+      return route.fulfill({ json: r.redemption_id });
+    }
     if (rpc.includes('class_change_request')) {
       if (fixture.requestWait) await fixture.requestWait;
       if (fixture.requestError)
