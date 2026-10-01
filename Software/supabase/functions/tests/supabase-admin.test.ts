@@ -10,6 +10,39 @@ const LOCAL_KEY = "sb_secret_local_test_value";
 const CONFIGURATION_ERROR =
   "Edge Function server-side configuration is unavailable.";
 
+Deno.test("CLI HTTP workers can use the generated default key only on the local Docker gateway", () => {
+  equal(
+    resolveBackendSecretKey(reader({
+      SUPABASE_URL: "http://kong:8000",
+      SUPABASE_SECRET_KEYS: JSON.stringify({ default: LOCAL_KEY }),
+    })),
+    LOCAL_KEY,
+  );
+  for (
+    const url of [
+      undefined,
+      "https://example.supabase.co",
+      "http://localhost:54321",
+    ]
+  ) {
+    throws(() =>
+      resolveBackendSecretKey(reader({
+        SUPABASE_URL: url,
+        SUPABASE_SECRET_KEYS: JSON.stringify({ default: LOCAL_KEY }),
+      }))
+    );
+  }
+  throws(() =>
+    resolveBackendSecretKey(reader({
+      SUPABASE_URL: "http://kong:8000",
+      SUPABASE_SECRET_KEYS: JSON.stringify({
+        default: LOCAL_KEY,
+        bingo_backend: "invalid",
+      }),
+    }))
+  );
+});
+
 function reader(
   values: Record<string, string | undefined>,
 ): (name: string) => string | undefined {

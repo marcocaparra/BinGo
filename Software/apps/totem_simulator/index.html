@@ -16,7 +16,11 @@
         </div>
       </div>
 
-      <button class="nav-button active" type="button" data-section="discard-section">
+      <button
+        class="nav-button active"
+        type="button"
+        data-section="discard-section"
+      >
         <span>Descarte</span>
       </button>
       <button class="nav-button" type="button" data-section="student-section">
@@ -29,13 +33,35 @@
 
     <main class="app-shell">
       <header class="page-header">
-        <p id="school-name">Escola Demo BinGo</p>
+        <p id="school-name">Carregando escola...</p>
         <h1 id="section-title">Simulador de descarte</h1>
       </header>
 
-      <section id="discard-section" class="page-section active" aria-labelledby="discard-title">
+      <section
+        id="discard-section"
+        class="page-section active"
+        aria-labelledby="discard-title"
+      >
+        <div id="pending-recovery" class="panel" hidden aria-live="polite">
+          <h2>Descarte aguardando confirmação</h2>
+          <p id="pending-recovery-message">
+            O item foi recebido, mas a pontuação ainda não foi confirmada.
+            Nenhum novo descarte será iniciado.
+          </p>
+          <button
+            id="retry-pending-button"
+            class="primary-action"
+            type="button"
+          >
+            Tentar confirmar o mesmo evento
+          </button>
+        </div>
         <div class="section-grid">
-          <div id="discard-flow" class="panel totem-panel" aria-labelledby="discard-title">
+          <div
+            id="discard-flow"
+            class="panel totem-panel"
+            aria-labelledby="discard-title"
+          >
             <div class="panel-heading">
               <h2 id="discard-title">Totem BinGo</h2>
               <p id="discard-step-label">Tela 1 de 5</p>
@@ -54,7 +80,11 @@
                 <strong>Pronto para descartar?</strong>
                 <span>Comece pelo botão abaixo.</span>
               </div>
-              <button class="totem-action primary-action" type="button" data-discard-action="start">
+              <button
+                class="totem-action primary-action"
+                type="button"
+                data-discard-action="start"
+              >
                 Descartar
               </button>
             </div>
@@ -62,17 +92,31 @@
             <div id="discard-screen-mode" class="discard-screen" hidden>
               <div class="totem-copy">
                 <strong>Como deseja registrar?</strong>
-                <span>Você pode pontuar só a turma ou identificar o aluno.</span>
+                <span
+                  >Você pode pontuar só a turma ou identificar o aluno.</span
+                >
               </div>
               <div class="totem-actions">
-                <button class="totem-action" type="button" data-discard-action="anonymous">
+                <button
+                  class="totem-action"
+                  type="button"
+                  data-discard-action="anonymous"
+                >
                   Descartar sem identificação
                 </button>
-                <button class="totem-action" type="button" data-discard-action="identified">
+                <button
+                  class="totem-action"
+                  type="button"
+                  data-discard-action="identified"
+                >
                   Identificar aluno
                 </button>
               </div>
-              <button class="secondary-action totem-back-action" type="button" data-discard-action="back">
+              <button
+                class="secondary-action totem-back-action"
+                type="button"
+                data-discard-action="back"
+              >
                 Voltar
               </button>
             </div>
@@ -80,22 +124,38 @@
             <div id="discard-screen-class" class="discard-screen" hidden>
               <div class="totem-copy">
                 <strong>Escolha a turma</strong>
-                <span>Sem identificação, os pontos vão apenas para a turma.</span>
+                <span
+                  >Sem identificação, os pontos vão apenas para a turma.</span
+                >
               </div>
               <label>
                 Turma
                 <select id="discard-class-select"></select>
               </label>
               <div class="totem-footer-actions">
-                <button class="secondary-action" type="button" data-discard-action="back">Voltar</button>
-                <button class="primary-action" type="button" data-discard-action="class-next">Continuar</button>
+                <button
+                  class="secondary-action"
+                  type="button"
+                  data-discard-action="back"
+                >
+                  Voltar
+                </button>
+                <button
+                  class="primary-action"
+                  type="button"
+                  data-discard-action="class-next"
+                >
+                  Continuar
+                </button>
               </div>
             </div>
 
             <div id="discard-screen-student" class="discard-screen" hidden>
               <div class="totem-copy">
                 <strong>Identifique o aluno</strong>
-                <span>Selecione a turma, o nome e informe o PIN de 4 dígitos.</span>
+                <span
+                  >Selecione a turma, o nome e informe o PIN de 4 dígitos.</span
+                >
               </div>
               <label>
                 Turma
@@ -104,53 +164,118 @@
               <div class="student-picker-field">
                 <span>Aluno</span>
                 <select id="identified-student-select" hidden></select>
-                <button id="student-picker-open" class="student-picker-trigger" type="button">
+                <button
+                  id="student-picker-open"
+                  class="student-picker-trigger"
+                  type="button"
+                >
                   <span id="student-picker-selected">Escolher aluno</span>
                   <small>Toque para buscar por nome</small>
                 </button>
               </div>
               <label>
                 PIN
-                <input id="student-pin" type="password" inputmode="numeric" maxlength="4" placeholder="0000" />
+                <input
+                  id="student-pin"
+                  type="password"
+                  inputmode="numeric"
+                  maxlength="4"
+                  placeholder="0000"
+                />
               </label>
-              <div id="student-picker-dialog" class="student-picker-dialog" hidden>
-                <div class="student-picker-panel" role="dialog" aria-modal="true" aria-labelledby="student-picker-title">
+              <div
+                id="student-picker-dialog"
+                class="student-picker-dialog"
+                hidden
+              >
+                <div
+                  class="student-picker-panel"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="student-picker-title"
+                >
                   <div class="student-picker-heading">
                     <div>
                       <strong id="student-picker-title">Escolher aluno</strong>
-                      <span>Digite as primeiras letras ou toque em um nome.</span>
+                      <span
+                        >Digite as primeiras letras ou toque em um nome.</span
+                      >
                     </div>
-                    <button id="student-picker-close" class="secondary-action student-picker-close" type="button">Fechar</button>
+                    <button
+                      id="student-picker-close"
+                      class="secondary-action student-picker-close"
+                      type="button"
+                    >
+                      Fechar
+                    </button>
                   </div>
                   <label class="student-search-label">
                     Digite as primeiras letras
-                    <input id="student-picker-search" type="search" autocomplete="off" placeholder="Ex.: ana" />
+                    <input
+                      id="student-picker-search"
+                      type="search"
+                      autocomplete="off"
+                      placeholder="Ex.: ana"
+                    />
                   </label>
-                  <div id="student-picker-list" class="student-picker-list"></div>
+                  <div
+                    id="student-picker-list"
+                    class="student-picker-list"
+                  ></div>
                 </div>
               </div>
               <div class="totem-footer-actions">
-                <button class="secondary-action" type="button" data-discard-action="back">Voltar</button>
-                <button class="primary-action" type="button" data-discard-action="validate-student">Validar aluno</button>
+                <button
+                  class="secondary-action"
+                  type="button"
+                  data-discard-action="back"
+                >
+                  Voltar
+                </button>
+                <button
+                  class="primary-action"
+                  type="button"
+                  data-discard-action="validate-student"
+                >
+                  Validar aluno
+                </button>
               </div>
             </div>
 
             <div id="discard-screen-item" class="discard-screen" hidden>
               <div class="totem-copy">
                 <strong>Envie uma imagem do item</strong>
-                <span>A mesma análise do Totem identifica se o eletrônico pode seguir.</span>
+                <span
+                  >A mesma análise do Totem identifica se o eletrônico pode
+                  seguir.</span
+                >
               </div>
 
-              <input id="item-image-input" type="file" accept="image/png,image/jpeg" hidden />
-              <button id="item-image-dropzone" class="image-dropzone" type="button">
+              <input
+                id="item-image-input"
+                type="file"
+                accept="image/png,image/jpeg"
+                hidden
+              />
+              <button
+                id="item-image-dropzone"
+                class="image-dropzone"
+                type="button"
+              >
                 <span class="image-dropzone-mark" aria-hidden="true">+</span>
                 <strong>Arraste a imagem aqui</strong>
                 <span>ou clique para escolher um PNG ou JPG</span>
-                <small>Máximo de 5 MB. Use uma imagem nítida e com um item por vez.</small>
+                <small
+                  >Máximo de 5 MB. Use uma imagem nítida e com um item por
+                  vez.</small
+                >
               </button>
 
               <div id="item-image-preview" class="image-preview" hidden>
-                <img id="item-image-preview-image" alt="Prévia do item selecionado" />
+                <img
+                  id="item-image-preview-image"
+                  alt="Prévia do item selecionado"
+                />
                 <div>
                   <strong id="item-image-name">Imagem selecionada</strong>
                   <span id="item-image-meta"></span>
@@ -159,45 +284,117 @@
 
               <details class="sample-library">
                 <summary>Acervo de teste <span>15 imagens</span></summary>
-                <p>Clique em uma imagem ou arraste até a prévia. A dificuldade é estimada; compare o resultado da IA com o objeto real.</p>
-                <div class="sample-filters" role="group" aria-label="Filtrar imagens por dificuldade">
-                  <button type="button" data-sample-filter="all" aria-pressed="true">Todas</button>
-                  <button type="button" data-sample-filter="Fácil" aria-pressed="false">Fáceis</button>
-                  <button type="button" data-sample-filter="Difícil" aria-pressed="false">Difíceis</button>
-                  <button type="button" data-sample-filter="Muito difícil" aria-pressed="false">Muito difíceis</button>
+                <p>
+                  Clique em uma imagem ou arraste até a prévia. A dificuldade é
+                  estimada; compare o resultado da IA com o objeto real.
+                </p>
+                <div
+                  class="sample-filters"
+                  role="group"
+                  aria-label="Filtrar imagens por dificuldade"
+                >
+                  <button
+                    type="button"
+                    data-sample-filter="all"
+                    aria-pressed="true"
+                  >
+                    Todas
+                  </button>
+                  <button
+                    type="button"
+                    data-sample-filter="Fácil"
+                    aria-pressed="false"
+                  >
+                    Fáceis
+                  </button>
+                  <button
+                    type="button"
+                    data-sample-filter="Difícil"
+                    aria-pressed="false"
+                  >
+                    Difíceis
+                  </button>
+                  <button
+                    type="button"
+                    data-sample-filter="Muito difícil"
+                    aria-pressed="false"
+                  >
+                    Muito difíceis
+                  </button>
                 </div>
                 <div id="sample-grid" class="sample-grid"></div>
               </details>
 
-              <div id="vision-analysis" class="vision-analysis" aria-live="polite">
+              <div
+                id="vision-analysis"
+                class="vision-analysis"
+                aria-live="polite"
+              >
                 <div class="vision-analysis-indicator" aria-hidden="true"></div>
                 <div>
                   <strong id="vision-analysis-title">Aguardando imagem</strong>
-                  <span id="vision-analysis-copy">A análise ainda não foi iniciada.</span>
+                  <span id="vision-analysis-copy"
+                    >A análise ainda não foi iniciada.</span
+                  >
                 </div>
               </div>
 
               <div id="vision-result" class="vision-result" hidden>
                 <div class="vision-result-heading">
-                  <span id="vision-result-badge" class="vision-result-badge">Resultado</span>
+                  <span id="vision-result-badge" class="vision-result-badge"
+                    >Resultado</span
+                  >
                   <strong id="vision-result-item">Item identificado</strong>
                 </div>
                 <div class="vision-result-grid">
-                  <div><span>Categoria</span><strong id="vision-result-category">-</strong></div>
-                  <div><span>Confiança</span><strong id="vision-result-confidence">-</strong></div>
-                  <div><span>Análise</span><strong id="vision-result-origin">-</strong></div>
+                  <div>
+                    <span>Categoria</span
+                    ><strong id="vision-result-category">-</strong>
+                  </div>
+                  <div>
+                    <span>Confiança</span
+                    ><strong id="vision-result-confidence">-</strong>
+                  </div>
+                  <div>
+                    <span>Análise</span
+                    ><strong id="vision-result-origin">-</strong>
+                  </div>
                 </div>
               </div>
 
               <div class="totem-footer-actions vision-footer-actions">
-                <button class="secondary-action" type="button" data-discard-action="back">Voltar</button>
-                <button id="analyze-item-button" class="primary-action" type="button" data-discard-action="analyze-item" disabled>
+                <button
+                  class="secondary-action"
+                  type="button"
+                  data-discard-action="back"
+                >
+                  Voltar
+                </button>
+                <button
+                  id="analyze-item-button"
+                  class="primary-action"
+                  type="button"
+                  data-discard-action="analyze-item"
+                  disabled
+                >
                   Analisar item
                 </button>
-                <button id="retry-item-button" class="secondary-action" type="button" data-discard-action="retry-item" hidden>
+                <button
+                  id="retry-item-button"
+                  class="secondary-action"
+                  type="button"
+                  data-discard-action="retry-item"
+                  hidden
+                >
                   Ajustar imagem
                 </button>
-                <button id="confirm-discard-button" class="primary-action" type="button" data-discard-action="confirm-discard" hidden>
+                <button
+                  id="confirm-discard-button"
+                  class="primary-action"
+                  type="button"
+                  data-discard-action="confirm-discard"
+                  hidden
+                >
                   Registrar resultado
                 </button>
               </div>
@@ -206,12 +403,26 @@
             <div id="discard-screen-result" class="discard-screen" hidden>
               <div class="totem-copy">
                 <strong id="result-title">Resultado do descarte</strong>
-                <span id="result-subtitle">Confira a pontuação registrada.</span>
+                <span id="result-subtitle"
+                  >Confira a pontuação registrada.</span
+                >
               </div>
               <div id="discard-result-card" class="result-summary"></div>
               <div class="totem-footer-actions">
-                <button class="secondary-action" type="button" data-discard-action="finish">Finalizar</button>
-                <button class="primary-action" type="button" data-discard-action="new-discard">Novo descarte</button>
+                <button
+                  class="secondary-action"
+                  type="button"
+                  data-discard-action="finish"
+                >
+                  Finalizar
+                </button>
+                <button
+                  class="primary-action"
+                  type="button"
+                  data-discard-action="new-discard"
+                >
+                  Novo descarte
+                </button>
               </div>
             </div>
           </div>
@@ -228,7 +439,11 @@
         </div>
       </section>
 
-      <section id="student-section" class="page-section" aria-labelledby="student-title">
+      <section
+        id="student-section"
+        class="page-section"
+        aria-labelledby="student-title"
+      >
         <div class="section-grid">
           <div class="panel">
             <div class="panel-heading">
@@ -244,26 +459,55 @@
             <div class="student-picker-field">
               <span>Aluno</span>
               <select id="student-info-select" hidden></select>
-              <button id="student-info-picker-open" class="student-picker-trigger" type="button">
+              <button
+                id="student-info-picker-open"
+                class="student-picker-trigger"
+                type="button"
+              >
                 <span id="student-info-picker-selected">Escolher aluno</span>
                 <small>Toque para buscar o histórico</small>
               </button>
             </div>
 
-            <div id="student-info-picker-dialog" class="student-picker-dialog" hidden>
-              <div class="student-picker-panel" role="dialog" aria-modal="true" aria-labelledby="student-info-picker-title">
+            <div
+              id="student-info-picker-dialog"
+              class="student-picker-dialog"
+              hidden
+            >
+              <div
+                class="student-picker-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="student-info-picker-title"
+              >
                 <div class="student-picker-heading">
                   <div>
-                    <strong id="student-info-picker-title">Escolher aluno</strong>
+                    <strong id="student-info-picker-title"
+                      >Escolher aluno</strong
+                    >
                     <span>Digite as primeiras letras ou toque em um nome.</span>
                   </div>
-                  <button id="student-info-picker-close" class="secondary-action student-picker-close" type="button">Fechar</button>
+                  <button
+                    id="student-info-picker-close"
+                    class="secondary-action student-picker-close"
+                    type="button"
+                  >
+                    Fechar
+                  </button>
                 </div>
                 <label class="student-search-label">
                   Digite as primeiras letras
-                  <input id="student-info-picker-search" type="search" autocomplete="off" placeholder="Ex.: ana" />
+                  <input
+                    id="student-info-picker-search"
+                    type="search"
+                    autocomplete="off"
+                    placeholder="Ex.: ana"
+                  />
                 </label>
-                <div id="student-info-picker-list" class="student-picker-list"></div>
+                <div
+                  id="student-info-picker-list"
+                  class="student-picker-list"
+                ></div>
               </div>
             </div>
 
@@ -273,18 +517,24 @@
           <aside class="panel">
             <div class="panel-heading">
               <h2>Últimos descartes</h2>
-              <p>Histórico em memória da sessão atual.</p>
+              <p>Últimos descartes persistidos no Supabase.</p>
             </div>
             <div id="student-history" class="history-list"></div>
           </aside>
         </div>
       </section>
 
-      <section id="ranking-section" class="page-section" aria-labelledby="ranking-title">
+      <section
+        id="ranking-section"
+        class="page-section"
+        aria-labelledby="ranking-title"
+      >
         <div class="panel">
           <div class="panel-heading">
             <h2 id="ranking-title">Rankings</h2>
-            <p>Classificações atualizadas automaticamente após cada descarte.</p>
+            <p>
+              Classificações atualizadas automaticamente após cada descarte.
+            </p>
           </div>
 
           <div class="ranking-grid">
@@ -304,6 +554,7 @@
 
     <script src="vision/vision_provider.js?v=vision-upload-1"></script>
     <script src="sample_library.js?v=sample-library-1"></script>
+    <script src="backend_client.js"></script>
     <script src="app.js?v=sample-library-1"></script>
   </body>
 </html>

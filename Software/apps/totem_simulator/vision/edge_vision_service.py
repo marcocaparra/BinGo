@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import socket
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -20,6 +21,51 @@ from urllib.request import Request, urlopen
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png"}
+
+# Credentials stay inside this loopback process. No Supabase privileged key is
+# needed here: Edge Functions authenticate the machine and own DB privileges.
+BINGO_ROUTES = {
+    ("GET", "/bingo/health"): ("health-v1", ()),
+    ("GET", "/bingo/context"): ("totem-context-v1", ()),
+    ("GET", "/bingo/rankings"): ("totem-rankings-v1", ()),
+    ("POST", "/bingo/student-summary"): ("totem-student-summary-v1", ("student_id",)),
+    ("POST", "/bingo/student-pin"): ("totem-student-pin-v1", ("class_id", "student_id", "pin")),
+    ("POST", "/bingo/deposits"): ("register-deposit-v1", (
+        "event_id", "class_id", "student_id", "is_valid", "detected_type",
+        "waste_category_code", "category_source")),
+}
+
+
+def forward_bingo(method: str, path: str, payload: dict | None) -> tuple[int, dict]:
+    function, _ = BINGO_ROUTES[(method, path)]
+    url = os.getenv("BINGO_SUPABASE_URL", "").rstrip("/")
+    machine_id = os.getenv("BINGO_MACHINE_ID", "")
+    key = os.getenv("BINGO_MACHINE_API_KEY", "")
+    parsed = urlparse(url)
+    if (not machine_id or not key or parsed.username or parsed.password or
+            parsed.query or parsed.fragment or parsed.path not in ("", "/") or
+            not parsed.hostname or not (parsed.scheme == "https" or
+                parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"})):
+        return 503, {"error": {"code": "BACKEND_NOT_CONFIGURED", "message": "Configure o backend no serviço local."}}
+    request = Request(f"{url}/functions/v1/{function}",
+        data=json.dumps(payload).encode("utf-8") if payload is not None else None,
+        headers={"Content-Type": "application/json", "X-Machine-Id": machine_id, "X-Api-Key": key},
+        method=method)
+    try:
+        try:
+            response = urlopen(request, timeout=float(os.getenv("BINGO_BACKEND_TIMEOUT_SECONDS", "15")))
+        except HTTPError as error:
+            response = error
+        with response:
+            status = response.code
+            body = json.loads(response.read(8 * 1024 * 1024))
+        if not isinstance(body, dict):
+            raise ValueError("Invalid upstream body")
+        return status, body
+    except (URLError, TimeoutError, socket.timeout, OSError):
+        return 504, {"error": {"code": "BACKEND_RESULT_UNKNOWN", "message": "Backend indisponível ou sem resposta. Preserve o evento para retry."}}
+    except (ValueError, TypeError):
+        return 502, {"error": {"code": "INVALID_BACKEND_RESPONSE", "message": "Resposta inválida do backend."}}
 
 CATEGORY_LABELS = {
     "battery": {"battery", "alkaline battery", "lithium battery", "battery charger"},
@@ -248,7 +294,8 @@ class VisionHandler(BaseHTTPRequestHandler):
             return None
         parsed = urlparse(origin)
         allowed = {item.strip() for item in os.getenv("BINGO_ALLOWED_ORIGINS", "").split(",") if item.strip()}
-        if origin in allowed or parsed.hostname in {"127.0.0.1", "localhost"}:
+        if (parsed.scheme in {"http", "https"} and parsed.hostname in {"127.0.0.1", "localhost"}
+                and not parsed.username and not parsed.password and (not allowed or origin in allowed)):
             return origin
         return None
 
@@ -257,6 +304,7 @@ class VisionHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
         origin = self._origin()
         if origin:
             self.send_header("Access-Control-Allow-Origin", origin)
@@ -264,7 +312,37 @@ class VisionHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _local_request(self) -> bool:
+        host = urlparse("http://" + self.headers.get("Host", "")).hostname
+        if host not in {"127.0.0.1", "localhost"} or (self.headers.get("Origin") and not self._origin()):
+            self._send_json(HTTPStatus.FORBIDDEN, {"error": "local_origin_required"})
+            return False
+        return True
+
+    def _bingo_request(self, method: str) -> None:
+        parsed = urlparse(self.path)
+        route = BINGO_ROUTES.get((method, parsed.path))
+        if not route or parsed.query:
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+            return
+        payload = None
+        if method == "POST":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 4096 or self.headers.get("Content-Type", "").split(";")[0] != "application/json":
+                    raise ValueError()
+                payload = json.loads(self.rfile.read(length))
+                if not isinstance(payload, dict) or set(payload) != set(route[1]):
+                    raise ValueError()
+            except (ValueError, TypeError):
+                self._send_json(HTTPStatus.UNPROCESSABLE_ENTITY, {"error": {"code": "INVALID_LOCAL_CONTRACT", "message": "Payload inválido."}})
+                return
+        status, body = forward_bingo(method, parsed.path, payload)
+        self._send_json(status, body)
+
     def do_OPTIONS(self) -> None:  # noqa: N802
+        if not self._local_request():
+            return
         self.send_response(HTTPStatus.NO_CONTENT)
         origin = self._origin()
         if origin:
@@ -275,6 +353,11 @@ class VisionHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
+        if not self._local_request():
+            return
+        if urlparse(self.path).path.startswith("/bingo/"):
+            self._bingo_request("GET")
+            return
         if urlparse(self.path).path == "/health":
             gemini_configured = bool(os.getenv("GEMINI_API_KEY", "").strip())
             self._send_json(HTTPStatus.OK, {
@@ -288,7 +371,12 @@ class VisionHandler(BaseHTTPRequestHandler):
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
     def do_POST(self) -> None:  # noqa: N802
+        if not self._local_request():
+            return
         parsed = urlparse(self.path)
+        if parsed.path.startswith("/bingo/"):
+            self._bingo_request("POST")
+            return
         if parsed.path != "/vision/analyze":
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
             return
@@ -335,11 +423,18 @@ class VisionHandler(BaseHTTPRequestHandler):
             })
 
     def log_message(self, format: str, *args) -> None:
-        print(f"[edge-vision] {self.address_string()} {format % args}")
+        # Never log query strings or request bodies (in particular student PIN).
+        path = urlparse(self.path).path
+        allowed_paths = {route[1] for route in BINGO_ROUTES} | {"/health", "/vision/analyze"}
+        route = path if path in allowed_paths else "/unknown"
+        status = args[1] if len(args) > 1 else "error"
+        print(f"[edge-vision] {self.command} {route} {status}")
 
 
 def main() -> None:
     host = os.getenv("BINGO_VISION_HOST", "127.0.0.1")
+    if host not in {"127.0.0.1", "localhost"}:
+        raise ValueError("This trusted service must bind to loopback only")
     port = int(os.getenv("BINGO_VISION_PORT", "8765"))
     server = ThreadingHTTPServer((host, port), VisionHandler)
     print(f"BinGo Edge Vision listening on http://{host}:{port}")

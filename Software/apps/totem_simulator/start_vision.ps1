@@ -22,6 +22,9 @@ if (-not $awsReady -and -not $env:AWS_PROFILE -and -not $env:GEMINI_API_KEY) {
     throw 'Configure AWS credentials/profile or GEMINI_API_KEY in .env or in the environment first.'
 }
 
-Write-Host 'Starting local BinGo vision. Keep this terminal open while testing.'
+if (-not $env:BINGO_SUPABASE_URL -or -not $env:BINGO_MACHINE_ID -or -not $env:BINGO_MACHINE_API_KEY) {
+    Write-Warning 'Backend unavailable until BINGO_SUPABASE_URL, BINGO_MACHINE_ID and BINGO_MACHINE_API_KEY are configured. Vision remains available; real deposits are blocked.'
+}
+Write-Host 'Starting local BinGo vision + Supabase gateway. Keep this terminal open while testing.'
 & $Python (Join-Path $PSScriptRoot 'vision/edge_vision_service.py')
 exit $LASTEXITCODE
