@@ -3,6 +3,7 @@ import { AdminRole } from '../admin-access';
 import { StatePanelComponent } from '../shared/state-panel.component';
 import { AdminSchoolRepository } from '../core/admin-school.repository';
 import { AdminStore } from '../core/admin-store';
+import { ClassRequestsComponent } from './class-requests.component';
 import { EntityRowComponent } from '../shared/entity-row.component';
 @Component({
   selector: 'app-schools',
@@ -232,7 +233,7 @@ export class ClassesComponent {
 }
 @Component({
   selector: 'app-pending',
-  imports: [EntityRowComponent],
+  imports: [EntityRowComponent, ClassRequestsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<section class="pending-groups">
     <div class="panel">
@@ -241,28 +242,15 @@ export class ClassesComponent {
           <h2>Trocas de turma</h2>
           <p>Exigem decisão de um Admin B.</p>
         </div>
-        <span class="tag tag--warning">1 pendente</span>
       </header>
-      <div class="entity-list">
-        @for (r of store.classRequests(); track r.id; let i = $index) {
-          <app-entity-row
-            icon="users-round"
-            [title]="r.student + ' · ' + r.id"
-            [subtitle]="r.current + ' → ' + r.destination"
-            [meta]="'Solicitado por ' + r.author"
-            [status]="r.status"
-            [actionLabel]="r.status === 'Pendente' ? 'Analisar' : ''"
-            actionIcon="check-check"
-            [primary]="true"
-            (action)="store.open('request-review', i)"
-          />
-        }
-      </div>
+      <p class="contract-note">Dados reais da escola vinculada</p>
+      <app-class-requests [manage]="true" />
     </div>
     <div class="panel">
       <header class="panel-head">
         <div>
           <h2>Resgates reservados</h2>
+          <p>Dados demonstrativos</p>
           <p>Produtos aguardando entrega ou cancelamento.</p>
         </div>
         <button class="secondary-button" type="button" (click)="store.view.set('redemptions')">
@@ -291,38 +279,11 @@ export class PendingComponent {
 }
 @Component({
   selector: 'app-requests',
-  imports: [EntityRowComponent],
+  imports: [ClassRequestsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="toolbar toolbar--end">
-      <button
-        class="primary-button compact-button"
-        type="button"
-        (click)="store.open('request-create')"
-      >
-        <i data-lucide="plus"></i><span>Solicitar troca de turma</span>
-      </button>
-    </div>
-    <section class="panel entity-list">
-      @for (r of store.classRequests(); track r.id; let i = $index) {
-        <app-entity-row
-          icon="send"
-          [title]="r.student + ' · ' + r.id"
-          [subtitle]="r.current + ' → ' + r.destination"
-          [meta]="r.author"
-          [status]="r.status"
-          [actionLabel]="r.status === 'Pendente' ? 'Cancelar' : ''"
-          actionIcon="x"
-          (action)="store.open('request-cancel', i)"
-        />
-      }
-    </section>
-    <p class="contract-note">
-      <i data-lucide="info"></i>A turma só muda depois da aprovação de um Admin B.
-    </p>`,
+  template: `<section class="panel"><app-class-requests /></section>`,
 })
-export class RequestsComponent {
-  readonly store = inject(AdminStore);
-}
+export class RequestsComponent {}
 @Component({
   selector: 'app-products',
   imports: [EntityRowComponent],

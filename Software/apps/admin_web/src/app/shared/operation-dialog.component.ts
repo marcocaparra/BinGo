@@ -1,21 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AdminStore } from '../core/admin-store';
 const defs: Record<string, { title: string; icon: string; submit: string }> = {
-  'request-create': {
-    title: 'Solicitar troca de turma',
-    icon: 'send',
-    submit: 'Enviar solicitação',
-  },
-  'request-review': {
-    title: 'Analisar troca de turma',
-    icon: 'check-check',
-    submit: 'Aprovar troca',
-  },
-  'request-cancel': {
-    title: 'Cancelar solicitação',
-    icon: 'circle-x',
-    submit: 'Confirmar cancelamento',
-  },
   'product-create': {
     title: 'Cadastrar produto',
     icon: 'package-plus',
@@ -59,38 +44,7 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
         <h2 id="operation-dialog-title">{{ def().title }}</h2>
         <form (submit)="submit($event)">
           <div class="operation-fields">
-            @if (op.action === 'request-create') {
-              <div class="field">
-                <label for="op-student">Aluno</label
-                ><select id="op-student" name="student">
-                  @for (s of store.demoStudents(); track s.name) {
-                    <option>{{ s.name }}</option>
-                  }
-                </select>
-              </div>
-              <div class="field">
-                <label for="op-destination">Nova turma</label
-                ><select id="op-destination" name="destination">
-                  @for (c of store.demoClasses(); track c.name) {
-                    <option>{{ c.name }}</option>
-                  }
-                </select>
-              </div>
-              <div class="dialog-note">
-                <i data-lucide="info"></i>A troca só será aplicada depois da aprovação de um Admin
-                B.
-              </div>
-            } @else if (op.action === 'request-review' || op.action === 'request-cancel') {
-              @let r = request();
-              <div class="operation-summary">
-                <strong>{{ r?.student }}</strong
-                ><span>{{ r?.current }} → {{ r?.destination }}</span
-                ><small>{{ r?.id }}</small>
-              </div>
-              <div class="dialog-note">
-                <i data-lucide="history"></i>A decisão ficará registrada somente nesta demonstração.
-              </div>
-            } @else if (op.action.startsWith('product-')) {
+            @if (op.action.startsWith('product-')) {
               @let p = product();
               <div class="field">
                 <label for="op-product">Produto</label
@@ -250,11 +204,6 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
             <button class="secondary-button" type="button" (click)="store.close()">
               {{ viewOnly() ? 'Fechar' : 'Cancelar' }}
             </button>
-            @if (!viewOnly() && op.action === 'request-review') {
-              <button class="danger-button" type="button" (click)="reject()">
-                <i data-lucide="x"></i><span>Recusar</span>
-              </button>
-            }
             @if (!viewOnly()) {
               <button class="primary-button" type="submit">
                 <i data-lucide="check"></i><span>{{ def().submit }}</span>
@@ -286,9 +235,6 @@ export class OperationDialogComponent {
   }
   key() {
     return this.store.activeOperation()?.key;
-  }
-  request() {
-    return this.store.classRequests()[this.idx()];
   }
   product() {
     return this.store.products()[this.idx()];
@@ -323,13 +269,5 @@ export class OperationDialogComponent {
   submit(e: Event) {
     e.preventDefault();
     this.store.submit(e.currentTarget as HTMLFormElement);
-  }
-  reject() {
-    const i = this.idx();
-    this.store.classRequests.update((a) =>
-      a.map((x, n) => (n === i ? { ...x, status: 'Recusada' } : x)),
-    );
-    this.store.close();
-    this.store.notify('Solicitação recusada somente nesta demonstração.');
   }
 }

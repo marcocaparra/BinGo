@@ -184,7 +184,13 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
           </div>
           <span class="source-pill"
             ><i data-lucide="database"></i
-            >{{ realSchoolView() ? 'Dados da escola vinculada' : 'Dados demonstrativos' }}</span
+            >{{
+              store.view() === 'pending'
+                ? 'Trocas reais · Resgates demonstrativos'
+                : realSchoolView()
+                  ? 'Dados da escola vinculada'
+                  : 'Dados demonstrativos'
+            }}</span
           >
         </div>
         @switch (realSchoolView() ? 'normal' : store.scenario()) {
@@ -248,7 +254,7 @@ export class AdminShellComponent {
     });
   }
   realSchoolView() {
-    return ['students', 'classes'].includes(this.store.view());
+    return ['students', 'classes', 'requests', 'pending'].includes(this.store.view());
   }
   definition() {
     return ADMIN_ROLES[this.role()];

@@ -186,40 +186,6 @@ export class AdminStore {
       status: 'Ativa',
     },
   ]);
-  readonly demoStudents = signal([
-    {
-      name: 'Ana Clara Martins',
-      email: 'ana.martins@aluno.demo',
-      registration: '20261042',
-      className: '9º A',
-      balance: '340',
-      status: 'Ativa',
-    },
-    {
-      name: 'Lucas Pereira',
-      email: 'lucas.pereira@aluno.demo',
-      registration: '20261087',
-      className: '8º B',
-      balance: '215',
-      status: 'Ativo',
-    },
-    {
-      name: 'Marina Santos',
-      email: 'marina.santos@aluno.demo',
-      registration: '20261103',
-      className: '9º A',
-      balance: '180',
-      status: 'Ativa',
-    },
-    {
-      name: 'Rafael Gomes',
-      email: 'rafael.gomes@aluno.demo',
-      registration: '20261128',
-      className: '7º A',
-      balance: '95',
-      status: 'Inativo',
-    },
-  ]);
   readonly demoClasses = signal([
     { name: '9º A', students: '31 alunos', xp: '12.480 XP', participation: '84%', status: 'Ativa' },
     { name: '8º B', students: '29 alunos', xp: '10.920 XP', participation: '79%', status: 'Ativa' },
@@ -288,24 +254,6 @@ export class AdminStore {
       icon: 'map',
     },
   ]);
-  readonly classRequests = signal([
-    {
-      id: 'TT-032',
-      student: 'Marina Santos',
-      current: '9º A',
-      destination: '9º B',
-      author: 'Paula Mendes',
-      status: 'Pendente',
-    },
-    {
-      id: 'TT-029',
-      student: 'Lucas Pereira',
-      current: '8º A',
-      destination: '8º B',
-      author: 'Paula Mendes',
-      status: 'Aprovada',
-    },
-  ]);
   constructor() {
     effect(() => {
       if (!this.auth.admin()) {
@@ -337,31 +285,6 @@ export class AdminStore {
     const v = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
     const i = op.index ?? 0;
     switch (op.action) {
-      case 'request-create': {
-        const s = this.demoStudents().find((x) => x.name === v['student']);
-        this.classRequests.update((a) => [
-          {
-            id: `TT-${String(33 + a.length).padStart(3, '0')}`,
-            student: v['student'],
-            current: s?.className || 'Sem turma',
-            destination: v['destination'],
-            author: 'Gustavo Alencar',
-            status: 'Pendente',
-          },
-          ...a,
-        ]);
-        break;
-      }
-      case 'request-review':
-        this.classRequests.update((a) =>
-          a.map((x, n) => (n === i ? { ...x, status: 'Aprovada' } : x)),
-        );
-        break;
-      case 'request-cancel':
-        this.classRequests.update((a) =>
-          a.map((x, n) => (n === i ? { ...x, status: 'Cancelada' } : x)),
-        );
-        break;
       case 'product-create':
         this.products.update((a) => [
           ...a,
@@ -441,9 +364,6 @@ export class AdminStore {
         break;
     }
     const titles: Record<string, string> = {
-      'request-create': 'Solicitar troca de turma',
-      'request-review': 'Analisar troca de turma',
-      'request-cancel': 'Cancelar solicitação',
       'product-create': 'Cadastrar produto',
       'product-edit': 'Editar produto e estoque',
       'admin-create': 'Cadastrar administrador',

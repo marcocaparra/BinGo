@@ -193,8 +193,16 @@ test('school RPC creation and the remaining demonstrative actions stay isolated'
     await openAdmin(operator, 'ADMIN_C');
     await operator.getByRole('button', { name: 'Solicitações', exact: true }).click();
     await operator.getByRole('button', { name: 'Solicitar troca de turma' }).click();
+    await operator
+      .getByRole('dialog')
+      .getByLabel('Aluno', { exact: true })
+      .selectOption('30000000-0000-4000-8000-000000000001');
+    await operator
+      .getByRole('dialog')
+      .getByLabel('Nova turma')
+      .selectOption('20000000-0000-4000-8000-000000000002');
     await operator.getByRole('dialog').getByRole('button', { name: 'Enviar solicitação' }).click();
-    await operator.getByText(/concluído somente nesta demonstração/).waitFor();
+    await operator.getByText('Solicitação enviada.', { exact: true }).waitFor();
 
     await operator.getByRole('button', { name: 'Produtos e estoque', exact: true }).click();
     await operator.getByRole('button', { name: 'Editar' }).first().click();

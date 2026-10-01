@@ -60,12 +60,39 @@ amplas nem escrita direta: as cinco policies e grants Mobile continuam intactos.
 O Angular usa repository escolar, IDs reais, loading/empty/error, formulários
 restritos e recarga autoritativa após salvar, sem fallback aos mocks. Turmas
 mostram segmento/série/nome/quantidade/XP, sem status ou participação inventados.
-Os outros domínios, inclusive solicitações de troca, permanecem demonstrativos.
+Solicitações de troca passaram ao fluxo real descrito abaixo; os outros domínios
+permanecem demonstrativos.
 A assistência escolar por ADMIN_A ainda não está integrada nesta fatia; isso
 não é uma proibição permanente do contrato. As migrations 023 e 024 permanecem
 somente locais, sem promoção ao `bingo-dev`. Reset com 24 migrations, 467 testes
 pgTAP, 78 testes backend e smoke real local B/C Auth/RPC/Angular passaram.
 Contratos, reprodução e limites em `admin-school-management-foundation.md`.
+
+O fluxo real de solicitação de troca de turma C → decisão B está implementado e
+comprovado localmente pelas migrations equivalentes
+`database/migrations/025_class_change_requests_v1.sql` e
+`supabase/migrations/20260930140000_class_change_requests_v1.sql`.
+`class_change_requests` preserva escola/aluno/origem/destino/solicitante,
+PENDING/APPROVED/REJECTED/CANCELED, resolvedor e timestamps, com FKs RESTRICT,
+constraints de resolução e RLS fail-closed sem acesso direto do browser.
+As RPCs `get_class_change_requests_v1`, `create_class_change_request_v1`,
+`approve_class_change_request_v1`, `reject_class_change_request_v1` e
+`cancel_class_change_request_v1` exigem ACTIVE e derivam escola/ator via Auth.
+C cria/lista próprias/cancela próprias pendentes; B lista sua escola e decide;
+A não participa. Criação captura origem sob lock, usa UUID do cliente para replay
+idempotente e conflita em payload divergente. Decisões bloqueiam request/aluno;
+approve valida a origem contra turma atual, sem sobrescrever mudança mais recente.
+`is_stale` é derivado na leitura, sem status STALE persistido. Mutation e auditoria
+são transacionais; retry não duplica logs nem reaplica troca já aprovada. Somente
+students.class_id muda, preservando depósitos/XP histórico/Missões/Jornada/resgates.
+Angular usa solicitações reais, alunos/turmas UUID, loading/empty/error/submitting,
+conflito explícito, aprovação bloqueada em stale e recarga autoritativa. Pendências
+combina trocas reais e resgates ainda demonstrativos, identificados separadamente.
+Reset com 25 migrations, 547 testes pgTAP, 87 backend, 38 browser e três integrações
+locais passaram, incluindo os smokes de aprovação, stale e cancelamento. Nenhum
+skip; somente avisos JWT legados preexistentes. A migration 025, assim como 023/024,
+não foi promovida ao bingo-dev. Regras funcionais e decisões técnicas separadas em
+`class-change-requests-v1.md`.
 
 O modelo V1, o contrato de dados, as migrations correspondentes e a RPC `register_deposit_v1` estão implementados no repositório. A implementação documentada cobre snapshots de recompensa, catálogo de categorias, restrição de execução da RPC, idempotência sequencial e concorrente, atualização de saldos e auditoria transacional. A redenominação acrescentou a décima primeira migration Supabase e a migration `011` do trilho PostgreSQL; reset completo, testes específicos de conversão/rollback, pgTAP e testes de integração locais comprovaram o comportamento na nova unidade. Em `2026-09-14`, a migration `20260913120000_points_unit_redenomination.sql` foi aplicada de forma controlada no `bingo-dev`, e o postflight confirmou onze migrations locais/remotas alinhadas, defaults `800/1900/10000`, saldo smoke de `16` para `1600`, XP smoke de `19` para `1900` e o snapshot histórico do depósito convertido para bônus `800`, BinCoins `1600` e XP `1900`, sem alterar seu identificador, taxa ou instante. O `audit_logs.metadata` histórico preservou o mesmo SHA-256, e foi criado exatamente um evento SYSTEM `POINTS_UNIT_REDENOMINATED_V1` para a escola afetada. Essa comprovação é exclusiva do ambiente DEV e não declara aplicação em produção.
 
@@ -79,7 +106,7 @@ O readiness central está implementado como a Edge Function `health-v1`, dispon�
 
 No mesmo preflight remoto de `2026-09-04`, as Edge Functions `register-deposit-v1` e `health-v1` foram observadas ativas no `bingo-dev`. Essa verificação comprova presença e estado ativo, sem substituir testes funcionais dos contratos HTTP.
 
-O baseline backend de Supabase Auth e RLS está implementado e comprovado localmente. A identidade segue `auth.uid() → students.auth_user_id → school_id/class_id`; usuários autenticados leem somente seu perfil, sua turma e sua escola, enquanto identidades sem vínculo não recebem contexto. As onze tabelas preexistentes permanecem protegidas pelo baseline; com as cinco tabelas de Missões e as três tabelas da Jornada, o schema local e o `bingo-dev` totalizam dezenove tabelas com RLS. `anon` não acessa dados privados e não há escrita direta para `authenticated`. O catálogo `waste_categories` permanece integralmente legível por `anon` e `authenticated`, inclusive categorias inativas, por policy explícita. As policies relacionadas exigem `SELECT(auth_user_id)` para `authenticated`; teste real comprovou `42501` sem o grant, e a RLS limita sua exposição ao vínculo próprio.
+O baseline backend de Supabase Auth e RLS está implementado e comprovado localmente. A identidade segue `auth.uid() → students.auth_user_id → school_id/class_id`; usuários autenticados leem somente seu perfil, sua turma e sua escola, enquanto identidades sem vínculo não recebem contexto. As onze tabelas preexistentes permanecem protegidas pelo baseline; com as cinco tabelas de Missões e as três tabelas da Jornada, o baseline totalizava dezenove tabelas com RLS. A migration 025 acrescenta class_change_requests e eleva somente o ambiente local a vinte tabelas com RLS; não foi promovida ao bingo-dev. `anon` não acessa dados privados e não há escrita direta para `authenticated`. O catálogo `waste_categories` permanece integralmente legível por `anon` e `authenticated`, inclusive categorias inativas, por policy explícita. As policies relacionadas exigem `SELECT(auth_user_id)` para `authenticated`; teste real comprovou `42501` sem o grant, e a RLS limita sua exposição ao vínculo próprio.
 
 O primeiro fluxo vertical real do Mobile está implementado: login por e-mail/senha no Supabase Auth, restauração pela sessão persistida do SDK, leitura do próprio `students` por `auth_user_id`, leitura da turma e escola vinculadas sob RLS e logout. O perfil autenticado reutiliza o frontend final somente para nome, escola, turma, saldo individual de BinCoins (`students.points_student_balance`) e XP da turma (`classes.points_class_balance`); informações sem fonte real permanecem ocultas. O modo piloto continua explícito e isolado, com seus mocks locais, e a identificação por PIN no Totem permanece separada.
 

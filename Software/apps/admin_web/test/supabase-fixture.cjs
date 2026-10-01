@@ -14,6 +14,28 @@ async function installSupabaseFixture(page, options = {}) {
     rpcError: false,
     schoolId,
     calls: [],
+    classRequests: [
+      {
+        request_id: '70000000-0000-4000-8000-000000000001',
+        student_id: '30000000-0000-4000-8000-000000000001',
+        student_name: 'Aluno RPC',
+        registration: '0001',
+        source_class_id: '20000000-0000-4000-8000-000000000001',
+        source_class_name: 'Turma RPC',
+        destination_class_id: '20000000-0000-4000-8000-000000000002',
+        destination_class_name: 'Turma destino RPC',
+        current_class_id: '20000000-0000-4000-8000-000000000001',
+        current_class_name: 'Turma RPC',
+        status: 'PENDING',
+        is_stale: false,
+        requested_by_admin_id: adminId,
+        requested_by_admin_name: 'Solicitante RPC',
+        created_at: '2026-09-30T12:00:00Z',
+        resolved_by_admin_id: null,
+        resolved_by_admin_name: null,
+        resolved_at: null,
+      },
+    ],
     students: [
       {
         student_id: '30000000-0000-4000-8000-000000000001',
@@ -98,6 +120,11 @@ async function installSupabaseFixture(page, options = {}) {
     assert.ok(
       [
         'get_my_admin_context_v1',
+        'get_class_change_requests_v1',
+        'create_class_change_request_v1',
+        'approve_class_change_request_v1',
+        'reject_class_change_request_v1',
+        'cancel_class_change_request_v1',
         'get_admin_students_v1',
         'get_admin_classes_v1',
         'create_admin_student_v1',
@@ -107,6 +134,118 @@ async function installSupabaseFixture(page, options = {}) {
       ].includes(rpc),
       `RPC fora da fatia: ${rpc}`,
     );
+    if (rpc.includes('class_change_request')) {
+      if (fixture.requestWait) await fixture.requestWait;
+      if (fixture.requestError)
+        return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      const rows = () =>
+        fixture.classRequests
+          .filter((r) => fixture.role === 'ADMIN_B' || r.requested_by_admin_id === adminId)
+          .map((r) => {
+            const student = fixture.students.find((s) => s.student_id === r.student_id);
+            return {
+              ...r,
+              current_class_id: student?.class_id,
+              current_class_name: fixture.classes.find((c) => c.class_id === student?.class_id)
+                ?.name,
+              is_stale: r.status === 'PENDING' && student?.class_id !== r.source_class_id,
+            };
+          });
+      if (rpc.startsWith('get_')) {
+        assert.deepEqual(body, {});
+        return route.fulfill({ json: rows() });
+      }
+      if (fixture.requestMutationWait) await fixture.requestMutationWait;
+      const denied = () =>
+        route.fulfill({
+          status: 403,
+          json: { code: '42501', message: 'CLASS_CHANGE_ACCESS_DENIED' },
+        });
+      if (rpc.startsWith('create')) {
+        assert.deepEqual(
+          Object.keys(body).sort(),
+          ['p_request_id', 'p_student_id', 'p_destination_class_id'].sort(),
+        );
+        if (fixture.role !== 'ADMIN_C') return denied();
+        let row = fixture.classRequests.find((r) => r.request_id === body.p_request_id);
+        if (
+          row &&
+          (row.student_id !== body.p_student_id ||
+            row.destination_class_id !== body.p_destination_class_id)
+        )
+          return route.fulfill({
+            status: 409,
+            json: { code: '23505', message: 'CLASS_CHANGE_REQUEST_ID_CONFLICT' },
+          });
+        if (!row) {
+          const student = fixture.students.find((s) => s.student_id === body.p_student_id);
+          const src = fixture.classes.find((c) => c.class_id === student?.class_id),
+            dst = fixture.classes.find((c) => c.class_id === body.p_destination_class_id);
+          if (!student || !dst) return denied();
+          if (src.class_id === dst.class_id)
+            return route.fulfill({
+              status: 400,
+              json: { code: '22023', message: 'CLASS_CHANGE_SAME_CLASS' },
+            });
+          row = {
+            request_id: body.p_request_id,
+            student_id: student.student_id,
+            student_name: student.name,
+            registration: student.registration,
+            source_class_id: src.class_id,
+            source_class_name: src.name,
+            destination_class_id: dst.class_id,
+            destination_class_name: dst.name,
+            status: 'PENDING',
+            requested_by_admin_id: adminId,
+            requested_by_admin_name: 'Solicitante RPC',
+            created_at: new Date().toISOString(),
+            resolved_by_admin_id: null,
+            resolved_by_admin_name: null,
+            resolved_at: null,
+          };
+          fixture.classRequests.unshift(row);
+        }
+        if (fixture.loseCreateResponse) {
+          fixture.loseCreateResponse = false;
+          return route.abort('failed');
+        }
+        return route.fulfill({ json: row.request_id });
+      }
+      assert.deepEqual(Object.keys(body), ['p_request_id']);
+      const row = fixture.classRequests.find((r) => r.request_id === body.p_request_id);
+      const cancel = rpc.startsWith('cancel');
+      if (
+        !row ||
+        (cancel
+          ? fixture.role !== 'ADMIN_C' || row.requested_by_admin_id !== adminId
+          : fixture.role !== 'ADMIN_B')
+      )
+        return denied();
+      const target = cancel ? 'CANCELED' : rpc.startsWith('approve') ? 'APPROVED' : 'REJECTED';
+      if (row.status === target) return route.fulfill({ json: row.request_id });
+      if (row.status !== 'PENDING')
+        return route.fulfill({
+          status: 400,
+          json: { code: 'P0001', message: 'CLASS_CHANGE_DECISION_CONFLICT' },
+        });
+      const student = fixture.students.find((s) => s.student_id === row.student_id);
+      if (target === 'APPROVED') {
+        if (student.class_id !== row.source_class_id)
+          return route.fulfill({
+            status: 400,
+            json: { code: 'P0001', message: 'CLASS_CHANGE_REQUEST_STALE' },
+          });
+        student.class_id = row.destination_class_id;
+      }
+      Object.assign(row, {
+        status: target,
+        resolved_by_admin_id: adminId,
+        resolved_by_admin_name: 'Decisor RPC',
+        resolved_at: new Date().toISOString(),
+      });
+      return route.fulfill({ json: row.request_id });
+    }
     if (rpc !== 'get_my_admin_context_v1') {
       if (fixture.schoolWait) await fixture.schoolWait;
       if (fixture.schoolError)
