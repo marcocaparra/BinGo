@@ -4,6 +4,24 @@ const MACHINE_ID = "40000000-0000-4000-8000-000000000001";
 // Chave exposta apenas porque este Ã© um simulador web de desenvolvimento.
 // No totem real, a API key deve ficar protegida no serviço local do Edge/Orange Pi.
 const MACHINE_API_KEY = "edge-demo-key";
+const VISION_ENDPOINT = new URLSearchParams(window.location.search).get("visionUrl")
+  || "http://127.0.0.1:8765/vision/analyze";
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
+const visionProvider = BinGoVision.createVisionProvider({ remoteUrl: VISION_ENDPOINT });
+
+const visionItemConfig = {
+  battery: { detectedType: "pilha", category: "BATTERY", label: "Pilha ou bateria" },
+  cable: { detectedType: "cabo", category: "CABLE_WIRE", label: "Cabo, fio ou carregador" },
+  phone: { detectedType: "celular", category: "MOBILE_DEVICE", label: "Celular ou smartphone" },
+  small: { detectedType: "eletrônico pequeno", category: "PERIPHERAL", label: "Eletrônico pequeno" },
+};
+
+const visionOriginLabels = {
+  AWS_REKOGNITION: "AWS Rekognition",
+  GEMINI_FALLBACK: "Gemini (confirmação)",
+  MANUAL_REVIEW: "Revisão necessária",
+};
 
 const sectionTitles = {
   "discard-section": "Simulador de descarte",
@@ -31,6 +49,10 @@ const state = {
     studentId: null,
     pin: "",
     studentToken: null,
+    imageFile: null,
+    imageObjectUrl: null,
+    analysis: null,
+    busy: false,
     lastPayload: null,
     lastDeposit: null,
   },
@@ -60,10 +82,27 @@ const studentPickerSearch = document.querySelector("#student-picker-search");
 const studentPickerList = document.querySelector("#student-picker-list");
 const studentPickerClose = document.querySelector("#student-picker-close");
 const studentPinInput = document.querySelector("#student-pin");
-const wasteCategorySelect = document.querySelector("#waste-category");
-const categorySourceSelect = document.querySelector("#category-source");
-const itemValiditySelect = document.querySelector("#item-validity");
-const detectedTypeSelect = document.querySelector("#detected-type");
+const itemImageInput = document.querySelector("#item-image-input");
+const itemImageDropzone = document.querySelector("#item-image-dropzone");
+const itemImagePreview = document.querySelector("#item-image-preview");
+const itemImagePreviewImage = document.querySelector("#item-image-preview-image");
+const itemImageName = document.querySelector("#item-image-name");
+const itemImageMeta = document.querySelector("#item-image-meta");
+const sampleGrid = document.querySelector("#sample-grid");
+const sampleFilters = document.querySelectorAll("[data-sample-filter]");
+const sampleFiles = new Map();
+const visionAnalysis = document.querySelector("#vision-analysis");
+const visionAnalysisTitle = document.querySelector("#vision-analysis-title");
+const visionAnalysisCopy = document.querySelector("#vision-analysis-copy");
+const visionResult = document.querySelector("#vision-result");
+const visionResultBadge = document.querySelector("#vision-result-badge");
+const visionResultItem = document.querySelector("#vision-result-item");
+const visionResultCategory = document.querySelector("#vision-result-category");
+const visionResultConfidence = document.querySelector("#vision-result-confidence");
+const visionResultOrigin = document.querySelector("#vision-result-origin");
+const analyzeItemButton = document.querySelector("#analyze-item-button");
+const retryItemButton = document.querySelector("#retry-item-button");
+const confirmDiscardButton = document.querySelector("#confirm-discard-button");
 const resultTitle = document.querySelector("#result-title");
 const resultSubtitle = document.querySelector("#result-subtitle");
 const discardResultCard = document.querySelector("#discard-result-card");
@@ -180,9 +219,13 @@ function setDiscardMessage(content, className = "empty-state") {
 }
 
 function setDiscardEnabled(isEnabled) {
+  state.discard.busy = !isEnabled;
   discardFlow.querySelectorAll("button, input, select").forEach((element) => {
     element.disabled = !isEnabled;
   });
+  if (isEnabled) {
+    updateVisionControls();
+  }
 }
 
 function renderOptions(selectElement, items, getLabel) {
@@ -387,7 +430,217 @@ function renderDiscardScreen(screenName) {
   });
 }
 
+function formatFileSize(bytes) {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function setVisionStatus(kind, title, copy) {
+  visionAnalysis.className = `vision-analysis ${kind}`;
+  visionAnalysisTitle.textContent = title;
+  visionAnalysisCopy.textContent = copy;
+}
+
+function updateVisionControls() {
+  const hasImage = Boolean(state.discard.imageFile);
+  const hasAnalysis = Boolean(state.discard.analysis);
+  analyzeItemButton.hidden = hasAnalysis;
+  analyzeItemButton.disabled = state.discard.busy || !hasImage;
+  retryItemButton.hidden = !hasAnalysis;
+  retryItemButton.disabled = state.discard.busy;
+  confirmDiscardButton.hidden = !hasAnalysis;
+  confirmDiscardButton.disabled = state.discard.busy;
+}
+
+function resetVisionInput() {
+  if (state.discard.imageObjectUrl) {
+    URL.revokeObjectURL(state.discard.imageObjectUrl);
+  }
+  state.discard.imageFile = null;
+  state.discard.imageObjectUrl = null;
+  state.discard.analysis = null;
+  itemImageInput.value = "";
+  itemImageDropzone.hidden = false;
+  itemImagePreview.hidden = true;
+  itemImagePreviewImage.removeAttribute("src");
+  visionResult.hidden = true;
+  setVisionStatus("idle", "Aguardando imagem", "A análise ainda não foi iniciada.");
+  updateVisionControls();
+}
+
+function selectVisionFile(file) {
+  if (!file) {
+    return;
+  }
+  if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+    setVisionStatus("error", "Formato não aceito", "Escolha uma imagem PNG ou JPG.");
+    return;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    setVisionStatus("error", "Imagem muito grande", "Escolha um arquivo de até 5 MB.");
+    return;
+  }
+
+  if (state.discard.imageObjectUrl) {
+    URL.revokeObjectURL(state.discard.imageObjectUrl);
+  }
+  state.discard.imageFile = file;
+  state.discard.imageObjectUrl = URL.createObjectURL(file);
+  state.discard.analysis = null;
+  itemImageInput.value = "";
+  itemImagePreviewImage.src = state.discard.imageObjectUrl;
+  itemImageName.textContent = file.name || "Imagem selecionada";
+  itemImageMeta.textContent = `${file.type === "image/png" ? "PNG" : "JPG"} · ${formatFileSize(file.size)}`;
+  itemImageDropzone.hidden = true;
+  itemImagePreview.hidden = false;
+  visionResult.hidden = true;
+  setVisionStatus("ready", "Imagem pronta", "Confira a prévia e inicie a análise.");
+  updateVisionControls();
+}
+
+function renderSampleLibrary(filter = "all") {
+  sampleGrid.replaceChildren();
+  for (const sample of BinGoSamples) {
+    if (filter !== "all" && sample.level !== filter) continue;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sample-card";
+    button.draggable = true;
+    button.dataset.sampleId = sample.id;
+    button.disabled = state.discard.busy;
+    button.setAttribute("aria-label", `Usar ${sample.title}. ${sample.level}. ${sample.note}`);
+    const image = document.createElement("img");
+    image.src = `assets/samples/${sample.file}`;
+    image.alt = "";
+    image.loading = "lazy";
+    image.draggable = false;
+    const title = document.createElement("strong");
+    title.textContent = sample.title;
+    const level = document.createElement("span");
+    level.className = "sample-level";
+    level.textContent = sample.level;
+    const note = document.createElement("small");
+    note.textContent = sample.note;
+    button.append(image, title, level, note);
+    sampleGrid.append(button);
+  }
+}
+
+async function selectSample(id) {
+  if (state.discard.busy) return;
+  const sample = BinGoSamples.find((entry) => entry.id === id);
+  if (!sample) return;
+  setDiscardEnabled(false);
+  try {
+    let file = sampleFiles.get(id);
+    if (!file) {
+      const response = await fetch(`assets/samples/${sample.file}`);
+      if (!response.ok) throw new Error("Sample unavailable");
+      const blob = await response.blob();
+      file = new File([blob], sample.file, { type: "image/png" });
+      sampleFiles.set(id, file);
+    }
+    selectVisionFile(file);
+    itemImagePreview.scrollIntoView({ block: "nearest" });
+  } catch {
+    setVisionStatus("error", "Imagem indisponível", "Tente outra imagem do acervo ou escolha um arquivo do computador.");
+  } finally {
+    setDiscardEnabled(true);
+  }
+}
+
+function mapVisionResult(result) {
+  const config = result.status === BinGoVision.VisionResult.RECOGNIZED
+    ? visionItemConfig[result.itemId]
+    : null;
+  const isValid = Boolean(config);
+  return {
+    status: result.status,
+    itemId: result.itemId,
+    label: config?.label || "Item não autorizado",
+    detectedType: config?.detectedType || "objeto inválido",
+    category: config?.category || "UNKNOWN",
+    categoryLabel: config?.label || "Não identificada",
+    categorySource: isValid ? "AI_CONFIRMED" : "UNIDENTIFIED",
+    confidence: result.confidence,
+    origin: result.origin,
+    isValid,
+  };
+}
+
+function renderVisionResult(analysis) {
+  visionResult.className = `vision-result ${analysis.isValid ? "accepted" : "rejected"}`;
+  visionResult.hidden = false;
+  visionResultBadge.className = `vision-result-badge ${analysis.isValid ? "accepted" : "rejected"}`;
+  visionResultBadge.textContent = analysis.isValid ? "Aceito para demonstração" : "Não autorizado";
+  visionResultItem.textContent = analysis.label;
+  visionResultCategory.textContent = analysis.categoryLabel;
+  visionResultConfidence.textContent = Number.isFinite(analysis.confidence)
+    ? `${Math.round(analysis.confidence * 100)}%`
+    : "Não informada";
+  visionResultOrigin.textContent = visionOriginLabels[analysis.origin] || analysis.origin || "Serviço de visão";
+  setVisionStatus(
+    analysis.isValid ? "success" : "warning",
+    analysis.isValid ? "Item reconhecido" : "Item deve ser devolvido",
+    analysis.isValid
+      ? "A decisão da IA está pronta para compor o registro do descarte."
+      : "A imagem foi analisada, mas o item não foi confirmado como eletrônico autorizado.",
+  );
+  updateVisionControls();
+}
+
+async function analyzeSelectedItem() {
+  if (!state.discard.imageFile || state.discard.busy) {
+    return;
+  }
+
+  try {
+    setDiscardEnabled(false);
+    analyzeItemButton.textContent = "Analisando...";
+    setVisionStatus("loading", "Analisando imagem", "Primeira leitura com AWS Rekognition.");
+    const frame = { blob: state.discard.imageFile };
+    let result = await visionProvider.analyze({
+      frame,
+      stage: BinGoVision.VisionStage.PRIMARY,
+    });
+
+    if (result.status === BinGoVision.VisionResult.NEEDS_SECONDARY) {
+      setVisionStatus("loading", "Confirmando resultado", "A primeira leitura ficou incerta. Consultando o Gemini.");
+      result = await visionProvider.analyze({
+        frame,
+        stage: BinGoVision.VisionStage.SECONDARY,
+      });
+    }
+
+    state.discard.analysis = mapVisionResult(result);
+    renderVisionResult(state.discard.analysis);
+  } catch (error) {
+    state.discard.analysis = null;
+    visionResult.hidden = true;
+    setVisionStatus(
+      "error",
+      "Não foi possível analisar",
+      "Confira se o serviço de visão está ligado e tente novamente com uma imagem nítida.",
+    );
+    setDiscardMessage(
+      "<strong>Falha controlada na análise.</strong><p>O item não foi registrado. Ajuste a imagem ou confira o serviço de visão antes de tentar novamente.</p>",
+      "message error",
+    );
+  } finally {
+    analyzeItemButton.textContent = "Analisar item";
+    setDiscardEnabled(true);
+  }
+}
+
+function retryVisionCapture() {
+  resetVisionInput();
+  itemImageInput.click();
+}
+
 function resetDiscardFlow({ keepMessage = false } = {}) {
+  resetVisionInput();
   state.discard = {
     screen: "start",
     mode: null,
@@ -395,6 +648,10 @@ function resetDiscardFlow({ keepMessage = false } = {}) {
     studentId: null,
     pin: "",
     studentToken: null,
+    imageFile: null,
+    imageObjectUrl: null,
+    analysis: null,
+    busy: false,
     lastPayload: null,
     lastDeposit: null,
   };
@@ -431,6 +688,7 @@ function showIdentifiedStudentScreen() {
 }
 
 function showItemScreen() {
+  resetVisionInput();
   renderDiscardScreen("item");
   const className = getClassById(state.discard.classId)?.name || "turma";
   const student = getStudentById(state.discard.studentId);
@@ -476,16 +734,18 @@ async function validateStudentAndContinue() {
 function buildDepositPayload() {
   const classId = state.discard.mode === "anonymous" ? discardClassSelect.value : state.discard.classId;
   state.discard.classId = classId;
-
-  const isValid = itemValiditySelect.value === "valid";
+  const analysis = state.discard.analysis;
+  if (!analysis) {
+    throw new Error("Analise a imagem antes de registrar o resultado.");
+  }
   return {
     event_id: crypto.randomUUID(),
     student_id: state.discard.mode === "identified" ? state.discard.studentId : null,
     class_id: classId,
-    is_valid: isValid,
-    detected_type: detectedTypeSelect.value,
-    waste_category_code: isValid ? wasteCategorySelect.value : null,
-    category_source: isValid ? categorySourceSelect.value : null,
+    is_valid: analysis.isValid,
+    detected_type: analysis.detectedType,
+    waste_category_code: analysis.isValid ? analysis.category : null,
+    category_source: analysis.isValid ? analysis.categorySource : null,
   };
 }
 
@@ -525,6 +785,11 @@ function renderDepositResult(payload, deposit) {
 }
 
 async function confirmDiscard() {
+  if (!state.discard.analysis) {
+    setDiscardMessage("<strong>Analise uma imagem antes de continuar.</strong>", "message error");
+    return;
+  }
+
   const payload = buildDepositPayload();
 
   if (!payload.class_id) {
@@ -578,6 +843,8 @@ function handleDiscardAction(action) {
       showItemScreen();
     },
     "validate-student": validateStudentAndContinue,
+    "analyze-item": analyzeSelectedItem,
+    "retry-item": retryVisionCapture,
     "confirm-discard": confirmDiscard,
     back: handleBackAction,
     finish: () => resetDiscardFlow(),
@@ -813,21 +1080,58 @@ studentPinInput.addEventListener("input", () => {
   studentPinInput.value = studentPinInput.value.replace(/\D/g, "").slice(0, 4);
 });
 
-wasteCategorySelect.addEventListener("change", () => {
-  if (wasteCategorySelect.value === "UNKNOWN") {
-    categorySourceSelect.value = "UNIDENTIFIED";
-  } else if (categorySourceSelect.value === "UNIDENTIFIED") {
-    categorySourceSelect.value = "AI_CONFIRMED";
+itemImageDropzone.addEventListener("click", () => {
+  if (!state.discard.busy) {
+    itemImageInput.click();
   }
 });
 
-categorySourceSelect.addEventListener("change", () => {
-  if (categorySourceSelect.value === "UNIDENTIFIED") {
-    wasteCategorySelect.value = "UNKNOWN";
-  } else if (wasteCategorySelect.value === "UNKNOWN") {
-    wasteCategorySelect.value = "OTHER_EWASTE";
-  }
+itemImageInput.addEventListener("change", () => {
+  selectVisionFile(itemImageInput.files?.[0]);
 });
+
+["dragenter", "dragover"].forEach((eventName) => {
+  itemImageDropzone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    if (!state.discard.busy) {
+      itemImageDropzone.classList.add("dragging");
+    }
+  });
+});
+
+["dragleave", "drop"].forEach((eventName) => {
+  itemImageDropzone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    itemImageDropzone.classList.remove("dragging");
+  });
+});
+
+function receiveImageDrop(event) {
+  event.preventDefault();
+  if (state.discard.busy) return;
+  const sampleId = event.dataTransfer?.getData("application/x-bingo-sample");
+  if (sampleId) selectSample(sampleId);
+  else selectVisionFile(event.dataTransfer?.files?.[0]);
+}
+
+itemImageDropzone.addEventListener("drop", receiveImageDrop);
+itemImagePreview.addEventListener("dragover", (event) => event.preventDefault());
+itemImagePreview.addEventListener("drop", receiveImageDrop);
+sampleGrid.addEventListener("click", (event) => {
+  const card = event.target.closest("[data-sample-id]");
+  if (card) selectSample(card.dataset.sampleId);
+});
+sampleGrid.addEventListener("dragstart", (event) => {
+  const card = event.target.closest("[data-sample-id]");
+  if (!card || state.discard.busy) { event.preventDefault(); return; }
+  event.dataTransfer.setData("application/x-bingo-sample", card.dataset.sampleId);
+  event.dataTransfer.effectAllowed = "copy";
+});
+sampleFilters.forEach((button) => button.addEventListener("click", () => {
+  sampleFilters.forEach((entry) => entry.setAttribute("aria-pressed", String(entry === button)));
+  renderSampleLibrary(button.dataset.sampleFilter);
+}));
+renderSampleLibrary();
 
 studentInfoClassSelect.addEventListener("change", () => {
   state.studentInfo.classId = studentInfoClassSelect.value;

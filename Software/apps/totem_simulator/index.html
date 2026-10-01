@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BinGo | Totem Simulator</title>
-    <link rel="stylesheet" href="style.css?v=student-info-picker-1" />
+    <link rel="stylesheet" href="style.css?v=sample-library-1" />
   </head>
   <body>
     <nav class="side-nav" aria-label="Navegação principal">
@@ -137,49 +137,69 @@
 
             <div id="discard-screen-item" class="discard-screen" hidden>
               <div class="totem-copy">
-                <strong>Informe o item</strong>
-                <span>Esta etapa simula a leitura e validação do totem.</span>
+                <strong>Envie uma imagem do item</strong>
+                <span>A mesma análise do Totem identifica se o eletrônico pode seguir.</span>
               </div>
-              <label>
-                Tipo de lixo
-                <select id="detected-type">
-                  <option value="mouse">mouse</option>
-                  <option value="teclado">teclado</option>
-                  <option value="cabo">cabo</option>
-                  <option value="pilha">pilha</option>
-                  <option value="celular">celular</option>
-                  <option value="objeto inválido">objeto inválido</option>
-                </select>
-              </label>
-              <label>
-                Categoria canônica
-                <select id="waste-category">
-                  <option value="BATTERY">Pilha ou bateria</option>
-                  <option value="MOBILE_DEVICE">Celular ou tablet</option>
-                  <option value="CABLE_WIRE">Cabo ou fio</option>
-                  <option value="PERIPHERAL" selected>Periférico</option>
-                  <option value="OTHER_EWASTE">Outro lixo eletrônico</option>
-                  <option value="UNKNOWN">Não identificado</option>
-                </select>
-              </label>
-              <label>
-                Origem da categoria
-                <select id="category-source">
-                  <option value="AI_CONFIRMED">IA confirmada</option>
-                  <option value="USER_CORRECTED">Corrigida pelo aluno</option>
-                  <option value="UNIDENTIFIED">Não identificada</option>
-                </select>
-              </label>
-              <label>
-                Válido/inválido
-                <select id="item-validity">
-                  <option value="valid">Item válido</option>
-                  <option value="invalid">Item inválido</option>
-                </select>
-              </label>
-              <div class="totem-footer-actions">
+
+              <input id="item-image-input" type="file" accept="image/png,image/jpeg" hidden />
+              <button id="item-image-dropzone" class="image-dropzone" type="button">
+                <span class="image-dropzone-mark" aria-hidden="true">+</span>
+                <strong>Arraste a imagem aqui</strong>
+                <span>ou clique para escolher um PNG ou JPG</span>
+                <small>Máximo de 5 MB. Use uma imagem nítida e com um item por vez.</small>
+              </button>
+
+              <div id="item-image-preview" class="image-preview" hidden>
+                <img id="item-image-preview-image" alt="Prévia do item selecionado" />
+                <div>
+                  <strong id="item-image-name">Imagem selecionada</strong>
+                  <span id="item-image-meta"></span>
+                </div>
+              </div>
+
+              <details class="sample-library">
+                <summary>Acervo de teste <span>15 imagens</span></summary>
+                <p>Clique em uma imagem ou arraste até a prévia. A dificuldade é estimada; compare o resultado da IA com o objeto real.</p>
+                <div class="sample-filters" role="group" aria-label="Filtrar imagens por dificuldade">
+                  <button type="button" data-sample-filter="all" aria-pressed="true">Todas</button>
+                  <button type="button" data-sample-filter="Fácil" aria-pressed="false">Fáceis</button>
+                  <button type="button" data-sample-filter="Difícil" aria-pressed="false">Difíceis</button>
+                  <button type="button" data-sample-filter="Muito difícil" aria-pressed="false">Muito difíceis</button>
+                </div>
+                <div id="sample-grid" class="sample-grid"></div>
+              </details>
+
+              <div id="vision-analysis" class="vision-analysis" aria-live="polite">
+                <div class="vision-analysis-indicator" aria-hidden="true"></div>
+                <div>
+                  <strong id="vision-analysis-title">Aguardando imagem</strong>
+                  <span id="vision-analysis-copy">A análise ainda não foi iniciada.</span>
+                </div>
+              </div>
+
+              <div id="vision-result" class="vision-result" hidden>
+                <div class="vision-result-heading">
+                  <span id="vision-result-badge" class="vision-result-badge">Resultado</span>
+                  <strong id="vision-result-item">Item identificado</strong>
+                </div>
+                <div class="vision-result-grid">
+                  <div><span>Categoria</span><strong id="vision-result-category">-</strong></div>
+                  <div><span>Confiança</span><strong id="vision-result-confidence">-</strong></div>
+                  <div><span>Análise</span><strong id="vision-result-origin">-</strong></div>
+                </div>
+              </div>
+
+              <div class="totem-footer-actions vision-footer-actions">
                 <button class="secondary-action" type="button" data-discard-action="back">Voltar</button>
-                <button class="primary-action" type="button" data-discard-action="confirm-discard">Confirmar descarte</button>
+                <button id="analyze-item-button" class="primary-action" type="button" data-discard-action="analyze-item" disabled>
+                  Analisar item
+                </button>
+                <button id="retry-item-button" class="secondary-action" type="button" data-discard-action="retry-item" hidden>
+                  Ajustar imagem
+                </button>
+                <button id="confirm-discard-button" class="primary-action" type="button" data-discard-action="confirm-discard" hidden>
+                  Registrar resultado
+                </button>
               </div>
             </div>
 
@@ -282,6 +302,8 @@
       </section>
     </main>
 
-    <script src="app.js?v=student-info-picker-1"></script>
+    <script src="vision/vision_provider.js?v=vision-upload-1"></script>
+    <script src="sample_library.js?v=sample-library-1"></script>
+    <script src="app.js?v=sample-library-1"></script>
   </body>
 </html>

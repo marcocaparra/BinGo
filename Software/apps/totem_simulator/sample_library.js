@@ -1,0 +1,17 @@
+window.BinGoSamples = Object.freeze([
+  { id: 'battery', title: 'Pilha ilustrada', level: 'Fácil', note: 'Um item isolado, fundo claro.', file: 'battery.png' },
+  { id: 'phone', title: 'Celular ilustrado', level: 'Fácil', note: 'Formato reconhecível e sem obstrução.', file: 'phone.png' },
+  { id: 'mouse', title: 'Mouse ilustrado', level: 'Fácil', note: 'Eletrônico pequeno em destaque.', file: 'mouse.png' },
+  { id: 'usb-cable', title: 'Cabo USB ilustrado', level: 'Fácil', note: 'Conectores visíveis.', file: 'usb-cable.png' },
+  { id: 'dog-golden', title: 'Cachorro', level: 'Fácil', note: 'Controle de recusa: não é eletrônico.', file: 'dog-golden.png' },
+  { id: 'dog-pug', title: 'Outro cachorro', level: 'Fácil', note: 'Controle de recusa com outro fundo.', file: 'dog-pug.png' },
+  { id: 'juice', title: 'Suco ilustrado', level: 'Fácil', note: 'Controle de recusa: bebida.', file: 'juice.png' },
+  { id: 'keyboard', title: 'Teclado', level: 'Difícil', note: 'Foto pequena; testar periférico.', file: 'keyboard.png' },
+  { id: 'network-cable', title: 'Cabo de rede', level: 'Difícil', note: 'Cabo enrolado com vários conectores.', file: 'network-cable.png' },
+  { id: 'pen', title: 'Caneta temática', level: 'Difícil', note: 'Não eletrônico com aparência tecnológica.', file: 'pen.png' },
+  { id: 'razor', title: 'Aparelho de barbear', level: 'Difícil', note: 'Objeto manual; verificar falsa aceitação.', file: 'razor.png' },
+  { id: 'circuit-board', title: 'Placa eletrônica', level: 'Muito difícil', note: 'Componente fora dos formatos mais comuns.', file: 'circuit-board.png' },
+  { id: 'exposed-cable', title: 'Cabo com fios expostos', level: 'Muito difícil', note: 'Reconhecer o cabo não comprova segurança.', file: 'exposed-cable.png' },
+  { id: 'two-batteries', title: 'Duas pilhas', level: 'Muito difícil', note: 'Mais de um item: conferir limite do reconhecimento.', file: 'two-batteries.png' },
+  { id: 'cafeteria-ticket', title: 'Ticket ilustrado', level: 'Muito difícil', note: 'Objeto estilizado; testar falsa identificação.', file: 'cafeteria_ticket.png' },
+]);
