@@ -18,6 +18,53 @@ Novos descartes reais não podem começar offline ou quando serviços críticos 
 
 ## Implementado e comprovado
 
+
+A integração operacional do Totem Simulator com Supabase foi implementada e
+validada localmente em `2026-10-01`, na branch
+`feature/totem-supabase-integration`. O browser deixou de depender de FastAPI,
+JWT proprietário e chave técnica hardcoded: usa somente o serviço loopback
+existente em :8765, agora gateway `/bingo/*` além de `/vision/analyze`.
+Contexto/PIN/resumo/ranking usam as novas Functions `totem-context-v1`,
+`totem-student-pin-v1`, `totem-student-summary-v1` e `totem-rankings-v1`, todas com
+machine-auth e escola derivada da máquina. A migration incremental 029,
+`database/migrations/029_totem_server_reads_v1.sql` e
+`supabase/migrations/20261001140000_totem_server_reads_v1.sql`, acrescenta quatro
+leituras SECURITY DEFINER server-only, sem schema/grants de tabela/policies
+novas. PIN preserva PBKDF2 existente, exige aluno ACTIVE e mesma turma/escola,
+sem usar is_activated ou status de máquina como novas barreiras.
+
+Health e register existentes foram reutilizados, com readiness fail-closed e
+pontuação exclusivamente retornada pelo backend. Um UUID por ciclo e payload
+completo são persistidos antes do compromisso físico simulado; falhas de
+resultado desconhecido bloqueiam novos ciclos e permitem retry idempotente,
+inclusive após reload. IA indisponível não vira descarte inválido. A integração
+original de visão de `d8fff0b`, providers, upload/drop, acervo e testes foram
+preservados. Summary usa snapshots históricos; ranking mantém inclusão legada
+de INACTIVE com ordenação determinística. A compatibilidade da chave server-side
+`default` do CLI foi limitada ao gateway Docker local; hospedado ainda exige
+`bingo_backend`.
+
+Validação final: reset local completo com 029; pgTAP 609 verificações/22 arquivos;
+backend 176 testes sem skips; Deno fmt/lint/check e 62 unitários + 6 integrações
+sem ignores; Node 33 (16 visão originais + 17 recovery), Python 22 (15 visão
+originais + 7 gateway), browser 8 incluindo Supabase/gateway/SQL reais com visão
+controlada; node --check, py_compile, Prettier e git diff --check passaram.
+Os smokes comprovaram descarte identificado/turma, snapshots, saldo/XP, linha
+persistida e replay sem duplicação. AWS/Gemini ao vivo não foram chamados nesta
+fatia por ausência de credenciais; fronteira de visão controlada e testes
+originais foram usados. `apps/totem_ui` ficou integralmente inalterado.
+
+O preflight DEV read-only posterior aos merges confirmou `bingo-dev` linked,
+histórico remoto alinhado até 028 e ausência das quatro novas Functions/RPCs.
+A máquina `40000000-0000-4000-8000-000000000001` (Totem Dev Cloud 01, ONLINE)
+possui credencial, mas seu hash não corresponde à fixture local edge-demo-key;
+não havia chave plaintext conhecida configurada para smoke hospedado. Não houve
+rotação, migration/deploy/escrita remota: **029 e novas Functions permanecem
+locais**, aguardando credencial conhecida ou provisionamento expressamente
+autorizado. Nenhum commit/push/PR foi executado. Detalhes e resultados em
+`totem-supabase-integration-v1.md`; startup sem FastAPI no README do simulador.
+
+
 A fundação de autenticação administrativa do Admin Web V1 está implementada e
 comprovada localmente pelas migrations incrementais equivalentes
 `database/migrations/023_admin_auth_foundation.sql` e

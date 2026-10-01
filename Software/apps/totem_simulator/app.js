@@ -1,20 +1,36 @@
-﻿const API_BASE_URL = "http://localhost:8000/v1";
-const MACHINE_ID = "40000000-0000-4000-8000-000000000001";
-
-// Chave exposta apenas porque este Ã© um simulador web de desenvolvimento.
-// No totem real, a API key deve ficar protegida no serviço local do Edge/Orange Pi.
-const MACHINE_API_KEY = "edge-demo-key";
-const VISION_ENDPOINT = new URLSearchParams(window.location.search).get("visionUrl")
-  || "http://127.0.0.1:8765/vision/analyze";
+const localServiceUrl = "http://127.0.0.1:8765";
+const backend = BinGoBackend.createClient({ baseUrl: localServiceUrl });
+const VISION_ENDPOINT = BinGoBackend.loopbackUrl(
+  new URLSearchParams(window.location.search).get("visionUrl") ||
+    `${localServiceUrl}/vision/analyze`,
+).href;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
-const visionProvider = BinGoVision.createVisionProvider({ remoteUrl: VISION_ENDPOINT });
+const visionProvider = BinGoVision.createVisionProvider({
+  remoteUrl: VISION_ENDPOINT,
+});
 
 const visionItemConfig = {
-  battery: { detectedType: "pilha", category: "BATTERY", label: "Pilha ou bateria" },
-  cable: { detectedType: "cabo", category: "CABLE_WIRE", label: "Cabo, fio ou carregador" },
-  phone: { detectedType: "celular", category: "MOBILE_DEVICE", label: "Celular ou smartphone" },
-  small: { detectedType: "eletrônico pequeno", category: "PERIPHERAL", label: "Eletrônico pequeno" },
+  battery: {
+    detectedType: "pilha",
+    category: "BATTERY",
+    label: "Pilha ou bateria",
+  },
+  cable: {
+    detectedType: "cabo",
+    category: "CABLE_WIRE",
+    label: "Cabo, fio ou carregador",
+  },
+  phone: {
+    detectedType: "celular",
+    category: "MOBILE_DEVICE",
+    label: "Celular ou smartphone",
+  },
+  small: {
+    detectedType: "eletrônico pequeno",
+    category: "PERIPHERAL",
+    label: "Eletrônico pequeno",
+  },
 };
 
 const visionOriginLabels = {
@@ -48,7 +64,7 @@ const state = {
     classId: null,
     studentId: null,
     pin: "",
-    studentToken: null,
+    eventId: null,
     imageFile: null,
     imageObjectUrl: null,
     analysis: null,
@@ -73,10 +89,16 @@ const discardMessage = document.querySelector("#discard-message");
 const discardProgressItems = document.querySelectorAll(".totem-progress span");
 
 const discardClassSelect = document.querySelector("#discard-class-select");
-const identifiedClassSelect = document.querySelector("#identified-class-select");
-const identifiedStudentSelect = document.querySelector("#identified-student-select");
+const identifiedClassSelect = document.querySelector(
+  "#identified-class-select",
+);
+const identifiedStudentSelect = document.querySelector(
+  "#identified-student-select",
+);
 const studentPickerOpen = document.querySelector("#student-picker-open");
-const studentPickerSelected = document.querySelector("#student-picker-selected");
+const studentPickerSelected = document.querySelector(
+  "#student-picker-selected",
+);
 const studentPickerDialog = document.querySelector("#student-picker-dialog");
 const studentPickerSearch = document.querySelector("#student-picker-search");
 const studentPickerList = document.querySelector("#student-picker-list");
@@ -85,7 +107,9 @@ const studentPinInput = document.querySelector("#student-pin");
 const itemImageInput = document.querySelector("#item-image-input");
 const itemImageDropzone = document.querySelector("#item-image-dropzone");
 const itemImagePreview = document.querySelector("#item-image-preview");
-const itemImagePreviewImage = document.querySelector("#item-image-preview-image");
+const itemImagePreviewImage = document.querySelector(
+  "#item-image-preview-image",
+);
 const itemImageName = document.querySelector("#item-image-name");
 const itemImageMeta = document.querySelector("#item-image-meta");
 const sampleGrid = document.querySelector("#sample-grid");
@@ -98,7 +122,9 @@ const visionResult = document.querySelector("#vision-result");
 const visionResultBadge = document.querySelector("#vision-result-badge");
 const visionResultItem = document.querySelector("#vision-result-item");
 const visionResultCategory = document.querySelector("#vision-result-category");
-const visionResultConfidence = document.querySelector("#vision-result-confidence");
+const visionResultConfidence = document.querySelector(
+  "#vision-result-confidence",
+);
 const visionResultOrigin = document.querySelector("#vision-result-origin");
 const analyzeItemButton = document.querySelector("#analyze-item-button");
 const retryItemButton = document.querySelector("#retry-item-button");
@@ -108,72 +134,69 @@ const resultSubtitle = document.querySelector("#result-subtitle");
 const discardResultCard = document.querySelector("#discard-result-card");
 
 const studentInfoSelect = document.querySelector("#student-info-select");
-const studentInfoClassSelect = document.querySelector("#student-info-class-select");
-const studentInfoPickerOpen = document.querySelector("#student-info-picker-open");
-const studentInfoPickerSelected = document.querySelector("#student-info-picker-selected");
-const studentInfoPickerDialog = document.querySelector("#student-info-picker-dialog");
-const studentInfoPickerSearch = document.querySelector("#student-info-picker-search");
-const studentInfoPickerList = document.querySelector("#student-info-picker-list");
-const studentInfoPickerClose = document.querySelector("#student-info-picker-close");
+const studentInfoClassSelect = document.querySelector(
+  "#student-info-class-select",
+);
+const studentInfoPickerOpen = document.querySelector(
+  "#student-info-picker-open",
+);
+const studentInfoPickerSelected = document.querySelector(
+  "#student-info-picker-selected",
+);
+const studentInfoPickerDialog = document.querySelector(
+  "#student-info-picker-dialog",
+);
+const studentInfoPickerSearch = document.querySelector(
+  "#student-info-picker-search",
+);
+const studentInfoPickerList = document.querySelector(
+  "#student-info-picker-list",
+);
+const studentInfoPickerClose = document.querySelector(
+  "#student-info-picker-close",
+);
 const studentDetails = document.querySelector("#student-details");
 const studentHistory = document.querySelector("#student-history");
 
 const studentRanking = document.querySelector("#student-ranking");
 const classRanking = document.querySelector("#class-ranking");
 
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      "X-Machine-Id": MACHINE_ID,
-      "X-Api-Key": MACHINE_API_KEY,
-      ...(options.headers || {}),
-    },
-  });
-
-  if (!response.ok) {
-    let message = "Não foi possível concluir a requisição.";
-    try {
-      const error = await response.json();
-      message = error.detail || message;
-    } catch {
-      message = `${message} Status: ${response.status}`;
-    }
-    throw new Error(message);
-  }
-
-  if (response.status === 204) {
-    return null;
-  }
-
-  return response.json();
-}
-
 function loadContext() {
-  return apiRequest("/totem/context");
+  return backend.request("context");
 }
-
 function loadStudentSummary(studentId) {
-  return apiRequest(`/totem/students/${studentId}/summary`);
+  return backend.request("student-summary", { student_id: studentId });
 }
-
 function loadRankings() {
-  return apiRequest("/totem/rankings");
+  return backend.request("rankings");
 }
-
 function loginTotemStudent(payload) {
-  return apiRequest("/totem/students/login", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return backend.request("student-pin", payload);
 }
-
-function submitDeposit(payload) {
-  return apiRequest("/deposits", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+function escapeHtml(value) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (ch) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        ch
+      ],
+  );
+}
+const recoveryPanel = document.querySelector("#pending-recovery");
+const recoveryMessage = document.querySelector("#pending-recovery-message");
+const retryPendingButton = document.querySelector("#retry-pending-button");
+let recoveryBlocked = false;
+function renderRecovery() {
+  try {
+    recoveryBlocked = Boolean(backend.pending());
+    recoveryPanel.hidden = !recoveryBlocked;
+  } catch {
+    recoveryBlocked = true;
+    recoveryPanel.hidden = false;
+    recoveryMessage.textContent =
+      "Registro local inválido ou armazenamento indisponível. Preserve os dados para diagnóstico; nenhum novo descarte será iniciado.";
+    retryPendingButton.disabled = true;
+  }
 }
 
 function getClassById(classId) {
@@ -185,7 +208,9 @@ function getStudentById(studentId) {
 }
 
 function getStudentsByClass(classId) {
-  return (state.context?.students || []).filter((student) => student.class_id === classId);
+  return (state.context?.students || []).filter(
+    (student) => student.class_id === classId,
+  );
 }
 
 function formatDate(value) {
@@ -209,7 +234,11 @@ function setActiveSection(sectionId) {
   sectionTitle.textContent = sectionTitles[sectionId];
 
   if (sectionId === "ranking-section") {
-    refreshRankings();
+    refreshRankings().catch((error) => {
+      state.rankings = null;
+      studentRanking.textContent = error.message;
+      classRanking.textContent = "Consulta indisponível.";
+    });
   }
 }
 
@@ -221,7 +250,7 @@ function setDiscardMessage(content, className = "empty-state") {
 function setDiscardEnabled(isEnabled) {
   state.discard.busy = !isEnabled;
   discardFlow.querySelectorAll("button, input, select").forEach((element) => {
-    element.disabled = !isEnabled;
+    element.disabled = !isEnabled || recoveryBlocked;
   });
   if (isEnabled) {
     updateVisionControls();
@@ -230,7 +259,10 @@ function setDiscardEnabled(isEnabled) {
 
 function renderOptions(selectElement, items, getLabel) {
   selectElement.innerHTML = items
-    .map((item) => `<option value="${item.id}">${getLabel(item)}</option>`)
+    .map(
+      (item) =>
+        `<option value="${escapeHtml(item.id)}">${escapeHtml(getLabel(item))}</option>`,
+    )
     .join("");
 }
 
@@ -251,7 +283,9 @@ function getFilteredIdentifiedStudents() {
     return students;
   }
 
-  return students.filter((student) => normalizeSearchText(student.name).includes(query));
+  return students.filter((student) =>
+    normalizeSearchText(student.name).includes(query),
+  );
 }
 
 function updateStudentPickerLabel() {
@@ -263,14 +297,15 @@ function renderStudentPickerList() {
   const students = getFilteredIdentifiedStudents();
 
   if (!students.length) {
-    studentPickerList.innerHTML = '<div class="student-picker-empty">Nenhum aluno encontrado para esse filtro.</div>';
+    studentPickerList.innerHTML =
+      '<div class="student-picker-empty">Nenhum aluno encontrado para esse filtro.</div>';
     return;
   }
 
   studentPickerList.innerHTML = students
     .map((student) => {
       const isActive = student.id === state.discard.studentId ? " active" : "";
-      return `<button class="student-picker-option${isActive}" type="button" data-student-id="${student.id}">${student.name}</button>`;
+      return `<button class="student-picker-option${isActive}" type="button" data-student-id="${escapeHtml(student.id)}">${escapeHtml(student.name)}</button>`;
     })
     .join("");
 }
@@ -297,7 +332,9 @@ function selectIdentifiedStudent(studentId) {
 
 function updateStudentInfoPickerLabel() {
   const student = getStudentById(state.studentInfo.studentId);
-  studentInfoPickerSelected.textContent = student ? student.name : "Escolher aluno";
+  studentInfoPickerSelected.textContent = student
+    ? student.name
+    : "Escolher aluno";
 }
 
 function getFilteredStudentInfoStudents() {
@@ -309,21 +346,25 @@ function getFilteredStudentInfoStudents() {
     return students;
   }
 
-  return students.filter((student) => normalizeSearchText(student.name).includes(query));
+  return students.filter((student) =>
+    normalizeSearchText(student.name).includes(query),
+  );
 }
 
 function renderStudentInfoPickerList() {
   const students = getFilteredStudentInfoStudents();
 
   if (!students.length) {
-    studentInfoPickerList.innerHTML = '<div class="student-picker-empty">Nenhum aluno encontrado para esse filtro.</div>';
+    studentInfoPickerList.innerHTML =
+      '<div class="student-picker-empty">Nenhum aluno encontrado para esse filtro.</div>';
     return;
   }
 
   studentInfoPickerList.innerHTML = students
     .map((student) => {
-      const isActive = student.id === state.studentInfo.studentId ? " active" : "";
-      return `<button class="student-picker-option${isActive}" type="button" data-student-id="${student.id}">${student.name}</button>`;
+      const isActive =
+        student.id === state.studentInfo.studentId ? " active" : "";
+      return `<button class="student-picker-option${isActive}" type="button" data-student-id="${escapeHtml(student.id)}">${escapeHtml(student.name)}</button>`;
     })
     .join("");
 }
@@ -348,7 +389,9 @@ function renderStudentInfoStudentOptions() {
   const students = getStudentsByClass(classId);
   renderOptions(studentInfoSelect, students, (student) => student.name);
 
-  const previousStudentStillVisible = students.some((student) => student.id === state.studentInfo.studentId);
+  const previousStudentStillVisible = students.some(
+    (student) => student.id === state.studentInfo.studentId,
+  );
   if (previousStudentStillVisible) {
     studentInfoSelect.value = state.studentInfo.studentId;
   } else {
@@ -402,7 +445,9 @@ function renderIdentifiedStudentOptions() {
   const students = getStudentsByClass(classId);
   renderOptions(identifiedStudentSelect, students, (student) => student.name);
 
-  const previousStudentStillVisible = students.some((student) => student.id === state.discard.studentId);
+  const previousStudentStillVisible = students.some(
+    (student) => student.id === state.discard.studentId,
+  );
   if (previousStudentStillVisible) {
     identifiedStudentSelect.value = state.discard.studentId;
   } else {
@@ -424,7 +469,16 @@ function renderDiscardScreen(screenName) {
   });
 
   discardStepLabel.textContent = screen.step;
-  const progressIndex = screenName === "start" ? 0 : screenName === "mode" ? 1 : screenName === "item" ? 3 : screenName === "result" ? 4 : 2;
+  const progressIndex =
+    screenName === "start"
+      ? 0
+      : screenName === "mode"
+        ? 1
+        : screenName === "item"
+          ? 3
+          : screenName === "result"
+            ? 4
+            : 2;
   discardProgressItems.forEach((item, index) => {
     item.classList.toggle("active", index <= progressIndex);
   });
@@ -447,11 +501,12 @@ function updateVisionControls() {
   const hasImage = Boolean(state.discard.imageFile);
   const hasAnalysis = Boolean(state.discard.analysis);
   analyzeItemButton.hidden = hasAnalysis;
-  analyzeItemButton.disabled = state.discard.busy || !hasImage;
+  analyzeItemButton.disabled =
+    state.discard.busy || recoveryBlocked || !hasImage;
   retryItemButton.hidden = !hasAnalysis;
-  retryItemButton.disabled = state.discard.busy;
+  retryItemButton.disabled = state.discard.busy || recoveryBlocked;
   confirmDiscardButton.hidden = !hasAnalysis;
-  confirmDiscardButton.disabled = state.discard.busy;
+  confirmDiscardButton.disabled = state.discard.busy || recoveryBlocked;
 }
 
 function resetVisionInput() {
@@ -466,7 +521,11 @@ function resetVisionInput() {
   itemImagePreview.hidden = true;
   itemImagePreviewImage.removeAttribute("src");
   visionResult.hidden = true;
-  setVisionStatus("idle", "Aguardando imagem", "A análise ainda não foi iniciada.");
+  setVisionStatus(
+    "idle",
+    "Aguardando imagem",
+    "A análise ainda não foi iniciada.",
+  );
   updateVisionControls();
 }
 
@@ -475,11 +534,19 @@ function selectVisionFile(file) {
     return;
   }
   if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
-    setVisionStatus("error", "Formato não aceito", "Escolha uma imagem PNG ou JPG.");
+    setVisionStatus(
+      "error",
+      "Formato não aceito",
+      "Escolha uma imagem PNG ou JPG.",
+    );
     return;
   }
   if (file.size > MAX_IMAGE_BYTES) {
-    setVisionStatus("error", "Imagem muito grande", "Escolha um arquivo de até 5 MB.");
+    setVisionStatus(
+      "error",
+      "Imagem muito grande",
+      "Escolha um arquivo de até 5 MB.",
+    );
     return;
   }
 
@@ -496,7 +563,11 @@ function selectVisionFile(file) {
   itemImageDropzone.hidden = true;
   itemImagePreview.hidden = false;
   visionResult.hidden = true;
-  setVisionStatus("ready", "Imagem pronta", "Confira a prévia e inicie a análise.");
+  setVisionStatus(
+    "ready",
+    "Imagem pronta",
+    "Confira a prévia e inicie a análise.",
+  );
   updateVisionControls();
 }
 
@@ -510,7 +581,10 @@ function renderSampleLibrary(filter = "all") {
     button.draggable = true;
     button.dataset.sampleId = sample.id;
     button.disabled = state.discard.busy;
-    button.setAttribute("aria-label", `Usar ${sample.title}. ${sample.level}. ${sample.note}`);
+    button.setAttribute(
+      "aria-label",
+      `Usar ${sample.title}. ${sample.level}. ${sample.note}`,
+    );
     const image = document.createElement("img");
     image.src = `assets/samples/${sample.file}`;
     image.alt = "";
@@ -545,16 +619,21 @@ async function selectSample(id) {
     selectVisionFile(file);
     itemImagePreview.scrollIntoView({ block: "nearest" });
   } catch {
-    setVisionStatus("error", "Imagem indisponível", "Tente outra imagem do acervo ou escolha um arquivo do computador.");
+    setVisionStatus(
+      "error",
+      "Imagem indisponível",
+      "Tente outra imagem do acervo ou escolha um arquivo do computador.",
+    );
   } finally {
     setDiscardEnabled(true);
   }
 }
 
 function mapVisionResult(result) {
-  const config = result.status === BinGoVision.VisionResult.RECOGNIZED
-    ? visionItemConfig[result.itemId]
-    : null;
+  const config =
+    result.status === BinGoVision.VisionResult.RECOGNIZED
+      ? visionItemConfig[result.itemId]
+      : null;
   const isValid = Boolean(config);
   return {
     status: result.status,
@@ -574,13 +653,18 @@ function renderVisionResult(analysis) {
   visionResult.className = `vision-result ${analysis.isValid ? "accepted" : "rejected"}`;
   visionResult.hidden = false;
   visionResultBadge.className = `vision-result-badge ${analysis.isValid ? "accepted" : "rejected"}`;
-  visionResultBadge.textContent = analysis.isValid ? "Aceito para demonstração" : "Não autorizado";
+  visionResultBadge.textContent = analysis.isValid
+    ? "Classificação aceita"
+    : "Não autorizado";
   visionResultItem.textContent = analysis.label;
   visionResultCategory.textContent = analysis.categoryLabel;
   visionResultConfidence.textContent = Number.isFinite(analysis.confidence)
     ? `${Math.round(analysis.confidence * 100)}%`
     : "Não informada";
-  visionResultOrigin.textContent = visionOriginLabels[analysis.origin] || analysis.origin || "Serviço de visão";
+  visionResultOrigin.textContent =
+    visionOriginLabels[analysis.origin] ||
+    analysis.origin ||
+    "Serviço de visão";
   setVisionStatus(
     analysis.isValid ? "success" : "warning",
     analysis.isValid ? "Item reconhecido" : "Item deve ser devolvido",
@@ -599,7 +683,11 @@ async function analyzeSelectedItem() {
   try {
     setDiscardEnabled(false);
     analyzeItemButton.textContent = "Analisando...";
-    setVisionStatus("loading", "Analisando imagem", "Primeira leitura com AWS Rekognition.");
+    setVisionStatus(
+      "loading",
+      "Analisando imagem",
+      "Primeira leitura com AWS Rekognition.",
+    );
     const frame = { blob: state.discard.imageFile };
     let result = await visionProvider.analyze({
       frame,
@@ -607,13 +695,28 @@ async function analyzeSelectedItem() {
     });
 
     if (result.status === BinGoVision.VisionResult.NEEDS_SECONDARY) {
-      setVisionStatus("loading", "Confirmando resultado", "A primeira leitura ficou incerta. Consultando o Gemini.");
+      setVisionStatus(
+        "loading",
+        "Confirmando resultado",
+        "A primeira leitura ficou incerta. Consultando o Gemini.",
+      );
       result = await visionProvider.analyze({
         frame,
         stage: BinGoVision.VisionStage.SECONDARY,
       });
     }
 
+    if (
+      result.origin === BinGoVision.VisionOrigin.MANUAL ||
+      ![
+        BinGoVision.VisionResult.RECOGNIZED,
+        BinGoVision.VisionResult.REJECTED,
+      ].includes(result.status) ||
+      (result.status === BinGoVision.VisionResult.RECOGNIZED &&
+        !visionItemConfig[result.itemId])
+    ) {
+      throw new Error("IA indisponível ou sem confirmação.");
+    }
     state.discard.analysis = mapVisionResult(result);
     renderVisionResult(state.discard.analysis);
   } catch (error) {
@@ -647,7 +750,7 @@ function resetDiscardFlow({ keepMessage = false } = {}) {
     classId: state.context?.classes[0]?.id || null,
     studentId: null,
     pin: "",
-    studentToken: null,
+    eventId: null,
     imageFile: null,
     imageObjectUrl: null,
     analysis: null,
@@ -666,9 +769,31 @@ function resetDiscardFlow({ keepMessage = false } = {}) {
   }
 }
 
-function showModeScreen() {
+async function showModeScreen() {
+  if (state.discard.busy || recoveryBlocked) return;
+  if (!state.discard.eventId) {
+    try {
+      setDiscardEnabled(false);
+      setDiscardMessage("Verificando disponibilidade do backend...");
+      await backend.readiness();
+      await refreshContext();
+      if (!state.context.classes.length)
+        throw new Error("Nenhuma turma disponível nesta escola.");
+      state.discard.eventId = crypto.randomUUID();
+    } catch (error) {
+      setDiscardMessage(
+        `<strong>Novo descarte bloqueado.</strong><p>${escapeHtml(error.message)}</p>`,
+        "message error",
+      );
+      return;
+    } finally {
+      setDiscardEnabled(true);
+    }
+  }
   renderDiscardScreen("mode");
-  setDiscardMessage("Tela 2: escolha se o descarte tera aluno identificado ou somente turma.");
+  setDiscardMessage(
+    "Tela 2: escolha se o descarte tera aluno identificado ou somente turma.",
+  );
 }
 
 function showAnonymousClassScreen() {
@@ -676,12 +801,15 @@ function showAnonymousClassScreen() {
   state.discard.studentId = null;
   discardClassSelect.value = state.discard.classId || discardClassSelect.value;
   renderDiscardScreen("class");
-  setDiscardMessage("Tela 3A: selecione a turma para pontuar sem identificar aluno.");
+  setDiscardMessage(
+    "Tela 3A: selecione a turma para pontuar sem identificar aluno.",
+  );
 }
 
 function showIdentifiedStudentScreen() {
   state.discard.mode = "identified";
-  identifiedClassSelect.value = state.discard.classId || identifiedClassSelect.value;
+  identifiedClassSelect.value =
+    state.discard.classId || identifiedClassSelect.value;
   renderIdentifiedStudentOptions();
   renderDiscardScreen("student");
   setDiscardMessage("Tela 3B: selecione turma, aluno e PIN de 4 dígitos.");
@@ -692,22 +820,32 @@ function showItemScreen() {
   renderDiscardScreen("item");
   const className = getClassById(state.discard.classId)?.name || "turma";
   const student = getStudentById(state.discard.studentId);
-  const identityText = student ? `${student.name} (${className})` : `sem identificação (${className})`;
-  setDiscardMessage(`Tela 4: descarte em nome de <strong>${identityText}</strong>.`);
+  const identityText = student
+    ? `${escapeHtml(student.name)} (${className})`
+    : `sem identificação (${className})`;
+  setDiscardMessage(
+    `Tela 4: descarte em nome de <strong>${escapeHtml(identityText)}</strong>.`,
+  );
 }
 
 async function validateStudentAndContinue() {
   state.discard.classId = identifiedClassSelect.value;
   state.discard.studentId = identifiedStudentSelect.value;
-  state.discard.pin = studentPinInput.value.trim();
+  state.discard.pin = studentPinInput.value;
 
   if (!state.discard.classId || !state.discard.studentId) {
-    setDiscardMessage("<strong>Selecione turma e aluno para continuar.</strong>", "message error");
+    setDiscardMessage(
+      "<strong>Selecione turma e aluno para continuar.</strong>",
+      "message error",
+    );
     return;
   }
 
   if (!/^\d{4}$/.test(state.discard.pin)) {
-    setDiscardMessage("<strong>PIN inválido.</strong><p>Informe exatamente 4 dígitos.</p>", "message error");
+    setDiscardMessage(
+      "<strong>PIN inválido.</strong><p>Informe exatamente 4 dígitos.</p>",
+      "message error",
+    );
     return;
   }
 
@@ -720,27 +858,39 @@ async function validateStudentAndContinue() {
       pin: state.discard.pin,
     });
     state.discard.studentId = result.student.id;
-    state.discard.studentToken = result.access_token;
-    setDiscardMessage("Aluno identificado com PIN correto. Proxima etapa: informar o item.", "message success");
+    if (result.confirmed !== true)
+      throw new Error("Identificação não confirmada.");
+    setDiscardMessage(
+      "Aluno identificado com PIN correto. Proxima etapa: informar o item.",
+      "message success",
+    );
     showItemScreen();
   } catch (error) {
-    state.discard.studentToken = null;
-    setDiscardMessage(`<strong>Não foi possível identificar o aluno.</strong><p>${error.message}</p>`, "message error");
+    setDiscardMessage(
+      `<strong>Não foi possível identificar o aluno.</strong><p>${escapeHtml(error.message)}</p>`,
+      "message error",
+    );
   } finally {
+    state.discard.pin = "";
+    studentPinInput.value = "";
     setDiscardEnabled(true);
   }
 }
 
 function buildDepositPayload() {
-  const classId = state.discard.mode === "anonymous" ? discardClassSelect.value : state.discard.classId;
+  const classId =
+    state.discard.mode === "anonymous"
+      ? discardClassSelect.value
+      : state.discard.classId;
   state.discard.classId = classId;
   const analysis = state.discard.analysis;
   if (!analysis) {
     throw new Error("Analise a imagem antes de registrar o resultado.");
   }
   return {
-    event_id: crypto.randomUUID(),
-    student_id: state.discard.mode === "identified" ? state.discard.studentId : null,
+    event_id: state.discard.eventId,
+    student_id:
+      state.discard.mode === "identified" ? state.discard.studentId : null,
     class_id: classId,
     is_valid: analysis.isValid,
     detected_type: analysis.detectedType,
@@ -749,9 +899,10 @@ function buildDepositPayload() {
   };
 }
 
-function renderDepositResult(payload, deposit) {
-  const refreshedStudent = payload.student_id ? getStudentById(payload.student_id) : null;
-  const refreshedClass = getClassById(payload.class_id);
+function renderDepositResult(payload, deposit, refreshed = true) {
+  const refreshedStudent =
+    refreshed && payload.student_id ? getStudentById(payload.student_id) : null;
+  const refreshedClass = refreshed ? getClassById(payload.class_id) : null;
   const validText = payload.is_valid ? "Descarte aceito" : "Item devolvido";
   const statusClass = payload.is_valid ? "success" : "error";
 
@@ -763,55 +914,91 @@ function renderDepositResult(payload, deposit) {
   discardResultCard.className = `result-summary ${statusClass}`;
   discardResultCard.innerHTML = `
     <div class="metric"><span>Status</span><span>${validText}</span></div>
-    <div class="metric"><span>Tipo</span><span>${payload.detected_type || "sem tipo"}</span></div>
-    <div class="metric"><span>Categoria</span><span>${deposit.waste_category_code || "sem categoria"}</span></div>
-    <div class="metric"><span>Aluno</span><span>${refreshedStudent ? refreshedStudent.name : "Sem identificação"}</span></div>
+    <div class="metric"><span>Tipo</span><span>${escapeHtml(payload.detected_type || "sem tipo")}</span></div>
+    <div class="metric"><span>Categoria</span><span>${escapeHtml(deposit.waste_category_code || "sem categoria")}</span></div>
+    <div class="metric"><span>Aluno</span><span>${escapeHtml(refreshedStudent ? refreshedStudent.name : payload.student_id ? "Aluno identificado; consulta indisponível" : "Sem identificação")}</span></div>
     <div class="metric"><span>XP da turma</span><span>${deposit.points_awarded_class} XP</span></div>
     <div class="metric"><span>XP acumulado</span><span>${refreshedClass ? `${refreshedClass.points_class_balance} XP` : "-"}</span></div>
   `;
 
-  if (refreshedStudent) {
+  if (payload.student_id) {
     discardResultCard.innerHTML += `
       <div class="metric"><span>BinCoins do aluno</span><span>${deposit.points_awarded_student}</span></div>
       <div class="metric"><span>Bônus ambiental</span><span>${deposit.bonus_bincoins_awarded}</span></div>
-      <div class="metric"><span>Saldo do aluno</span><span>${refreshedStudent.points_student_balance} BinCoins</span></div>
+      <div class="metric"><span>Saldo do aluno</span><span>${refreshedStudent ? `${refreshedStudent.points_student_balance} BinCoins` : "Consulta indisponível"}</span></div>
     `;
   }
 
   setDiscardMessage(
-    `<strong>${validText}.</strong><p>${refreshedStudent ? `Aluno: ${refreshedStudent.name}. ` : "Sem aluno identificado. "}Turma: ${refreshedClass?.name || "-"}.</p>`,
+    `<strong>${validText}.</strong><p>${refreshedStudent ? `Aluno: ${escapeHtml(refreshedStudent.name)}. ` : "Sem aluno identificado. "}Turma: ${escapeHtml(refreshedClass?.name || "-")}.</p>`,
     `message ${statusClass}`,
   );
 }
 
-async function confirmDiscard() {
-  if (!state.discard.analysis) {
-    setDiscardMessage("<strong>Analise uma imagem antes de continuar.</strong>", "message error");
-    return;
-  }
-
-  const payload = buildDepositPayload();
-
-  if (!payload.class_id) {
-    setDiscardMessage("<strong>Selecione uma turma antes de confirmar.</strong>", "message error");
-    return;
-  }
-
+async function recoverPendingDeposit() {
+  if (state.discard.busy) return;
   try {
     setDiscardEnabled(false);
-    setDiscardMessage("Processando descarte no backend...");
-    const deposit = await submitDeposit(payload);
+    retryPendingButton.disabled = true;
+    recoveryMessage.textContent = "Confirmando o mesmo evento no backend...";
+    const { payload, deposit, cleanupFailed } = await backend.retryPending();
+    renderRecovery();
+    if (cleanupFailed)
+      recoveryMessage.textContent =
+        "Pontuação confirmada. O armazenamento não permitiu limpar a pendência; repita a confirmação idempotente antes de iniciar outro ciclo.";
     state.discard.lastPayload = payload;
     state.discard.lastDeposit = deposit;
-    await refreshAfterDeposit(payload.student_id);
-    renderDepositResult(payload, deposit);
+    // Confirmation is independent from subsequent read failures.
+    let refreshed = true;
+    try {
+      await refreshAfterDeposit(payload.student_id);
+    } catch {
+      refreshed = false;
+    }
+    renderDepositResult(payload, deposit, refreshed);
     renderDiscardScreen("result");
   } catch (error) {
-    setDiscardMessage(`<strong>Erro ao simular descarte.</strong><p>${error.message}</p>`, "message error");
+    renderRecovery();
+    const detail =
+      error.status === 401
+        ? "Credencial técnica inválida; operador deve verificar o serviço local."
+        : error.status === 409
+          ? "Conflito de event_id. Preserve a pendência para diagnóstico; não gere outro evento."
+          : [404, 422].includes(error.status)
+            ? "Contrato/contexto inválido. Preserve a pendência para diagnóstico."
+            : "O item foi recebido, mas a pontuação ainda não foi confirmada. Tente novamente com o mesmo evento.";
+    recoveryMessage.textContent = `${detail} ${error.message}`;
+    setDiscardMessage(
+      `<strong>Confirmação pendente.</strong><p>${escapeHtml(detail)}</p>`,
+      "message error",
+    );
   } finally {
+    retryPendingButton.disabled = false;
     setDiscardEnabled(true);
   }
 }
+
+async function confirmDiscard() {
+  if (state.discard.busy || recoveryBlocked || !state.discard.analysis) return;
+  try {
+    setDiscardEnabled(false);
+    // Final check BEFORE the simulated physical drop/durable commit.
+    await backend.readiness();
+    const payload = buildDepositPayload();
+    backend.commit(payload);
+    renderRecovery();
+  } catch (error) {
+    setDiscardMessage(
+      `<strong>Item não recebido.</strong><p>${escapeHtml(error.message)}</p>`,
+      "message error",
+    );
+    return;
+  } finally {
+    setDiscardEnabled(true);
+  }
+  await recoverPendingDeposit();
+}
+retryPendingButton.addEventListener("click", recoverPendingDeposit);
 
 function handleBackAction() {
   if (state.discard.screen === "mode") {
@@ -834,6 +1021,7 @@ function handleBackAction() {
 }
 
 function handleDiscardAction(action) {
+  if (state.discard.busy || recoveryBlocked) return;
   const actions = {
     start: showModeScreen,
     anonymous: showAnonymousClassScreen,
@@ -859,26 +1047,30 @@ function handleDiscardAction(action) {
 
 function renderStudentInfo(summary) {
   if (!summary) {
-    studentDetails.innerHTML = '<div class="empty-state">Selecione um aluno para consultar os dados.</div>';
-    studentHistory.innerHTML = '<div class="empty-state">Nenhum histórico carregado.</div>';
+    studentDetails.innerHTML =
+      '<div class="empty-state">Selecione um aluno para consultar os dados.</div>';
+    studentHistory.innerHTML =
+      '<div class="empty-state">Nenhum histórico carregado.</div>';
     return;
   }
 
   const lastDeposit = summary.recent_deposits[0];
   const lastDepositText = lastDeposit
     ? `${lastDeposit.detected_type || "sem tipo"} (${lastDeposit.waste_category_code || "sem categoria"}) - ${
-        lastDeposit.is_valid ? `${lastDeposit.points_awarded_student} BinCoins` : "inválido"
+        lastDeposit.is_valid
+          ? `${lastDeposit.points_awarded_student} BinCoins`
+          : "inválido"
       }`
     : "Nenhum descarte encontrado";
 
   studentDetails.innerHTML = `
-    <div class="metric"><span>Nome</span><span>${summary.student.name}</span></div>
-    <div class="metric"><span>Turma</span><span>${summary.student.class_name}</span></div>
+    <div class="metric"><span>Nome</span><span>${escapeHtml(summary.student.name)}</span></div>
+    <div class="metric"><span>Turma</span><span>${escapeHtml(summary.student.class_name)}</span></div>
     <div class="metric"><span>Saldo atual</span><span>${summary.student.points_student_balance} Bins</span></div>
     <div class="metric"><span>Descartes válidos</span><span>${summary.stats.valid_deposits_count}</span></div>
     <div class="metric"><span>Descartes inválidos</span><span>${summary.stats.invalid_deposits_count}</span></div>
     <div class="metric"><span>Total gerado</span><span>${summary.stats.total_bins_generated} Bins</span></div>
-    <div class="metric"><span>Último descarte</span><span>${lastDepositText}</span></div>
+    <div class="metric"><span>Último descarte</span><span>${escapeHtml(lastDepositText)}</span></div>
   `;
 
   studentHistory.innerHTML = summary.recent_deposits.length
@@ -886,7 +1078,7 @@ function renderStudentInfo(summary) {
         .map(
           (deposit) => `
             <article class="history-item">
-              <strong>${deposit.detected_type || "sem tipo"} - ${deposit.waste_category_code || "sem categoria"}</strong>
+              <strong>${escapeHtml(deposit.detected_type || "sem tipo")} - ${escapeHtml(deposit.waste_category_code || "sem categoria")}</strong>
               <small>${deposit.is_valid ? `${deposit.points_awarded_student} BinCoins (${deposit.bonus_bincoins_awarded} de bônus)` : "Item inválido"} - ${formatDate(deposit.created_at)}</small>
             </article>
           `,
@@ -898,8 +1090,8 @@ function renderStudentInfo(summary) {
 function renderRankings() {
   const rankings = state.rankings;
   if (!rankings) {
-    studentRanking.innerHTML = '<li>Rankings ainda não carregados.</li>';
-    classRanking.innerHTML = '<li>Rankings ainda não carregados.</li>';
+    studentRanking.innerHTML = "<li>Rankings ainda não carregados.</li>";
+    classRanking.innerHTML = "<li>Rankings ainda não carregados.</li>";
     return;
   }
 
@@ -908,7 +1100,7 @@ function renderRankings() {
       (student, index) => `
         <li class="${index < 3 ? "top" : ""}">
           <div class="ranking-row">
-            <strong>${student.name}<br><small>${student.class_name}</small></strong>
+            <strong>${escapeHtml(student.name)}<br><small>${escapeHtml(student.class_name)}</small></strong>
             <span>${student.points_student_balance} Bins</span>
           </div>
         </li>
@@ -921,7 +1113,7 @@ function renderRankings() {
       (classroom, index) => `
         <li class="${index < 3 ? "top" : ""}">
           <div class="ranking-row">
-            <strong>${classroom.name}</strong>
+            <strong>${escapeHtml(classroom.name)}</strong>
             <span>${classroom.points_class_balance} Bins</span>
           </div>
         </li>
@@ -947,18 +1139,27 @@ function syncSelectedStudentInfo(studentId) {
 }
 
 async function refreshContext() {
-  const previousInfoStudent = state.studentInfo.studentId || studentInfoSelect.value;
-  const previousInfoClass = state.studentInfo.classId || studentInfoClassSelect.value;
+  const previousInfoStudent =
+    state.studentInfo.studentId || studentInfoSelect.value;
+  const previousInfoClass =
+    state.studentInfo.classId || studentInfoClassSelect.value;
   const previousDiscardClass = state.discard.classId;
   state.context = await loadContext();
   schoolName.textContent = state.context.school.name;
 
-  const previousStudent = previousInfoStudent ? getStudentById(previousInfoStudent) : null;
-  state.studentInfo.classId = previousStudent?.class_id || previousInfoClass || state.context.classes[0]?.id || null;
+  const previousStudent = previousInfoStudent
+    ? getStudentById(previousInfoStudent)
+    : null;
+  state.studentInfo.classId =
+    previousStudent?.class_id ||
+    previousInfoClass ||
+    state.context.classes[0]?.id ||
+    null;
   state.studentInfo.studentId = previousStudent?.id || null;
   renderStudentInfoClassOptions();
 
-  state.discard.classId = previousDiscardClass || state.context.classes[0]?.id || null;
+  state.discard.classId =
+    previousDiscardClass || state.context.classes[0]?.id || null;
   renderDiscardClassOptions();
 }
 
@@ -991,12 +1192,13 @@ async function handleStudentInfoChange() {
     updateStudentInfoPickerLabel();
     await refreshStudentSummary(state.studentInfo.studentId);
   } catch (error) {
-    studentDetails.innerHTML = `<div class="message error"><strong>Erro ao carregar aluno.</strong><p>${error.message}</p></div>`;
+    studentDetails.innerHTML = `<div class="message error"><strong>Erro ao carregar aluno.</strong><p>${escapeHtml(error.message)}</p></div>`;
     studentHistory.innerHTML = "";
   }
 }
 
 async function init() {
+  renderRecovery();
   try {
     setDiscardEnabled(false);
     setDiscardMessage("Carregando dados reais da API...");
@@ -1006,10 +1208,11 @@ async function init() {
   } catch (error) {
     schoolName.textContent = "API indisponível";
     setDiscardMessage(
-      `<strong>Não foi possível carregar o Totem Simulator.</strong><p>${error.message}</p>`,
+      `<strong>Não foi possível carregar o Totem Simulator.</strong><p>${escapeHtml(error.message)}</p>`,
       "message error",
     );
-    studentDetails.innerHTML = '<div class="empty-state">Verifique se o backend está rodando em localhost:8000.</div>';
+    studentDetails.innerHTML =
+      '<div class="empty-state">Verifique o serviço local :8765 e a configuração Supabase.</div>';
     studentHistory.innerHTML = "";
     renderRankings();
   } finally {
@@ -1018,7 +1221,9 @@ async function init() {
 }
 
 navButtons.forEach((button) => {
-  button.addEventListener("click", () => setActiveSection(button.dataset.section));
+  button.addEventListener("click", () =>
+    setActiveSection(button.dataset.section),
+  );
 });
 
 discardFlow.addEventListener("click", (event) => {
@@ -1115,7 +1320,9 @@ function receiveImageDrop(event) {
 }
 
 itemImageDropzone.addEventListener("drop", receiveImageDrop);
-itemImagePreview.addEventListener("dragover", (event) => event.preventDefault());
+itemImagePreview.addEventListener("dragover", (event) =>
+  event.preventDefault(),
+);
 itemImagePreview.addEventListener("drop", receiveImageDrop);
 sampleGrid.addEventListener("click", (event) => {
   const card = event.target.closest("[data-sample-id]");
@@ -1123,14 +1330,24 @@ sampleGrid.addEventListener("click", (event) => {
 });
 sampleGrid.addEventListener("dragstart", (event) => {
   const card = event.target.closest("[data-sample-id]");
-  if (!card || state.discard.busy) { event.preventDefault(); return; }
-  event.dataTransfer.setData("application/x-bingo-sample", card.dataset.sampleId);
+  if (!card || state.discard.busy) {
+    event.preventDefault();
+    return;
+  }
+  event.dataTransfer.setData(
+    "application/x-bingo-sample",
+    card.dataset.sampleId,
+  );
   event.dataTransfer.effectAllowed = "copy";
 });
-sampleFilters.forEach((button) => button.addEventListener("click", () => {
-  sampleFilters.forEach((entry) => entry.setAttribute("aria-pressed", String(entry === button)));
-  renderSampleLibrary(button.dataset.sampleFilter);
-}));
+sampleFilters.forEach((button) =>
+  button.addEventListener("click", () => {
+    sampleFilters.forEach((entry) =>
+      entry.setAttribute("aria-pressed", String(entry === button)),
+    );
+    renderSampleLibrary(button.dataset.sampleFilter);
+  }),
+);
 renderSampleLibrary();
 
 studentInfoClassSelect.addEventListener("change", () => {

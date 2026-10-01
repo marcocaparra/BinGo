@@ -27,6 +27,19 @@ export function resolveBackendSecretKey(
       );
     }
 
+    // Supabase CLI's local HTTP worker injects only the name "default" and
+    // refuses SUPABASE_* overrides. Accept that key exclusively on its Docker
+    // loopback gateway; hosted runtimes still require bingo_backend.
+    if (
+      readEnvironment("SUPABASE_URL") === "http://kong:8000" &&
+      parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) &&
+      !Object.hasOwn(parsed, BACKEND_SECRET_KEY_NAME) &&
+      Object.hasOwn(parsed, "default") &&
+      isSecretApiKey((parsed as Record<string, unknown>).default)
+    ) {
+      return (parsed as Record<string, string>).default;
+    }
+
     if (
       parsed === null || typeof parsed !== "object" || Array.isArray(parsed) ||
       !Object.hasOwn(parsed, BACKEND_SECRET_KEY_NAME)
