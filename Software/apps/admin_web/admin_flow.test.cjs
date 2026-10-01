@@ -160,7 +160,7 @@ test('roles expose only the areas and actions allowed by the functional contract
   }
 });
 
-test('school management actions update the demonstrative front state', async () => {
+test('school RPC creation and the remaining demonstrative actions stay isolated', async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const manager = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -172,6 +172,9 @@ test('school management actions update the demonstrative front state', async () 
     await studentDialog.getByLabel('Nome completo').fill('João Demo');
     await studentDialog.getByLabel('E-mail institucional').fill('joao@aluno.demo');
     await studentDialog.getByLabel('RA ou matrícula').fill('20261999');
+    await studentDialog
+      .getByLabel('Turma', { exact: true })
+      .selectOption('20000000-0000-4000-8000-000000000001');
     await studentDialog.getByRole('button', { name: 'Cadastrar aluno' }).click();
     await manager.getByText('João Demo', { exact: true }).waitFor();
 

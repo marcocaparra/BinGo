@@ -11,13 +11,15 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     <div class="row-meta">
       <strong>{{ meta() }}</strong>
     </div>
-    <span
-      class="tag"
-      [class.tag--success]="good()"
-      [class.tag--warning]="warn()"
-      [class.tag--danger]="!good() && !warn()"
-      >{{ status() }}</span
-    >
+    @if (status()) {
+      <span
+        class="tag"
+        [class.tag--success]="good()"
+        [class.tag--warning]="warn()"
+        [class.tag--danger]="!good() && !warn()"
+        >{{ status() }}</span
+      >
+    }
     @if (actionLabel()) {
       <button
         class="row-action"
@@ -35,7 +37,7 @@ export class EntityRowComponent {
   title = input.required<string>();
   subtitle = input.required<string>();
   meta = input.required<string>();
-  status = input.required<string>();
+  status = input('');
   actionLabel = input('');
   actionIcon = input('arrow-up-right');
   primary = input(false);

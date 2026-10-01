@@ -11,6 +11,7 @@ import { AdminView, ADMIN_ROLES, canAccessView, firstViewForRole } from '../admi
 import { AdminStore } from '../core/admin-store';
 import { AdminContext } from '../core/admin-context';
 import { AdminAComponent, AdminBComponent, AdminCComponent } from '../roles/admin-role-components';
+import { AdminSchoolDialogComponent } from '../features/admin-school-dialog.component';
 import { OperationDialogComponent } from '../shared/operation-dialog.component';
 import { StatePanelComponent } from '../shared/state-panel.component';
 const meta: Record<AdminView, { label: string; icon: string; title: string; subtitle: string }> = {
@@ -36,13 +37,13 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
     label: 'Alunos',
     icon: 'users',
     title: 'Alunos da escola',
-    subtitle: 'Consulta e administração dos participantes do Colégio ENIAC.',
+    subtitle: 'Consulta e administração dos alunos da escola vinculada.',
   },
   classes: {
     label: 'Turmas',
     icon: 'users-round',
     title: 'Turmas da escola',
-    subtitle: 'Organização das turmas e participação dos alunos.',
+    subtitle: 'Segmento, série e XP atual das turmas da escola.',
   },
   pending: {
     label: 'Pendências',
@@ -106,6 +107,7 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
     AdminBComponent,
     AdminCComponent,
     OperationDialogComponent,
+    AdminSchoolDialogComponent,
     StatePanelComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -147,24 +149,30 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
       <header class="topbar">
         <div class="topbar-copy">
           <strong>{{ scope() }}</strong
-          ><span>Última atualização demonstrativa: agora</span>
+          ><span>{{
+            realSchoolView()
+              ? 'Gestão escolar conectada'
+              : 'Última atualização demonstrativa: agora'
+          }}</span>
         </div>
         <div class="topbar-actions">
-          <span class="status-pill"><i data-lucide="circle-check"></i>Sistema operacional</span
-          ><label
-            ><span class="sr-only">Cenário da demonstração</span
-            ><select
-              class="demo-select"
-              aria-label="Cenário da demonstração"
-              [value]="store.scenario()"
-              (change)="scenario($event)"
+          <span class="status-pill"><i data-lucide="circle-check"></i>Sistema operacional</span>
+          @if (!realSchoolView()) {
+            <label
+              ><span class="sr-only">Cenário da demonstração</span
+              ><select
+                class="demo-select"
+                aria-label="Cenário da demonstração"
+                [value]="store.scenario()"
+                (change)="scenario($event)"
+              >
+                <option value="normal">Dados normais</option>
+                <option value="loading">Carregando</option>
+                <option value="empty">Sem dados</option>
+                <option value="error">Falha de conexão</option>
+              </select></label
             >
-              <option value="normal">Dados normais</option>
-              <option value="loading">Carregando</option>
-              <option value="empty">Sem dados</option>
-              <option value="error">Falha de conexão</option>
-            </select></label
-          >
+          }
         </div>
       </header>
       <main class="page-content" tabindex="-1">
@@ -174,9 +182,12 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
             <h1>{{ heading().title }}</h1>
             <p>{{ heading().subtitle }}</p>
           </div>
-          <span class="source-pill"><i data-lucide="database"></i>Dados demonstrativos</span>
+          <span class="source-pill"
+            ><i data-lucide="database"></i
+            >{{ realSchoolView() ? 'Dados da escola vinculada' : 'Dados demonstrativos' }}</span
+          >
         </div>
-        @switch (store.scenario()) {
+        @switch (realSchoolView() ? 'normal' : store.scenario()) {
           @case ('loading') {
             <section class="state-panel">
               <div class="skeleton-stack">
@@ -218,6 +229,7 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
       </main>
     </div>
     <app-operation-dialog />
+    <app-admin-school-dialog />
     @if (store.toast()) {
       <div class="toast" role="status">{{ store.toast() }}</div>
     }
@@ -234,6 +246,9 @@ export class AdminShellComponent {
       this.store.view.set(firstViewForRole(this.role()));
       this.store.scenario.set('normal');
     });
+  }
+  realSchoolView() {
+    return ['students', 'classes'].includes(this.store.view());
   }
   definition() {
     return ADMIN_ROLES[this.role()];

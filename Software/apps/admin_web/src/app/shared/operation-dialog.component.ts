@@ -1,15 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AdminStore } from '../core/admin-store';
 const defs: Record<string, { title: string; icon: string; submit: string }> = {
-  'student-create': { title: 'Cadastrar aluno', icon: 'user-plus', submit: 'Cadastrar aluno' },
-  'student-edit': {
-    title: 'Editar dados do aluno',
-    icon: 'square-pen',
-    submit: 'Salvar alterações',
-  },
-  'student-view': { title: 'Consultar aluno', icon: 'user-round-search', submit: 'Fechar' },
-  'class-create': { title: 'Criar turma', icon: 'users-round', submit: 'Criar turma' },
-  'class-edit': { title: 'Editar turma', icon: 'square-pen', submit: 'Salvar alterações' },
   'request-create': {
     title: 'Solicitar troca de turma',
     icon: 'send',
@@ -68,75 +59,11 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
         <h2 id="operation-dialog-title">{{ def().title }}</h2>
         <form (submit)="submit($event)">
           <div class="operation-fields">
-            @if (op.action.startsWith('student-')) {
-              @let s = student();
-              <div class="field">
-                <label for="op-name">Nome completo</label
-                ><input
-                  id="op-name"
-                  name="name"
-                  [value]="s?.name || ''"
-                  [readOnly]="viewOnly()"
-                  required
-                />
-              </div>
-              <div class="field">
-                <label for="op-email">E-mail institucional</label
-                ><input
-                  id="op-email"
-                  name="email"
-                  [value]="s?.email || ''"
-                  [readOnly]="viewOnly()"
-                  required
-                />
-              </div>
-              <div class="field">
-                <label for="op-registration">RA ou matrícula</label
-                ><input
-                  id="op-registration"
-                  name="registration"
-                  [value]="s?.registration || ''"
-                  [readOnly]="viewOnly()"
-                  required
-                />
-              </div>
-              <div class="field">
-                <label for="op-class">Turma</label
-                ><select id="op-class" name="className" [disabled]="viewOnly()">
-                  @for (c of store.classes(); track c.name) {
-                    <option
-                      [value]="c.name"
-                      [selected]="c.name === (s?.className || store.classes()[0].name)"
-                    >
-                      {{ c.name }}
-                    </option>
-                  }
-                </select>
-              </div>
-              @if (viewOnly()) {
-                <div class="dialog-note">
-                  <i data-lucide="eye"></i>Consulta sem permissão para editar saldo, PIN ou dados
-                  cadastrais.
-                </div>
-              }
-            } @else if (op.action.startsWith('class-')) {
-              @let c = classItem();
-              <div class="field">
-                <label for="op-name">Nome da turma</label
-                ><input id="op-name" name="name" [value]="c?.name || ''" required />
-              </div>
-              <div class="field">
-                <label for="op-status">Estado</label
-                ><select id="op-status" name="status">
-                  <option [selected]="c?.status !== 'Inativa'">Ativa</option>
-                  <option [selected]="c?.status === 'Inativa'">Inativa</option>
-                </select>
-              </div>
-            } @else if (op.action === 'request-create') {
+            @if (op.action === 'request-create') {
               <div class="field">
                 <label for="op-student">Aluno</label
                 ><select id="op-student" name="student">
-                  @for (s of store.students(); track s.name) {
+                  @for (s of store.demoStudents(); track s.name) {
                     <option>{{ s.name }}</option>
                   }
                 </select>
@@ -144,7 +71,7 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
               <div class="field">
                 <label for="op-destination">Nova turma</label
                 ><select id="op-destination" name="destination">
-                  @for (c of store.classes(); track c.name) {
+                  @for (c of store.demoClasses(); track c.name) {
                     <option>{{ c.name }}</option>
                   }
                 </select>
@@ -359,12 +286,6 @@ export class OperationDialogComponent {
   }
   key() {
     return this.store.activeOperation()?.key;
-  }
-  student() {
-    return this.store.students()[this.idx()];
-  }
-  classItem() {
-    return this.store.classes()[this.idx()];
   }
   request() {
     return this.store.classRequests()[this.idx()];

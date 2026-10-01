@@ -30,14 +30,42 @@ sem hashes, com SECURITY DEFINER, search_path vazio e EXECUTE exclusivo de
 authenticated. `admins` permanece RLS fail-closed, sem leitura/escrita direta
 aberta ao cliente. O Angular usa Supabase Auth para login, restauração e logout,
 consulta novamente o contexto no refresh e bloqueia ausência de vínculo,
-inatividade e falhas sem fallback de autenticação demonstrativa. As demais
-telas e operações continuam com dados demonstrativos explícitos no AdminStore;
-nenhum domínio administrativo adicional foi integrado. `password_hash` permanece
+inatividade e falhas sem fallback de autenticação demonstrativa. Alunos e turmas
+passaram a usar a fatia escolar real descrita abaixo; os demais domínios continuam
+com dados demonstrativos explícitos no AdminStore. `password_hash` permanece
 legado FastAPI, sem sincronização com Auth. A migration recusa papéis históricos
 ambíguos e exige classificação manual antes de futura promoção em bancos que
 os contenham, preservando IDs e histórico. Não houve promoção desta migration
 ao `bingo-dev` nem aplicação remota. Procedimento local e limites em
 `admin-supabase-auth-session.md`.
+
+A gestão escolar de alunos e turmas está implementada e comprovada localmente
+na branch `feature/admin-school-management-foundation`, pelas migrations
+equivalentes `database/migrations/024_admin_school_management_foundation.sql` e
+`supabase/migrations/20260930130000_admin_school_management_foundation.sql`.
+`students.registration` e `students.email` são text nullable: os históricos
+permanecem nulos, sem matrícula inventada ou vínculo Auth automático. Matrícula
+é única por escola quando informada, preserva zeros à esquerda, distingue caixa
+e não admite branco ou whitespace nas extremidades; novas mutations exigem RA.
+As RPCs `get_admin_students_v1`, `get_admin_classes_v1`,
+`create_admin_student_v1`, `update_admin_student_v1`, `create_admin_class_v1` e
+`update_admin_class_v1` derivam o administrador e a escola por `auth.uid()`,
+validam ACTIVE a cada operação e mantêm SECURITY DEFINER com search_path vazio.
+B lê e administra somente sua escola; C lê alunos/saldos/XP e lookup de turmas,
+mas é rejeitado server-side nas quatro escritas. As mutations registram ator
+derivado em `audit_logs` na mesma transação, incluindo old/new de turma e status.
+Saldo/PIN/Auth/ativação/XP não são editáveis, e a troca direta por B não reescreve
+depósitos, Missões ou outros históricos. Não foram abertas policies escolares
+amplas nem escrita direta: as cinco policies e grants Mobile continuam intactos.
+O Angular usa repository escolar, IDs reais, loading/empty/error, formulários
+restritos e recarga autoritativa após salvar, sem fallback aos mocks. Turmas
+mostram segmento/série/nome/quantidade/XP, sem status ou participação inventados.
+Os outros domínios, inclusive solicitações de troca, permanecem demonstrativos.
+A assistência escolar por ADMIN_A ainda não está integrada nesta fatia; isso
+não é uma proibição permanente do contrato. As migrations 023 e 024 permanecem
+somente locais, sem promoção ao `bingo-dev`. Reset com 24 migrations, 467 testes
+pgTAP, 78 testes backend e smoke real local B/C Auth/RPC/Angular passaram.
+Contratos, reprodução e limites em `admin-school-management-foundation.md`.
 
 O modelo V1, o contrato de dados, as migrations correspondentes e a RPC `register_deposit_v1` estão implementados no repositório. A implementação documentada cobre snapshots de recompensa, catálogo de categorias, restrição de execução da RPC, idempotência sequencial e concorrente, atualização de saldos e auditoria transacional. A redenominação acrescentou a décima primeira migration Supabase e a migration `011` do trilho PostgreSQL; reset completo, testes específicos de conversão/rollback, pgTAP e testes de integração locais comprovaram o comportamento na nova unidade. Em `2026-09-14`, a migration `20260913120000_points_unit_redenomination.sql` foi aplicada de forma controlada no `bingo-dev`, e o postflight confirmou onze migrations locais/remotas alinhadas, defaults `800/1900/10000`, saldo smoke de `16` para `1600`, XP smoke de `19` para `1900` e o snapshot histórico do depósito convertido para bônus `800`, BinCoins `1600` e XP `1900`, sem alterar seu identificador, taxa ou instante. O `audit_logs.metadata` histórico preservou o mesmo SHA-256, e foi criado exatamente um evento SYSTEM `POINTS_UNIT_REDENOMINATED_V1` para a escola afetada. Essa comprovação é exclusiva do ambiente DEV e não declara aplicação em produção.
 

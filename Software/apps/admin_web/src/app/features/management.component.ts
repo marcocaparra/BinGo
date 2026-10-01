@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { AdminRole } from '../admin-access';
+import { StatePanelComponent } from '../shared/state-panel.component';
+import { AdminSchoolRepository } from '../core/admin-school.repository';
 import { AdminStore } from '../core/admin-store';
 import { EntityRowComponent } from '../shared/entity-row.component';
 @Component({
@@ -76,102 +78,157 @@ export class AdministratorsComponent {
 }
 @Component({
   selector: 'app-students',
+  imports: [StatePanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `@if (role() === 'ADMIN_B') {
-      <div class="toolbar toolbar--end">
-        <button
-          class="primary-button compact-button"
-          type="button"
-          (click)="store.open('student-create')"
-        >
-          <i data-lucide="plus"></i><span>Cadastrar aluno</span>
-        </button>
-      </div>
+  template: `@if (school.state().kind === 'loading') {
+      <app-state-panel title="Carregando alunos…" body="Consultando a escola vinculada." />
+    } @else if (school.state().kind === 'error') {
+      <app-state-panel
+        title="Não foi possível carregar alunos"
+        body="Confira a conexão e tente novamente."
+        [retry]="true"
+        (retryClick)="school.load()"
+      />
+    } @else {
+      @if (role() === 'ADMIN_B') {
+        <div class="toolbar toolbar--end">
+          <button
+            class="primary-button compact-button"
+            type="button"
+            (click)="school.open('student-create')"
+          >
+            <i data-lucide="plus"></i><span>Cadastrar aluno</span>
+          </button>
+        </div>
+      }
+      @if (!school.state().students.length) {
+        <app-state-panel
+          title="Nenhum aluno cadastrado"
+          body="Os alunos desta escola aparecerão aqui."
+        />
+      } @else {
+        <section class="panel">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Aluno</th>
+                <th>RA ou matrícula</th>
+                <th>Turma</th>
+                <th>BinCoins</th>
+                <th>XP da turma</th>
+                <th>Estado</th>
+                <th>{{ role() === 'ADMIN_B' ? 'Ação' : 'Acesso' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of school.state().students; track s.student_id) {
+                <tr>
+                  <td>
+                    <strong>{{ s.name }}</strong
+                    ><br /><small>{{ s.email || 'Email não informado' }}</small>
+                  </td>
+                  <td>{{ s.registration || 'Não informada' }}</td>
+                  <td>{{ s.class_name }}</td>
+                  <td>{{ s.points_student_balance }}</td>
+                  <td>{{ s.class_points_balance }}</td>
+                  <td>
+                    <span
+                      class="tag"
+                      [class.tag--danger]="s.status === 'INACTIVE'"
+                      [class.tag--success]="s.status === 'ACTIVE'"
+                      >{{ s.status === 'ACTIVE' ? 'Ativo' : 'Inativo' }}</span
+                    >
+                  </td>
+                  <td>
+                    <button
+                      class="row-action"
+                      type="button"
+                      (click)="
+                        school.open(
+                          role() === 'ADMIN_B' ? 'student-edit' : 'student-view',
+                          s.student_id
+                        )
+                      "
+                    >
+                      <i [attr.data-lucide]="role() === 'ADMIN_B' ? 'square-pen' : 'eye'"></i
+                      ><span>{{ role() === 'ADMIN_B' ? 'Editar' : 'Consultar' }}</span>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+      }
     }
-    <section class="panel">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Aluno</th>
-            <th>RA ou matrícula</th>
-            <th>Turma</th>
-            <th>BinCoins</th>
-            <th>Estado</th>
-            <th>{{ role() === 'ADMIN_B' ? 'Ação' : 'Acesso' }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (s of store.students(); track s.registration; let i = $index) {
-            <tr>
-              <td>
-                <strong>{{ s.name }}</strong
-                ><br /><small>{{ s.email }}</small>
-              </td>
-              <td>{{ s.registration }}</td>
-              <td>{{ s.className }}</td>
-              <td>{{ s.balance }}</td>
-              <td>
-                <span
-                  class="tag"
-                  [class.tag--danger]="s.status === 'Inativo'"
-                  [class.tag--success]="s.status !== 'Inativo'"
-                  >{{ s.status }}</span
-                >
-              </td>
-              <td>
-                <button
-                  class="row-action"
-                  type="button"
-                  (click)="store.open(role() === 'ADMIN_B' ? 'student-edit' : 'student-view', i)"
-                >
-                  <i [attr.data-lucide]="role() === 'ADMIN_B' ? 'square-pen' : 'eye'"></i
-                  ><span>{{ role() === 'ADMIN_B' ? 'Editar' : 'Consultar' }}</span>
-                </button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </section>
+    @if (school.notice()) {
+      <p role="status" class="contract-note">{{ school.notice() }}</p>
+    }
     <p class="contract-note">
       <i data-lucide="shield-check"></i>Saldo, PIN, senha e identificadores internos nunca são
       editados manualmente.
     </p>`,
 })
 export class StudentsComponent {
-  readonly store = inject(AdminStore);
+  readonly school = inject(AdminSchoolRepository);
   role = input.required<AdminRole>();
+  constructor() {
+    void this.school.load();
+  }
 }
 @Component({
   selector: 'app-classes',
-  imports: [EntityRowComponent],
+  imports: [EntityRowComponent, StatePanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="toolbar toolbar--end">
-      <button
-        class="primary-button compact-button"
-        type="button"
-        (click)="store.open('class-create')"
-      >
-        <i data-lucide="plus"></i><span>Criar turma</span>
-      </button>
-    </div>
-    <section class="panel entity-list">
-      @for (c of store.classes(); track c.name; let i = $index) {
-        <app-entity-row
-          icon="users-round"
-          [title]="c.name"
-          [subtitle]="c.students"
-          [meta]="c.xp + ' · ' + c.participation"
-          [status]="c.status"
-          actionLabel="Editar"
-          actionIcon="square-pen"
-          (action)="store.open('class-edit', i)"
+  template: `@if (school.state().kind === 'loading') {
+      <app-state-panel title="Carregando turmas…" body="Consultando a escola vinculada." />
+    } @else if (school.state().kind === 'error') {
+      <app-state-panel
+        title="Não foi possível carregar turmas"
+        body="Confira a conexão e tente novamente."
+        [retry]="true"
+        (retryClick)="school.load()"
+      />
+    } @else {
+      <div class="toolbar toolbar--end">
+        <button
+          class="primary-button compact-button"
+          type="button"
+          (click)="school.open('class-create')"
+        >
+          <i data-lucide="plus"></i><span>Criar turma</span>
+        </button>
+      </div>
+      @if (!school.state().classes.length) {
+        <app-state-panel
+          title="Nenhuma turma cadastrada"
+          body="As turmas desta escola aparecerão aqui."
         />
+      } @else {
+        <section class="panel entity-list">
+          @for (c of school.state().classes; track c.class_id) {
+            <app-entity-row
+              icon="users-round"
+              [title]="c.name"
+              [subtitle]="c.segment + ' · ' + c.grade + ' · ' + c.student_count + ' alunos'"
+              [meta]="c.points_class_balance + ' XP'"
+              actionLabel="Editar"
+              actionIcon="square-pen"
+              (action)="school.open('class-edit', c.class_id)"
+            />
+          }
+        </section>
       }
-    </section>`,
+    }
+    @if (school.notice()) {
+      <p role="status" class="contract-note">{{ school.notice() }}</p>
+    }`,
 })
 export class ClassesComponent {
-  readonly store = inject(AdminStore);
+  readonly school = inject(AdminSchoolRepository);
+  constructor() {
+    void this.school.load();
+  }
 }
 @Component({
   selector: 'app-pending',

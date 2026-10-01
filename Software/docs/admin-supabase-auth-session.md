@@ -11,9 +11,11 @@ resolve role, escola e status. Angular apresenta a experiência A/B/C somente ap
 receber um contexto válido e ACTIVE. Nenhum formulário, URL, metadata Auth ou
 role persistido manualmente participa dessa resolução.
 
-Os demais dados e operações continuam no `AdminStore` demonstrativo, com os
-indicadores existentes. Não há leitura de escolas/alunos nem integração com
-outros domínios, FastAPI ou Edge Functions nesta fatia.
+Na entrega original de Auth, os demais dados e operações continuavam no
+`AdminStore` demonstrativo. A fatia posterior de alunos/turmas passou a usar RPCs
+escolares reais; consulte `admin-school-management-foundation.md`. Os demais
+domínios mantêm indicadores de demonstração. Não há integração administrativa
+com FastAPI ou Edge Functions.
 
 ## Banco
 

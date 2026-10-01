@@ -14,6 +14,37 @@ async function installSupabaseFixture(page, options = {}) {
     rpcError: false,
     schoolId,
     calls: [],
+    students: [
+      {
+        student_id: '30000000-0000-4000-8000-000000000001',
+        name: 'Aluno RPC',
+        email: 'aluno@example.test',
+        registration: '0001',
+        class_id: '20000000-0000-4000-8000-000000000001',
+        class_name: 'Turma RPC',
+        status: 'ACTIVE',
+        points_student_balance: 800,
+        class_points_balance: 1900,
+      },
+    ],
+    classes: [
+      {
+        class_id: '20000000-0000-4000-8000-000000000001',
+        segment: 'Segmento livre',
+        grade: 'Série livre',
+        name: 'Turma RPC',
+        points_class_balance: 1900,
+        student_count: 1,
+      },
+      {
+        class_id: '20000000-0000-4000-8000-000000000002',
+        segment: 'Outro segmento',
+        grade: 'Outra série',
+        name: 'Turma destino RPC',
+        points_class_balance: 3000,
+        student_count: 0,
+      },
+    ],
     ...options,
   };
   await page.route('**/supabase-config.json', (route) =>
@@ -62,9 +93,100 @@ async function installSupabaseFixture(page, options = {}) {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     fixture.calls.push({ path, body: request.postDataJSON() });
-    // Auth e identidade sao os unicos acessos remotos permitidos nesta feature.
-    assert.equal(path, '/rest/v1/rpc/get_my_admin_context_v1');
-    assert.deepEqual(request.postDataJSON(), {}); // SDK sem parametros nao manda identidade.
+    const rpc = path.replace('/rest/v1/rpc/', '');
+    const body = request.postDataJSON();
+    assert.ok(
+      [
+        'get_my_admin_context_v1',
+        'get_admin_students_v1',
+        'get_admin_classes_v1',
+        'create_admin_student_v1',
+        'update_admin_student_v1',
+        'create_admin_class_v1',
+        'update_admin_class_v1',
+      ].includes(rpc),
+      `RPC fora da fatia: ${rpc}`,
+    );
+    if (rpc !== 'get_my_admin_context_v1') {
+      if (fixture.schoolWait) await fixture.schoolWait;
+      if (fixture.schoolError)
+        return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      if (rpc.startsWith('get_')) {
+        assert.deepEqual(body, {});
+        const students = fixture.students.map((s) => ({
+          ...s,
+          class_name: fixture.classes.find((c) => c.class_id === s.class_id)?.name,
+          class_points_balance: fixture.classes.find((c) => c.class_id === s.class_id)
+            ?.points_class_balance,
+        }));
+        return route.fulfill({
+          json: rpc === 'get_admin_students_v1' ? students : fixture.classes,
+        });
+      }
+      for (const forbidden of [
+        'p_school_id',
+        'p_actor_id',
+        'p_role',
+        'p_points_student_balance',
+        'p_auth_user_id',
+        'p_pin_hash',
+        'p_points_class_balance',
+        'p_is_activated',
+      ])
+        assert.equal(body[forbidden], undefined);
+      if (fixture.role !== 'ADMIN_B')
+        return route.fulfill({
+          status: 403,
+          json: { code: '42501', message: 'ADMIN_SCHOOL_ACCESS_DENIED' },
+        });
+      if (rpc.includes('_student_')) {
+        if (
+          fixture.students.some(
+            (s) => s.registration === body.p_registration && s.student_id !== body.p_student_id,
+          )
+        )
+          return route.fulfill({
+            status: 409,
+            json: { code: '23505', message: 'ADMIN_REGISTRATION_CONFLICT' },
+          });
+        const row = {
+          student_id: body.p_student_id || require('node:crypto').randomUUID(),
+          name: body.p_name,
+          email: body.p_email,
+          registration: body.p_registration,
+          class_id: body.p_class_id,
+          status: body.p_status,
+          points_student_balance: 0,
+          class_points_balance: 0,
+          class_name: '',
+        };
+        if (rpc.startsWith('create')) fixture.students.push(row);
+        else
+          fixture.students = fixture.students.map((s) =>
+            s.student_id === row.student_id
+              ? { ...s, ...row, points_student_balance: s.points_student_balance }
+              : s,
+          );
+        return route.fulfill({ json: row.student_id });
+      }
+      const row = {
+        class_id: body.p_class_id || require('node:crypto').randomUUID(),
+        name: body.p_name,
+        segment: body.p_segment,
+        grade: body.p_grade,
+        points_class_balance: 0,
+        student_count: 0,
+      };
+      if (rpc.startsWith('create')) fixture.classes.push(row);
+      else
+        fixture.classes = fixture.classes.map((c) =>
+          c.class_id === row.class_id
+            ? { ...c, ...row, points_class_balance: c.points_class_balance }
+            : c,
+        );
+      return route.fulfill({ json: row.class_id });
+    }
+    assert.deepEqual(body, {});
     if (fixture.rpcWait) await fixture.rpcWait;
     if (fixture.rpcError) return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
     return route.fulfill({

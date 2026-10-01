@@ -170,7 +170,7 @@ import { EntityRowComponent } from '../shared/entity-row.component';
             </div>
           </header>
           <div class="entity-list">
-            @for (c of store.classes(); track c.name) {
+            @for (c of store.demoClasses(); track c.name) {
               <app-entity-row
                 icon="users-round"
                 [title]="c.name"

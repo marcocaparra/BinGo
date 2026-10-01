@@ -186,7 +186,7 @@ export class AdminStore {
       status: 'Ativa',
     },
   ]);
-  readonly students = signal([
+  readonly demoStudents = signal([
     {
       name: 'Ana Clara Martins',
       email: 'ana.martins@aluno.demo',
@@ -220,7 +220,7 @@ export class AdminStore {
       status: 'Inativo',
     },
   ]);
-  readonly classes = signal([
+  readonly demoClasses = signal([
     { name: '9º A', students: '31 alunos', xp: '12.480 XP', participation: '84%', status: 'Ativa' },
     { name: '8º B', students: '29 alunos', xp: '10.920 XP', participation: '79%', status: 'Ativa' },
     { name: '7º A', students: '33 alunos', xp: '9.740 XP', participation: '72%', status: 'Ativa' },
@@ -337,31 +337,8 @@ export class AdminStore {
     const v = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
     const i = op.index ?? 0;
     switch (op.action) {
-      case 'student-create':
-        this.students.update((a) => [...a, { ...v, balance: '0', status: 'Ativo' } as any]);
-        break;
-      case 'student-edit':
-        this.students.update((a) => a.map((x, n) => (n === i ? { ...x, ...v } : x)));
-        break;
-      case 'class-create':
-        this.classes.update((a) => [
-          ...a,
-          {
-            name: v['name'],
-            students: '0 alunos',
-            xp: '0 XP',
-            participation: '0%',
-            status: v['status'],
-          },
-        ]);
-        break;
-      case 'class-edit':
-        this.classes.update((a) =>
-          a.map((x, n) => (n === i ? { ...x, name: v['name'], status: v['status'] } : x)),
-        );
-        break;
       case 'request-create': {
-        const s = this.students().find((x) => x.name === v['student']);
+        const s = this.demoStudents().find((x) => x.name === v['student']);
         this.classRequests.update((a) => [
           {
             id: `TT-${String(33 + a.length).padStart(3, '0')}`,
@@ -464,10 +441,6 @@ export class AdminStore {
         break;
     }
     const titles: Record<string, string> = {
-      'student-create': 'Cadastrar aluno',
-      'student-edit': 'Editar dados do aluno',
-      'class-create': 'Criar turma',
-      'class-edit': 'Editar turma',
       'request-create': 'Solicitar troca de turma',
       'request-review': 'Analisar troca de turma',
       'request-cancel': 'Cancelar solicitação',
