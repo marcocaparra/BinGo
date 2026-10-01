@@ -2,7 +2,8 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { chromium } = require("../../admin_web/node_modules/playwright");
-const base = "http://127.0.0.1:8110";
+const base =
+  process.env.BINGO_TOTEM_TEST_FRONTEND_URL || "http://127.0.0.1:8110";
 const local = "http://127.0.0.1:8765";
 const classId = "20000000-0000-4000-8000-000000000001";
 const studentId = "30000000-0000-4000-8000-000000000001";
@@ -412,6 +413,18 @@ test(
         "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
     });
     const page = await browser.newPage();
+    if (process.env.BINGO_TOTEM_TEST_GATEWAY_URL) {
+      // Test-only forwarding lets the real smoke use an isolated loopback port
+      // while the application keeps its default :8765 URL unchanged.
+      const gateway = new URL(process.env.BINGO_TOTEM_TEST_GATEWAY_URL);
+      assert.equal(gateway.hostname, "127.0.0.1");
+      await page.route(`${local}/**`, async (route) => {
+        const response = await route.fetch({
+          url: route.request().url().replace(local, gateway.origin),
+        });
+        await route.fulfill({ response });
+      });
+    }
     const events = [];
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));

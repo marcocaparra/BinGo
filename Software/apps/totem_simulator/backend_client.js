@@ -63,12 +63,15 @@
     return payload;
   }
   function createClient({
-    baseUrl = "http://127.0.0.1:8765",
+    baseUrl = root.BinGoRuntime?.baseUrl ?? "http://127.0.0.1:8765",
     fetchImpl = (...args) => root.fetch(...args),
     storage = root.localStorage,
     timeoutMs = 20000,
   } = {}) {
-    const base = loopbackUrl(baseUrl).href.replace(/\/$/, "");
+    const cloud = root.BinGoRuntime?.mode === "cloud";
+    if (cloud && baseUrl !== "")
+      throw new Error("Cloud demo must use same-origin paths.");
+    const base = cloud ? "" : loopbackUrl(baseUrl).href.replace(/\/$/, "");
     async function request(path, payload) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);

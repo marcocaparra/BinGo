@@ -33,14 +33,19 @@ def main():
     }
     result = {'status': 'recognized', 'itemId': 'battery', 'candidateIds': ['battery'], 'confidence': 0.98, 'origin': 'AWS_REKOGNITION'}
     with mock.patch.dict(os.environ, config), mock.patch.object(MODULE, 'analyze_image', return_value=result):
-        gateway = ThreadingHTTPServer(('127.0.0.1', 8765), MODULE.VisionHandler)
-        frontend = ThreadingHTTPServer(('127.0.0.1', 8110), functools.partial(SimpleHTTPRequestHandler, directory=str(APP)))
+        # Isolate the harness from any already-running local demo servers.
+        gateway = ThreadingHTTPServer(('127.0.0.1', 0), MODULE.VisionHandler)
+        frontend = ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(SimpleHTTPRequestHandler, directory=str(APP)))
         servers = [gateway, frontend]
         threads = [threading.Thread(target=server.serve_forever, daemon=True) for server in servers]
         for thread in threads:
             thread.start()
         try:
-            run = subprocess.run(['node', '--test', str(APP / 'tests/browser.test.cjs')], cwd=ROOT, capture_output=True, text=True, encoding='utf-8', timeout=300)
+            environment = {**os.environ,
+                           'BINGO_TOTEM_TEST_FRONTEND_URL': f'http://127.0.0.1:{frontend.server_port}',
+                           'BINGO_TOTEM_TEST_GATEWAY_URL': f'http://127.0.0.1:{gateway.server_port}'}
+            run = subprocess.run(['node', '--test', str(APP / 'tests/browser.test.cjs')], cwd=ROOT, env=environment,
+                                 capture_output=True, text=True, encoding='utf-8', timeout=300)
             print(run.stdout)
             if run.returncode:
                 print(run.stderr)

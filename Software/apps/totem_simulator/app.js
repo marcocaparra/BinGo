@@ -1,9 +1,5 @@
-const localServiceUrl = "http://127.0.0.1:8765";
-const backend = BinGoBackend.createClient({ baseUrl: localServiceUrl });
-const VISION_ENDPOINT = BinGoBackend.loopbackUrl(
-  new URLSearchParams(window.location.search).get("visionUrl") ||
-    `${localServiceUrl}/vision/analyze`,
-).href;
+const backend = BinGoBackend.createClient({ baseUrl: BinGoRuntime.baseUrl });
+const VISION_ENDPOINT = BinGoRuntime.visionUrl;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const SUPPORTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
 const visionProvider = BinGoVision.createVisionProvider({
@@ -573,6 +569,9 @@ function selectVisionFile(file) {
 
 function renderSampleLibrary(filter = "all") {
   sampleGrid.replaceChildren();
+  if (BinGoRuntime.mode === "cloud") {
+    sampleGrid.closest("details").hidden = true;
+  }
   for (const sample of BinGoSamples) {
     if (filter !== "all" && sample.level !== filter) continue;
     const button = document.createElement("button");
@@ -1212,7 +1211,7 @@ async function init() {
       "message error",
     );
     studentDetails.innerHTML =
-      '<div class="empty-state">Verifique o serviço local :8765 e a configuração Supabase.</div>';
+      '<div class="empty-state">Verifique o serviço do simulador e a configuração Supabase.</div>';
     studentHistory.innerHTML = "";
     renderRankings();
   } finally {
