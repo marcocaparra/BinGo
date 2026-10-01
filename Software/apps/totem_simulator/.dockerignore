@@ -1,0 +1,15 @@
+.env
+.env.*
+**/.env
+**/.env.*
+__pycache__
+**/__pycache__
+*.pyc
+**/*.pyc
+tests
+vision/tests
+assets/samples
+vision/edge.env.example
+README.md
+*.ps1
+.git

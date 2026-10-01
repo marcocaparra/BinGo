@@ -9,10 +9,13 @@ to disk.
 from __future__ import annotations
 
 import base64
+import binascii
+import hmac
 import json
 import os
 import socket
 import time
+from pathlib import Path
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
@@ -34,6 +37,46 @@ BINGO_ROUTES = {
         "event_id", "class_id", "student_id", "is_valid", "detected_type",
         "waste_category_code", "category_source")),
 }
+
+
+# Cloud serves only this explicit frontend allowlist, never an application directory.
+FRONTEND_ROOT = Path(__file__).resolve().parents[1]
+STATIC_FILES = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/style.css": ("style.css", "text/css; charset=utf-8"),
+    "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/backend_client.js": ("backend_client.js", "text/javascript; charset=utf-8"),
+    "/runtime.js": ("runtime.js", "text/javascript; charset=utf-8"),
+    "/vision/vision_provider.js": ("vision/vision_provider.js", "text/javascript; charset=utf-8"),
+}
+
+
+def runtime_mode() -> str:
+    mode = os.getenv("BINGO_RUNTIME_MODE", "local")
+    if mode not in {"local", "cloud"}:
+        raise ValueError("BINGO_RUNTIME_MODE must be local or cloud")
+    return mode
+
+
+def demo_credentials() -> tuple[str, str]:
+    return os.getenv("BINGO_DEMO_USERNAME", ""), os.getenv("BINGO_DEMO_PASSWORD", "")
+
+
+def listen_address() -> tuple[str, int]:
+    if runtime_mode() == "cloud":
+        username, password = demo_credentials()
+        if not username or not password or ":" in username:
+            raise ValueError("Cloud demo credentials must be configured")
+        host, port = "0.0.0.0", int(os.environ["PORT"])
+    else:
+        host = os.getenv("BINGO_VISION_HOST", "127.0.0.1")
+        if host not in {"127.0.0.1", "localhost"}:
+            raise ValueError("This trusted service must bind to loopback only")
+        port = int(os.getenv("BINGO_VISION_PORT", "8765"))
+    if not 1 <= port <= 65535:
+        raise ValueError("Invalid listening port")
+    return host, port
 
 
 def forward_bingo(method: str, path: str, payload: dict | None) -> tuple[int, dict]:
@@ -290,7 +333,7 @@ class VisionHandler(BaseHTTPRequestHandler):
 
     def _origin(self) -> str | None:
         origin = self.headers.get("Origin")
-        if not origin:
+        if runtime_mode() == "cloud" or not origin:
             return None
         parsed = urlparse(origin)
         allowed = {item.strip() for item in os.getenv("BINGO_ALLOWED_ORIGINS", "").split(",") if item.strip()}
@@ -312,7 +355,71 @@ class VisionHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _cloud_authorized(self) -> bool:
+        username, password = demo_credentials()
+        if not username or not password or ":" in username:
+            self._send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "demo_not_configured"})
+            return False
+        header = self.headers.get("Authorization", "")
+        try:
+            scheme, encoded = header.split(" ", 1)
+            if scheme.lower() != "basic":
+                raise ValueError()
+            supplied_user, supplied_password = base64.b64decode(encoded, validate=True).split(b":", 1)
+            valid_user = hmac.compare_digest(supplied_user, username.encode("utf-8"))
+            valid_password = hmac.compare_digest(supplied_password, password.encode("utf-8"))
+            valid = valid_user & valid_password
+        except (ValueError, binascii.Error):
+            valid = False
+        if not valid:
+            self.send_response(HTTPStatus.UNAUTHORIZED)
+            self.send_header("WWW-Authenticate", 'Basic realm="BinGo demo", charset="UTF-8"')
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return False
+        # Cloud Run terminates TLS. No CORS is opened: operational requests must
+        # originate from this Host, using the proxy's http/https scheme.
+        origin = self.headers.get("Origin")
+        scheme = self.headers.get("X-Forwarded-Proto", "http")
+        if origin and (scheme not in {"http", "https"} or
+                       origin != f"{scheme}://{self.headers.get('Host', '')}"):
+            self._send_json(HTTPStatus.FORBIDDEN, {"error": "same_origin_required"})
+            return False
+        if self.headers.get("Sec-Fetch-Site") in {"cross-site", "same-site"}:
+            self._send_json(HTTPStatus.FORBIDDEN, {"error": "same_origin_required"})
+            return False
+        return True
+
+    def _static_frontend(self) -> None:
+        path = urlparse(self.path).path
+        if "%" in path or ".." in path or "\\" in path:
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+            return
+        if path == "/sample_library.js":
+            # Do not publish the unverified sample catalog or its images.
+            body = b"window.BinGoSamples = Object.freeze([]);\n"
+            mime = "text/javascript; charset=utf-8"
+        elif path in STATIC_FILES:
+            filename, mime = STATIC_FILES[path]
+            body = (FRONTEND_ROOT / filename).read_bytes()
+            if path == "/runtime.js":
+                # Only a public runtime flag is emitted, never environment vars.
+                body = b'globalThis.BinGoRuntimeMode = "cloud";\n' + body
+        else:
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+            return
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(body)
+
     def _local_request(self) -> bool:
+        if runtime_mode() == "cloud":
+            return self._cloud_authorized()
         host = urlparse("http://" + self.headers.get("Host", "")).hostname
         if host not in {"127.0.0.1", "localhost"} or (self.headers.get("Origin") and not self._origin()):
             self._send_json(HTTPStatus.FORBIDDEN, {"error": "local_origin_required"})
@@ -353,6 +460,9 @@ class VisionHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
+        if runtime_mode() == "cloud" and self.path == "/healthz":
+            self._send_json(HTTPStatus.OK, {"status": "ok"})
+            return
         if not self._local_request():
             return
         if urlparse(self.path).path.startswith("/bingo/"):
@@ -367,6 +477,9 @@ class VisionHandler(BaseHTTPRequestHandler):
                 "secondaryProvider": "GEMINI_FALLBACK" if gemini_configured else "MANUAL_REVIEW",
                 "geminiModel": os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest") if gemini_configured else None,
             })
+            return
+        if runtime_mode() == "cloud":
+            self._static_frontend()
             return
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
 
@@ -416,7 +529,7 @@ class VisionHandler(BaseHTTPRequestHandler):
                 result = analyze_primary_with_fallback(image_bytes, content_type)
             self._send_json(HTTPStatus.OK, result)
         except Exception as error:  # Keep SDK details out of the browser response.
-            print(f"Vision analysis failed: {type(error).__name__}: {error}")
+            print(f"Vision analysis failed: {type(error).__name__}")
             self._send_json(HTTPStatus.BAD_GATEWAY, {
                 "error": "vision_provider_failed",
                 "provider": "GEMINI_FALLBACK" if stage == "secondary" else "VISION_CASCADE",
@@ -432,10 +545,7 @@ class VisionHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    host = os.getenv("BINGO_VISION_HOST", "127.0.0.1")
-    if host not in {"127.0.0.1", "localhost"}:
-        raise ValueError("This trusted service must bind to loopback only")
-    port = int(os.getenv("BINGO_VISION_PORT", "8765"))
+    host, port = listen_address()
     server = ThreadingHTTPServer((host, port), VisionHandler)
     print(f"BinGo Edge Vision listening on http://{host}:{port}")
     server.serve_forever()

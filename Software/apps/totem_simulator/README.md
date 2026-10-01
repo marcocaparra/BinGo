@@ -1,6 +1,6 @@
 # Totem Simulator — Supabase
 
-Totem de desenvolvimento conectado ao backend oficial Supabase. FastAPI não é requisito operacional. O browser usa somente o serviço confiável loopback; nenhuma chave técnica é enviada ao JavaScript.
+Totem de desenvolvimento conectado ao backend oficial Supabase. FastAPI não é requisito operacional. No modo local, o browser usa somente o serviço confiável loopback; no modo cloud, frontend e APIs usam a mesma origem. Nenhuma chave técnica é enviada ao JavaScript.
 
 ```text
 Frontend :8110 → serviço local :8765
@@ -62,6 +62,83 @@ Homologado em **2026-10-01**, exclusivamente no `bingo-dev`: a migration 029 (`2
 
 O smoke hospedado comprovou `health-v1` com `AVAILABLE` e `can_start_deposit=true`, contexto real e validação de PIN. Um aluno demo recebeu PIN apenas para smoke DEV. AWS Rekognition e Gemini foram exercitados ao vivo; um descarte completo pelo simulador foi persistido por `register-deposit-v1`, atualizando BinCoins do aluno e XP da turma conforme os snapshots do backend. Todos os testes e o smoke end-to-end passaram, e o PR #41 foi mergeado em `develop`. Essa comprovação **não se estende à produção**.
 
+## Cloud Run temporário (preparação local, sem deploy)
+
+Um único processo Python (`http.server`) serve o frontend e `/vision/analyze` e
+`/bingo/*` em uma única porta. Não requer Vercel, servidor frontend separado,
+nginx ou novo framework. Essa hospedagem serve apenas à apresentação temporária
+com `bingo-dev`; não representa a arquitetura final do Totem físico nem uma
+homologação de produção. Nenhum recurso Cloud Run foi criado por esta adaptação.
+
+- **Local (default):** `BINGO_RUNTIME_MODE=local` ou ausente, frontend separado
+  em :8110 e serviço em `127.0.0.1:8765`. Bind/origens não-loopback continuam
+  rejeitados. O catálogo de 15 samples permanece disponível. `?visionUrl=`
+  continua aceitando somente endpoints loopback nesse modo.
+- **Cloud:** `BINGO_RUNTIME_MODE=cloud`, bind `0.0.0.0`, porta obrigatoriamente
+  lida de `PORT`. O serviço entrega apenas o sinal público de modo em
+  `runtime.js`; o browser usa `/vision/analyze` e `/bingo/*` na mesma origem,
+  ignorando `?visionUrl=`. Não há abertura de CORS para origens externas.
+
+Configure no ambiente **server-side**, sem incluir valores no Git/imagem:
+
+| Variável | Uso em cloud |
+| --- | --- |
+| `BINGO_RUNTIME_MODE` | `cloud` |
+| `PORT` | Porta fornecida pelo Cloud Run; obrigatória, sem default cloud |
+| `BINGO_DEMO_USERNAME`, `BINGO_DEMO_PASSWORD` | Credenciais obrigatórias da demonstração; username sem `:` |
+| `BINGO_SUPABASE_URL` | URL do `bingo-dev` |
+| `BINGO_MACHINE_ID`, `BINGO_MACHINE_API_KEY` | Máquina DEV e credencial já provisionadas, somente no servidor |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` | Integração Rekognition existente |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Integração Gemini existente |
+
+Basic Auth protege frontend e todas as rotas operacionais, com comparação segura
+no servidor. Acesso ausente/incorreto recebe 401 e `WWW-Authenticate`.
+Credenciais de demo ausentes impedem o startup cloud; as rotas também falham
+fechado se a configuração estiver ausente. `/healthz` é a única rota pública,
+retornando somente `{"status":"ok"}` como liveness do processo, sem comprovar
+readiness de Supabase/IA. Use HTTPS na apresentação; Cloud Run termina TLS.
+Nenhum username/password, segredo AWS/Gemini, chave de máquina ou configuração
+privilegiada Supabase é enviado ao HTML/JS. Não configure service role.
+
+O Dockerfile copia somente os arquivos necessários, roda como usuário sem
+privilégios e não contém `.env`, exemplos de ambiente, testes ou `assets/samples`.
+O servidor usa uma whitelist de estáticos, sem file server aberto. O catálogo
+cloud é vazio e sua seção fica oculta; upload/drag-and-drop manual continuam
+funcionando. Os samples no repositório/local permanecem intactos, pois a licença
+de redistribuição pública de parte do acervo não foi comprovada.
+
+Build local, sem credenciais, a partir de `Software/apps/totem_simulator`:
+
+```powershell
+docker build -t bingo-totem-cloud-demo:local .
+```
+
+Para experimentar a imagem localmente, forneça `PORT` e as demais variáveis de
+runtime por um arquivo de ambiente privado fora do contexto de build:
+
+```powershell
+docker run --rm -p 8080:8080 --env-file CAMINHO_DO_ENV_PRIVADO bingo-totem-cloud-demo:local
+```
+
+Abra `http://127.0.0.1:8080` e use a autenticação do browser. Não passe secrets
+como build args. Não há push/deploy nesses comandos. O armazenamento de eventos
+pendentes continua por origem/browser: recuperar na mesma origem, sem trocar
+backend ou identidade da máquina. A demo pode gerar efeitos reais no `bingo-dev`
+e custos de IA; Basic Auth é proteção de apresentação, não gestão de usuários
+nem limitação de consumo por usuário.
+
+Novos testes, a partir de `Software`:
+
+```powershell
+python -m unittest discover -s apps/totem_simulator/vision/tests -p '*_test.py'
+node --test apps/totem_simulator/tests/runtime.test.cjs
+python apps/totem_simulator/tests/cloud_http_smoke.py
+```
+
+O smoke cloud roda exclusivamente em loopback, exercita o servidor e Basic Auth
+reais e controla as fronteiras de Supabase/IA no harness. Não usa credenciais
+reais nem faz deploy, chamadas externas ou escritas em banco.
+
 ## Operações reais
 
 - Contexto: `/bingo/context` → `totem-context-v1`; escola derivada da máquina, turmas e alunos ACTIVE.
@@ -121,7 +198,7 @@ node --check apps/totem_simulator/backend_client.js
 node node_modules/supabase/dist/supabase.js test db
 ```
 
-O smoke requer Functions locais servidas, portas 8765/8110 livres, psycopg e Playwright já instalados em `apps/admin_web/node_modules`. Usa Edge instalado (ou `BINGO_BROWSER_PATH`) e resposta de IA controlada **apenas no harness de teste**, mantendo autenticação/Functions/banco reais. Executa os testes browser e grava dois eventos locais, identificado e turma, com replay e conferência SQL. Esses eventos locais e seus históricos permanecem no banco de teste até o próximo reset.
+O smoke requer Functions locais servidas, psycopg e Playwright já instalados em `apps/admin_web/node_modules`. Usa Edge instalado (ou `BINGO_BROWSER_PATH`) e resposta de IA controlada **apenas no harness de teste**, mantendo autenticação/Functions/banco reais. Executa os testes browser e grava dois eventos locais, identificado e turma, com replay e conferência SQL. O harness usa portas loopback temporárias próprias, sem encerrar servidores existentes; os URLs padrão da aplicação permanecem inalterados. Esses eventos locais e seus históricos permanecem no banco de teste até o próximo reset.
 
 Em `Software/supabase/functions`: `npx deno task fmt:check`, `npx deno task lint`, `npx deno task check`, `npx deno task test`. Para a integração HTTP, configurar `BINGO_EDGE_TOTEM_INTEGRATION=1` e `BINGO_EDGE_TEST_DATABASE_URL` com banco exclusivamente localhost, e executar `npx deno test --allow-env --allow-net tests/totem-v1.integration.test.ts`. Os testes preexistentes de integração têm seus próprios flags e credenciais locais de fixture.
 
