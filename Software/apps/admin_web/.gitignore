@@ -45,3 +45,5 @@ Thumbs.db
 
 # Configuracao publica por ambiente (nunca service role).
 /public/supabase-config.json
+.vercel
+.env*

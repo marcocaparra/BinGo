@@ -72,17 +72,13 @@ test('primary views and demonstrative states are navigable', async () => {
 
     await page.getByRole('button', { name: 'Totens' }).click();
     await page.getByRole('heading', { name: 'Estado dos Totens' }).waitFor();
-    assert.equal(await page.getByText('Totem Biblioteca', { exact: true }).count(), 1);
-    assert.equal(await page.getByText('Com problema', { exact: true }).count(), 1);
-    assert.equal(await page.locator('.last-seen').count(), 3);
-    await assert.doesNotReject(() =>
-      page
-        .locator('.last-seen')
-        .first()
-        .getByText(/Última comunicação/)
-        .waitFor(),
-    );
-
+    await page.getByText('Totem RPC', { exact: true }).waitFor();
+    assert.equal(await page.getByText('ONLINE', { exact: true }).count(), 1);
+    assert.equal(await page.locator('.last-seen').count(), 1);
+    await page.getByText('Não registrada', { exact: true }).waitFor();
+    assert.equal(await page.getByLabel('Cenário da demonstração').count(), 0);
+    // Cenários demo continuam isolados na tela de Descartes.
+    await page.getByRole('button', { name: 'Descartes', exact: true }).click();
     await page.getByLabel('Cenário da demonstração').selectOption('error');
     await page.getByRole('heading', { name: 'Não foi possível atualizar' }).waitFor();
     await page.getByRole('button', { name: 'Tentar novamente' }).click();
@@ -246,18 +242,9 @@ test('global administrator can prepare schools, missions and economy without sch
     await page.getByText('35 pontos', { exact: true }).waitFor();
 
     await page.getByRole('button', { name: 'Totens', exact: true }).click();
-    await page.getByRole('button', { name: 'Ver diagnóstico' }).first().click();
-    await page
-      .getByRole('dialog')
-      .getByText(/Última comunicação/)
-      .waitFor();
-    assert.equal(
-      await page
-        .getByRole('dialog')
-        .getByText(/Última comunicação/)
-        .count(),
-      1,
-    );
+    await page.getByText('Totem RPC', { exact: true }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Ver diagnóstico' }).count(), 0);
+    await page.getByText('Não registrada', { exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: /Resgates/ }).count(), 0);
   } finally {
     await browser.close();
