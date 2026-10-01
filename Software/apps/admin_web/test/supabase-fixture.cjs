@@ -15,6 +15,20 @@ async function installSupabaseFixture(page, options = {}) {
     schoolId,
     calls: [],
     priceCap: null,
+    machines: [
+      {
+        machine_id: '80000000-0000-4000-8000-000000000001',
+        school_id: schoolId,
+        school_name: 'Escola Totem RPC',
+        name: 'Totem RPC',
+        status: 'ONLINE',
+        firmware_version: null,
+        last_seen: null,
+        bin_full: false,
+        camera_ok: true,
+        net_ok: false,
+      },
+    ],
     managedSchools: [
       {
         school_id: schoolId,
@@ -195,6 +209,7 @@ async function installSupabaseFixture(page, options = {}) {
     assert.ok(
       [
         'get_my_admin_context_v1',
+        'get_admin_machines_v1',
         'get_admin_schools_v1',
         'create_admin_school_v1',
         'get_managed_admins_v1',
@@ -222,6 +237,17 @@ async function installSupabaseFixture(page, options = {}) {
       ].includes(rpc),
       `RPC fora da fatia: ${rpc}`,
     );
+    if (rpc === 'get_admin_machines_v1') {
+      assert.deepEqual(body, {});
+      fixture.onMachineRead?.();
+      const rows = fixture.machines.filter(
+        (m) => fixture.role === 'ADMIN_A' || m.school_id === fixture.schoolId,
+      );
+      if (fixture.machinesWait) await fixture.machinesWait;
+      if (fixture.machinesError)
+        return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      return route.fulfill({ json: rows });
+    }
     if (
       rpc.includes('managed_admin') ||
       ['get_admin_schools_v1', 'create_admin_school_v1'].includes(rpc)

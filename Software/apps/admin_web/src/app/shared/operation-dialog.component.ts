@@ -8,7 +8,6 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
     icon: 'sliders-horizontal',
     submit: 'Salvar regra',
   },
-  'machine-view': { title: 'Diagnóstico do Totem', icon: 'monitor-cog', submit: 'Fechar' },
 };
 @Component({
   selector: 'app-operation-dialog',
@@ -60,28 +59,6 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
                 <i data-lucide="history"></i>A regra futura não poderá recalcular registros já
                 confirmados.
               </div>
-            } @else if (op.action === 'machine-view') {
-              @let m = machine();
-              <div class="operation-summary">
-                <strong>{{ m?.name }}</strong
-                ><span>{{ m?.code }} · {{ m?.status }}</span
-                ><small>Última comunicação: {{ m?.lastSeen }}</small>
-              </div>
-              <div class="diagnostic-grid">
-                <div class="machine-metric">
-                  <small>Câmera</small><strong>{{ m?.camera }}</strong>
-                </div>
-                <div class="machine-metric">
-                  <small>Porta</small><strong>{{ m?.door }}</strong>
-                </div>
-                <div class="machine-metric">
-                  <small>Versão</small><strong>{{ m?.version }}</strong>
-                </div>
-              </div>
-              <div class="dialog-note">
-                <i data-lucide="radio"></i>Telemetria detalhada e comandos remotos dependem do
-                serviço do Totem.
-              </div>
             }
           </div>
           <div class="dialog-actions">
@@ -112,7 +89,7 @@ export class OperationDialogComponent {
   }
   viewOnly() {
     const a = this.store.activeOperation()?.action;
-    return a === 'student-view' || a === 'machine-view';
+    return a === 'student-view';
   }
   idx() {
     return this.store.activeOperation()?.index ?? 0;
@@ -125,9 +102,6 @@ export class OperationDialogComponent {
   }
   economy() {
     return this.store.economySettings()[this.idx()];
-  }
-  machine() {
-    return this.store.machines.find((x) => x.code === this.key());
   }
   clean(v: string | undefined, s: string) {
     return v?.replace(s, '');

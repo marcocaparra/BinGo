@@ -11,6 +11,7 @@ Aplicacao Angular do painel operacional do BinGo.
 - layout e componentes preservados; alunos/turmas, trocas de turma e BinBazar operacional usam dados reais;
 - perfis `ADMIN_A`, `ADMIN_B` e `ADMIN_C` alinhados ao contrato funcional V1;
 - dashboard A/B/C somente leitura, composto de repositories reais, sem fallback demonstrativo;
+- Totens somente leitura por `get_admin_machines_v1()`: A global, B/C escola, fotografia persistida sem heartbeat ou diagnostico calculado;
 - formularios reais de escolas, identidades administrativas, alunos/turmas e produtos; missoes e demais regras economicas continuam demonstrativos;
 - entrega e cancelamento reais de resgates com confirmacao, auditoria e estorno transacional;
 - teto global real configurado por ADMIN_A; B/C criam produtos e editam preco conforme validacao server-side; teto inicial NULL bloqueia somente criacao/preco;
@@ -141,8 +142,8 @@ O front controla navegacao, formularios, validacao de campos, confirmacoes e fee
 - persistencia, paginacao e concorrencia;
 - auditoria das decisoes administrativas;
 - atomicidade entre estoque, estorno e entrega de resgates;
-- telemetria e ultima comunicacao dos Totens.
+- persistencia dos sinais e ultima comunicacao dos Totens; a leitura nao garante telemetria atualizada.
 
 Autenticacao, escolas/identidades administrativas, alunos/turmas, trocas de turma, BinBazar operacional e teto global estao integrados.
-Overview usa somente fontes reais; Descartes, Ajuda, Maquinas/Missoes e outras regras economicas continuam demonstrativos. Confira [Dashboard real V1](../../docs/admin-dashboard-v1.md). Criar identidade administrativa nao cria usuario Auth, senha ou convite; confira [Estrutura Admin V1](../../docs/admin-structure-management-v1.md). Contratos, limites
+Overview e Totens usam somente fontes reais; Descartes, Ajuda, Missoes e outras regras economicas continuam demonstrativos. Totens exibe status/flags persistidos, com firmware e ultima comunicacao explicitamente ausentes quando NULL; a migration 030 ainda nao foi promovida ao bingo-dev. Confira [Totens leitura V1](../../docs/admin-totems-v1.md) e [Dashboard real V1](../../docs/admin-dashboard-v1.md). Criar identidade administrativa nao cria usuario Auth, senha ou convite; confira [Estrutura Admin V1](../../docs/admin-structure-management-v1.md). Contratos, limites
 de preco, concorrencia e reproducao local em [Admin BinBazar V1](../../docs/admin-binbazar-v1.md) e [Teto global V1](../../docs/binbazar-global-price-cap-v1.md).

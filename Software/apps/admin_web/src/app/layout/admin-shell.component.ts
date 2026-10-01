@@ -92,7 +92,7 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
     label: 'Totens',
     icon: 'monitor-cog',
     title: 'Estado dos Totens',
-    subtitle: 'Disponibilidade, sinais recentes e informações essenciais dos equipamentos.',
+    subtitle: 'Estado e sinais persistidos dos equipamentos, sem diagnóstico em tempo real.',
   },
   economy: {
     label: 'Economia',
@@ -159,7 +159,11 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
         <div class="topbar-actions">
           <span class="status-pill"
             ><i data-lucide="circle-check"></i
-            >{{ store.view() === 'overview' ? 'Somente leitura' : 'Sistema operacional' }}</span
+            >{{
+              ['overview', 'machines'].includes(store.view())
+                ? 'Somente leitura'
+                : 'Sistema operacional'
+            }}</span
           >
           @if (!realSchoolView()) {
             <label
@@ -267,6 +271,7 @@ export class AdminShellComponent {
       'overview',
       'schools',
       'administrators',
+      'machines',
       'students',
       'classes',
       'requests',

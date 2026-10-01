@@ -70,6 +70,28 @@ e o smoke end-to-end passaram. **A comprovação hospedada vale somente para
 `totem-supabase-integration-v1.md`; startup sem FastAPI no README do simulador.
 
 
+A leitura real de Totens no Admin está implementada e validada **somente localmente**
+pelo contrato `admin-totems-v1.md` e pela migration 030 equivalente nos dois trilhos:
+`database/migrations/030_admin_machines_v1.sql` e
+`supabase/migrations/20261001150000_admin_machines_v1.sql`.
+`get_admin_machines_v1()` não recebe parâmetros, deriva identidade por `auth.uid()`
+e exige ADMIN ACTIVE: A consulta globalmente e B/C somente a própria escola.
+Retorna identidade, escola por join, nome, status, firmware/last_seen nullable e
+flags bin_full/camera_ok/net_ok. SECURITY DEFINER, search_path vazio e EXECUTE
+somente authenticated; PUBLIC/anon/service_role não executam. Nenhum SELECT de
+tabela ou policy foi aberto, nenhum hash é retornado e machine-auth foi preservado.
+A tela Totens agora usa AdminMachinesRepository, com loading/empty/error/refetch
+e invalidação de respostas atrasadas após troca/logout de sessão. Removidos o
+mock AdminStore.machines, códigos BT, porta, depósitos do dia e diagnóstico fictício.
+Os sinais são fotografia persistida: status é exibido sem inferência por last_seen,
+sem heartbeat, polling, SLO ou disponibilidade operacional calculada.
+Reset local completo, 23 arquivos/629 verificações pgTAP, 178 testes backend,
+94 testes Admin e smoke real Auth/RPC/Angular A/B/C passaram sem falhas/skips finais.
+Build, TypeScript, Prettier dos arquivos Angular alterados e diff-check passaram.
+Os skips iniciais do backend foram resolvidos configurando os bancos de teste
+PostgreSQL locais; permanecem 13 avisos JWT legados. A **030 não foi promovida
+ao bingo-dev**; não houve ação remota nesta fatia.
+
 A fundação de autenticação administrativa do Admin Web V1 está implementada e
 comprovada localmente pelas migrations incrementais equivalentes
 `database/migrations/023_admin_auth_foundation.sql` e
@@ -84,7 +106,7 @@ aberta ao cliente. O Angular usa Supabase Auth para login, restauração e logou
 consulta novamente o contexto no refresh e bloqueia ausência de vínculo,
 inatividade e falhas sem fallback de autenticação demonstrativa. Alunos, turmas,
 trocas de turma, BinBazar operacional, teto global, estrutura de escolas/contas
-e Overview usam as fatias reais descritas abaixo; os outros domínios e demais controles econômicos continuam demonstrativos
+e Overview usam as fatias reais descritas abaixo; Totens usa a leitura 030 descrita acima. Os outros domínios e demais controles econômicos continuam demonstrativos
 explícitos no AdminStore. `password_hash` permanece
 legado FastAPI, sem sincronização com Auth. A migration recusa papéis históricos
 ambíguos e exige classificação manual antes de futura promoção em bancos que
@@ -289,7 +311,8 @@ fontes saudáveis; logout/troca de contexto invalidam os repositories e descarta
 respostas antigas, sem fallback. Atalhos navegam somente às telas autorizadas.
 Removidos demoSchools/demoClasses/demoPendingRedemptions e todos os eventos e
 números fictícios do Overview. Descartes/discardStats/helpRequests permanecem
-apenas nas telas demo que ainda os usam; Máquinas, Missões e demais configurações
+apenas nas telas demo que ainda os usam; na entrega do Overview, Máquinas ainda eram demo,
+substituídas depois pela leitura 030 acima. Missões e demais configurações
 econômicas continuam demonstrativas. O Overview não consome essas fontes e não
 mostra seletor demo, nome de escola fixo ou sinal de saúde fictício do shell.
 Reset local com 28 migrations e seeds existentes, 21 arquivos/590 verificações
