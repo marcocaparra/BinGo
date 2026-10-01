@@ -62,14 +62,10 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
             }
           </div>
           <div class="dialog-actions">
-            <button class="secondary-button" type="button" (click)="store.close()">
-              {{ viewOnly() ? 'Fechar' : 'Cancelar' }}
+            <button class="secondary-button" type="button" (click)="store.close()">Cancelar</button>
+            <button class="primary-button" type="submit">
+              <i data-lucide="check"></i><span>{{ def().submit }}</span>
             </button>
-            @if (!viewOnly()) {
-              <button class="primary-button" type="submit">
-                <i data-lucide="check"></i><span>{{ def().submit }}</span>
-              </button>
-            }
           </div>
         </form>
       </section>
@@ -87,24 +83,14 @@ export class OperationDialogComponent {
       }
     );
   }
-  viewOnly() {
-    const a = this.store.activeOperation()?.action;
-    return a === 'student-view';
-  }
   idx() {
     return this.store.activeOperation()?.index ?? 0;
-  }
-  key() {
-    return this.store.activeOperation()?.key;
   }
   mission() {
     return this.store.missions()[this.idx()];
   }
   economy() {
     return this.store.economySettings()[this.idx()];
-  }
-  clean(v: string | undefined, s: string) {
-    return v?.replace(s, '');
   }
   backdrop(e: MouseEvent) {
     if (e.target === e.currentTarget) this.store.close();

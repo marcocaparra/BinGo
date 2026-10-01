@@ -20,10 +20,7 @@ export interface AdminRoleDefinition {
   code: AdminRole;
   label: string;
   shortLabel: string;
-  scope: string;
   description: string;
-  operatorName: string;
-  operatorInitials: string;
   views: readonly AdminView[];
 }
 
@@ -32,20 +29,14 @@ export const ADMIN_ROLES: Record<AdminRole, AdminRoleDefinition> = {
     code: 'ADMIN_A',
     label: 'Administrador global BinGo',
     shortLabel: 'Admin A · Global',
-    scope: 'Ecossistema BinGo',
     description: 'Escolas, administradores, Totens, Missões e configurações globais.',
-    operatorName: 'Equipe BinGo',
-    operatorInitials: 'BG',
-    views: ['overview', 'schools', 'administrators', 'machines', 'missions', 'economy'],
+    views: ['overview', 'schools', 'administrators', 'deposits', 'machines', 'missions', 'economy'],
   },
   ADMIN_B: {
     code: 'ADMIN_B',
     label: 'Administrador da escola',
     shortLabel: 'Admin B · Escola',
-    scope: 'Colégio ENIAC',
     description: 'Gestão de alunos, turmas, equipe operacional, pendências e BinBazar.',
-    operatorName: 'Gustavo Alencar',
-    operatorInitials: 'GA',
     views: [
       'overview',
       'students',
@@ -64,10 +55,7 @@ export const ADMIN_ROLES: Record<AdminRole, AdminRoleDefinition> = {
     code: 'ADMIN_C',
     label: 'Operador da escola',
     shortLabel: 'Admin C · Operação',
-    scope: 'Colégio ENIAC',
     description: 'Consultas, solicitações, estoque, resgates e operação diária dos Totens.',
-    operatorName: 'Gustavo Alencar',
-    operatorInitials: 'GA',
     views: [
       'overview',
       'students',

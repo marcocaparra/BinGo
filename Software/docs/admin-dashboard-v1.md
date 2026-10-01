@@ -26,9 +26,9 @@ A invalidação por contexto e descarte de respostas antigas permanecem nos repo
 
 ## Limpeza e limites
 
-Removidos `demoSchools`, `demoClasses`, `demoPendingRedemptions` e toda atividade/métrica fictícia do Overview. `deposits`, `discardStats` e `helpRequests` permanecem porque são usados pelas telas conscientemente demonstrativas de Descartes/Ajuda; Missões e outras regras econômicas também continuam demo. Máquinas eram demo nesta entrega; posteriormente a tela Totens passou à [leitura real da 030](admin-totems-v1.md), sem integrar novos sinais ao Overview. Essas fontes não são consumidas pelo dashboard. O seletor de cenário demonstrativo não aparece no Overview.
+Removidos `demoSchools`, `demoClasses`, `demoPendingRedemptions` e toda atividade/métrica fictícia do Overview. `helpRequests` permanece porque é usado pela tela conscientemente demonstrativa de Ajuda; Missões e outras regras econômicas também continuam demo. Máquinas eram demo nesta entrega e posteriormente passaram à [leitura real da 030](admin-totems-v1.md). Descartes também passou à [leitura real da 031](admin-deposits-v1.md), removendo `deposits`, `discardStats` e os cards agregados fictícios sem integrar novas métricas ao Overview. Essas fontes não são consumidas pelo dashboard. O seletor de cenário demonstrativo não aparece no Overview.
 
-Provisionamento Auth, novas leituras de descartes, ajuda, hardware, Missões e demais regras econômicas continuam fora de escopo. Nenhuma migration foi criada nesta fatia do Overview; a última era 028 na entrega. Nenhuma promoção remota ao bingo-dev foi executada por esta fatia.
+Provisionamento Auth, ajuda, hardware, Missões e demais regras econômicas continuam fora de escopo. Nenhuma migration foi criada nesta fatia do Overview; a última era 028 na entrega. A leitura de descartes foi implementada depois como fatia independente, sem estatísticas agregadas e sem alterar o Overview. Nenhuma promoção remota ao bingo-dev foi executada por essas fatias.
 
 ## Reprodução local
 

@@ -900,10 +900,9 @@ svg {
 
 .redemption-row {
   display: grid;
-  grid-template-columns: 44px minmax(150px, 1fr) minmax(100px, 0.55fr) minmax(
-      150px,
-      0.8fr
-    ) auto auto;
+  grid-template-columns:
+    44px minmax(150px, 1fr) minmax(100px, 0.55fr) minmax(150px, 0.8fr)
+    auto auto;
   align-items: center;
   gap: 14px;
   min-height: 86px;
@@ -979,6 +978,14 @@ svg {
 .data-table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.deposits-table {
+  overflow-x: auto;
+}
+
+.deposits-table .data-table {
+  min-width: 1240px;
 }
 
 .data-table th,

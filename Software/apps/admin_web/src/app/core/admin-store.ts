@@ -1,57 +1,20 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { effect, inject, Injectable, signal } from '@angular/core';
 import { AdminView } from '../admin-access';
 import { AdminAuthService } from './admin-auth.service';
 
 export interface Operation {
   action: string;
   index: number | null;
-  key: string | null;
 }
 @Injectable({ providedIn: 'root' })
 export class AdminStore {
   // Somente para composicao das telas demo; nao e autoridade de sessao.
   private readonly auth = inject(AdminAuthService);
-  readonly role = computed(() => this.auth.admin()?.role ?? null);
   readonly view = signal<AdminView>('overview');
   readonly scenario = signal<'normal' | 'loading' | 'empty' | 'error'>('normal');
   readonly toast = signal('');
   readonly activeOperation = signal<Operation | null>(null);
   readonly helpFilter = signal('Todas');
-  readonly deposits = [
-    {
-      time: '15:42',
-      student: 'Ana Clara M.',
-      className: '9º A',
-      item: 'Celular',
-      points: '+120',
-      status: 'Validado',
-    },
-    {
-      time: '14:18',
-      student: 'Lucas P.',
-      className: '8º B',
-      item: 'Cabo USB',
-      points: '+45',
-      status: 'Validado',
-    },
-    {
-      time: '11:07',
-      student: 'Perfil da turma',
-      className: '7º A',
-      item: 'Mouse',
-      points: '+70',
-      status: 'Só turma',
-    },
-    {
-      time: '09:35',
-      student: 'Marina S.',
-      className: '9º A',
-      item: 'Pilha',
-      points: '+30',
-      status: 'Revisão',
-    },
-  ];
-  readonly discardStats = { total: 1284, today: 32, week: 184 };
   readonly helpRequests = signal([
     {
       id: 'AJ-104',
@@ -82,6 +45,7 @@ export class AdminStore {
     { name: 'Circuito dos cabos', type: 'Missão semanal', period: '18–25 set', status: 'Ativa' },
     { name: 'Alerta SCR4P', type: 'Evento global', period: '28 set', status: 'Pendente' },
   ]);
+  // Valores de demonstracao; nao representam school_settings/waste_categories.
   readonly economySettings = signal([
     {
       title: 'Valor-base por descarte',
@@ -113,8 +77,8 @@ export class AdminStore {
       }
     });
   }
-  open(action: string, index: number | null = null, key: string | null = null) {
-    this.activeOperation.set({ action, index, key });
+  open(action: string, index: number | null = null) {
+    this.activeOperation.set({ action, index });
   }
   close() {
     this.activeOperation.set(null);

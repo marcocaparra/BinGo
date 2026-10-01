@@ -18,7 +18,6 @@ Novos descartes reais não podem começar offline ou quando serviços críticos 
 
 ## Implementado e comprovado
 
-
 A integração operacional do Totem Simulator com Supabase foi implementada na
 branch `feature/totem-supabase-integration`, validada localmente e homologada
 no ambiente hospedado `bingo-dev` em `2026-10-01`. O PR #41 foi mergeado em
@@ -69,7 +68,6 @@ e o smoke end-to-end passaram. **A comprovação hospedada vale somente para
 `bingo-dev`, sem homologação de produção.** Detalhes e resultados em
 `totem-supabase-integration-v1.md`; startup sem FastAPI no README do simulador.
 
-
 A leitura real de Totens no Admin está implementada e validada **somente localmente**
 pelo contrato `admin-totems-v1.md` e pela migration 030 equivalente nos dois trilhos:
 `database/migrations/030_admin_machines_v1.sql` e
@@ -91,6 +89,59 @@ Build, TypeScript, Prettier dos arquivos Angular alterados e diff-check passaram
 Os skips iniciais do backend foram resolvidos configurando os bancos de teste
 PostgreSQL locais; permanecem 13 avisos JWT legados. A **030 não foi promovida
 ao bingo-dev**; não houve ação remota nesta fatia.
+
+A leitura real de Descartes no Admin está implementada e validada **somente
+localmente** pelo contrato `admin-deposits-v1.md` e pela migration 031 equivalente
+nos dois trilhos: `database/migrations/031_admin_deposits_v1.sql` e
+`supabase/migrations/20261001160000_admin_deposits_v1.sql`.
+`get_admin_deposits_v1()` não recebe parâmetros, deriva o admin exclusivamente de
+`auth.uid()`, exige `ACTIVE` e autoriza A globalmente e B/C apenas na própria escola.
+Retorna IDs para identidade técnica, nomes derivados por joins e os snapshots
+históricos de validade, classificação, bônus, BinCoins e XP persistidos em
+`deposits`, ordenados por `created_at DESC, deposit_id DESC`. Não recalcula valores,
+não inventa status, tamanho, peso, impacto ou telemetria e preserva aluno,
+categoria e origem nulos. A função é STABLE, SECURITY DEFINER, usa search_path
+vazio e tem EXECUTE somente para authenticated; PUBLIC/anon/service_role foram
+revogados e nenhum SELECT direto, policy ou acesso de máquina foi ampliado.
+
+A tela usa `AdminDepositsRepository`, com loading/empty/error/retry/refetch e
+descarte de respostas atrasadas após logout/troca de sessão. Admin A vê a escola;
+B/C ficam no escopo server-side. Removidos `AdminStore.deposits`,
+`AdminStore.discardStats`, os mocks 1284/32/184, cards agregados, filtros e estados
+inventados. Não foi criada RPC de estatísticas e `register_deposit_v1` permanece
+inalterada. Reset local aplicou a 031; pgTAP completo passou com 24 arquivos e 646
+verificações; backend passou com 180 testes, sem skips; Admin passou com
+107 testes; nove integrações locais Auth/RPC/Angular passaram, incluindo A/B/C para
+Descartes. Build, TypeScript, Prettier e diff-check passaram. A **031 não foi
+promovida ao bingo-dev** e não houve ação remota. Detalhes em
+`admin-deposits-v1.md`.
+
+A auditoria dos dados demonstrativos restantes do Admin foi concluída localmente
+em `2026-10-01`, na branch `feature/admin-real-data-cleanup`. **Missões,
+demais controles econômicos e Solicitações de ajuda estão BLOQUEADOS POR CONTRATO**,
+cada um separadamente. Descartes deixou esse inventário depois da aprovação de uma
+interface Admin própria e foi implementado separadamente pela 031 acima. Missões tem runtime real,
+mas leitura Admin, gestão global de definições e criação de ciclos carecem de
+contratos técnicos. Em Economia, base/XP/meta semanal persistidos por escola
+precisam ser conciliados com o escopo global descrito pelo contrato Admin;
+bônus por categoria não equivale ao multiplicador demo. Ajuda continua sem
+domínio backend oficial; foi feito somente preflight.
+
+O teto do BinBazar e as demais áreas reais permanecem intactos. Os mocks ainda
+consumidos, diálogos e seletor de cenário foram preservados e explicitamente
+identificados. Removidos apenas metadados fictícios de escola/operador e helpers
+sem consumidores; corrigidos textos antigos que confundiam dados reais e demo.
+Nenhuma migration/RPC/grant/policy foi criada ou alterada. Contratos mínimos e
+inventário estão em [Auditoria Admin](admin-real-data-audit-v1.md).
+
+Validação final: reset Supabase local até 030; pgTAP 629 verificações/23 arquivos;
+backend 178 testes; Admin/browser 104 testes, incluindo 10 novos para isolamento
+dos demos; 8 integrações reais locais Auth/RPC/Angular. Sem falhas/skips finais.
+Build, TypeScript, Prettier dos arquivos alterados e diff-check passaram; seguem
+13 avisos JWT legados. As suítes de banco foram repetidas sequencialmente após
+interferência inicial; equivalência SQL da 030 agora tolera CRLF/LF sem mudar
+migrations. Um aviso de UI foi ajustado preservando a verificação existente do
+teto. Nenhuma ação remota; a 030 continua não promovida ao `bingo-dev`.
 
 A fundação de autenticação administrativa do Admin Web V1 está implementada e
 comprovada localmente pelas migrations incrementais equivalentes
@@ -310,9 +361,9 @@ e zero/Não configurado somente após leitura confirmada. Erro parcial conserva
 fontes saudáveis; logout/troca de contexto invalidam os repositories e descartam
 respostas antigas, sem fallback. Atalhos navegam somente às telas autorizadas.
 Removidos demoSchools/demoClasses/demoPendingRedemptions e todos os eventos e
-números fictícios do Overview. Descartes/discardStats/helpRequests permanecem
-apenas nas telas demo que ainda os usam; na entrega do Overview, Máquinas ainda eram demo,
-substituídas depois pela leitura 030 acima. Missões e demais configurações
+números fictícios do Overview. `helpRequests` permanece apenas na tela demo de
+Ajuda; na entrega do Overview, Máquinas e Descartes ainda eram demo, substituídos
+depois pelas leituras 030 e 031 acima. Missões e demais configurações
 econômicas continuam demonstrativas. O Overview não consome essas fontes e não
 mostra seletor demo, nome de escola fixo ou sinal de saúde fictício do shell.
 Reset local com 28 migrations e seeds existentes, 21 arquivos/590 verificações

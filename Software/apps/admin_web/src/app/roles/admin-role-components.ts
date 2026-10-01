@@ -22,6 +22,7 @@ import { RedemptionsComponent } from '../features/redemptions.component';
     OverviewComponent,
     SchoolsComponent,
     AdministratorsComponent,
+    DepositsComponent,
     MachinesComponent,
     MissionsComponent,
     EconomyComponent,
@@ -36,6 +37,9 @@ import { RedemptionsComponent } from '../features/redemptions.component';
     }
     @case ('machines') {
       <app-machines />
+    }
+    @case ('deposits') {
+      <app-deposits />
     }
     @case ('missions') {
       <app-missions role="ADMIN_A" />

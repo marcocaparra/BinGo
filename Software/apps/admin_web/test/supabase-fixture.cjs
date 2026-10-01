@@ -29,6 +29,29 @@ async function installSupabaseFixture(page, options = {}) {
         net_ok: false,
       },
     ],
+    deposits: [
+      {
+        deposit_id: '81000000-0000-4000-8000-000000000001',
+        event_id: '82000000-0000-4000-8000-000000000001',
+        school_id: schoolId,
+        school_name: 'Escola Descartes RPC',
+        machine_id: '80000000-0000-4000-8000-000000000001',
+        machine_name: 'Totem RPC',
+        class_id: '20000000-0000-4000-8000-000000000001',
+        class_name: 'Turma RPC',
+        student_id: '30000000-0000-4000-8000-000000000001',
+        student_name: 'Aluno RPC',
+        is_valid: true,
+        detected_type: 'BATTERY',
+        waste_category_code: 'BATTERY',
+        category_source: 'AI_CONFIRMED',
+        bonus_rate_applied: 1,
+        bonus_bincoins_awarded: 800,
+        points_awarded_student: 1600,
+        points_awarded_class: 1900,
+        created_at: '2026-10-01T12:00:00Z',
+      },
+    ],
     managedSchools: [
       {
         school_id: schoolId,
@@ -210,6 +233,7 @@ async function installSupabaseFixture(page, options = {}) {
       [
         'get_my_admin_context_v1',
         'get_admin_machines_v1',
+        'get_admin_deposits_v1',
         'get_admin_schools_v1',
         'create_admin_school_v1',
         'get_managed_admins_v1',
@@ -245,6 +269,17 @@ async function installSupabaseFixture(page, options = {}) {
       );
       if (fixture.machinesWait) await fixture.machinesWait;
       if (fixture.machinesError)
+        return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      return route.fulfill({ json: rows });
+    }
+    if (rpc === 'get_admin_deposits_v1') {
+      assert.deepEqual(body, {});
+      fixture.onDepositRead?.();
+      const rows = fixture.deposits.filter(
+        (d) => fixture.role === 'ADMIN_A' || d.school_id === fixture.schoolId,
+      );
+      if (fixture.depositsWait) await fixture.depositsWait;
+      if (fixture.depositsError)
         return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
       return route.fulfill({ json: rows });
     }
