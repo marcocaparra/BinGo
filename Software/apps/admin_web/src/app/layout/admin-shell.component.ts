@@ -1,12 +1,15 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, output } from '@angular/core';
 import {
-  AdminRole,
-  AdminView,
-  ADMIN_ROLES,
-  canAccessView,
-  firstViewForRole,
-} from '../admin-access';
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+} from '@angular/core';
+import { AdminView, ADMIN_ROLES, canAccessView, firstViewForRole } from '../admin-access';
 import { AdminStore } from '../core/admin-store';
+import { AdminContext } from '../core/admin-context';
 import { AdminAComponent, AdminBComponent, AdminCComponent } from '../roles/admin-role-components';
 import { OperationDialogComponent } from '../shared/operation-dialog.component';
 import { StatePanelComponent } from '../shared/state-panel.component';
@@ -129,37 +132,25 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
       </nav>
       <div class="sidebar-footer">
         <div class="operator">
-          <span class="operator-avatar">{{ definition().operatorInitials }}</span
+          <span class="operator-avatar">{{ initials() }}</span
           ><span
-            ><strong>{{ definition().operatorName }}</strong
+            ><strong>{{ admin().name }}</strong
             ><small>{{ definition().shortLabel }}</small></span
           >
         </div>
         <button class="text-button" type="button" (click)="logout.emit()">
-          <i data-lucide="log-out"></i><span>Sair da demonstração</span>
+          <i data-lucide="log-out"></i><span>Sair</span>
         </button>
       </div>
     </aside>
     <div class="main-area">
       <header class="topbar">
         <div class="topbar-copy">
-          <strong>{{ definition().scope }}</strong
+          <strong>{{ scope() }}</strong
           ><span>Última atualização demonstrativa: agora</span>
         </div>
         <div class="topbar-actions">
           <span class="status-pill"><i data-lucide="circle-check"></i>Sistema operacional</span
-          ><label
-            ><span class="sr-only">Perfil demonstrativo</span
-            ><select
-              class="demo-select"
-              aria-label="Perfil demonstrativo"
-              [value]="role()"
-              (change)="switchRole($event)"
-            >
-              @for (r of roles; track r.code) {
-                <option [value]="r.code">{{ r.shortLabel }}</option>
-              }
-            </select></label
           ><label
             ><span class="sr-only">Cenário da demonstração</span
             ><select
@@ -233,21 +224,31 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
   </div>`,
 })
 export class AdminShellComponent {
-  readonly role = input.required<AdminRole>();
-  readonly roleChange = output<AdminRole>();
+  readonly admin = input.required<AdminContext>();
+  readonly role = computed(() => this.admin().role);
   readonly logout = output<void>();
   readonly store = inject(AdminStore);
   readonly meta = meta;
-  readonly roles = Object.values(ADMIN_ROLES);
   constructor() {
     effect(() => {
-      this.store.role.set(this.role());
       this.store.view.set(firstViewForRole(this.role()));
       this.store.scenario.set('normal');
     });
   }
   definition() {
     return ADMIN_ROLES[this.role()];
+  }
+  initials() {
+    return this.admin()
+      .name.trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase();
+  }
+  scope() {
+    return this.role() === 'ADMIN_A' ? 'Ecossistema BinGo · Global' : 'Escopo da escola vinculada';
   }
   heading() {
     if (this.store.view() !== 'overview') return meta[this.store.view()];
@@ -279,9 +280,6 @@ export class AdminShellComponent {
       this.store.view.set(v);
       this.store.scenario.set('normal');
     }
-  }
-  switchRole(e: Event) {
-    this.roleChange.emit((e.target as HTMLSelectElement).value as AdminRole);
   }
   scenario(e: Event) {
     this.store.scenario.set((e.target as HTMLSelectElement).value as any);

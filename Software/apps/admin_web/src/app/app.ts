@@ -1,29 +1,19 @@
-import { AfterViewChecked, ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { AdminRole } from './admin-access';
+import { AfterViewChecked, ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { AdminAuthService } from './core/admin-auth.service';
 import { AccessComponent } from './features/access.component';
 import { AdminShellComponent } from './layout/admin-shell.component';
 @Component({
   selector: 'app-root',
   imports: [AccessComponent, AdminShellComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `@if (authenticated()) {
-      <app-admin-shell
-        [role]="role()"
-        (roleChange)="role.set($event)"
-        (logout)="authenticated.set(false)"
-      />
+  template: `@if (auth.admin(); as admin) {
+      <app-admin-shell [admin]="admin" (logout)="auth.logout()" />
     } @else {
-      <app-access (entered)="enter($event)" />
+      <app-access />
     }`,
 })
 export class App implements AfterViewChecked {
-  readonly authenticated = signal(false);
-  readonly role = signal<AdminRole>('ADMIN_C');
-  enter(role: AdminRole) {
-    this.role.set(role);
-    this.authenticated.set(true);
-    window.scrollTo(0, 0);
-  }
+  readonly auth = inject(AdminAuthService);
   ngAfterViewChecked() {
     window.lucide?.createIcons({ attrs: { 'stroke-width': 2.2 } });
   }

@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "node --test admin_flow.test.cjs"
+    "test": "node --test admin_flow.test.cjs admin_auth.test.cjs",
+    "test:integration": "node --test admin_auth.integration.test.cjs"
   },
   "private": true,
   "packageManager": "npm@10.9.8",
@@ -17,6 +18,7 @@
     "@angular/forms": "^22.1.0",
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
+    "@supabase/supabase-js": "2.111.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
