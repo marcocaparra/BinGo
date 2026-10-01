@@ -203,8 +203,9 @@ test('B creates and edits textual classes without invented status or participati
       fixture.classes.find((c) => c.name === 'Nova editada RPC').class_id,
     );
     await page.getByRole('button', { name: 'Visão geral', exact: true }).click();
-    assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 1);
-    assert.equal(await page.getByLabel('Cenário da demonstração').count(), 1);
+    assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 0);
+    await page.locator('app-overview').getByText('Nova editada RPC', { exact: true }).waitFor();
+    assert.equal(await page.getByLabel('Cenário da demonstração').count(), 0);
   } finally {
     await page.close();
   }

@@ -120,7 +120,8 @@ test(
       );
       const rpcRequests = [];
       page.on('request', (request) => {
-        if (request.url().includes('/rest/v1/rpc/')) rpcRequests.push(request.postDataJSON());
+        if (request.url().endsWith('/rest/v1/rpc/get_my_admin_context_v1'))
+          rpcRequests.push(request.postDataJSON());
       });
       const loginUi = async (email) => {
         await page.getByLabel('E-mail institucional').fill(email);
@@ -135,7 +136,10 @@ test(
       assert.equal(await page.locator('app-admin-shell').count(), 0);
       await loginUi(createdUsers[0].email);
       await page.locator('app-admin-a').waitFor();
-      assert.equal(await page.getByText('Admin Auth Local', { exact: true }).count(), 1);
+      assert.equal(
+        await page.locator('.operator').getByText('Admin Auth Local', { exact: true }).count(),
+        1,
+      );
       await page.reload();
       await page.locator('app-admin-a').waitFor();
       assert.equal(rpcRequests.length, 2);

@@ -31,8 +31,8 @@ authenticated. `admins` permanece RLS fail-closed, sem leitura/escrita direta
 aberta ao cliente. O Angular usa Supabase Auth para login, restauração e logout,
 consulta novamente o contexto no refresh e bloqueia ausência de vínculo,
 inatividade e falhas sem fallback de autenticação demonstrativa. Alunos, turmas,
-trocas de turma, BinBazar operacional, teto global e estrutura de escolas/contas
-usam as fatias reais descritas abaixo; os outros domínios e demais controles econômicos continuam demonstrativos
+trocas de turma, BinBazar operacional, teto global, estrutura de escolas/contas
+e Overview usam as fatias reais descritas abaixo; os outros domínios e demais controles econômicos continuam demonstrativos
 explícitos no AdminStore. `password_hash` permanece
 legado FastAPI, sem sincronização com Auth. A migration recusa papéis históricos
 ambíguos e exige classificação manual antes de futura promoção em bancos que
@@ -115,8 +115,8 @@ nenhum arquivo histórico da 022 foi editado. Snapshots, Extrato, depósitos, XP
 Missões e Jornada permanecem preservados, sem expiração automática.
 Angular usa repository real para produtos, fila e bloco de resgates em Pendências,
 IDs UUID, snapshots, busca pelo identificador interno BGO, estados reais e refetch,
-sem fallback mock. Trocas de turma continuam reais; overview e outros domínios
-permanecem demonstrativos. Na entrega 026 ainda não existia teto global persistido:
+sem fallback mock. Na entrega 026, o Overview e outros domínios ainda eram
+demonstrativos; o Overview foi integrado na fatia descrita abaixo. Na entrega 026 ainda não existia teto global persistido:
 criação e edição de preço estavam bloqueadas. A 027 abaixo conclui esses caminhos
 com configuração autoritativa, sem usar o 300 demo. DELETE continua fora do V1.
 Reset final com 26 migrations, 561 verificações pgTAP, 121 testes backend,
@@ -201,7 +201,8 @@ Mobile ou alterações em históricos de outros domínios. SECURITY DEFINER,
 search_path vazio e EXECUTE somente authenticated seguem o baseline.
 Angular usa repository/telas reais, IDs UUID, estados loading/empty/error/
 submitting/conflict e refetch. Os formulários demo de escola/admin foram removidos;
-o dashboard permanece demonstrativo, com sua fotografia separada em demoSchools.
+na entrega 028, o dashboard ainda era demonstrativo; a fatia abaixo substitui
+essa fotografia por fontes reais.
 Reset isolado final com 28 migrations, 21 arquivos/590 verificações pgTAP,
 176 backend, 66 browser e seis smokes reais Auth/RPC/Angular locais passaram,
 sem skips. Build, TypeScript, Prettier e diff-check passaram. Restam 13 avisos JWT
@@ -211,6 +212,45 @@ As fixtures e usuários Auth efêmeros foram removidos. A 028, como 023–027,
 continua sem promoção ao bingo-dev, sem commit/push/PR/deploy/ação remota.
 Regras oficiais, decisões técnicas, provisionamento separado, reprodução e
 resultados em `admin-structure-management-v1.md`.
+
+O Overview A/B/C está integralmente baseado nas leituras reais existentes e
+comprovado localmente. Esta fatia é somente composição/consulta: não criou
+migration, RPC, policy, grant nem alteração de backend. A última migration
+permanece 028; as migrations anteriores foram preservadas.
+AdminDashboardRepository compõe AdminStructureRepository, AdminSchoolRepository,
+ClassChangeRequestsRepository, AdminBinbazarRepository e BinbazarPriceCapRepository.
+A consulta escolas/admins/teto: total de escolas, soma de alunos/máquinas
+cadastradas, contas total/ACTIVE/INACTIVE/sem vínculo Auth e teto real/NULL;
+listas exibem escolas e contas reais, sem cidade/status/implantação/saúde inventados.
+Máquinas cadastradas representam somente contagem estrutural, sem estado online.
+B consulta alunos/turmas, contas C locais, trocas PENDING, resgates PENDING,
+produtos ativos/esgotados e teto. C consulta alunos/turmas, próprias solicitações,
+resgates/produtos da escola e teto, sem RPC de gestão de contas. Os resgates usam
+snapshots; estoque zero considera produto ativo, e NULL continua ilimitado.
+Pendências são reais, ordenadas por created_at; stale aparece sem aprovação no
+Overview. Turmas mostram alunos/XP, sem status ou participação fictícios.
+Entrada/retorno/refresh/Atualizar consultam uma fotografia autoritativa; não há
+polling. O coordenador não duplica a leitura de alunos/turmas já feita pelas
+solicitações, nem mantém outro cache. Loading mostra …, erro mostra Indisponível,
+e zero/Não configurado somente após leitura confirmada. Erro parcial conserva
+fontes saudáveis; logout/troca de contexto invalidam os repositories e descartam
+respostas antigas, sem fallback. Atalhos navegam somente às telas autorizadas.
+Removidos demoSchools/demoClasses/demoPendingRedemptions e todos os eventos e
+números fictícios do Overview. Descartes/discardStats/helpRequests permanecem
+apenas nas telas demo que ainda os usam; Máquinas, Missões e demais configurações
+econômicas continuam demonstrativas. O Overview não consome essas fontes e não
+mostra seletor demo, nome de escola fixo ou sinal de saúde fictício do shell.
+Reset local com 28 migrations e seeds existentes, 21 arquivos/590 verificações
+pgTAP, 176 backend, 79 browser e sete smokes reais Auth/RPC/Angular passaram,
+sem falhas/skips finais. Foram acrescentados 13 testes browser e um smoke real
+A/B/C de dashboard, incluindo isolamento, refresh após decisões e restauração.
+Build Angular, TypeScript, Prettier e diff-check passaram. Permanecem 13 avisos
+JWT legados. Uma fixture de troca de sessão com escola sem UUID foi corretamente
+recusada; a correção para UUID válido passou sem alterar o parser/segurança.
+Flutter e Edge Functions não rodaram porque não foram alterados.
+Fixtures/usuários efêmeros removidos; teto/timestamps originais restaurados.
+Não houve commit/push/PR/deploy/ação remota ou promoção ao bingo-dev nesta fatia.
+Fontes, métricas, limites e reprodução em `admin-dashboard-v1.md`.
 
 O modelo V1, o contrato de dados, as migrations correspondentes e a RPC `register_deposit_v1` estão implementados no repositório. A implementação documentada cobre snapshots de recompensa, catálogo de categorias, restrição de execução da RPC, idempotência sequencial e concorrente, atualização de saldos e auditoria transacional. A redenominação acrescentou a décima primeira migration Supabase e a migration `011` do trilho PostgreSQL; reset completo, testes específicos de conversão/rollback, pgTAP e testes de integração locais comprovaram o comportamento na nova unidade. Em `2026-09-14`, a migration `20260913120000_points_unit_redenomination.sql` foi aplicada de forma controlada no `bingo-dev`, e o postflight confirmou onze migrations locais/remotas alinhadas, defaults `800/1900/10000`, saldo smoke de `16` para `1600`, XP smoke de `19` para `1900` e o snapshot histórico do depósito convertido para bônus `800`, BinCoins `1600` e XP `1900`, sem alterar seu identificador, taxa ou instante. O `audit_logs.metadata` histórico preservou o mesmo SHA-256, e foi criado exatamente um evento SYSTEM `POINTS_UNIT_REDENOMINATED_V1` para a escola afetada. Essa comprovação é exclusiva do ambiente DEV e não declara aplicação em produção.
 

@@ -119,46 +119,6 @@ export class AdminStore {
       version: 'v0.7.4',
     },
   ];
-  readonly demoSchools = signal([
-    {
-      name: 'Colégio ENIAC',
-      city: 'Guarulhos · SP',
-      students: '428 alunos',
-      machines: '3 Totens',
-      status: 'Ativa',
-    },
-    {
-      name: 'Escola Horizonte',
-      city: 'São Paulo · SP',
-      students: '312 alunos',
-      machines: '2 Totens',
-      status: 'Implantação',
-    },
-    {
-      name: 'Instituto Nova Geração',
-      city: 'Campinas · SP',
-      students: '506 alunos',
-      machines: '3 Totens',
-      status: 'Ativa',
-    },
-  ]);
-  readonly demoClasses = signal([
-    {
-      name: '9º A',
-      students: '31 alunos',
-      xp: '12.480 XP',
-      participation: '84%',
-      status: 'Ativa',
-    },
-    {
-      name: '8º B',
-      students: '29 alunos',
-      xp: '10.920 XP',
-      participation: '79%',
-      status: 'Ativa',
-    },
-    { name: '7º A', students: '33 alunos', xp: '9.740 XP', participation: '72%', status: 'Ativa' },
-  ]);
   readonly missions = signal([
     { name: 'Circuito dos cabos', type: 'Missão semanal', period: '18–25 set', status: 'Ativa' },
     { name: 'Alerta SCR4P', type: 'Evento global', period: '28 set', status: 'Pendente' },
@@ -200,9 +160,6 @@ export class AdminStore {
   close() {
     this.activeOperation.set(null);
   }
-  demoPendingRedemptions() {
-    return 3;
-  } // Overview continua demonstrativo.
   openHelp() {
     return this.helpRequests().filter((x) => x.status !== 'Resolvida').length;
   }

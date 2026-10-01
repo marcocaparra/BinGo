@@ -19,8 +19,8 @@ async function openAdmin(page, role = 'ADMIN_C') {
     role === 'ADMIN_A'
       ? 'Visão global do BinGo'
       : role === 'ADMIN_B'
-        ? 'Gestão do Colégio ENIAC'
-        : 'Operação de hoje';
+        ? 'Gestão da escola'
+        : 'Operação da escola';
   await page.getByRole('heading', { name: heading }).waitFor();
 }
 
@@ -35,14 +35,15 @@ async function assertNoHorizontalOverflow(page) {
   );
 }
 
-test('authenticated access opens the demonstrative operational overview', async () => {
+test('authenticated access opens the real operational overview', async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await openAdmin(page);
-    assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 1);
-    assert.equal(await page.getByText('1.284', { exact: true }).count(), 1);
-    assert.equal(await page.getByText('32 hoje · 184 nesta semana', { exact: true }).count(), 1);
+    await page.locator('app-overview').getByText('Snapshot RPC', { exact: true }).waitFor();
+    assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 0);
+    assert.equal(await page.getByText('1.284', { exact: true }).count(), 0);
+    assert.equal(await page.getByText('32 hoje · 184 nesta semana', { exact: true }).count(), 0);
   } finally {
     await browser.close();
   }

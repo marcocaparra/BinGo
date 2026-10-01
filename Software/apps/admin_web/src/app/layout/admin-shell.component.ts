@@ -19,8 +19,8 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
   overview: {
     label: 'Visão geral',
     icon: 'layout-dashboard',
-    title: 'Operação de hoje',
-    subtitle: 'O que precisa de atenção na escola, sem esconder o contexto técnico.',
+    title: 'Operação da escola',
+    subtitle: 'Solicitações próprias, resgates, alunos e estoque da escola vinculada.',
   },
   schools: {
     label: 'Escolas',
@@ -152,12 +152,15 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
           <strong>{{ scope() }}</strong
           ><span>{{
             realSchoolView()
-              ? 'Gestão escolar conectada'
+              ? 'Fotografia de dados reais'
               : 'Última atualização demonstrativa: agora'
           }}</span>
         </div>
         <div class="topbar-actions">
-          <span class="status-pill"><i data-lucide="circle-check"></i>Sistema operacional</span>
+          <span class="status-pill"
+            ><i data-lucide="circle-check"></i
+            >{{ store.view() === 'overview' ? 'Somente leitura' : 'Sistema operacional' }}</span
+          >
           @if (!realSchoolView()) {
             <label
               ><span class="sr-only">Cenário da demonstração</span
@@ -261,6 +264,7 @@ export class AdminShellComponent {
   }
   realSchoolView() {
     return [
+      'overview',
       'schools',
       'administrators',
       'students',
@@ -292,21 +296,20 @@ export class AdminShellComponent {
     return this.role() === 'ADMIN_A'
       ? {
           title: 'Visão global do BinGo',
-          subtitle:
-            'Estrutura, implantação e saúde do ecossistema sem interferir na operação cotidiana das escolas.',
+          subtitle: 'Escolas, contas administrativas e teto global consultados no backend.',
         }
       : this.role() === 'ADMIN_B'
         ? {
-            title: 'Gestão do Colégio ENIAC',
+            title: 'Gestão da escola',
             subtitle: 'Pessoas, pendências e recursos que precisam da administração da escola.',
           }
         : {
-            title: 'Operação de hoje',
-            subtitle: 'O que precisa de atenção na escola, sem esconder o contexto técnico.',
+            title: 'Operação da escola',
+            subtitle: 'Solicitações próprias, resgates, alunos e estoque da escola vinculada.',
           };
   }
   count(v: AdminView) {
-    return v === 'help'
+    return v === 'help' && this.store.view() !== 'overview'
       ? this.store.openHelp()
       : v === 'redemptions' || v === 'pending'
         ? this.binbazar.redemptions().rows.filter((r) => r.status === 'PENDING').length

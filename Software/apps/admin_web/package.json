@@ -6,8 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "node --test --test-concurrency=2 admin_flow.test.cjs admin_auth.test.cjs admin_school.test.cjs class_requests.test.cjs binbazar.test.cjs binbazar_price_cap.test.cjs admin_structure.test.cjs",
-    "test:integration": "node --test --test-concurrency=1 admin_auth.integration.test.cjs admin_school.integration.test.cjs class_requests.integration.test.cjs binbazar.integration.test.cjs binbazar_price_cap.integration.test.cjs admin_structure.integration.test.cjs"
+    "test": "node --test --test-concurrency=2 admin_flow.test.cjs admin_auth.test.cjs admin_school.test.cjs class_requests.test.cjs binbazar.test.cjs binbazar_price_cap.test.cjs admin_structure.test.cjs admin_dashboard.test.cjs",
+    "test:integration": "node --test --test-concurrency=1 admin_auth.integration.test.cjs admin_school.integration.test.cjs class_requests.integration.test.cjs binbazar.integration.test.cjs binbazar_price_cap.integration.test.cjs admin_structure.integration.test.cjs admin_dashboard.integration.test.cjs"
   },
   "private": true,
   "packageManager": "npm@10.9.8",
