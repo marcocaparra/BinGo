@@ -1,0 +1,18 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select extensions.no_plan();
+select extensions.ok(exists(select 1 from public.global_economic_settings where id and binbazar_max_price is null),'Sem teto inicial inventado');
+select extensions.ok(not exists(select 1 from information_schema.columns where table_schema='public' and table_name='global_economic_settings' and column_name in ('deposit_bincoins_base','deposit_class_xp_base','class_weekly_xp_goal','bonus_rate')),'Somente teto globalizado');
+select extensions.ok((select relrowsecurity from pg_class where oid='public.global_economic_settings'::regclass) and not exists(select 1 from pg_policy where polrelid='public.global_economic_settings'::regclass),'RLS singleton fail-closed');
+select extensions.ok(not has_table_privilege('authenticated','public.global_economic_settings','SELECT,INSERT,UPDATE,DELETE') and not has_table_privilege('anon','public.global_economic_settings','SELECT,INSERT,UPDATE,DELETE'),'Sem acesso direto browser');
+select extensions.ok((select is_nullable='YES' from information_schema.columns where table_schema='public' and table_name='audit_logs' and column_name='school_id'),'Auditoria global NULL sem remover FK escolar');
+select extensions.ok(exists(select 1 from pg_constraint where conrelid='public.audit_logs'::regclass and contype='f' and confdeltype='r'),'FK escolar RESTRICT preservada');
+select extensions.ok(not has_function_privilege('anon',p.oid,'execute') and has_function_privilege('authenticated',p.oid,'execute') and p.prosecdef and p.proconfig @> array['search_path=""'],p.proname || ' seguro') from pg_proc p where p.proname in ('get_binbazar_price_cap_v1','update_binbazar_price_cap_v1','create_admin_binbazar_product_v1');
+select extensions.ok(not has_function_privilege('authenticated','public.update_admin_binbazar_product_fields_v1(uuid,text,text,integer,boolean,integer,text,boolean)','execute'),'Helper interno sem grant cliente');
+create function pg_temp.raises_state(command text, expected text) returns boolean language plpgsql as $$begin execute command;return false;exception when others then return sqlstate=expected;end$$;
+select extensions.ok(pg_temp.raises_state('insert into public.global_economic_settings(id) values(false)','23514'),'Singleton rejeita segunda identidade');
+select extensions.ok(pg_temp.raises_state('insert into public.global_economic_settings(id) values(true)','23505'),'Singleton rejeita segunda linha');
+select extensions.ok(pg_temp.raises_state('update public.global_economic_settings set binbazar_max_price=0','23514'),'Teto zero rejeitado');
+select extensions.ok(pg_temp.raises_state('update public.global_economic_settings set binbazar_max_price=-1','23514'),'Teto negativo rejeitado');
+select * from extensions.finish();
+rollback;

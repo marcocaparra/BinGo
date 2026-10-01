@@ -16,9 +16,7 @@ export class AdminStore {
   readonly scenario = signal<'normal' | 'loading' | 'empty' | 'error'>('normal');
   readonly toast = signal('');
   readonly activeOperation = signal<Operation | null>(null);
-  readonly redemptionToDeliver = signal<string | null>(null);
   readonly helpFilter = signal('Todas');
-  readonly redemptionFilter = signal('Pendentes');
   readonly deposits = [
     {
       time: '15:42',
@@ -80,48 +78,6 @@ export class AdminStore {
       status: 'Resolvida',
     },
   ]);
-  readonly redemptions = signal([
-    {
-      id: 'RG-208',
-      code: 'B7K4-92',
-      student: 'Ana Clara M.',
-      className: '9º A',
-      reward: 'Suco natural',
-      requestedAt: 'Hoje, 15:31',
-      expiresAt: 'Amanhã, 15:31',
-      status: 'Pendente',
-    },
-    {
-      id: 'RG-207',
-      code: 'M2P8-41',
-      student: 'Lucas P.',
-      className: '8º B',
-      reward: 'Caneta temática',
-      requestedAt: 'Hoje, 13:46',
-      expiresAt: 'Amanhã, 13:46',
-      status: 'Pendente',
-    },
-    {
-      id: 'RG-205',
-      code: 'Q6T3-18',
-      student: 'Marina S.',
-      className: '9º A',
-      reward: 'Ticket da cantina',
-      requestedAt: 'Hoje, 10:12',
-      expiresAt: 'Amanhã, 10:12',
-      status: 'Pendente',
-    },
-    {
-      id: 'RG-201',
-      code: 'H9C5-73',
-      student: 'Rafael G.',
-      className: '7º A',
-      reward: 'Caneta temática',
-      requestedAt: 'Hoje, 08:20',
-      expiresAt: 'Entregue às 09:04',
-      status: 'Entregue',
-    },
-  ]);
   readonly machines = [
     {
       name: 'Totem Biblioteca',
@@ -163,97 +119,6 @@ export class AdminStore {
       version: 'v0.7.4',
     },
   ];
-  readonly schools = signal([
-    {
-      name: 'Colégio ENIAC',
-      city: 'Guarulhos · SP',
-      students: '428 alunos',
-      machines: '3 Totens',
-      status: 'Ativa',
-    },
-    {
-      name: 'Escola Horizonte',
-      city: 'São Paulo · SP',
-      students: '312 alunos',
-      machines: '2 Totens',
-      status: 'Implantação',
-    },
-    {
-      name: 'Instituto Nova Geração',
-      city: 'Campinas · SP',
-      students: '506 alunos',
-      machines: '3 Totens',
-      status: 'Ativa',
-    },
-  ]);
-  readonly students = signal([
-    {
-      name: 'Ana Clara Martins',
-      email: 'ana.martins@aluno.demo',
-      registration: '20261042',
-      className: '9º A',
-      balance: '340',
-      status: 'Ativa',
-    },
-    {
-      name: 'Lucas Pereira',
-      email: 'lucas.pereira@aluno.demo',
-      registration: '20261087',
-      className: '8º B',
-      balance: '215',
-      status: 'Ativo',
-    },
-    {
-      name: 'Marina Santos',
-      email: 'marina.santos@aluno.demo',
-      registration: '20261103',
-      className: '9º A',
-      balance: '180',
-      status: 'Ativa',
-    },
-    {
-      name: 'Rafael Gomes',
-      email: 'rafael.gomes@aluno.demo',
-      registration: '20261128',
-      className: '7º A',
-      balance: '95',
-      status: 'Inativo',
-    },
-  ]);
-  readonly classes = signal([
-    { name: '9º A', students: '31 alunos', xp: '12.480 XP', participation: '84%', status: 'Ativa' },
-    { name: '8º B', students: '29 alunos', xp: '10.920 XP', participation: '79%', status: 'Ativa' },
-    { name: '7º A', students: '33 alunos', xp: '9.740 XP', participation: '72%', status: 'Ativa' },
-  ]);
-  readonly administrators = signal([
-    {
-      name: 'Gustavo Alencar',
-      email: 'alencar@bingo.demo',
-      role: 'ADMIN_B',
-      scope: 'Colégio ENIAC',
-      status: 'Ativo',
-    },
-    {
-      name: 'Paula Mendes',
-      email: 'paula@eniac.demo',
-      role: 'ADMIN_C',
-      scope: 'Colégio ENIAC',
-      status: 'Ativa',
-    },
-    {
-      name: 'Equipe BinGo',
-      email: 'admin@bingo.demo',
-      role: 'ADMIN_A',
-      scope: 'Global',
-      status: 'Ativa',
-    },
-  ]);
-  readonly products = signal([
-    { name: 'Suco natural', price: '120 BinCoins', stock: '18 unidades', status: 'Ativo' },
-    { name: 'Caneta temática', price: '90 BinCoins', stock: '7 unidades', status: 'Ativa' },
-    { name: 'Ticket da cantina', price: '160 BinCoins', stock: 'Ilimitado', status: 'Ativo' },
-    { name: 'Prêmio surpresa', price: '240 BinCoins', stock: 'Sem estoque', status: 'Inativo' },
-  ]);
   readonly missions = signal([
     { name: 'Circuito dos cabos', type: 'Missão semanal', period: '18–25 set', status: 'Ativa' },
     { name: 'Alerta SCR4P', type: 'Evento global', period: '28 set', status: 'Pendente' },
@@ -265,13 +130,6 @@ export class AdminStore {
       unit: 'pontos',
       description: 'Usado como referência antes dos bônus ambientais.',
       icon: 'gauge',
-    },
-    {
-      title: 'Teto do BinBazar',
-      value: '300',
-      unit: 'BinCoins',
-      description: 'Preço máximo permitido para produtos escolares.',
-      icon: 'badge-dollar-sign',
     },
     {
       title: 'Bônus por categoria',
@@ -288,29 +146,10 @@ export class AdminStore {
       icon: 'map',
     },
   ]);
-  readonly classRequests = signal([
-    {
-      id: 'TT-032',
-      student: 'Marina Santos',
-      current: '9º A',
-      destination: '9º B',
-      author: 'Paula Mendes',
-      status: 'Pendente',
-    },
-    {
-      id: 'TT-029',
-      student: 'Lucas Pereira',
-      current: '8º A',
-      destination: '8º B',
-      author: 'Paula Mendes',
-      status: 'Aprovada',
-    },
-  ]);
   constructor() {
     effect(() => {
       if (!this.auth.admin()) {
         this.activeOperation.set(null);
-        this.redemptionToDeliver.set(null);
         this.toast.set('');
       }
     });
@@ -320,9 +159,6 @@ export class AdminStore {
   }
   close() {
     this.activeOperation.set(null);
-  }
-  pendingRedemptions() {
-    return this.redemptions().filter((x) => x.status === 'Pendente').length;
   }
   openHelp() {
     return this.helpRequests().filter((x) => x.status !== 'Resolvida').length;
@@ -337,117 +173,6 @@ export class AdminStore {
     const v = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
     const i = op.index ?? 0;
     switch (op.action) {
-      case 'student-create':
-        this.students.update((a) => [...a, { ...v, balance: '0', status: 'Ativo' } as any]);
-        break;
-      case 'student-edit':
-        this.students.update((a) => a.map((x, n) => (n === i ? { ...x, ...v } : x)));
-        break;
-      case 'class-create':
-        this.classes.update((a) => [
-          ...a,
-          {
-            name: v['name'],
-            students: '0 alunos',
-            xp: '0 XP',
-            participation: '0%',
-            status: v['status'],
-          },
-        ]);
-        break;
-      case 'class-edit':
-        this.classes.update((a) =>
-          a.map((x, n) => (n === i ? { ...x, name: v['name'], status: v['status'] } : x)),
-        );
-        break;
-      case 'request-create': {
-        const s = this.students().find((x) => x.name === v['student']);
-        this.classRequests.update((a) => [
-          {
-            id: `TT-${String(33 + a.length).padStart(3, '0')}`,
-            student: v['student'],
-            current: s?.className || 'Sem turma',
-            destination: v['destination'],
-            author: 'Gustavo Alencar',
-            status: 'Pendente',
-          },
-          ...a,
-        ]);
-        break;
-      }
-      case 'request-review':
-        this.classRequests.update((a) =>
-          a.map((x, n) => (n === i ? { ...x, status: 'Aprovada' } : x)),
-        );
-        break;
-      case 'request-cancel':
-        this.classRequests.update((a) =>
-          a.map((x, n) => (n === i ? { ...x, status: 'Cancelada' } : x)),
-        );
-        break;
-      case 'product-create':
-        this.products.update((a) => [
-          ...a,
-          {
-            name: v['name'],
-            price: `${v['price']} BinCoins`,
-            stock: `${v['stock']} unidades`,
-            status: v['status'],
-          },
-        ]);
-        break;
-      case 'product-edit':
-        this.products.update((a) =>
-          a.map((x, n) =>
-            n === i
-              ? {
-                  ...x,
-                  name: v['name'],
-                  price: `${v['price']} BinCoins`,
-                  stock: v['stock'] === 'Ilimitado' ? v['stock'] : `${v['stock']} unidades`,
-                  status: v['status'],
-                }
-              : x,
-          ),
-        );
-        break;
-      case 'admin-create':
-        this.administrators.update((a) => [
-          ...a,
-          {
-            name: v['name'],
-            email: v['email'],
-            role: v['role'],
-            scope: this.role() === 'ADMIN_A' ? 'Global' : 'Colégio ENIAC',
-            status: v['status'],
-          },
-        ]);
-        break;
-      case 'admin-open':
-        this.administrators.update((a) => a.map((x) => (x.email === op.key ? { ...x, ...v } : x)));
-        break;
-      case 'redemption-cancel':
-        this.redemptions.update((a) =>
-          a.map((x) =>
-            x.id === op.key ? { ...x, status: 'Cancelado', expiresAt: 'Cancelado agora' } : x,
-          ),
-        );
-        break;
-      case 'school-create':
-        this.schools.update((a) => [
-          ...a,
-          {
-            name: v['name'],
-            city: v['city'],
-            students: '0 alunos',
-            machines: '0 Totens',
-            status: v['status'],
-          },
-        ]);
-        break;
-      case 'school-open':
-        this.schools.update((a) => a.map((x) => (x.name === op.key ? { ...x, ...v } : x)));
-        break;
       case 'mission-create':
         this.missions.update((a) => [
           ...a,
@@ -464,20 +189,6 @@ export class AdminStore {
         break;
     }
     const titles: Record<string, string> = {
-      'student-create': 'Cadastrar aluno',
-      'student-edit': 'Editar dados do aluno',
-      'class-create': 'Criar turma',
-      'class-edit': 'Editar turma',
-      'request-create': 'Solicitar troca de turma',
-      'request-review': 'Analisar troca de turma',
-      'request-cancel': 'Cancelar solicitação',
-      'product-create': 'Cadastrar produto',
-      'product-edit': 'Editar produto e estoque',
-      'admin-create': 'Cadastrar administrador',
-      'admin-open': 'Gerenciar administrador',
-      'redemption-cancel': 'Cancelar resgate reservado',
-      'school-create': 'Cadastrar escola',
-      'school-open': 'Detalhes da escola',
       'mission-create': 'Criar missão global',
       'mission-edit': 'Editar missão global',
       'economy-edit': 'Editar regra econômica',

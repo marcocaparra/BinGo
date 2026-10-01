@@ -8,12 +8,13 @@ Aplicacao Angular do painel operacional do BinGo.
 - Supabase Auth real para login, restauracao de sessao e logout;
 - contexto proprio por `get_my_admin_context_v1()`, com role/escola/status do banco;
 - ausencia de vinculo e INACTIVE bloqueiam o painel, sem fallback demo;
-- interface, copy e dados de negocio demonstrativos preservados da versao aprovada;
+- layout e componentes preservados; alunos/turmas, trocas de turma e BinBazar operacional usam dados reais;
 - perfis `ADMIN_A`, `ADMIN_B` e `ADMIN_C` alinhados ao contrato funcional V1;
-- navegacao, dashboards e acoes demonstrativas adaptados ao escopo de cada perfil;
-- formularios demonstrativos para alunos, turmas, solicitacoes, produtos, administradores, escolas, missoes e economia;
-- entrega e cancelamento demonstrativos de resgates, com confirmacao explicita;
-- estados de carregamento, vazio e falha disponiveis pelo seletor de demonstracao;
+- dashboard A/B/C somente leitura, composto de repositories reais, sem fallback demonstrativo;
+- formularios reais de escolas, identidades administrativas, alunos/turmas e produtos; missoes e demais regras economicas continuam demonstrativos;
+- entrega e cancelamento reais de resgates com confirmacao, auditoria e estorno transacional;
+- teto global real configurado por ADMIN_A; B/C criam produtos e editam preco conforme validacao server-side; teto inicial NULL bloqueia somente criacao/preco;
+- loading/empty/error/submitting reais nas telas conectadas; seletor de demonstracao somente nos outros dominios;
 - matriz de acesso centralizada em `src/app/admin-access.ts`;
 
 ## Estrutura Angular
@@ -22,8 +23,12 @@ Aplicacao Angular do painel operacional do BinGo.
 src/app/
   app.ts                         gate da sessao administrativa
   admin-access.ts                contrato de navegacao A/B/C
-  core/admin-store.ts            estado demonstrativo compartilhado
+  core/admin-store.ts            estado demonstrativo dos dominios ainda nao integrados
   core/admin-auth.service.ts     sessao administrativa e Supabase Auth
+  core/admin-dashboard.repository.ts composicao das fontes reais por papel, sem backend novo
+  core/admin-structure.repository.ts escolas/identidades reais; sem provisionar Auth
+  core/admin-binbazar.repository.ts produtos/resgates reais da propria escola
+  core/binbazar-price-cap.repository.ts teto global real, leitura A/B/C e edicao A
   core/admin-context.ts          validacao do contexto retornado pela RPC
   core/supabase-client.ts        SDK e configuracao publica por ambiente
   layout/admin-shell.component.ts
@@ -80,5 +85,6 @@ O front controla navegacao, formularios, validacao de campos, confirmacoes e fee
 - atomicidade entre estoque, estorno e entrega de resgates;
 - telemetria e ultima comunicacao dos Totens.
 
-Somente autenticacao/identidade/sessao estao integradas. As alteracoes de negocio
-ficam apenas na memoria da pagina e sao identificadas como `Dados demonstrativos`.
+Autenticacao, escolas/identidades administrativas, alunos/turmas, trocas de turma, BinBazar operacional e teto global estao integrados.
+Overview usa somente fontes reais; Descartes, Ajuda, Maquinas/Missoes e outras regras economicas continuam demonstrativos. Confira [Dashboard real V1](../../docs/admin-dashboard-v1.md). Criar identidade administrativa nao cria usuario Auth, senha ou convite; confira [Estrutura Admin V1](../../docs/admin-structure-management-v1.md). Contratos, limites
+de preco, concorrencia e reproducao local em [Admin BinBazar V1](../../docs/admin-binbazar-v1.md) e [Teto global V1](../../docs/binbazar-global-price-cap-v1.md).

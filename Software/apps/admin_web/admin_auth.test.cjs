@@ -47,8 +47,9 @@ for (const role of ['ADMIN_A', 'ADMIN_B', 'ADMIN_C']) {
       await page.locator(`app-admin-${role.slice(-1).toLowerCase()}`).waitFor();
       assert.equal(await page.getByLabel('Perfil demonstrativo').count(), 0);
       assert.equal(await page.getByText('Administrador Autenticado', { exact: true }).count(), 1);
-      assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 1);
-      const rpc = fixture.calls.filter((x) => x.path.includes('/rpc/'));
+      assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 0);
+      assert.equal(await page.locator('app-overview').count(), 1);
+      const rpc = fixture.calls.filter((x) => x.path.endsWith('/rpc/get_my_admin_context_v1'));
       assert.equal(rpc.length, 1);
       assert.deepEqual(rpc[0].body, {});
       const login = fixture.calls.find((x) => x.path.includes('/token'));
@@ -100,7 +101,10 @@ test('refresh uses persisted Supabase session but resolves role and school again
     await page.reload();
     await page.locator('app-admin-b').waitFor();
     assert.equal(fixture.calls.filter((x) => x.path.includes('/token')).length, 1);
-    assert.equal(fixture.calls.filter((x) => x.path.includes('/rpc/')).length, 2);
+    assert.equal(
+      fixture.calls.filter((x) => x.path.endsWith('/rpc/get_my_admin_context_v1')).length,
+      2,
+    );
     fixture.status = 'INACTIVE';
     await page.reload();
     await page
@@ -207,7 +211,10 @@ test('refresh-token event resolves context again and blocks newly inactive admin
       .getByText(/administrativa está inativa/)
       .waitFor();
     assert.equal(await page.locator('app-admin-shell').count(), 0);
-    assert.equal(fixture.calls.filter((x) => x.path.includes('/rpc/')).length, 2);
+    assert.equal(
+      fixture.calls.filter((x) => x.path.endsWith('/rpc/get_my_admin_context_v1')).length,
+      2,
+    );
   }));
 
 test('pending context response cannot reopen the shell after a sign-out event', () =>

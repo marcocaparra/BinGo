@@ -1,6 +1,6 @@
 STATUS técnico — BinGo
 
-Atualizado em: `2026-09-30`
+Atualizado em: `2026-10-01`
 
 Este arquivo é a fonte rápida de verdade técnica do projeto. Ele consolida as decisões vigentes de `database-model.md`, `data-contracts-totem-app-backend.md`, `supabase-edge-functions-mvp.md`, `FLUXO_ECOSSISTEMA_DESCARTE_V1.md`, `operacao-offline.md`, `missions-contract-v1.md` e `class-journey-v1.md`, além dos relatórios recentes da fundação de autenticação técnica de máquinas e do inventário do FastAPI. Para descartes, permanecem vigentes as decisões revisadas a partir de `2026-08-12`; para missões, prevalece o contrato conceitual revisado em `2026-09-15`; para Jornada/BinGópolis, prevalece o contrato de `2026-09-22`. Código ou banco só devem prevalecer quando houver evidência de uma decisão posterior ainda não documentada.
 
@@ -30,14 +30,227 @@ sem hashes, com SECURITY DEFINER, search_path vazio e EXECUTE exclusivo de
 authenticated. `admins` permanece RLS fail-closed, sem leitura/escrita direta
 aberta ao cliente. O Angular usa Supabase Auth para login, restauração e logout,
 consulta novamente o contexto no refresh e bloqueia ausência de vínculo,
-inatividade e falhas sem fallback de autenticação demonstrativa. As demais
-telas e operações continuam com dados demonstrativos explícitos no AdminStore;
-nenhum domínio administrativo adicional foi integrado. `password_hash` permanece
+inatividade e falhas sem fallback de autenticação demonstrativa. Alunos, turmas,
+trocas de turma, BinBazar operacional, teto global, estrutura de escolas/contas
+e Overview usam as fatias reais descritas abaixo; os outros domínios e demais controles econômicos continuam demonstrativos
+explícitos no AdminStore. `password_hash` permanece
 legado FastAPI, sem sincronização com Auth. A migration recusa papéis históricos
 ambíguos e exige classificação manual antes de futura promoção em bancos que
 os contenham, preservando IDs e histórico. Não houve promoção desta migration
 ao `bingo-dev` nem aplicação remota. Procedimento local e limites em
 `admin-supabase-auth-session.md`.
+
+A gestão escolar de alunos e turmas está implementada e comprovada localmente
+na branch `feature/admin-school-management-foundation`, pelas migrations
+equivalentes `database/migrations/024_admin_school_management_foundation.sql` e
+`supabase/migrations/20260930130000_admin_school_management_foundation.sql`.
+`students.registration` e `students.email` são text nullable: os históricos
+permanecem nulos, sem matrícula inventada ou vínculo Auth automático. Matrícula
+é única por escola quando informada, preserva zeros à esquerda, distingue caixa
+e não admite branco ou whitespace nas extremidades; novas mutations exigem RA.
+As RPCs `get_admin_students_v1`, `get_admin_classes_v1`,
+`create_admin_student_v1`, `update_admin_student_v1`, `create_admin_class_v1` e
+`update_admin_class_v1` derivam o administrador e a escola por `auth.uid()`,
+validam ACTIVE a cada operação e mantêm SECURITY DEFINER com search_path vazio.
+B lê e administra somente sua escola; C lê alunos/saldos/XP e lookup de turmas,
+mas é rejeitado server-side nas quatro escritas. As mutations registram ator
+derivado em `audit_logs` na mesma transação, incluindo old/new de turma e status.
+Saldo/PIN/Auth/ativação/XP não são editáveis, e a troca direta por B não reescreve
+depósitos, Missões ou outros históricos. Não foram abertas policies escolares
+amplas nem escrita direta: as cinco policies e grants Mobile continuam intactos.
+O Angular usa repository escolar, IDs reais, loading/empty/error, formulários
+restritos e recarga autoritativa após salvar, sem fallback aos mocks. Turmas
+mostram segmento/série/nome/quantidade/XP, sem status ou participação inventados.
+Solicitações de troca e BinBazar operacional passaram aos fluxos reais descritos
+abaixo; os outros domínios permanecem demonstrativos.
+A assistência escolar por ADMIN_A ainda não está integrada nesta fatia; isso
+não é uma proibição permanente do contrato. As migrations 023 e 024 permanecem
+somente locais, sem promoção ao `bingo-dev`. Reset com 24 migrations, 467 testes
+pgTAP, 78 testes backend e smoke real local B/C Auth/RPC/Angular passaram.
+Contratos, reprodução e limites em `admin-school-management-foundation.md`.
+
+O fluxo real de solicitação de troca de turma C → decisão B está implementado e
+comprovado localmente pelas migrations equivalentes
+`database/migrations/025_class_change_requests_v1.sql` e
+`supabase/migrations/20260930140000_class_change_requests_v1.sql`.
+`class_change_requests` preserva escola/aluno/origem/destino/solicitante,
+PENDING/APPROVED/REJECTED/CANCELED, resolvedor e timestamps, com FKs RESTRICT,
+constraints de resolução e RLS fail-closed sem acesso direto do browser.
+As RPCs `get_class_change_requests_v1`, `create_class_change_request_v1`,
+`approve_class_change_request_v1`, `reject_class_change_request_v1` e
+`cancel_class_change_request_v1` exigem ACTIVE e derivam escola/ator via Auth.
+C cria/lista próprias/cancela próprias pendentes; B lista sua escola e decide;
+A não participa. Criação captura origem sob lock, usa UUID do cliente para replay
+idempotente e conflita em payload divergente. Decisões bloqueiam request/aluno;
+approve valida a origem contra turma atual, sem sobrescrever mudança mais recente.
+`is_stale` é derivado na leitura, sem status STALE persistido. Mutation e auditoria
+são transacionais; retry não duplica logs nem reaplica troca já aprovada. Somente
+students.class_id muda, preservando depósitos/XP histórico/Missões/Jornada/resgates.
+Angular usa solicitações reais, alunos/turmas UUID, loading/empty/error/submitting,
+conflito explícito, aprovação bloqueada em stale e recarga autoritativa. Pendências
+agora combina trocas e resgates reais, pela integração BinBazar da 026 abaixo.
+Reset com 25 migrations, 547 testes pgTAP, 87 backend, 38 browser e três integrações
+locais passaram, incluindo os smokes de aprovação, stale e cancelamento. Nenhum
+skip; somente avisos JWT legados preexistentes. A migration 025, assim como 023/024,
+não foi promovida ao bingo-dev. Regras funcionais e decisões técnicas separadas em
+`class-change-requests-v1.md`.
+
+O BinBazar operacional Admin está implementado e comprovado somente localmente
+pelas migrations equivalentes `database/migrations/026_admin_binbazar_v1.sql` e
+`supabase/migrations/20260930150000_admin_binbazar_v1.sql`. B/C ACTIVE, derivados
+por Auth/admins, leem produtos e resgates da própria escola e atualizam
+nome/descrição/estoque/ativo sem escolher escola/ator. A não participa da operação.
+As RPCs `get_admin_binbazar_products_v1`, `update_admin_binbazar_product_v1`,
+`get_admin_redemptions_v1`, `deliver_admin_redemption_v1` e
+`cancel_admin_redemption_v1` mantêm SECURITY DEFINER/search_path vazio, EXECUTE
+somente authenticated e RLS fail-closed sem acesso direto nem policies Mobile novas.
+Entrega/cancelamento bloqueiam primeiro o pedido e são idempotentes: somente uma
+transição terminal vence, inclusive Mobile cancel × Admin deliver. Entrega não
+cobra novamente nem muda estoque. Cancelamento reutiliza núcleo econômico interno
+compartilhado com a 022: refund exato do snapshot, restauração somente de reserva
+finita ainda com estoque finito; NULL ilimitado é preservado. Mutation e auditoria
+ADMIN são transacionais; retry não duplica efeitos/logs. A assinatura, autorização,
+resultado, idempotência e metadata original do cancelamento Mobile foram mantidos;
+nenhum arquivo histórico da 022 foi editado. Snapshots, Extrato, depósitos, XP,
+Missões e Jornada permanecem preservados, sem expiração automática.
+Angular usa repository real para produtos, fila e bloco de resgates em Pendências,
+IDs UUID, snapshots, busca pelo identificador interno BGO, estados reais e refetch,
+sem fallback mock. Na entrega 026, o Overview e outros domínios ainda eram
+demonstrativos; o Overview foi integrado na fatia descrita abaixo. Na entrega 026 ainda não existia teto global persistido:
+criação e edição de preço estavam bloqueadas. A 027 abaixo conclui esses caminhos
+com configuração autoritativa, sem usar o 300 demo. DELETE continua fora do V1.
+Reset final com 26 migrations, 561 verificações pgTAP, 121 testes backend,
+47 browser e quatro integrações Auth/RPC/Angular locais passaram, sem skips;
+build, TypeScript, Prettier e diff-check passaram. Restam somente 13 avisos JWT
+legados preexistentes. A 026, como 023/024/025, não foi promovida ao bingo-dev.
+Contratos, limites, concorrência, reprodução e relatório em `admin-binbazar-v1.md`.
+
+O teto global real do BinBazar está implementado e comprovado somente localmente
+pelas migrations incrementais equivalentes
+`database/migrations/027_binbazar_global_price_cap_v1.sql` e
+`supabase/migrations/20261001120000_binbazar_global_price_cap_v1.sql`, sem editar
+022–026. `global_economic_settings` é singleton com teto integer positivo quando
+informado, timestamps e valor inicial NULL (ainda não configurado), sem valor
+inventado nem globalização de 800 BinCoins, 1900 XP, 10000 XP ou bônus ambientais.
+`get_binbazar_price_cap_v1()` permite consulta por A/B/C ACTIVE;
+`update_binbazar_price_cap_v1(p_max_price)` permite somente A ACTIVE, com lock,
+auditoria transacional e no-op para o mesmo valor. `audit_logs.school_id` agora
+aceita NULL como escopo global, preservando FK RESTRICT e todas as auditorias
+escolares; A não recebe escola artificial.
+B/C ACTIVE criam produtos da própria escola por
+`create_admin_binbazar_product_v1` com UUID do cliente e editam preço/categoria
+pela assinatura completa de `update_admin_binbazar_product_v1`. A assinatura
+não-preço da 026 continua compatível. Escola/ator são derivados via Auth, nome
+não vazio, preço positivo, estoque NULL/zero/finito e teto configurado são
+validados server-side. Recibo privado em rewards (`created_by_admin_id` e
+`admin_creation_payload`) preserva a intenção original sem backfill histórico:
+replay idêntico não duplica produto/auditoria mesmo após edição/consumo/redução;
+UUID divergente conflita. Update idêntico também é no-op. SECURITY DEFINER,
+search_path vazio, EXECUTE somente authenticated e RLS fail-closed permanecem;
+nenhuma policy Mobile ou escrita direta do browser foi aberta.
+Reduzir o teto não modifica preços/estoque/ativo existentes nem snapshots,
+resgates, saldo ou Extrato. Edição que mantém preço histórico acima do teto
+continua permitida; novo produto ou preço alterado deve respeitar o limite atual.
+FOR SHARE na configuração precede lock do produto e conflita com FOR UPDATE de
+A, mantendo validação até commit. Corridas reais create/update × redução
+comprovaram ambos os ordenamentos serializados, sem validação contra teto vencido.
+Angular Economia agora mostra teto real/NULL e permite A definir/editar sem
+confirmação otimista; B/C veem teto vigente, criam/editam produtos UUID e refazem
+leitura autoritativa. Ausência/erro de teto bloqueia somente criação/preço, sem
+fallback mock; outras edições continuam disponíveis. Demais controles da Economia
+e outros domínios ainda demonstrativos estão explicitamente identificados.
+Reset completo com 27 migrations, 20 arquivos/576 verificações pgTAP, 151 backend,
+55 browser e cinco integrações Auth/RPC/Angular locais passaram, sem skips.
+Build, TypeScript, Prettier e git diff-check passaram. As 13 advertências JWT
+legadas preexistentes permanecem. Regressão 022/026 confirmou solicitação e
+cancelamento Mobile, entrega/cancelamento Admin, concorrência e snapshots intactos.
+Fixtures/Auth foram removidos e a configuração original restaurada. A 027,
+como 023–026, não foi promovida ao bingo-dev; nenhum commit/push/PR/deploy/ação
+remota foi executado. Contratos técnicos, concorrência, auditoria global,
+reprodução e limites em `binbazar-global-price-cap-v1.md`.
+
+A estrutura real de Escolas e Administradores está implementada e comprovada
+somente localmente pelas migrations equivalentes
+`database/migrations/028_admin_structure_management_v1.sql` e
+`supabase/migrations/20261001130000_admin_structure_management_v1.sql`.
+As migrations 023–027 foram preservadas integralmente. Escolas mantêm somente
+UUID/nome/timestamps, sem cidade/endereço/status/implantação nem unicidade global
+de nome inventados. `get_admin_schools_v1` e `create_admin_school_v1` permitem
+somente A ACTIVE listar globalmente e criar por UUID idempotente; contagens de
+alunos/turmas/admins/máquinas são derivadas dos dados reais.
+`get_managed_admins_v1`, `create_managed_admin_v1` e `update_managed_admin_v1`
+permitem A gerir contas globalmente e B somente C da própria escola; C é recusado.
+Criação define role/escopo corretos; atualização aceita somente nome/email/status,
+sem alteração retrospectiva de role/escola, IDs, Auth ou password_hash. Nova
+identidade mantém auth_user_id/password_hash NULL: não cria usuário Auth, senha,
+convite ou acesso automático. UI retorna vínculo boolean, sem UUID Auth/hash;
+email administrativo não altera credenciais da conta Auth vinculada.
+Recibos técnicos privados em `admin_structure_creation_receipts` guardam intenção
+original por tipo/UUID/ator/payload, com RLS fail-closed. Replay idêntico não
+reinserta nem duplica auditoria, inclusive após edição; UUID divergente conflita.
+Email respeita unicidade existente; update idêntico não muda timestamp/auditoria.
+Mutations de contas serializam pelo mesmo advisory transaction lock, revalidam
+ACTIVE após a espera e bloqueiam ator/alvo. Auto-inativação e remoção do último A
+ACTIVE são recusadas no banco. Corridas entre dois A nos dois ordenamentos e em
+READ COMMITTED/REPEATABLE READ preservaram um A ACTIVE; o perdedor foi recusado
+ou abortou por snapshot antigo. Reativação autorizada permanece disponível.
+Auditoria é transacional e registra ator derivado e old/new seguros: criação de
+escola/A usa escopo global NULL; criação/edição de B/C usa a escola da entidade.
+Não há DELETE, leitura ampla de admins, escrita direta, novos grants/policies
+Mobile ou alterações em históricos de outros domínios. SECURITY DEFINER,
+search_path vazio e EXECUTE somente authenticated seguem o baseline.
+Angular usa repository/telas reais, IDs UUID, estados loading/empty/error/
+submitting/conflict e refetch. Os formulários demo de escola/admin foram removidos;
+na entrega 028, o dashboard ainda era demonstrativo; a fatia abaixo substitui
+essa fotografia por fontes reais.
+Reset isolado final com 28 migrations, 21 arquivos/590 verificações pgTAP,
+176 backend, 66 browser e seis smokes reais Auth/RPC/Angular locais passaram,
+sem skips. Build, TypeScript, Prettier e diff-check passaram. Restam 13 avisos JWT
+legados preexistentes. Foram corrigidos problemas iniciais de ambiente/seletor/
+espera de render e refeita isoladamente uma execução de reset local sobreposta.
+As fixtures e usuários Auth efêmeros foram removidos. A 028, como 023–027,
+continua sem promoção ao bingo-dev, sem commit/push/PR/deploy/ação remota.
+Regras oficiais, decisões técnicas, provisionamento separado, reprodução e
+resultados em `admin-structure-management-v1.md`.
+
+O Overview A/B/C está integralmente baseado nas leituras reais existentes e
+comprovado localmente. Esta fatia é somente composição/consulta: não criou
+migration, RPC, policy, grant nem alteração de backend. A última migration
+permanece 028; as migrations anteriores foram preservadas.
+AdminDashboardRepository compõe AdminStructureRepository, AdminSchoolRepository,
+ClassChangeRequestsRepository, AdminBinbazarRepository e BinbazarPriceCapRepository.
+A consulta escolas/admins/teto: total de escolas, soma de alunos/máquinas
+cadastradas, contas total/ACTIVE/INACTIVE/sem vínculo Auth e teto real/NULL;
+listas exibem escolas e contas reais, sem cidade/status/implantação/saúde inventados.
+Máquinas cadastradas representam somente contagem estrutural, sem estado online.
+B consulta alunos/turmas, contas C locais, trocas PENDING, resgates PENDING,
+produtos ativos/esgotados e teto. C consulta alunos/turmas, próprias solicitações,
+resgates/produtos da escola e teto, sem RPC de gestão de contas. Os resgates usam
+snapshots; estoque zero considera produto ativo, e NULL continua ilimitado.
+Pendências são reais, ordenadas por created_at; stale aparece sem aprovação no
+Overview. Turmas mostram alunos/XP, sem status ou participação fictícios.
+Entrada/retorno/refresh/Atualizar consultam uma fotografia autoritativa; não há
+polling. O coordenador não duplica a leitura de alunos/turmas já feita pelas
+solicitações, nem mantém outro cache. Loading mostra …, erro mostra Indisponível,
+e zero/Não configurado somente após leitura confirmada. Erro parcial conserva
+fontes saudáveis; logout/troca de contexto invalidam os repositories e descartam
+respostas antigas, sem fallback. Atalhos navegam somente às telas autorizadas.
+Removidos demoSchools/demoClasses/demoPendingRedemptions e todos os eventos e
+números fictícios do Overview. Descartes/discardStats/helpRequests permanecem
+apenas nas telas demo que ainda os usam; Máquinas, Missões e demais configurações
+econômicas continuam demonstrativas. O Overview não consome essas fontes e não
+mostra seletor demo, nome de escola fixo ou sinal de saúde fictício do shell.
+Reset local com 28 migrations e seeds existentes, 21 arquivos/590 verificações
+pgTAP, 176 backend, 79 browser e sete smokes reais Auth/RPC/Angular passaram,
+sem falhas/skips finais. Foram acrescentados 13 testes browser e um smoke real
+A/B/C de dashboard, incluindo isolamento, refresh após decisões e restauração.
+Build Angular, TypeScript, Prettier e diff-check passaram. Permanecem 13 avisos
+JWT legados. Uma fixture de troca de sessão com escola sem UUID foi corretamente
+recusada; a correção para UUID válido passou sem alterar o parser/segurança.
+Flutter e Edge Functions não rodaram porque não foram alterados.
+Fixtures/usuários efêmeros removidos; teto/timestamps originais restaurados.
+Não houve commit/push/PR/deploy/ação remota ou promoção ao bingo-dev nesta fatia.
+Fontes, métricas, limites e reprodução em `admin-dashboard-v1.md`.
 
 O modelo V1, o contrato de dados, as migrations correspondentes e a RPC `register_deposit_v1` estão implementados no repositório. A implementação documentada cobre snapshots de recompensa, catálogo de categorias, restrição de execução da RPC, idempotência sequencial e concorrente, atualização de saldos e auditoria transacional. A redenominação acrescentou a décima primeira migration Supabase e a migration `011` do trilho PostgreSQL; reset completo, testes específicos de conversão/rollback, pgTAP e testes de integração locais comprovaram o comportamento na nova unidade. Em `2026-09-14`, a migration `20260913120000_points_unit_redenomination.sql` foi aplicada de forma controlada no `bingo-dev`, e o postflight confirmou onze migrations locais/remotas alinhadas, defaults `800/1900/10000`, saldo smoke de `16` para `1600`, XP smoke de `19` para `1900` e o snapshot histórico do depósito convertido para bônus `800`, BinCoins `1600` e XP `1900`, sem alterar seu identificador, taxa ou instante. O `audit_logs.metadata` histórico preservou o mesmo SHA-256, e foi criado exatamente um evento SYSTEM `POINTS_UNIT_REDENOMINATED_V1` para a escola afetada. Essa comprovação é exclusiva do ambiente DEV e não declara aplicação em produção.
 
@@ -51,7 +264,7 @@ O readiness central está implementado como a Edge Function `health-v1`, dispon�
 
 No mesmo preflight remoto de `2026-09-04`, as Edge Functions `register-deposit-v1` e `health-v1` foram observadas ativas no `bingo-dev`. Essa verificação comprova presença e estado ativo, sem substituir testes funcionais dos contratos HTTP.
 
-O baseline backend de Supabase Auth e RLS está implementado e comprovado localmente. A identidade segue `auth.uid() → students.auth_user_id → school_id/class_id`; usuários autenticados leem somente seu perfil, sua turma e sua escola, enquanto identidades sem vínculo não recebem contexto. As onze tabelas preexistentes permanecem protegidas pelo baseline; com as cinco tabelas de Missões e as três tabelas da Jornada, o schema local e o `bingo-dev` totalizam dezenove tabelas com RLS. `anon` não acessa dados privados e não há escrita direta para `authenticated`. O catálogo `waste_categories` permanece integralmente legível por `anon` e `authenticated`, inclusive categorias inativas, por policy explícita. As policies relacionadas exigem `SELECT(auth_user_id)` para `authenticated`; teste real comprovou `42501` sem o grant, e a RLS limita sua exposição ao vínculo próprio.
+O baseline backend de Supabase Auth e RLS está implementado e comprovado localmente. A identidade segue `auth.uid() → students.auth_user_id → school_id/class_id`; usuários autenticados leem somente seu perfil, sua turma e sua escola, enquanto identidades sem vínculo não recebem contexto. As onze tabelas preexistentes permanecem protegidas pelo baseline; com as cinco tabelas de Missões e as três tabelas da Jornada, o baseline totalizava dezenove tabelas com RLS. A migration 025 acrescenta class_change_requests e eleva somente o ambiente local a vinte tabelas com RLS; não foi promovida ao bingo-dev. `anon` não acessa dados privados e não há escrita direta para `authenticated`. O catálogo `waste_categories` permanece integralmente legível por `anon` e `authenticated`, inclusive categorias inativas, por policy explícita. As policies relacionadas exigem `SELECT(auth_user_id)` para `authenticated`; teste real comprovou `42501` sem o grant, e a RLS limita sua exposição ao vínculo próprio.
 
 O primeiro fluxo vertical real do Mobile está implementado: login por e-mail/senha no Supabase Auth, restauração pela sessão persistida do SDK, leitura do próprio `students` por `auth_user_id`, leitura da turma e escola vinculadas sob RLS e logout. O perfil autenticado reutiliza o frontend final somente para nome, escola, turma, saldo individual de BinCoins (`students.points_student_balance`) e XP da turma (`classes.points_class_balance`); informações sem fonte real permanecem ocultas. O modo piloto continua explícito e isolado, com seus mocks locais, e a identificação por PIN no Totem permanece separada.
 

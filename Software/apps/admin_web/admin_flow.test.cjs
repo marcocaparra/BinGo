@@ -19,8 +19,8 @@ async function openAdmin(page, role = 'ADMIN_C') {
     role === 'ADMIN_A'
       ? 'Visão global do BinGo'
       : role === 'ADMIN_B'
-        ? 'Gestão do Colégio ENIAC'
-        : 'Operação de hoje';
+        ? 'Gestão da escola'
+        : 'Operação da escola';
   await page.getByRole('heading', { name: heading }).waitFor();
 }
 
@@ -35,14 +35,15 @@ async function assertNoHorizontalOverflow(page) {
   );
 }
 
-test('authenticated access opens the demonstrative operational overview', async () => {
+test('authenticated access opens the real operational overview', async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await openAdmin(page);
-    assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 1);
-    assert.equal(await page.getByText('1.284', { exact: true }).count(), 1);
-    assert.equal(await page.getByText('32 hoje · 184 nesta semana', { exact: true }).count(), 1);
+    await page.locator('app-overview').getByText('Snapshot RPC', { exact: true }).waitFor();
+    assert.equal(await page.getByText('Dados demonstrativos', { exact: true }).count(), 0);
+    assert.equal(await page.getByText('1.284', { exact: true }).count(), 0);
+    assert.equal(await page.getByText('32 hoje · 184 nesta semana', { exact: true }).count(), 0);
   } finally {
     await browser.close();
   }
@@ -67,7 +68,7 @@ test('primary views and demonstrative states are navigable', async () => {
     await page.getByRole('heading', { name: 'Resgates pendentes' }).waitFor();
     await page.getByRole('button', { name: 'Validar entrega' }).first().click();
     await page.getByRole('dialog').getByRole('button', { name: 'Confirmar entrega' }).click();
-    await page.getByText(/entregue somente nesta demonstração/).waitFor();
+    await page.getByText(/Resgate entregue/).waitFor();
 
     await page.getByRole('button', { name: 'Totens' }).click();
     await page.getByRole('heading', { name: 'Estado dos Totens' }).waitFor();
@@ -160,7 +161,7 @@ test('roles expose only the areas and actions allowed by the functional contract
   }
 });
 
-test('school management actions update the demonstrative front state', async () => {
+test('school RPC creation and the remaining demonstrative actions stay isolated', async () => {
   const browser = await chromium.launch(browserOptions);
   try {
     const manager = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -172,6 +173,9 @@ test('school management actions update the demonstrative front state', async () 
     await studentDialog.getByLabel('Nome completo').fill('João Demo');
     await studentDialog.getByLabel('E-mail institucional').fill('joao@aluno.demo');
     await studentDialog.getByLabel('RA ou matrícula').fill('20261999');
+    await studentDialog
+      .getByLabel('Turma', { exact: true })
+      .selectOption('20000000-0000-4000-8000-000000000001');
     await studentDialog.getByRole('button', { name: 'Cadastrar aluno' }).click();
     await manager.getByText('João Demo', { exact: true }).waitFor();
 
@@ -183,15 +187,23 @@ test('school management actions update the demonstrative front state', async () 
     await manager.getByRole('button', { name: /Resgates/ }).click();
     await manager.getByRole('button', { name: 'Cancelar' }).first().click();
     await manager.getByRole('dialog').getByRole('button', { name: 'Cancelar resgate' }).click();
-    await manager.getByText(/concluído somente nesta demonstração/).waitFor();
+    await manager.getByText(/Resgate cancelado/).waitFor();
     await manager.close();
 
     const operator = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await openAdmin(operator, 'ADMIN_C');
     await operator.getByRole('button', { name: 'Solicitações', exact: true }).click();
     await operator.getByRole('button', { name: 'Solicitar troca de turma' }).click();
+    await operator
+      .getByRole('dialog')
+      .getByLabel('Aluno', { exact: true })
+      .selectOption('30000000-0000-4000-8000-000000000001');
+    await operator
+      .getByRole('dialog')
+      .getByLabel('Nova turma')
+      .selectOption('20000000-0000-4000-8000-000000000002');
     await operator.getByRole('dialog').getByRole('button', { name: 'Enviar solicitação' }).click();
-    await operator.getByText(/concluído somente nesta demonstração/).waitFor();
+    await operator.getByText('Solicitação enviada.', { exact: true }).waitFor();
 
     await operator.getByRole('button', { name: 'Produtos e estoque', exact: true }).click();
     await operator.getByRole('button', { name: 'Editar' }).first().click();
@@ -214,7 +226,8 @@ test('global administrator can prepare schools, missions and economy without sch
     await page.getByRole('button', { name: 'Cadastrar escola' }).click();
     const schoolDialog = page.getByRole('dialog');
     await schoolDialog.getByLabel('Nome da escola').fill('Escola Demo');
-    await schoolDialog.getByLabel('Cidade e estado').fill('Guarulhos · SP');
+    assert.equal(await schoolDialog.getByLabel('Cidade e estado').count(), 0);
+    assert.equal(await schoolDialog.getByLabel('Estado', { exact: true }).count(), 0);
     await schoolDialog.getByRole('button', { name: 'Cadastrar escola' }).click();
     await page.getByText('Escola Demo', { exact: true }).waitFor();
 
@@ -234,6 +247,10 @@ test('global administrator can prepare schools, missions and economy without sch
 
     await page.getByRole('button', { name: 'Totens', exact: true }).click();
     await page.getByRole('button', { name: 'Ver diagnóstico' }).first().click();
+    await page
+      .getByRole('dialog')
+      .getByText(/Última comunicação/)
+      .waitFor();
     assert.equal(
       await page
         .getByRole('dialog')

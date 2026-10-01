@@ -1,0 +1,15 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select extensions.no_plan();
+select extensions.ok((select relrowsecurity from pg_class where oid='public.admin_structure_creation_receipts'::regclass) and not exists(select 1 from pg_policy where polrelid='public.admin_structure_creation_receipts'::regclass),'Recibos RLS fail-closed');
+select extensions.ok(not has_table_privilege('authenticated','public.admin_structure_creation_receipts','SELECT,INSERT,UPDATE,DELETE'),'Recibos sem acesso browser');
+select extensions.ok(not has_table_privilege('authenticated','public.admins','SELECT,INSERT,UPDATE,DELETE'),'Admins sem acesso direto');
+select extensions.ok(not has_table_privilege('authenticated','public.schools','INSERT,UPDATE,DELETE'),'Escolas sem escrita direta; leitura Mobile de colunas propria preservada');
+select extensions.is((select count(*)::integer from information_schema.columns where table_schema='public' and table_name='schools'),4,'Escola continua somente identidade/nome/timestamps');
+select extensions.ok(not has_function_privilege('anon',p.oid,'execute') and has_function_privilege('authenticated',p.oid,'execute') and p.prosecdef and p.proconfig @> array['search_path=""'],p.proname || ' seguro') from pg_proc p where p.proname in ('get_admin_schools_v1','create_admin_school_v1','get_managed_admins_v1','create_managed_admin_v1','update_managed_admin_v1');
+select extensions.ok(not has_function_privilege('authenticated','public.require_admin_structure_actor_v1(boolean)','execute'),'Helper privado');
+select extensions.ok(not exists(select 1 from pg_proc where proname in ('delete_managed_admin_v1','delete_admin_school_v1')),'Nenhum DELETE');
+select extensions.ok((select proargnames @> array['access_linked'] and not proargnames && array['auth_user_id','password_hash'] from pg_proc where proname='get_managed_admins_v1'),'Vinculo boolean sem credenciais');
+select extensions.ok((select proargnames = array['p_admin_id','p_name','p_email','p_status'] from pg_proc where proname='update_managed_admin_v1'),'Update nao aceita role/escola/Auth/hash/ator');
+select * from extensions.finish();
+rollback;
