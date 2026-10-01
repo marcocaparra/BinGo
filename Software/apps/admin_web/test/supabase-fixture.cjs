@@ -15,6 +15,39 @@ async function installSupabaseFixture(page, options = {}) {
     schoolId,
     calls: [],
     priceCap: null,
+    managedSchools: [
+      {
+        school_id: schoolId,
+        name: 'Escola estrutural RPC',
+        student_count: 1,
+        class_count: 2,
+        admin_count: 3,
+        machine_count: 0,
+      },
+    ],
+    managedAdmins: [
+      {
+        admin_id: adminId,
+        name: 'A estrutural RPC',
+        email: 'a@example.test',
+        role: 'ADMIN_A',
+        school_id: null,
+        school_name: null,
+        status: 'ACTIVE',
+        access_linked: true,
+      },
+      {
+        admin_id: '40000000-0000-4000-8000-000000000002',
+        name: 'C estrutural RPC',
+        email: 'c@example.test',
+        role: 'ADMIN_C',
+        school_id: schoolId,
+        school_name: 'Escola estrutural RPC',
+        status: 'ACTIVE',
+        access_linked: false,
+      },
+    ],
+    structureReceipts: new Map(),
     productReceipts: new Map(),
     products: [
       {
@@ -162,6 +195,11 @@ async function installSupabaseFixture(page, options = {}) {
     assert.ok(
       [
         'get_my_admin_context_v1',
+        'get_admin_schools_v1',
+        'create_admin_school_v1',
+        'get_managed_admins_v1',
+        'create_managed_admin_v1',
+        'update_managed_admin_v1',
         'get_binbazar_price_cap_v1',
         'update_binbazar_price_cap_v1',
         'create_admin_binbazar_product_v1',
@@ -184,6 +222,97 @@ async function installSupabaseFixture(page, options = {}) {
       ].includes(rpc),
       `RPC fora da fatia: ${rpc}`,
     );
+    if (
+      rpc.includes('managed_admin') ||
+      ['get_admin_schools_v1', 'create_admin_school_v1'].includes(rpc)
+    ) {
+      if (fixture.structureWait) await fixture.structureWait;
+      if (fixture.structureError)
+        return route.fulfill({ status: 503, json: { message: 'Unavailable' } });
+      const schools = rpc.includes('school');
+      if (rpc.startsWith('get_')) {
+        assert.deepEqual(body, {});
+        return route.fulfill({
+          json: schools
+            ? fixture.managedSchools
+            : fixture.managedAdmins.filter(
+                (a) =>
+                  fixture.role === 'ADMIN_A' ||
+                  (a.role === 'ADMIN_C' && a.school_id === fixture.schoolId),
+              ),
+        });
+      }
+      if (fixture.structureMutationWait) await fixture.structureMutationWait;
+      if (fixture.structureMutationError)
+        return route.fulfill({
+          status: 409,
+          json: { code: '23505', message: fixture.structureMutationError },
+        });
+      assert.equal(body.p_actor_id, undefined);
+      if (schools) {
+        assert.deepEqual(Object.keys(body).sort(), ['p_school_id', 'p_name'].sort());
+        const receipt = fixture.structureReceipts.get(body.p_school_id);
+        if (!receipt) {
+          fixture.managedSchools.push({
+            school_id: body.p_school_id,
+            name: body.p_name,
+            student_count: 0,
+            class_count: 0,
+            admin_count: 0,
+            machine_count: 0,
+          });
+          fixture.structureReceipts.set(body.p_school_id, JSON.stringify(body));
+        } else assert.equal(receipt, JSON.stringify(body));
+        if (fixture.loseStructureResponse) {
+          fixture.loseStructureResponse = false;
+          return route.abort('failed');
+        }
+        return route.fulfill({ json: body.p_school_id });
+      }
+      const creating = rpc.startsWith('create');
+      assert.deepEqual(
+        Object.keys(body).sort(),
+        (creating
+          ? ['p_admin_id', 'p_name', 'p_email', 'p_status', 'p_role', 'p_school_id']
+          : ['p_admin_id', 'p_name', 'p_email', 'p_status']
+        ).sort(),
+      );
+      if (
+        fixture.managedAdmins.some(
+          (a) => a.email === body.p_email && a.admin_id !== body.p_admin_id,
+        )
+      )
+        return route.fulfill({
+          status: 409,
+          json: { code: '23505', message: 'MANAGED_ADMIN_EMAIL_CONFLICT' },
+        });
+      if (creating) {
+        const receipt = fixture.structureReceipts.get(body.p_admin_id);
+        if (!receipt) {
+          const scope = fixture.role === 'ADMIN_B' ? fixture.schoolId : body.p_school_id;
+          fixture.managedAdmins.push({
+            admin_id: body.p_admin_id,
+            name: body.p_name,
+            email: body.p_email,
+            role: body.p_role,
+            school_id: scope,
+            school_name: fixture.managedSchools.find((s) => s.school_id === scope)?.name || null,
+            status: body.p_status,
+            access_linked: false,
+          });
+          fixture.structureReceipts.set(body.p_admin_id, JSON.stringify(body));
+        } else assert.equal(receipt, JSON.stringify(body));
+      } else
+        Object.assign(
+          fixture.managedAdmins.find((a) => a.admin_id === body.p_admin_id),
+          { name: body.p_name, email: body.p_email, status: body.p_status },
+        );
+      if (fixture.loseStructureResponse) {
+        fixture.loseStructureResponse = false;
+        return route.abort('failed');
+      }
+      return route.fulfill({ json: body.p_admin_id });
+    }
     if (rpc.includes('price_cap')) {
       if (fixture.capWait) await fixture.capWait;
       if (fixture.capError) return route.fulfill({ status: 503, json: { message: 'Unavailable' } });

@@ -35,6 +35,7 @@ for (const role of ['ADMIN_B', 'ADMIN_C']) {
         assert.equal(await page.getByLabel('Cenário da demonstração').count(), 0);
         await page.getByRole('button', { name: 'Editar', exact: true }).first().click();
         const dialog = page.getByRole('dialog');
+        await dialog.getByLabel('Preço em BinCoins').waitFor();
         assert.equal(await dialog.getByRole('spinbutton').count(), 2);
         assert.equal(await dialog.getByLabel('Preço em BinCoins').isDisabled(), true);
         await dialog.getByLabel('Produto', { exact: true }).fill('Produto atualizado RPC');

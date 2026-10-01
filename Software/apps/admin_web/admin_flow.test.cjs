@@ -225,7 +225,8 @@ test('global administrator can prepare schools, missions and economy without sch
     await page.getByRole('button', { name: 'Cadastrar escola' }).click();
     const schoolDialog = page.getByRole('dialog');
     await schoolDialog.getByLabel('Nome da escola').fill('Escola Demo');
-    await schoolDialog.getByLabel('Cidade e estado').fill('Guarulhos · SP');
+    assert.equal(await schoolDialog.getByLabel('Cidade e estado').count(), 0);
+    assert.equal(await schoolDialog.getByLabel('Estado', { exact: true }).count(), 0);
     await schoolDialog.getByRole('button', { name: 'Cadastrar escola' }).click();
     await page.getByText('Escola Demo', { exact: true }).waitFor();
 
@@ -245,6 +246,10 @@ test('global administrator can prepare schools, missions and economy without sch
 
     await page.getByRole('button', { name: 'Totens', exact: true }).click();
     await page.getByRole('button', { name: 'Ver diagnóstico' }).first().click();
+    await page
+      .getByRole('dialog')
+      .getByText(/Última comunicação/)
+      .waitFor();
     assert.equal(
       await page
         .getByRole('dialog')

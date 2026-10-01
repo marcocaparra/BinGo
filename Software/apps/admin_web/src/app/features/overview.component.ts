@@ -48,7 +48,7 @@ import { EntityRowComponent } from '../shared/entity-row.component';
             </button>
           </header>
           <div class="entity-list">
-            @for (s of store.schools(); track s.name) {
+            @for (s of store.demoSchools(); track s.name) {
               <app-entity-row
                 icon="school"
                 [title]="s.name"

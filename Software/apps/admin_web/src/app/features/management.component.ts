@@ -8,78 +8,7 @@ import { AdminSchoolRepository } from '../core/admin-school.repository';
 import { AdminStore } from '../core/admin-store';
 import { ClassRequestsComponent } from './class-requests.component';
 import { EntityRowComponent } from '../shared/entity-row.component';
-@Component({
-  selector: 'app-schools',
-  imports: [EntityRowComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="toolbar toolbar--end">
-      <button
-        class="primary-button compact-button"
-        type="button"
-        (click)="store.open('school-create')"
-      >
-        <i data-lucide="plus"></i><span>Cadastrar escola</span>
-      </button>
-    </div>
-    <section class="panel entity-list">
-      @for (s of store.schools(); track s.name) {
-        <app-entity-row
-          icon="school"
-          [title]="s.name"
-          [subtitle]="s.city"
-          [meta]="s.students + ' · ' + s.machines"
-          [status]="s.status"
-          actionLabel="Abrir"
-          (action)="store.open('school-open', null, s.name)"
-        />
-      }
-    </section>`,
-})
-export class SchoolsComponent {
-  readonly store = inject(AdminStore);
-}
-@Component({
-  selector: 'app-administrators',
-  imports: [EntityRowComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<div class="toolbar toolbar--end">
-      <button
-        class="primary-button compact-button"
-        type="button"
-        (click)="store.open('admin-create')"
-      >
-        <i data-lucide="plus"></i
-        ><span>{{ role() === 'ADMIN_B' ? 'Cadastrar Admin C' : 'Cadastrar administrador' }}</span>
-      </button>
-    </div>
-    <section class="panel entity-list">
-      @for (a of visible(); track a.email) {
-        <app-entity-row
-          icon="shield-user"
-          [title]="a.name"
-          [subtitle]="a.email + ' · ' + a.scope"
-          [meta]="a.role"
-          [status]="a.status"
-          actionLabel="Gerenciar"
-          actionIcon="settings"
-          (action)="store.open('admin-open', null, a.email)"
-        />
-      }
-    </section>
-    <p class="contract-note">
-      <i data-lucide="history"></i>Contas são inativadas, nunca apagadas. Ninguém pode desativar a
-      própria conta.
-    </p>`,
-})
-export class AdministratorsComponent {
-  readonly store = inject(AdminStore);
-  role = input.required<AdminRole>();
-  visible() {
-    return this.role() === 'ADMIN_B'
-      ? this.store.administrators().filter((a) => a.role === 'ADMIN_C')
-      : this.store.administrators();
-  }
-}
+export { SchoolsComponent, AdministratorsComponent } from './admin-structure.component';
 @Component({
   selector: 'app-students',
   imports: [StatePanelComponent],

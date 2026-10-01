@@ -191,7 +191,9 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
                 : store.view() === 'pending'
                   ? 'Trocas e resgates reais'
                   : realSchoolView()
-                    ? 'Dados da escola vinculada'
+                    ? this.role() === 'ADMIN_A'
+                      ? 'Dados reais do ecossistema'
+                      : 'Dados da escola vinculada'
                     : 'Dados demonstrativos'
             }}</span
           >
@@ -259,6 +261,8 @@ export class AdminShellComponent {
   }
   realSchoolView() {
     return [
+      'schools',
+      'administrators',
       'students',
       'classes',
       'requests',

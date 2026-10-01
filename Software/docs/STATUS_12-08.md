@@ -31,8 +31,8 @@ authenticated. `admins` permanece RLS fail-closed, sem leitura/escrita direta
 aberta ao cliente. O Angular usa Supabase Auth para login, restauração e logout,
 consulta novamente o contexto no refresh e bloqueia ausência de vínculo,
 inatividade e falhas sem fallback de autenticação demonstrativa. Alunos, turmas,
-trocas de turma, BinBazar operacional e teto global usam as fatias reais descritas
-abaixo; os outros domínios e demais controles econômicos continuam demonstrativos
+trocas de turma, BinBazar operacional, teto global e estrutura de escolas/contas
+usam as fatias reais descritas abaixo; os outros domínios e demais controles econômicos continuam demonstrativos
 explícitos no AdminStore. `password_hash` permanece
 legado FastAPI, sem sincronização com Auth. A migration recusa papéis históricos
 ambíguos e exige classificação manual antes de futura promoção em bancos que
@@ -168,6 +168,49 @@ Fixtures/Auth foram removidos e a configuração original restaurada. A 027,
 como 023–026, não foi promovida ao bingo-dev; nenhum commit/push/PR/deploy/ação
 remota foi executado. Contratos técnicos, concorrência, auditoria global,
 reprodução e limites em `binbazar-global-price-cap-v1.md`.
+
+A estrutura real de Escolas e Administradores está implementada e comprovada
+somente localmente pelas migrations equivalentes
+`database/migrations/028_admin_structure_management_v1.sql` e
+`supabase/migrations/20261001130000_admin_structure_management_v1.sql`.
+As migrations 023–027 foram preservadas integralmente. Escolas mantêm somente
+UUID/nome/timestamps, sem cidade/endereço/status/implantação nem unicidade global
+de nome inventados. `get_admin_schools_v1` e `create_admin_school_v1` permitem
+somente A ACTIVE listar globalmente e criar por UUID idempotente; contagens de
+alunos/turmas/admins/máquinas são derivadas dos dados reais.
+`get_managed_admins_v1`, `create_managed_admin_v1` e `update_managed_admin_v1`
+permitem A gerir contas globalmente e B somente C da própria escola; C é recusado.
+Criação define role/escopo corretos; atualização aceita somente nome/email/status,
+sem alteração retrospectiva de role/escola, IDs, Auth ou password_hash. Nova
+identidade mantém auth_user_id/password_hash NULL: não cria usuário Auth, senha,
+convite ou acesso automático. UI retorna vínculo boolean, sem UUID Auth/hash;
+email administrativo não altera credenciais da conta Auth vinculada.
+Recibos técnicos privados em `admin_structure_creation_receipts` guardam intenção
+original por tipo/UUID/ator/payload, com RLS fail-closed. Replay idêntico não
+reinserta nem duplica auditoria, inclusive após edição; UUID divergente conflita.
+Email respeita unicidade existente; update idêntico não muda timestamp/auditoria.
+Mutations de contas serializam pelo mesmo advisory transaction lock, revalidam
+ACTIVE após a espera e bloqueiam ator/alvo. Auto-inativação e remoção do último A
+ACTIVE são recusadas no banco. Corridas entre dois A nos dois ordenamentos e em
+READ COMMITTED/REPEATABLE READ preservaram um A ACTIVE; o perdedor foi recusado
+ou abortou por snapshot antigo. Reativação autorizada permanece disponível.
+Auditoria é transacional e registra ator derivado e old/new seguros: criação de
+escola/A usa escopo global NULL; criação/edição de B/C usa a escola da entidade.
+Não há DELETE, leitura ampla de admins, escrita direta, novos grants/policies
+Mobile ou alterações em históricos de outros domínios. SECURITY DEFINER,
+search_path vazio e EXECUTE somente authenticated seguem o baseline.
+Angular usa repository/telas reais, IDs UUID, estados loading/empty/error/
+submitting/conflict e refetch. Os formulários demo de escola/admin foram removidos;
+o dashboard permanece demonstrativo, com sua fotografia separada em demoSchools.
+Reset isolado final com 28 migrations, 21 arquivos/590 verificações pgTAP,
+176 backend, 66 browser e seis smokes reais Auth/RPC/Angular locais passaram,
+sem skips. Build, TypeScript, Prettier e diff-check passaram. Restam 13 avisos JWT
+legados preexistentes. Foram corrigidos problemas iniciais de ambiente/seletor/
+espera de render e refeita isoladamente uma execução de reset local sobreposta.
+As fixtures e usuários Auth efêmeros foram removidos. A 028, como 023–027,
+continua sem promoção ao bingo-dev, sem commit/push/PR/deploy/ação remota.
+Regras oficiais, decisões técnicas, provisionamento separado, reprodução e
+resultados em `admin-structure-management-v1.md`.
 
 O modelo V1, o contrato de dados, as migrations correspondentes e a RPC `register_deposit_v1` estão implementados no repositório. A implementação documentada cobre snapshots de recompensa, catálogo de categorias, restrição de execução da RPC, idempotência sequencial e concorrente, atualização de saldos e auditoria transacional. A redenominação acrescentou a décima primeira migration Supabase e a migration `011` do trilho PostgreSQL; reset completo, testes específicos de conversão/rollback, pgTAP e testes de integração locais comprovaram o comportamento na nova unidade. Em `2026-09-14`, a migration `20260913120000_points_unit_redenomination.sql` foi aplicada de forma controlada no `bingo-dev`, e o postflight confirmou onze migrations locais/remotas alinhadas, defaults `800/1900/10000`, saldo smoke de `16` para `1600`, XP smoke de `19` para `1900` e o snapshot histórico do depósito convertido para bônus `800`, BinCoins `1600` e XP `1900`, sem alterar seu identificador, taxa ou instante. O `audit_logs.metadata` histórico preservou o mesmo SHA-256, e foi criado exatamente um evento SYSTEM `POINTS_UNIT_REDENOMINATED_V1` para a escola afetada. Essa comprovação é exclusiva do ambiente DEV e não declara aplicação em produção.
 

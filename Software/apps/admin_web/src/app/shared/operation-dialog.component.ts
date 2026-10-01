@@ -1,14 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AdminStore } from '../core/admin-store';
 const defs: Record<string, { title: string; icon: string; submit: string }> = {
-  'admin-create': {
-    title: 'Cadastrar administrador',
-    icon: 'shield-plus',
-    submit: 'Cadastrar acesso',
-  },
-  'admin-open': { title: 'Gerenciar administrador', icon: 'shield-user', submit: 'Salvar estado' },
-  'school-create': { title: 'Cadastrar escola', icon: 'school', submit: 'Cadastrar escola' },
-  'school-open': { title: 'Detalhes da escola', icon: 'school', submit: 'Salvar estado' },
   'mission-create': { title: 'Criar missão global', icon: 'flag', submit: 'Criar missão' },
   'mission-edit': { title: 'Editar missão global', icon: 'flag', submit: 'Salvar missão' },
   'economy-edit': {
@@ -29,58 +21,7 @@ const defs: Record<string, { title: string; icon: string; submit: string }> = {
         <h2 id="operation-dialog-title">{{ def().title }}</h2>
         <form (submit)="submit($event)">
           <div class="operation-fields">
-            @if (op.action.startsWith('admin-')) {
-              @let a = admin();
-              <div class="field">
-                <label for="op-name">Nome</label
-                ><input id="op-name" name="name" [value]="a?.name || ''" required />
-              </div>
-              <div class="field">
-                <label for="op-email">E-mail institucional</label
-                ><input id="op-email" name="email" [value]="a?.email || ''" required />
-              </div>
-              <div class="field">
-                <label for="op-role">Perfil</label
-                ><select id="op-role" name="role">
-                  @for (r of roleOptions(); track r) {
-                    <option [selected]="r === (a?.role || roleOptions()[0])">{{ r }}</option>
-                  }
-                </select>
-              </div>
-              <div class="field">
-                <label for="op-status">Estado do acesso</label
-                ><select id="op-status" name="status">
-                  <option [selected]="a?.status !== 'Inativo'">Ativo</option>
-                  <option [selected]="a?.status === 'Inativo'">Inativo</option>
-                </select>
-              </div>
-              <div class="dialog-note">
-                <i data-lucide="shield-check"></i>O backend deverá validar escopo, impedir
-                auto-inativação e registrar auditoria.
-              </div>
-            } @else if (op.action.startsWith('school-')) {
-              @let s = school();
-              <div class="field">
-                <label for="op-name">Nome da escola</label
-                ><input id="op-name" name="name" [value]="s?.name || ''" required />
-              </div>
-              <div class="field">
-                <label for="op-city">Cidade e estado</label
-                ><input id="op-city" name="city" [value]="s?.city || ''" required />
-              </div>
-              <div class="field">
-                <label for="op-status">Estado</label
-                ><select id="op-status" name="status">
-                  @for (x of ['Implantação', 'Ativa', 'Inativa']; track x) {
-                    <option [selected]="x === (s?.status || 'Implantação')">{{ x }}</option>
-                  }
-                </select>
-              </div>
-              <div class="dialog-note">
-                <i data-lucide="database"></i>Vínculos, identificadores e isolamento dos dados serão
-                definidos pelo backend.
-              </div>
-            } @else if (op.action.startsWith('mission-')) {
+            @if (op.action.startsWith('mission-')) {
               @let m = mission();
               <div class="field">
                 <label for="op-name">Nome da missão</label
@@ -179,12 +120,6 @@ export class OperationDialogComponent {
   key() {
     return this.store.activeOperation()?.key;
   }
-  admin() {
-    return this.store.administrators().find((x) => x.email === this.key());
-  }
-  school() {
-    return this.store.schools().find((x) => x.name === this.key());
-  }
   mission() {
     return this.store.missions()[this.idx()];
   }
@@ -193,9 +128,6 @@ export class OperationDialogComponent {
   }
   machine() {
     return this.store.machines.find((x) => x.code === this.key());
-  }
-  roleOptions() {
-    return this.store.role() === 'ADMIN_B' ? ['ADMIN_C'] : ['ADMIN_A', 'ADMIN_B', 'ADMIN_C'];
   }
   clean(v: string | undefined, s: string) {
     return v?.replace(s, '');

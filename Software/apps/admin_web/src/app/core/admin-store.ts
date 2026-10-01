@@ -119,7 +119,7 @@ export class AdminStore {
       version: 'v0.7.4',
     },
   ];
-  readonly schools = signal([
+  readonly demoSchools = signal([
     {
       name: 'Colégio ENIAC',
       city: 'Guarulhos · SP',
@@ -158,29 +158,6 @@ export class AdminStore {
       status: 'Ativa',
     },
     { name: '7º A', students: '33 alunos', xp: '9.740 XP', participation: '72%', status: 'Ativa' },
-  ]);
-  readonly administrators = signal([
-    {
-      name: 'Gustavo Alencar',
-      email: 'alencar@bingo.demo',
-      role: 'ADMIN_B',
-      scope: 'Colégio ENIAC',
-      status: 'Ativo',
-    },
-    {
-      name: 'Paula Mendes',
-      email: 'paula@eniac.demo',
-      role: 'ADMIN_C',
-      scope: 'Colégio ENIAC',
-      status: 'Ativa',
-    },
-    {
-      name: 'Equipe BinGo',
-      email: 'admin@bingo.demo',
-      role: 'ADMIN_A',
-      scope: 'Global',
-      status: 'Ativa',
-    },
   ]);
   readonly missions = signal([
     { name: 'Circuito dos cabos', type: 'Missão semanal', period: '18–25 set', status: 'Ativa' },
@@ -239,36 +216,6 @@ export class AdminStore {
     const v = Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
     const i = op.index ?? 0;
     switch (op.action) {
-      case 'admin-create':
-        this.administrators.update((a) => [
-          ...a,
-          {
-            name: v['name'],
-            email: v['email'],
-            role: v['role'],
-            scope: this.role() === 'ADMIN_A' ? 'Global' : 'Colégio ENIAC',
-            status: v['status'],
-          },
-        ]);
-        break;
-      case 'admin-open':
-        this.administrators.update((a) => a.map((x) => (x.email === op.key ? { ...x, ...v } : x)));
-        break;
-      case 'school-create':
-        this.schools.update((a) => [
-          ...a,
-          {
-            name: v['name'],
-            city: v['city'],
-            students: '0 alunos',
-            machines: '0 Totens',
-            status: v['status'],
-          },
-        ]);
-        break;
-      case 'school-open':
-        this.schools.update((a) => a.map((x) => (x.name === op.key ? { ...x, ...v } : x)));
-        break;
       case 'mission-create':
         this.missions.update((a) => [
           ...a,
@@ -285,10 +232,6 @@ export class AdminStore {
         break;
     }
     const titles: Record<string, string> = {
-      'admin-create': 'Cadastrar administrador',
-      'admin-open': 'Gerenciar administrador',
-      'school-create': 'Cadastrar escola',
-      'school-open': 'Detalhes da escola',
       'mission-create': 'Criar missão global',
       'mission-edit': 'Editar missão global',
       'economy-edit': 'Editar regra econômica',
