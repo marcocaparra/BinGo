@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, output } from '@angular/core';
-import { AdminRole, ADMIN_ROLES } from '../admin-access';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { AdminAuthService } from '../core/admin-auth.service';
 @Component({
   selector: 'app-access',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,32 +25,58 @@ import { AdminRole, ADMIN_ROLES } from '../admin-access';
         <p class="eyebrow">Acesso técnico</p>
         <h2>Entrar no Admin</h2>
         <p>Use seu acesso autorizado para acompanhar a operação da escola.</p>
-        <div class="field">
-          <label for="admin-role">Perfil demonstrativo</label
-          ><select id="admin-role" name="role">
-            @for (r of roles; track r.code) {
-              <option [value]="r.code">{{ r.shortLabel }}</option>
-            }</select
-          ><small class="field-hint"
-            >No produto real, o perfil virá da autenticação e será validado pelo backend.</small
+        @if (!auth.state().hasSession) {
+          <div class="field">
+            <label for="admin-email">E-mail institucional</label
+            ><input
+              id="admin-email"
+              name="email"
+              type="email"
+              autocomplete="username"
+              [disabled]="auth.busy()"
+              required
+            />
+          </div>
+          <div class="field">
+            <label for="admin-password">Senha</label
+            ><input
+              id="admin-password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              [disabled]="auth.busy()"
+              required
+            />
+          </div>
+          <button class="primary-button" type="submit" [disabled]="auth.busy()">
+            <span>Acessar o Admin</span><i data-lucide="arrow-right"></i>
+          </button>
+        }
+        @if (auth.state().message) {
+          <p [attr.role]="auth.busy() ? 'status' : 'alert'" aria-live="polite">
+            {{ auth.state().message }}
+          </p>
+        }
+        @if (auth.state().kind === 'error') {
+          <button class="secondary-button" type="button" (click)="auth.restore()">
+            Tentar novamente
+          </button>
+        }
+        @if (auth.state().hasSession) {
+          <button
+            class="text-button"
+            type="button"
+            [disabled]="auth.busy()"
+            (click)="auth.logout()"
           >
-        </div>
-        <div class="field">
-          <label for="admin-email">E-mail institucional</label
-          ><input id="admin-email" name="email" type="email" value="alencar@bingo.demo" required />
-        </div>
-        <div class="field">
-          <label for="admin-password">Senha</label
-          ><input id="admin-password" name="password" type="password" value="123456" required />
-        </div>
-        <button class="primary-button" type="submit">
-          <span>Acessar o Admin</span><i data-lucide="arrow-right"></i>
-        </button>
+            Sair
+          </button>
+        }
         <div class="access-note">
           <i data-lucide="shield-check"></i
           ><span
-            ><strong>Ambiente demonstrativo.</strong>A autenticação segura será conectada ao
-            contrato do backend.</span
+            ><strong>Acesso autenticado.</strong>Os dados e operações das demais telas continuam
+            demonstrativos.</span
           >
         </div>
       </form>
@@ -58,11 +84,12 @@ import { AdminRole, ADMIN_ROLES } from '../admin-access';
   </main>`,
 })
 export class AccessComponent {
-  readonly entered = output<AdminRole>();
-  readonly roles = Object.values(ADMIN_ROLES);
+  readonly auth = inject(AdminAuthService);
   login(e: Event) {
     e.preventDefault();
-    const f = new FormData(e.currentTarget as HTMLFormElement);
-    this.entered.emit(f.get('role') as AdminRole);
+    const form = e.currentTarget as HTMLFormElement;
+    const f = new FormData(form);
+    void this.auth.login(String(f.get('email') ?? '').trim(), String(f.get('password') ?? ''));
+    (form.elements.namedItem('password') as HTMLInputElement).value = '';
   }
 }

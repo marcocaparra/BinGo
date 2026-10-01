@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
-import { AdminRole, AdminView } from '../admin-access';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { AdminView } from '../admin-access';
+import { AdminAuthService } from './admin-auth.service';
 
 export interface Operation {
   action: string;
@@ -8,7 +9,9 @@ export interface Operation {
 }
 @Injectable({ providedIn: 'root' })
 export class AdminStore {
-  readonly role = signal<AdminRole>('ADMIN_C');
+  // Somente para composicao das telas demo; nao e autoridade de sessao.
+  private readonly auth = inject(AdminAuthService);
+  readonly role = computed(() => this.auth.admin()?.role ?? null);
   readonly view = signal<AdminView>('overview');
   readonly scenario = signal<'normal' | 'loading' | 'empty' | 'error'>('normal');
   readonly toast = signal('');
@@ -303,6 +306,15 @@ export class AdminStore {
       status: 'Aprovada',
     },
   ]);
+  constructor() {
+    effect(() => {
+      if (!this.auth.admin()) {
+        this.activeOperation.set(null);
+        this.redemptionToDeliver.set(null);
+        this.toast.set('');
+      }
+    });
+  }
   open(action: string, index: number | null = null, key: string | null = null) {
     this.activeOperation.set({ action, index, key });
   }

@@ -42,3 +42,6 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Configuracao publica por ambiente (nunca service role).
+/public/supabase-config.json

@@ -1,6 +1,6 @@
 STATUS técnico — BinGo
 
-Atualizado em: `2026-09-23`
+Atualizado em: `2026-09-30`
 
 Este arquivo é a fonte rápida de verdade técnica do projeto. Ele consolida as decisões vigentes de `database-model.md`, `data-contracts-totem-app-backend.md`, `supabase-edge-functions-mvp.md`, `FLUXO_ECOSSISTEMA_DESCARTE_V1.md`, `operacao-offline.md`, `missions-contract-v1.md` e `class-journey-v1.md`, além dos relatórios recentes da fundação de autenticação técnica de máquinas e do inventário do FastAPI. Para descartes, permanecem vigentes as decisões revisadas a partir de `2026-08-12`; para missões, prevalece o contrato conceitual revisado em `2026-09-15`; para Jornada/BinGópolis, prevalece o contrato de `2026-09-22`. Código ou banco só devem prevalecer quando houver evidência de uma decisão posterior ainda não documentada.
 
@@ -17,6 +17,27 @@ O contrato do descarte aceita `event_id`, `class_id`, `student_id`, `is_valid`, 
 Novos descartes reais não podem começar offline ou quando serviços críticos estiverem indisponíveis. Se a conexão falhar antes da queda física do objeto, o ciclo deve ser interrompido com segurança; se falhar depois que o objeto já caiu no compartimento interno, o evento deve ser preservado com o mesmo `event_id` e reenviado quando a comunicação voltar, sem prometer pontos antes da confirmação server-side. Essa recuperação de um ciclo iniciado online não caracteriza operação offline. A orientação V1 é um item por ciclo, mas quantidade não é detectada nem enviada ao backend.
 
 ## Implementado e comprovado
+
+A fundação de autenticação administrativa do Admin Web V1 está implementada e
+comprovada localmente pelas migrations incrementais equivalentes
+`database/migrations/023_admin_auth_foundation.sql` e
+`supabase/migrations/20260930120000_admin_auth_foundation.sql`. `admins.auth_user_id`
+é um vínculo UUID opcional e único com Supabase Auth; o banco aceita somente
+`ADMIN_A/B/C`, exige A global com escola nula e B/C com escola obrigatória, e
+mantém `status` explícito ACTIVE/INACTIVE (default ACTIVE). A RPC sem parâmetros
+`get_my_admin_context_v1()` resolve somente o próprio contexto por `auth.uid()`,
+sem hashes, com SECURITY DEFINER, search_path vazio e EXECUTE exclusivo de
+authenticated. `admins` permanece RLS fail-closed, sem leitura/escrita direta
+aberta ao cliente. O Angular usa Supabase Auth para login, restauração e logout,
+consulta novamente o contexto no refresh e bloqueia ausência de vínculo,
+inatividade e falhas sem fallback de autenticação demonstrativa. As demais
+telas e operações continuam com dados demonstrativos explícitos no AdminStore;
+nenhum domínio administrativo adicional foi integrado. `password_hash` permanece
+legado FastAPI, sem sincronização com Auth. A migration recusa papéis históricos
+ambíguos e exige classificação manual antes de futura promoção em bancos que
+os contenham, preservando IDs e histórico. Não houve promoção desta migration
+ao `bingo-dev` nem aplicação remota. Procedimento local e limites em
+`admin-supabase-auth-session.md`.
 
 O modelo V1, o contrato de dados, as migrations correspondentes e a RPC `register_deposit_v1` estão implementados no repositório. A implementação documentada cobre snapshots de recompensa, catálogo de categorias, restrição de execução da RPC, idempotência sequencial e concorrente, atualização de saldos e auditoria transacional. A redenominação acrescentou a décima primeira migration Supabase e a migration `011` do trilho PostgreSQL; reset completo, testes específicos de conversão/rollback, pgTAP e testes de integração locais comprovaram o comportamento na nova unidade. Em `2026-09-14`, a migration `20260913120000_points_unit_redenomination.sql` foi aplicada de forma controlada no `bingo-dev`, e o postflight confirmou onze migrations locais/remotas alinhadas, defaults `800/1900/10000`, saldo smoke de `16` para `1600`, XP smoke de `19` para `1900` e o snapshot histórico do depósito convertido para bônus `800`, BinCoins `1600` e XP `1900`, sem alterar seu identificador, taxa ou instante. O `audit_logs.metadata` histórico preservou o mesmo SHA-256, e foi criado exatamente um evento SYSTEM `POINTS_UNIT_REDENOMINATED_V1` para a escola afetada. Essa comprovação é exclusiva do ambiente DEV e não declara aplicação em produção.
 
