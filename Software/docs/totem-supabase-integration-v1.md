@@ -107,18 +107,31 @@ no harness, preservando a fronteira original; grava dois eventos locais e confer
 linhas SQL. Eventos e efeitos históricos de smoke ficam no banco local até reset.
 Suítes que manipulam a fila global de Missões devem rodar sequencialmente.
 
-AWS/Gemini ao vivo não foram chamados nesta fatia: não havia suas credenciais no
-ambiente. Os 16 testes Node e 15 Python originais foram preservados e passaram.
+Na validação local inicial, a visão foi controlada no harness, sem chamadas ao
+vivo por ausência de credenciais. Os 16 testes Node e 15 Python originais foram
+preservados e passaram. O preflight inicial encontrou migrations alinhadas até
+028 e nenhuma chave conhecida para smoke hospedado; esse registro é histórico,
+e a pendência foi resolvida na homologação abaixo.
 
-Preflight DEV read-only confirmou projeto linked `bingo-dev`
-(`ddxmohrjcxuibswmrtla`), histórico local/remoto alinhado até 028 e somente
-health/register/recover implantadas. Máquina
-`40000000-0000-4000-8000-000000000001`, Totem Dev Cloud 01, ONLINE, tem hash de
-credencial configurado. Comparação privada comprovou que ele **não** corresponde
-a `edge-demo-key`. Não havia chave plaintext correspondente configurada no `.env`.
-Nenhum hash foi alterado; **029 e as quatro novas Functions permanecem locais**.
-Promoção/smoke hospedado dependem da chave conhecida ou de provisionamento/rotação
-explicitamente autorizados. Não houve escrita/deploy remoto, commit, push ou PR.
+### Homologação hospedada — 2026-10-01
+
+A migration 029 (`20261001140000_totem_server_reads_v1.sql`) foi aplicada no
+`bingo-dev`, deixando o histórico local/remoto alinhado. As Functions
+`totem-context-v1`, `totem-student-pin-v1`, `totem-student-summary-v1` e
+`totem-rankings-v1` foram deployadas. Uma máquina DEV específica do Totem
+Simulator foi provisionada com credencial conhecida, sem publicar seus dados
+de acesso nesta documentação.
+
+`health-v1` retornou `AVAILABLE` e `can_start_deposit=true`; o contexto hospedado
+retornou escola, turmas e alunos reais. A validação de PIN hospedada foi
+comprovada; um aluno demo recebeu PIN apenas para smoke DEV. AWS Rekognition e
+Gemini foram exercitados ao vivo. Um descarte completo pelo `totem_simulator`
+foi persistido por `register-deposit-v1`, e os BinCoins do aluno e o XP da turma
+foram atualizados conforme os snapshots retornados pelo backend. Todos os
+testes e o smoke end-to-end passaram.
+
+O PR #41 foi mergeado em `develop`. **Essa homologação comprova somente o
+ambiente `bingo-dev`; não representa homologação ou promoção para produção.**
 
 Procedimentos e variáveis sem segredos: `apps/totem_simulator/README.md`.
 
@@ -154,12 +167,15 @@ reset/pgTAP passaram. Nenhum erro de suíte ficou pendente.
 Avisos preservados: JWT curto em fixtures FastAPI legadas, depreciação do bloco
 inbucket do CLI e normalização LF/CRLF do Git. Não alteram o fluxo sem JWT do
 simulador. Não existe build Angular nesta fatia estática; Admin/Mobile/Flutter
-não foram alterados nem compilados. AWS/Gemini ao vivo e smoke bingo-dev não
-executados pelos motivos de credencial descritos acima.
+não foram alterados nem compilados. A visão controlada pertence à validação
+local; AWS/Gemini ao vivo e o smoke hospedado passaram na homologação do
+`bingo-dev` em `2026-10-01`, descrita acima.
 
-## Working tree na entrega
+## Registro histórico do working tree na entrega local inicial
 
-Branch `feature/totem-supabase-integration`; 28 arquivos da fatia, todos sem
+O registro abaixo antecede a homologação hospedada e o merge do PR #41 em
+`develop`; não descreve o working tree atual. Na entrega local inicial, a
+branch era `feature/totem-supabase-integration`, com 28 arquivos da fatia sem
 stage/commit. A alteração pré-existente em `apps/admin_web/package-lock.json`
 foi preservada byte a byte (SHA256
 `870730811EAF8585C39301792CFB3E7DDC15FC0C8B1163C769B83F98368147CB`).
@@ -203,8 +219,9 @@ Nenhum arquivo Admin foi alterado por esta tarefa.
 novos nesse diretório. Providers/testes originais de visão, assets e sample
 library também não têm diff.
 
-Ações remotas executadas: somente preflight read-only — projects list,
-migration list, functions list e queries de schema/RPCs/máquina, além da
-comparação privada do hash contra a fixture conhecida. Postflight confirmou
-local 029 pendente e remoto ainda 028. Sem rotação/provisionamento de chave,
-escrita de dados/schema, deploy, commit, push ou PR.
+Na entrega local inicial, as ações remotas se limitaram ao preflight read-only
+e o remoto ainda estava em 028. Posteriormente, a homologação hospedada de
+`2026-10-01` incluiu aplicação da 029, deploy das quatro Functions, provisionamento
+da máquina DEV e smoke com persistência real, conforme registrado acima.
+O estado atual é 029 aplicada e homologada no `bingo-dev`, com PR #41 mergeado
+em `develop`; a pendência de promoção/smoke da entrega inicial foi encerrada.

@@ -19,9 +19,10 @@ Novos descartes reais não podem começar offline ou quando serviços críticos 
 ## Implementado e comprovado
 
 
-A integração operacional do Totem Simulator com Supabase foi implementada e
-validada localmente em `2026-10-01`, na branch
-`feature/totem-supabase-integration`. O browser deixou de depender de FastAPI,
+A integração operacional do Totem Simulator com Supabase foi implementada na
+branch `feature/totem-supabase-integration`, validada localmente e homologada
+no ambiente hospedado `bingo-dev` em `2026-10-01`. O PR #41 foi mergeado em
+`develop`. O browser deixou de depender de FastAPI,
 JWT proprietário e chave técnica hardcoded: usa somente o serviço loopback
 existente em :8765, agora gateway `/bingo/*` além de `/vision/analyze`.
 Contexto/PIN/resumo/ranking usam as novas Functions `totem-context-v1`,
@@ -44,24 +45,28 @@ de INACTIVE com ordenação determinística. A compatibilidade da chave server-s
 `default` do CLI foi limitada ao gateway Docker local; hospedado ainda exige
 `bingo_backend`.
 
-Validação final: reset local completo com 029; pgTAP 609 verificações/22 arquivos;
+Validação local: reset local completo com 029; pgTAP 609 verificações/22 arquivos;
 backend 176 testes sem skips; Deno fmt/lint/check e 62 unitários + 6 integrações
 sem ignores; Node 33 (16 visão originais + 17 recovery), Python 22 (15 visão
 originais + 7 gateway), browser 8 incluindo Supabase/gateway/SQL reais com visão
 controlada; node --check, py_compile, Prettier e git diff --check passaram.
 Os smokes comprovaram descarte identificado/turma, snapshots, saldo/XP, linha
-persistida e replay sem duplicação. AWS/Gemini ao vivo não foram chamados nesta
-fatia por ausência de credenciais; fronteira de visão controlada e testes
-originais foram usados. `apps/totem_ui` ficou integralmente inalterado.
+persistida e replay sem duplicação. A validação local usou visão controlada e
+testes originais; na homologação hospedada, AWS Rekognition e Gemini foram
+exercitados ao vivo. `apps/totem_ui` ficou integralmente inalterado.
 
-O preflight DEV read-only posterior aos merges confirmou `bingo-dev` linked,
-histórico remoto alinhado até 028 e ausência das quatro novas Functions/RPCs.
-A máquina `40000000-0000-4000-8000-000000000001` (Totem Dev Cloud 01, ONLINE)
-possui credencial, mas seu hash não corresponde à fixture local edge-demo-key;
-não havia chave plaintext conhecida configurada para smoke hospedado. Não houve
-rotação, migration/deploy/escrita remota: **029 e novas Functions permanecem
-locais**, aguardando credencial conhecida ou provisionamento expressamente
-autorizado. Nenhum commit/push/PR foi executado. Detalhes e resultados em
+O preflight inicial encontrou o remoto em 028 e ausência de credencial conhecida
+para smoke; essa pendência foi resolvida na homologação de `2026-10-01`. A
+migration 029 (`20261001140000_totem_server_reads_v1.sql`) foi aplicada ao
+`bingo-dev`, com histórico local/remoto alinhado, e as quatro Functions do Totem
+foram deployadas. Uma máquina DEV específica do Totem Simulator foi provisionada
+com credencial conhecida. `health-v1` retornou `AVAILABLE` e
+`can_start_deposit=true`; contexto e PIN hospedados foram comprovados com dados
+reais. Um aluno demo recebeu PIN exclusivamente para smoke DEV. O descarte
+completo pelo simulador foi persistido por `register-deposit-v1`, atualizando
+BinCoins do aluno e XP da turma conforme os snapshots do backend. Todos os testes
+e o smoke end-to-end passaram. **A comprovação hospedada vale somente para
+`bingo-dev`, sem homologação de produção.** Detalhes e resultados em
 `totem-supabase-integration-v1.md`; startup sem FastAPI no README do simulador.
 
 
