@@ -1,0 +1,4 @@
+# Generated build/cache and environment-specific public configuration.
+dist/
+.angular/
+public/supabase-config.json
