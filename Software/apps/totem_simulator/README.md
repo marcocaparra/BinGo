@@ -40,7 +40,7 @@ Preencha o `.env` ignorado pelo Git:
 | `BINGO_BACKEND_TIMEOUT_SECONDS`                            | Timeout de chamada ao backend, default 15                                               |
 | `BINGO_ALLOWED_ORIGINS`                                    | Opcional: lista ainda restrita a origens localhost, por exemplo `http://127.0.0.1:8110` |
 
-A máquina da seed **local** é `40000000-0000-4000-8000-000000000001`; sua chave de fixture é `edge-demo-key`. Use-a somente no Supabase local. Ela não corresponde à credencial hospedada conferida no preflight DEV desta entrega. Os PINs locais estão documentados exclusivamente na seed `database/seeds/008_seed_totem_simulator_rich_demo.sql`.
+As credenciais da seed **local** são fixtures e devem ser usadas somente no Supabase local; consulte `database/seeds/008_seed_totem_simulator_rich_demo.sql`. A homologação hospedada usa uma máquina DEV específica do Totem Simulator, provisionada com credencial conhecida, sem publicar seus dados de acesso aqui.
 
 Nunca configure service role/Secret API Key Supabase nesse `.env`. AWS/Gemini e a chave da máquina ficam fora do browser. Não altere o backend configurado enquanto houver um evento pendente no browser.
 
@@ -58,7 +58,9 @@ Abra `http://127.0.0.1:8110`. Não existe build do frontend. `/health` em :8765 
 
 ## Usar bingo-dev
 
-Exige as novas Functions e a migration 029 promovidas pelo procedimento de validação técnica, além de uma máquina com chave conhecida. Configure URL/ID/chave DEV no serviço local; o browser permanece em localhost. Não reexecute seeds locais nem rotacione `api_key_hash` para fazer o teste passar. Esta entrega validou DEV somente por consultas read-only: migrations alinhadas até 028, máquina existente com credencial configurada, mas sem chave plaintext conhecida correspondente. Promoção/smoke DEV permanecem pendentes dessa credencial.
+Homologado em **2026-10-01**, exclusivamente no `bingo-dev`: a migration 029 (`20261001140000_totem_server_reads_v1.sql`) foi aplicada e ficou alinhada local/remoto. `totem-context-v1`, `totem-student-pin-v1`, `totem-student-summary-v1` e `totem-rankings-v1` foram deployadas, e uma máquina DEV específica foi provisionada com credencial conhecida. Configure URL/ID/chave DEV no serviço local; o browser permanece em localhost. Não reexecute seeds locais nem rotacione `api_key_hash` para fazer o teste passar.
+
+O smoke hospedado comprovou `health-v1` com `AVAILABLE` e `can_start_deposit=true`, contexto real e validação de PIN. Um aluno demo recebeu PIN apenas para smoke DEV. AWS Rekognition e Gemini foram exercitados ao vivo; um descarte completo pelo simulador foi persistido por `register-deposit-v1`, atualizando BinCoins do aluno e XP da turma conforme os snapshots do backend. Todos os testes e o smoke end-to-end passaram, e o PR #41 foi mergeado em `develop`. Essa comprovação **não se estende à produção**.
 
 ## Operações reais
 
