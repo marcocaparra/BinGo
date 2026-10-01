@@ -61,6 +61,16 @@ Antes de iniciar, configure `public/supabase-config.json` (ignorado pelo Git) co
 publishable/anon, nunca service_role ou credencial tecnica. O seletor de perfil
 foi removido do login e do shell. Role/escola/status vêm somente da RPC propria.
 
+`npm run build` executa primeiro `scripts/generate-supabase-config.cjs` via
+`prebuild`. Quando as duas variáveis de ambiente existem, o script valida URL
+http/https e chave pública e gera `public/supabase-config.json`, mantendo o
+contrato de leitura atual do frontend. A chave deve ser `sb_publishable_*` ou
+JWT com role `anon`; chaves `service_role`, `sb_secret_*`, JWT sem assinatura e
+formatos inválidos são recusados sem imprimir a chave completa nos logs.
+Configuração parcial ou vazia falha antes do build. Localmente, sem variáveis
+de ambiente, um arquivo existente válido é preservado sem reescrita; sem arquivo
+válido o build falha. O arquivo gerado permanece ignorado pelo Git.
+
 Provisionamento local de usuarios Auth, migrations, comandos e testes estão em
 [`docs/admin-supabase-auth-session.md`](../../docs/admin-supabase-auth-session.md).
 
@@ -73,6 +83,54 @@ npm run test:integration
 Os testes de browser exigem o dev server (porta 8106, ou `BINGO_ADMIN_URL`) e Edge
 no Windows (`BINGO_BROWSER_PATH` pode indicar outro Chromium). A integracao real
 e opt-in, somente local, e cria/remove fixtures pelo Auth local.
+
+## Preparação para deploy no Vercel
+
+Esta configuração prepara o deploy; não comprova que o Admin foi deployado.
+A aplicação continua sendo uma SPA Angular estática, conectada diretamente a
+Supabase Auth e RPCs/RLS. Não existem API Routes, backend Node ou funções
+serverless intermediárias nesta entrega.
+
+Configure o projeto Vercel com:
+
+| Campo            | Valor                                    |
+| ---------------- | ---------------------------------------- |
+| Root Directory   | `Software/apps/admin_web`                |
+| Install Command  | `npm ci`                                 |
+| Build Command    | `npm run build`                          |
+| Output Directory | `dist/admin_web/browser`                 |
+| Node.js          | `24.x` (validado localmente com 24.19.0) |
+
+O diretório de saída foi confirmado pelo build Angular 22 real: os arquivos
+estáticos publicáveis, incluindo `index.html` e `supabase-config.json`, ficam em
+`dist/admin_web/browser`, dentro do diretório base anunciado pelo CLI.
+
+Defina no ambiente de build Vercel:
+
+- `SUPABASE_URL`: URL http/https do projeto Supabase hospedado escolhido;
+- `SUPABASE_PUBLISHABLE_KEY`: chave pública publishable ou JWT `anon` desse projeto.
+
+Com `VERCEL=1`, o gerador exige as duas variáveis e falha fechado se estiverem
+ausentes, mesmo que um arquivo local válido já exista. Não versione uma
+configuração real nem coloque **service_role, secret key ou outra credencial
+privilegiada** nessas variáveis ou no frontend. Publishable/anon é pública e
+aparece no asset servido ao browser; não concede acesso administrativo por si.
+A autorização real continua em Supabase Auth, contexto administrativo, RLS e
+validação server-side de cada RPC. A validação do gerador verifica tipo/formato
+da chave; a autenticação e verificação de tokens permanecem no Supabase.
+
+`vercel.json` fixa o output e usa rewrite de SPA para `index.html`, permitindo
+refresh direto de uma rota sem 404 de hospedagem. Arquivos existentes são
+servidos antes do rewrite, preservando bundles, CSS, imagens e configuração
+pública, conforme a [documentação Vercel](https://vercel.com/docs/project-configuration/vercel-json#rewrites).
+O roteamento funcional Angular permanece inalterado.
+
+Preview e Production poderão apontar para projetos Supabase diferentes, definindo
+essas variáveis por ambiente Vercel. Cada build deve usar URL e chave do mesmo
+projeto; a seleção de ambiente não altera roles ou escopo de escola.
+
+Os testes do gerador integram `npm test` e também podem rodar isoladamente com
+`node --test supabase_config.test.cjs`, sem chamadas ao Supabase.
 
 ## Fronteira com o backend
 
