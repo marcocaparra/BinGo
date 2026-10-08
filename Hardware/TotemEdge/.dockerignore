@@ -1,0 +1,26 @@
+# Allow only production inputs into the build context.
+**
+!backend/
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/app/
+!backend/app/**
+!frontend/
+!frontend/index.html
+!frontend/styles.css
+!frontend/script.js
+!frontend/local_api.js
+!frontend/operational.js
+!frontend/assets/
+!frontend/assets/**
+!deploy/
+!deploy/Dockerfile
+!deploy/start.py
+!deploy/healthcheck.py
+**/__pycache__/
+**/*.pyc
+**/.env*
+**/*.sqlite*
+**/*.db
+**/*.log
+**/*.tmp

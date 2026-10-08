@@ -1,0 +1,35 @@
+name: bingo-totem-edge
+
+services:
+  totem-edge:
+    image: bingo-totem-edge:v1
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${BINGO_HTTP_PORT:-8000}:8000"
+    environment:
+      BINGO_SUPABASE_URL: "${BINGO_SUPABASE_URL:-}"
+      BINGO_MACHINE_ID: "${BINGO_MACHINE_ID:-}"
+      BINGO_MACHINE_API_KEY: "${BINGO_MACHINE_API_KEY:-}"
+      BINGO_BACKEND_TIMEOUT_SECONDS: "${BINGO_BACKEND_TIMEOUT_SECONDS:-5}"
+      BINGO_SQLITE_PATH: "${BINGO_SQLITE_PATH:-/var/lib/bingo/totem.sqlite3}"
+    volumes:
+      - sqlite-data:/var/lib/bingo
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Liveness comes from the image's /health check, never /local/status.
+    # CPU/RAM limits await measurements on the actual Orange Pi.
+
+volumes:
+  sqlite-data:
