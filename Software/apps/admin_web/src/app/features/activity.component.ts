@@ -1,85 +1,110 @@
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { AdminDepositsRepository } from '../core/admin-deposits.repository';
+import { AdminAuthService } from '../core/admin-auth.service';
 import { AdminStore } from '../core/admin-store';
 import { StatePanelComponent } from '../shared/state-panel.component';
 @Component({
   selector: 'app-deposits',
+  imports: [DatePipe, StatePanelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<section class="period-metrics" aria-label="Quantidades de descartes">
-      <article class="period-metric">
-        <span><i data-lucide="database"></i></span>
-        <div>
-          <small>Total registrado</small
-          ><strong>{{ store.discardStats.total.toLocaleString('pt-BR') }}</strong>
-        </div>
-      </article>
-      <article class="period-metric">
-        <span><i data-lucide="calendar-days"></i></span>
-        <div>
-          <small>Hoje</small><strong>{{ store.discardStats.today }}</strong>
-        </div>
-      </article>
-      <article class="period-metric">
-        <span><i data-lucide="calendar-range"></i></span>
-        <div>
-          <small>Nesta semana</small><strong>{{ store.discardStats.week }}</strong>
-        </div>
-      </article>
-    </section>
-    <div class="toolbar">
-      <div class="filter-group">
-        <button class="filter-button" type="button" aria-pressed="true">Hoje</button
-        ><button class="filter-button" type="button" aria-pressed="false">Validados</button
-        ><button class="filter-button" type="button" aria-pressed="false">Em revisão</button>
-      </div>
+  template: `<div class="toolbar toolbar--end">
       <button
         class="secondary-button"
         type="button"
-        (click)="
-          store.notify('A exportação será conectada quando o contrato do Admin estiver definido.')
-        "
+        [disabled]="repo.state().kind === 'loading'"
+        (click)="repo.load()"
       >
-        <i data-lucide="download"></i><span>Exportar visão</span>
+        Atualizar descartes
       </button>
     </div>
-    <section class="panel">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Horário</th>
-            <th>Aluno ou perfil</th>
-            <th>Turma</th>
-            <th>Item</th>
-            <th>Pontos</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (d of store.deposits; track d.time) {
+    <p>Valores de BinCoins, bônus e XP são os snapshots gravados no descarte.</p>
+    @if (repo.state().kind === 'loading') {
+      <app-state-panel
+        title="Carregando descartes"
+        body="Consultando os registros disponíveis para sua conta."
+      />
+    } @else if (repo.state().kind === 'error') {
+      <app-state-panel
+        title="Não foi possível carregar descartes"
+        body="Confira a conexão e tente novamente."
+        [retry]="true"
+        (retryClick)="repo.load()"
+      />
+    } @else if (repo.state().rows.length === 0) {
+      <app-state-panel title="Nenhum descarte" body="Não há descartes registrados no seu escopo." />
+    } @else {
+      <section class="panel deposits-table">
+        <table class="data-table">
+          <thead>
             <tr>
-              <td>{{ d.time }}</td>
-              <td>
-                <strong>{{ d.student }}</strong>
-              </td>
-              <td>{{ d.className }}</td>
-              <td>{{ d.item }}</td>
-              <td>{{ d.points }}</td>
-              <td>
-                <span
-                  class="tag"
-                  [class.tag--success]="d.status === 'Validado'"
-                  [class.tag--warning]="d.status === 'Revisão'"
-                  [class.tag--blue]="d.status === 'Só turma'"
-                  >{{ d.status }}</span
-                >
-              </td>
+              <th>Data e hora</th>
+              @if (auth.admin()?.role === 'ADMIN_A') {
+                <th>Escola</th>
+              }
+              <th>Aluno</th>
+              <th>Turma</th>
+              <th>Totem</th>
+              <th>Tipo detectado</th>
+              <th>Categoria</th>
+              <th>Origem</th>
+              <th>Validade</th>
+              <th>BinCoins</th>
+              <th>Bônus</th>
+              <th>XP da turma</th>
             </tr>
-          }
-        </tbody>
-      </table>
-    </section>`,
+          </thead>
+          <tbody>
+            @for (d of repo.state().rows; track d.deposit_id) {
+              <tr>
+                <td>{{ d.created_at | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+                @if (auth.admin()?.role === 'ADMIN_A') {
+                  <td>{{ d.school_name }}</td>
+                }
+                <td>
+                  <strong>{{ d.student_name ?? 'Sem identificação' }}</strong>
+                </td>
+                <td>{{ d.class_name }}</td>
+                <td>{{ d.machine_name }}</td>
+                <td>{{ d.detected_type ?? 'Não informado' }}</td>
+                <td>{{ d.waste_category_code ?? 'Sem categoria' }}</td>
+                <td>{{ categorySource(d.category_source) }}</td>
+                <td>
+                  <span
+                    class="tag"
+                    [class.tag--success]="d.is_valid"
+                    [class.tag--warning]="!d.is_valid"
+                  >
+                    {{ d.is_valid ? 'Válido' : 'Inválido' }}
+                  </span>
+                </td>
+                <td>{{ d.points_awarded_student }}</td>
+                <td>{{ d.bonus_bincoins_awarded }}</td>
+                <td>{{ d.points_awarded_class }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }`,
 })
 export class DepositsComponent {
-  readonly store = inject(AdminStore);
+  readonly repo = inject(AdminDepositsRepository);
+  readonly auth = inject(AdminAuthService);
+
+  constructor() {
+    void this.repo.load();
+  }
+
+  categorySource(source: string | null) {
+    return (
+      {
+        AI_CONFIRMED: 'IA confirmada',
+        USER_CORRECTED: 'Corrigida pelo aluno',
+        UNIDENTIFIED: 'Não identificada',
+      }[source ?? ''] ?? 'Não informada'
+    );
+  }
 }
 @Component({
   selector: 'app-help',

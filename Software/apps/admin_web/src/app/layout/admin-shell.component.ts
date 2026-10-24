@@ -62,7 +62,7 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
     label: 'Descartes',
     icon: 'archive-restore',
     title: 'Descartes recentes',
-    subtitle: 'Itens validados pelos Totens e sua situação operacional.',
+    subtitle: 'Eventos e recompensas históricas persistidos no momento do descarte.',
   },
   help: {
     label: 'Solicitações de ajuda',
@@ -162,7 +162,9 @@ const meta: Record<AdminView, { label: string; icon: string; title: string; subt
             >{{
               ['overview', 'machines'].includes(store.view())
                 ? 'Somente leitura'
-                : 'Sistema operacional'
+                : realSchoolView()
+                  ? 'Sessão autenticada'
+                  : 'Modo demonstrativo'
             }}</span
           >
           @if (!realSchoolView()) {
@@ -275,6 +277,7 @@ export class AdminShellComponent {
       'students',
       'classes',
       'requests',
+      'deposits',
       'pending',
       'products',
       'redemptions',

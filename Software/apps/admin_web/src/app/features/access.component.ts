@@ -9,15 +9,12 @@ import { AdminAuthService } from '../core/admin-auth.service';
         <img src="assets/brand/logo-bingo.png" alt="BinGo" /><span>Admin Lite</span>
       </div>
       <div class="access-copy">
-        <p class="access-kicker">Operação escolar</p>
+        <p class="access-kicker">Administração BinGo</p>
         <h1>Acompanhe o que acontece nos Totens.</h1>
-        <p>
-          Depósitos, pedidos de ajuda e estado dos equipamentos reunidos em uma visão direta para a
-          equipe responsável.
-        </p>
+        <p>Escolas, alunos, BinBazar e Totens em um painel para os acessos autorizados.</p>
       </div>
       <div class="access-footnote">
-        <i data-lucide="shield-check"></i>Ambiente interno do Colégio ENIAC
+        <i data-lucide="shield-check"></i>Ambiente administrativo do BinGo
       </div>
     </section>
     <section class="access-panel-wrap">
@@ -75,8 +72,8 @@ import { AdminAuthService } from '../core/admin-auth.service';
         <div class="access-note">
           <i data-lucide="shield-check"></i
           ><span
-            ><strong>Acesso autenticado.</strong>Os dados e operações das demais telas continuam
-            demonstrativos.</span
+            ><strong>Acesso autenticado.</strong>As áreas reais consultam o backend. Descartes,
+            Missões, Ajuda e os demais controles econômicos permanecem demonstrativos.</span
           >
         </div>
       </form>

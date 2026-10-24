@@ -145,5 +145,20 @@ O front controla navegacao, formularios, validacao de campos, confirmacoes e fee
 - persistencia dos sinais e ultima comunicacao dos Totens; a leitura nao garante telemetria atualizada.
 
 Autenticacao, escolas/identidades administrativas, alunos/turmas, trocas de turma, BinBazar operacional e teto global estao integrados.
-Overview e Totens usam somente fontes reais; Descartes, Ajuda, Missoes e outras regras economicas continuam demonstrativos. Totens exibe status/flags persistidos, com firmware e ultima comunicacao explicitamente ausentes quando NULL; a migration 030 ainda nao foi promovida ao bingo-dev. Confira [Totens leitura V1](../../docs/admin-totems-v1.md) e [Dashboard real V1](../../docs/admin-dashboard-v1.md). Criar identidade administrativa nao cria usuario Auth, senha ou convite; confira [Estrutura Admin V1](../../docs/admin-structure-management-v1.md). Contratos, limites
+Overview, Totens e Descartes usam somente fontes reais; Ajuda, Missoes e outras regras economicas continuam demonstrativos. Totens exibe status/flags persistidos, com firmware e ultima comunicacao explicitamente ausentes quando NULL. Descartes exibe eventos e snapshots economicos persistidos, sem recalculo ou estatisticas agregadas; as migrations 030 e 031 ainda nao foram promovidas ao bingo-dev. Confira [Totens leitura V1](../../docs/admin-totems-v1.md), [Descartes V1](../../docs/admin-deposits-v1.md) e [Dashboard real V1](../../docs/admin-dashboard-v1.md). Criar identidade administrativa nao cria usuario Auth, senha ou convite; confira [Estrutura Admin V1](../../docs/admin-structure-management-v1.md). Contratos, limites
 de preco, concorrencia e reproducao local em [Admin BinBazar V1](../../docs/admin-binbazar-v1.md) e [Teto global V1](../../docs/binbazar-global-price-cap-v1.md).
+
+## Domínios ainda demonstrativos
+
+A [auditoria dos dados demonstrativos](../../docs/admin-real-data-audit-v1.md)
+classifica Missões, Ajuda e os demais controles econômicos como
+**BLOQUEADO POR CONTRATO**. Descartes deixou essa lista após a aprovação do
+contrato e passou a usar a RPC específica da migration 031. Em Economia,
+o escopo global do contrato Admin também precisa ser conciliado com os valores
+persistidos por escola; bônus por categoria não equivale ao multiplicador demo.
+
+Os dados, diálogos e seletor de cenário dos domínios ainda bloqueados continuam explicitamente
+demonstrativos e operam somente em memória. Não são fallback das áreas reais,
+não modificam o backend e não aparecem no Overview. O teto do BinBazar permanece
+real. A auditoria removeu apenas metadados fictícios e helpers sem consumidores,
+sem criar migration, RPC, policy ou regra de negócio.

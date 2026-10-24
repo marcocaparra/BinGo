@@ -207,7 +207,10 @@ export class RequestsComponent {}
   selector: 'app-missions',
   imports: [EntityRowComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `@if (role() === 'ADMIN_A') {
+  template: `<p class="contract-note">
+      Demonstração local. Leitura e gestão administrativa de Missões ainda não estão integradas.
+    </p>
+    @if (role() === 'ADMIN_A') {
       <div class="toolbar toolbar--end">
         <button
           class="primary-button compact-button"
@@ -247,7 +250,10 @@ export class MissionsComponent {
   imports: [BinbazarPriceCapComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<app-binbazar-price-cap />
-    <p class="contract-note">Outras configurações — Dados demonstrativos</p>
+    <p class="contract-note">
+      <span>Outras configurações — Dados demonstrativos</span>. Escopo e operações administrativas
+      pendentes de contrato.
+    </p>
     <section class="settings-grid">
       @for (s of store.economySettings(); track s.title; let i = $index) {
         <article class="setting-card">

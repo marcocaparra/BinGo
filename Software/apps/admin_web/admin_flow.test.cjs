@@ -57,7 +57,8 @@ test('primary views and demonstrative states are navigable', async () => {
 
     await page.getByRole('button', { name: 'Descartes', exact: true }).click();
     await page.getByRole('heading', { name: 'Descartes recentes' }).waitFor();
-    assert.equal(await page.getByRole('columnheader', { name: 'Aluno ou perfil' }).count(), 1);
+    assert.equal(await page.getByRole('columnheader', { name: 'Aluno', exact: true }).count(), 1);
+    await page.getByText('Aluno RPC', { exact: true }).waitFor();
 
     await page.getByRole('button', { name: /Solicitações de ajuda/ }).click();
     await page.getByRole('heading', { name: 'Solicitações de ajuda' }).waitFor();
@@ -77,12 +78,11 @@ test('primary views and demonstrative states are navigable', async () => {
     assert.equal(await page.locator('.last-seen').count(), 1);
     await page.getByText('Não registrada', { exact: true }).waitFor();
     assert.equal(await page.getByLabel('Cenário da demonstração').count(), 0);
-    // Cenários demo continuam isolados na tela de Descartes.
+    // Descartes permanece real ao retornar para a tela e permite refetch autoritativo.
     await page.getByRole('button', { name: 'Descartes', exact: true }).click();
-    await page.getByLabel('Cenário da demonstração').selectOption('error');
-    await page.getByRole('heading', { name: 'Não foi possível atualizar' }).waitFor();
-    await page.getByRole('button', { name: 'Tentar novamente' }).click();
-    await page.getByText(/carregados novamente/).waitFor();
+    assert.equal(await page.getByLabel('Cenário da demonstração').count(), 0);
+    await page.getByRole('button', { name: 'Atualizar descartes', exact: true }).click();
+    await page.getByText('Aluno RPC', { exact: true }).waitFor();
   } finally {
     await browser.close();
   }
