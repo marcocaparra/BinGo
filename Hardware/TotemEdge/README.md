@@ -71,13 +71,15 @@ Ele não deve acessar diretamente:
 ## deploy/
 
 Arquivos relacionados à instalação e execução do Totem no Orange Pi.
-Esta pasta poderá futuramente conter:
-- configurações de Docker;
-- arquivos de serviço do systemd;
-- scripts de instalação;
-- scripts de inicialização;
-- configurações específicas do ambiente do Orange Pi.
-A estratégia definitiva de deploy ainda será definida conforme a integração com o hardware real.
+Primeira configuração Docker/Compose: um container com Python 3.12, FastAPI,
+frontend estático e SQLite em volume persistente, sem acesso a dispositivos.
+O processo executa sem privilégios, com um worker e publicação HTTP em loopback.
+Instruções de instalação, configuração, atualização e testes em
+[deploy/README.md](deploy/README.md); evidências e limites em
+[deploy/VALIDATION.md](deploy/VALIDATION.md).
+O navegador do host poderá acessar `http://127.0.0.1:8000/`; demonstração em
+`/?runtime=demo`. Kiosk e hardware não foram configurados. A disponibilidade
+operacional continua bloqueada; iniciar o container não homologa o Totem.
 Princípio geral
 A divisão de responsabilidades do Totem Edge segue este modelo:
 ```
