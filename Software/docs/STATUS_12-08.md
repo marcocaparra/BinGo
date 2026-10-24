@@ -1,6 +1,6 @@
 STATUS técnico — BinGo
 
-Atualizado em: `2026-10-01`
+Atualizado em: `2026-10-23`
 
 Este arquivo é a fonte rápida de verdade técnica do projeto. Ele consolida as decisões vigentes de `database-model.md`, `data-contracts-totem-app-backend.md`, `supabase-edge-functions-mvp.md`, `FLUXO_ECOSSISTEMA_DESCARTE_V1.md`, `operacao-offline.md`, `missions-contract-v1.md` e `class-journey-v1.md`, além dos relatórios recentes da fundação de autenticação técnica de máquinas e do inventário do FastAPI. Para descartes, permanecem vigentes as decisões revisadas a partir de `2026-08-12`; para missões, prevalece o contrato conceitual revisado em `2026-09-15`; para Jornada/BinGópolis, prevalece o contrato de `2026-09-22`. Código ou banco só devem prevalecer quando houver evidência de uma decisão posterior ainda não documentada.
 
@@ -109,7 +109,8 @@ descarte de respostas atrasadas após logout/troca de sessão. Admin A vê a esc
 B/C ficam no escopo server-side. Removidos `AdminStore.deposits`,
 `AdminStore.discardStats`, os mocks 1284/32/184, cards agregados, filtros e estados
 inventados. Não foi criada RPC de estatísticas e `register_deposit_v1` permanece
-inalterada. Reset local aplicou a 031; pgTAP completo passou com 24 arquivos e 646
+inalterada. Na validação histórica de `2026-10-01`, o reset local aplicou a 031;
+pgTAP completo passou com 24 arquivos e 646
 verificações; backend passou com 180 testes, sem skips; Admin passou com
 107 testes; nove integrações locais Auth/RPC/Angular passaram, incluindo A/B/C para
 Descartes. Build, TypeScript, Prettier e diff-check passaram. A **031 não foi
@@ -131,10 +132,13 @@ O teto do BinBazar e as demais áreas reais permanecem intactos. Os mocks ainda
 consumidos, diálogos e seletor de cenário foram preservados e explicitamente
 identificados. Removidos apenas metadados fictícios de escola/operador e helpers
 sem consumidores; corrigidos textos antigos que confundiam dados reais e demo.
-Nenhuma migration/RPC/grant/policy foi criada ou alterada. Contratos mínimos e
-inventário estão em [Auditoria Admin](admin-real-data-audit-v1.md).
+Na fase de auditoria anterior à 031, nenhuma migration/RPC/grant/policy foi criada
+ou alterada. A implementação posterior de Descartes criou a leitura 031 descrita
+acima. Contratos mínimos e inventário histórico estão em
+[Auditoria Admin](admin-real-data-audit-v1.md).
 
-Validação final: reset Supabase local até 030; pgTAP 629 verificações/23 arquivos;
+Validação histórica da auditoria em `2026-10-01`, antes de Descartes reais:
+reset Supabase local até 030; pgTAP 629 verificações/23 arquivos;
 backend 178 testes; Admin/browser 104 testes, incluindo 10 novos para isolamento
 dos demos; 8 integrações reais locais Auth/RPC/Angular. Sem falhas/skips finais.
 Build, TypeScript, Prettier dos arquivos alterados e diff-check passaram; seguem
@@ -142,6 +146,27 @@ Build, TypeScript, Prettier dos arquivos alterados e diff-check passaram; seguem
 interferência inicial; equivalência SQL da 030 agora tolera CRLF/LF sem mudar
 migrations. Um aviso de UI foi ajustado preservando a verificação existente do
 teto. Nenhuma ação remota; a 030 continua não promovida ao `bingo-dev`.
+
+Em `2026-10-23`, a preparação do PR `feature/admin-real-data-cleanup` corrigiu
+somente CI e documentação e reexecutou a validação local. Docker/CLI estavam
+disponíveis; start e reset explicitamente locais aplicaram as 31 migrations.
+pgTAP passou com 646 verificações/24 arquivos; backend com 180 testes, zero skips
+e 13 avisos JWT legados; Admin com 107 testes e as nove integrações reais locais
+Auth/RPC/Angular passaram, sem falhas/skips. Build, TypeScript, equivalência
+030/031 nos dois trilhos, actionlint, Prettier e diff-check passaram.
+
+A CI de backend agora instala o CLI pelo lockfile, inicia e verifica Supabase
+local, aplica migrations/seeds locais, executa pgTAP e pytest em sequência e
+rejeita coleta vazia/skips pelo JUnit. Os scripts de readiness e JUnit foram
+exercitados localmente, inclusive rejeição de relatórios vazios/com skip. O job
+Linux/GitHub Actions ainda não foi executado nesta tarefa; seus checks deverão
+ser confirmados após publicação. O registro da auditoria até 030 foi identificado
+como histórico, anterior à resolução de Descartes pela 031. Missões, Economia
+ampliada e Ajuda continuam demonstrativas. Nenhuma migration ou regra aprovada
+foi alterada; nenhuma ação de banco hospedado, commit, push, merge, deploy ou PR
+foi realizada. Merge de código e promoção de banco são etapas separadas; a
+liberação hospedada da tela depende da promoção e do postflight das migrations
+pendentes. Resultados e procedimento em [Admin Descartes V1](admin-deposits-v1.md).
 
 A fundação de autenticação administrativa do Admin Web V1 está implementada e
 comprovada localmente pelas migrations incrementais equivalentes

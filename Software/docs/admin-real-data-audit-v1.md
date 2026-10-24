@@ -1,10 +1,35 @@
 # Admin — auditoria dos dados demonstrativos restantes
 
+Atualização documental: `2026-10-23`.
+
+## Estado consolidado após a migration 031
+
+A pendência de leitura administrativa de **Descartes foi resolvida** pelo
+[contrato Admin Descartes V1](admin-deposits-v1.md) e pelas migrations equivalentes
+`database/migrations/031_admin_deposits_v1.sql` e
+`supabase/migrations/20261001160000_admin_deposits_v1.sql`. A tela consome a RPC
+`get_admin_deposits_v1()` com escopo A global/B/C escolar e snapshots persistidos.
+`AdminStore.deposits`, `discardStats` e os cards agregados fictícios foram removidos.
+Não foi implementada uma leitura de estatísticas agregadas.
+
+Missões, Economia ampliada e Ajuda continuam demonstrativas e pendentes dos
+contratos descritos abaixo. O teto real do BinBazar permanece integrado.
+Essas pendências não impedem a entrega delimitada de Descartes reais.
+
+## Registro histórico anterior à implementação de Descartes
+
+**Todo o registro abaixo, inclusive o inventário e a validação das seções 1–6,
+descreve o preflight até a migration 030 em 01/10/2026.** A classificação de
+Descartes como bloqueado, as referências aos seus mocks e a indicação de 030 como
+última migration são históricas, superadas pela 031. Os resultados aprovados
+abaixo não representam reexecução em 23/10/2026; a validação atual está registrada
+em [Admin Descartes V1](admin-deposits-v1.md).
+
 Data: 2026-10-01. Branch: `feature/admin-real-data-cleanup`.
 Preflight documental, migrations até 030, catálogo do banco local e consumidores
 Angular. Nenhuma consulta ou alteração remota.
 
-## Resultado por domínio
+## Resultado por domínio no preflight até 030
 
 | Domínio                                   | Classificação                        | Motivo                                                                                                                                                              |
 | ----------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -142,7 +167,7 @@ Missões e demais controles econômicos. Não houve alteração funcional em Aju
 O Overview continua sem consumir mocks. Diálogos demonstrativos, seus avisos e
 seletor de cenário foram preservados porque têm consumidores legítimos.
 
-## 6. Validação local
+## 6. Validação local histórica — 01/10/2026, antes da 031
 
 | Verificação                           | Resultado final                                            |
 | ------------------------------------- | ---------------------------------------------------------- |
