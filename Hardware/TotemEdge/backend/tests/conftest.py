@@ -9,6 +9,14 @@ def clear_supabase_environment(monkeypatch, tmp_path):
         "BINGO_MACHINE_ID",
         "BINGO_MACHINE_API_KEY",
         "BINGO_BACKEND_TIMEOUT_SECONDS",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_SESSION_TOKEN",
+        "AWS_REGION",
+        "GEMINI_API_KEY",
+        "GEMINI_MODEL",
+        "BINGO_GEMINI_TIMEOUT_SECONDS",
+        "BINGO_GEMINI_TRANSIENT_RETRIES",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("BINGO_SQLITE_PATH", str(tmp_path / "totem.sqlite3"))

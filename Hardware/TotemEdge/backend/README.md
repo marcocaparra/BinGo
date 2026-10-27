@@ -111,7 +111,9 @@ app/routes/local.py         readiness operacional seguro
 app/routes/sessions.py      sessão/identificação/recuperação HTTP
 app/services/status.py      saúde central separada da operação local
 app/services/sessions.py    transições lógicas e reenvio do evento preservado
-app/services/capture.py     pontos internos de câmera/visão, sem driver/provedor
+app/services/capture.py     guardas de câmera/visão; ligação operacional bloqueada
+app/services/vision.py      adaptadores privados AWS/Gemini no mesmo processo
+app/services/vision_policy.py heurísticas de labels reutilizadas do PR #48
 app/clients/supabase.py      Functions existentes autenticadas
 ~~~
 
@@ -155,7 +157,8 @@ Camera/vision têm Protocols internos activate/capture/deactivate e classify,
 Frame/Observation marcados simulated=true por default. Captura exige DOOR_CLOSED
 e estabilização de 1,5s; ausência/falha/simulação/inconclusivo bloqueiam.
 Objeto recusado requer devolução, sem registro válido. Sem driver, dispositivo,
-provedor concreto, rota de captura ou migração automática do gateway provisório.
+provedor conectado à captura ou rota de captura. Os adaptadores concretos privados
+estão descritos em [VISION_INTERNAL_V1.md](VISION_INTERNAL_V1.md).
 Nenhuma interface/implementação/simulação de controller foi criada.
 
 ## Testes e limites
@@ -177,7 +180,8 @@ bloqueio com pending e erros sem secrets. Fixtures SQLite são dados de software
 não controller simulado. Movimentos físicos não foram implementados/testados.
 
 O requisito permanece Python >=3.12, .python-version 3.12; não foram alterados
-pyproject/uv.lock nesta integração. SQLite é biblioteca padrão. A fundação
+pyproject/uv.lock na fundação de sessão. A atualização de visão interna acrescenta
+boto3 e Pillow ao lock. SQLite é biblioteca padrão. A fundação
 anterior verificou wheels do lock para aarch64-manylinux_2_28 em 3.12/3.14, sem
 executar ARM. [Ubuntu disponibiliza Python 3.12 arm64](https://packages.ubuntu.com/noble/python3.12)
 e [uv suporta aarch64 Linux](https://docs.astral.sh/uv/reference/policies/platforms/);
@@ -191,4 +195,14 @@ Arduino/serviço local/câmera visual são registradas no relatório.
 
 Próxima etapa após revisão: aprovar contratos pendentes de visão/auditoria/
 reconciliação e integrar evidências confiáveis com a equipe física, câmera/visão
-homologadas e prontidão completa. Não avançar para GPIO, câmera real ou Docker.
+homologadas e prontidão completa. Não avançar para GPIO ou câmera real.
+
+## Atualização de visão interna — 2026-10-27
+
+O lifespan compõe `app.state.vision`, sem ligar o serviço à captura/sessão ou
+readiness e sem nova rota. AWS é principal e Gemini atende apenas inconclusão;
+falha técnica da AWS não aciona fallback. A configuração opcional está em
+`.env.example`; credenciais somente no backend. O Compose mantém um serviço.
+Consultar [propostas, arquitetura e evidências](VISION_INTERNAL_V1.md) antes de
+qualquer ligação ao fluxo físico. A validação histórica acima não comprova as
+dependências de visão novas nem operação em ARM.

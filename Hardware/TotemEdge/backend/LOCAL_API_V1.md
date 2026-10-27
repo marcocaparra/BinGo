@@ -46,6 +46,10 @@ reautentica nem avança o ciclo. Retry de registro não repete etapa física.
 
 ## Partes bloqueadas / propostas pendentes
 
+Atualização de 2026-10-27: [visão interna e propostas](VISION_INTERNAL_V1.md)
+documenta o serviço privado disponível no processo FastAPI. Não acrescenta rotas
+nem aprova os contratos de classificação/correção/auditoria abaixo.
+
 Não criar rotas de movimento, escotilha, confirmação física, preview, captura,
 classificação, correção ou reconciliação manual nesta etapa. A restrição final
 do usuário exclui implementação e simulação do controller. O código poderá
