@@ -36,14 +36,14 @@ def main():
     args = parser.parse_args()
     if args.emulated and args.platform != "linux/arm64":
         parser.error("--emulated requires --platform linux/arm64")
-    wait_timeout = 300 if args.emulated else 90
+    wait_timeout = 600 if args.emulated else 90
     project = "bingo-container-test-" + uuid4().hex[:12]
     output = DEPLOY / ".validation" / project
     output.mkdir(parents=True)
     env = {
         key: value
         for key, value in os.environ.items()
-        if not key.startswith(("BINGO_", "COMPOSE_"))
+        if not key.startswith(("BINGO_", "COMPOSE_", "AWS_", "GEMINI_"))
     }
     # Passing the example alone is insufficient: shell environment wins in Compose.
     env.update(
@@ -62,9 +62,9 @@ def main():
     override = output / "compose.override.json"
     service_override = {"image": args.image, "platform": args.platform}
     if args.emulated:
-        # QEMU Python startup exceeded the production probe's 3s budget.
+        # QEMU Python startup exceeded both 3s and 30s probe budgets on this host.
         # This override affects test infrastructure only, never readiness/business.
-        service_override["healthcheck"] = {"timeout": "30s", "start_period": "180s"}
+        service_override["healthcheck"] = {"timeout": "90s", "start_period": "180s"}
     override.write_text(
         json.dumps({"services": {"totem-edge": service_override}}), encoding="utf-8"
     )

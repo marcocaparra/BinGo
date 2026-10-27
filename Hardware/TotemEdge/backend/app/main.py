@@ -14,6 +14,7 @@ from app.routes import health, local, sessions
 from app.services.capture import CaptureService
 from app.services.sessions import SessionService
 from app.services.status import LocalStatusService
+from app.services.vision import build_internal_vision
 from app.storage import CycleStore
 
 
@@ -35,6 +36,9 @@ def create_app(*, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
                 status = LocalStatusService(central)
                 application.state.status_service = status
                 application.state.sessions = SessionService(store, central, status)
+                # Serviço interno disponível no mesmo processo. A ligação à sessão
+                # aguarda contratos de classificação/revisão; nenhuma rota o expõe.
+                application.state.vision = build_internal_vision(http_client)
                 application.state.capture = CaptureService(store)
                 yield
         finally:

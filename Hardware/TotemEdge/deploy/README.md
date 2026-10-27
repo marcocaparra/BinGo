@@ -22,7 +22,7 @@ divergências exige mudança funcional para containerizar o serviço atual.
 Python `>=3.12` no projeto, `.python-version=3.12`; a imagem fixa Python
 **3.12.15 slim-bookworm**, pelo digest de um índice multiarch. O `uv` **0.12.19**
 também tem digest fixado e fica apenas no build. Builder e runtime usam a mesma
-base. `uv sync --locked --no-dev --no-build` instala somente as 16 dependências
+base. `uv sync --locked --no-dev --no-build` instala somente as 24 dependências
 de produção; lock incompatível ou ausência de wheel impede o build. Bytecode
 das dependências é preparado no build; inicialização não instala pacotes.
 
@@ -49,7 +49,11 @@ Container:
 O contexto de build é `Hardware/TotemEdge/`, pois backend/frontend são irmãos.
 A `.dockerignore` permite apenas inputs de produção; o Dockerfile copia arquivos
 explicitamente. Testes, documentos, `.env`, bancos, caches, ambientes virtuais,
-controller e camera não entram na imagem. Nenhum arquivo funcional foi alterado.
+controller e camera não entram na imagem. A fundação de containerização não
+alterou arquivos funcionais; a atualização de visão interna acrescenta boto3 e
+Pillow ao backend. Evidências atuais e contratos pendentes estão em
+[VISION_INTERNAL_V1.md](../backend/VISION_INTERNAL_V1.md); VALIDATION.md preserva
+o histórico da fundação anterior.
 
 ## Requisitos e instalação do Docker
 
@@ -243,7 +247,7 @@ e execução emulada são evidências distintas de execução física. No própr
 Orange Pi ARM64, o `docker compose build` nativo selecionará ARM64.
 
 `--emulated` é exclusivamente um override do smoke ARM64 em host x86: timeout
-do probe 30s, tolerância inicial 180s e espera de startup de até 300s. No QEMU
+do probe 90s, tolerância inicial 180s e espera de startup de até 600s. No QEMU
 disponível, o Python do healthcheck levou 11,91s para iniciar/importar e verificar
 o processo, excedendo os 3s de produção. O override não muda o código da imagem,
 Compose de produção, timeout HTTP de 2s ou `/local/status`. O tempo do probe e
