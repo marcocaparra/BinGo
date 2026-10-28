@@ -19,6 +19,12 @@ from app.services.mechanical import MechanicalService
 from app.services.sessions import SessionService
 from app.services.status import LocalStatusService
 from app.services.vision import build_internal_vision
+from app.simulation import (
+    BlockedCentralClient,
+    DenyExternalTransport,
+    SimulationSettings,
+    reject_simulation_in_operational,
+)
 from app.storage import CycleStore
 
 
@@ -26,6 +32,7 @@ def create_app(
     *,
     transport: httpx.AsyncBaseTransport | None = None,
     controller_factory: Callable[[], MechanicalController] | None = None,
+    _simulation: SimulationSettings | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
@@ -35,6 +42,11 @@ def create_app(
                 str(Path(__file__).resolve().parents[1] / ".data/totem.sqlite3"),
             )
         )
+        if _simulation is not None:
+            _simulation.prepare_storage()
+            sqlite_path = _simulation.sqlite_path
+        else:
+            reject_simulation_in_operational(sqlite_path)
         store = CycleStore(sqlite_path)
         try:
             controller = (
@@ -51,14 +63,22 @@ def create_app(
                 application.state.controller = controller
                 application.state.mechanical = mechanical
                 async with httpx.AsyncClient(
-                    transport=transport, follow_redirects=False, trust_env=False
+                    transport=DenyExternalTransport() if _simulation else transport,
+                    follow_redirects=False,
+                    trust_env=False,
                 ) as http_client:
-                    central = SupabaseEdgeClient(http_client)
+                    central = (
+                        BlockedCentralClient()
+                        if _simulation
+                        else SupabaseEdgeClient(http_client)
+                    )
                     status = LocalStatusService(central)
                     application.state.status_service = status
                     application.state.sessions = SessionService(store, central, status)
                     # Serviços privados, desconectados da autorização física.
-                    application.state.vision = build_internal_vision(http_client)
+                    application.state.vision = (
+                        None if _simulation else build_internal_vision(http_client)
+                    )
                     application.state.capture = CaptureService(store)
                     yield
             finally:

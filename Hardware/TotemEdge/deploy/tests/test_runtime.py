@@ -91,6 +91,33 @@ class RuntimeTests(unittest.TestCase):
             self.assertIn("--no-access-log", arguments)
             self.assertIn("--no-proxy-headers", arguments)
 
+    def test_simulation_launcher_uses_explicit_factory_and_separate_mount(self):
+        root = Path("/var/lib/bingo-simulation")
+        with (
+            patch.dict(
+                os.environ, {"BINGO_SQLITE_PATH": str(root / "simulation.sqlite3")}
+            ),
+            patch.object(
+                start,
+                "persistent_sqlite_path",
+                return_value=root / "simulation.sqlite3",
+            ) as validate,
+            patch.object(start.os.path, "ismount", return_value=True) as mounted,
+            patch.object(start.os, "umask"),
+            patch.object(start.os, "execv") as execute,
+        ):
+            start.main(
+                directory=root,
+                application="app.simulation:create_simulation_app",
+                factory=True,
+            )
+            validate.assert_called_once_with(str(root / "simulation.sqlite3"), root)
+            mounted.assert_called_once_with(root)
+            arguments = execute.call_args.args[1]
+            self.assertIn("app.simulation:create_simulation_app", arguments)
+            self.assertIn("--factory", arguments)
+            self.assertNotIn("app.main:app", arguments)
+
     def test_healthcheck_only_accepts_local_liveness(self):
         for status, body, expected in (
             (200, b'{"status":"ok"}', True),

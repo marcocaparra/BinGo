@@ -16,6 +16,7 @@
 !deploy/
 !deploy/Dockerfile
 !deploy/start.py
+!deploy/start_simulation.py
 !deploy/healthcheck.py
 **/__pycache__/
 **/*.pyc

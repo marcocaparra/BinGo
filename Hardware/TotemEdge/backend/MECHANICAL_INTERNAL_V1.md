@@ -1,5 +1,11 @@
 # Controller mecânico interno — Incrementos 1 e 2
 
+Atualização 3A: [ambiente Docker isolado](../deploy/SIMULATION.md) e harness
+executável reutilizam estes contratos, adaptadores e journal. A fábrica de
+simulação bloqueia clientes centrais/saída HTTP, exige armazenamento marcado
+próprio e mantém PHYSICAL_BLOCKED/OFFLINE/false. Não houve mudança da máquina
+de estados, do schema v2 ou integração mecânica ao frontend nesta etapa.
+
 Implementado em 2026-10-27 na branch `feature/orange-pi-integration`.
 Contrato privado do backend; não é contrato HTTP, protocolo físico homologado
 ou autorização de descarte. Nenhum sinal físico é emitido.

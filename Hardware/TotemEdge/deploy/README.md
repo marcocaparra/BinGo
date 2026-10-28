@@ -12,6 +12,12 @@ demonstração em `/?runtime=demo` mantém seu aviso e isolamento existentes.
 
 ## Fontes, compatibilidade e diretórios
 
+Para desenvolvimento sem hardware, o [perfil isolado do Incremento 3A](SIMULATION.md)
+reutiliza o Dockerfile com target explícito `simulation`, Compose independente,
+volume próprio e central bloqueada. Não usa o `.env.example` operacional e não
+publica portas no host; testes HTTP/harness são executados dentro do container.
+O target final/default deste Dockerfile continua sendo o runtime operacional.
+
 Foram consultados STATUS atual, operação offline, README do Totem Edge/backend,
 LOCAL_API_V1, INTEGRATION_V1 e MIGRATION_DIAGNOSTIC. O diagnóstico descreve uma
 etapa histórica; INTEGRATION_V1 e o código atual já têm hospedagem da UI e SQLite.

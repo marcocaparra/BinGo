@@ -14,15 +14,19 @@ def persistent_sqlite_path(value: str, directory: Path = DATA_DIRECTORY) -> Path
     path = path.resolve()
     directory = directory.resolve()
     if path == directory or not path.is_relative_to(directory):
-        raise ValueError("BINGO_SQLITE_PATH deve estar dentro de /var/lib/bingo.")
+        raise ValueError(
+            "BINGO_SQLITE_PATH deve estar no diretório persistente configurado."
+        )
     return path
 
 
-def main():
+def main(*, directory=DATA_DIRECTORY, application="app.main:app", factory=False):
     try:
-        path = persistent_sqlite_path(os.environ.get("BINGO_SQLITE_PATH", ""))
-        if not os.path.ismount(DATA_DIRECTORY):
-            raise ValueError("Volume persistente obrigatório em /var/lib/bingo.")
+        path = persistent_sqlite_path(
+            os.environ.get("BINGO_SQLITE_PATH", ""), directory
+        )
+        if not os.path.ismount(directory):
+            raise ValueError("Volume persistente obrigatório no diretório configurado.")
     except (ValueError, OSError, RuntimeError) as error:
         # Messages describe configuration only, never the supplied value/secrets.
         print(
@@ -38,7 +42,8 @@ def main():
             sys.executable,
             "-m",
             "uvicorn",
-            "app.main:app",
+            application,
+            *(["--factory"] if factory else []),
             "--host",
             "0.0.0.0",
             "--port",

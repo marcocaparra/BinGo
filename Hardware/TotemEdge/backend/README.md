@@ -9,6 +9,10 @@ Há um simulador mecânico privado para desenvolvimento/testes, sem GPIO,
 câmera física ou ligação à autorização de descarte. Contrato, uso e limites em
 [Controller mecânico — Incrementos 1 e 2](MECHANICAL_INTERNAL_V1.md).
 
+O [ambiente Docker isolado de simulação — 3A](../deploy/SIMULATION.md) executa
+esse backend com central bloqueada, SQLite próprio e harness interno, sem
+integração de movimentos ao frontend. O runtime operacional padrão é preservado.
+
 Os [contratos locais](LOCAL_API_V1.md) foram documentados antes das novas rotas.
 O [relatório completo](../frontend/INTEGRATION_V1.md) descreve estados, mudanças
 frontend, recuperação, evidências e contratos físicos/visão pendentes.
@@ -59,7 +63,9 @@ exige headers ASCII sem controles. Configuração inválida/ausente não faz tr�
 TLS verificado, redirects/proxies implícitos desabilitados, sem retry automático.
 Não são logados PIN, headers técnicos, corpos ou exceções remotas brutas.
 Nenhum secret vai ao JS/SQLite; não há JWT/token de autenticação local inventado.
-Não existe env para habilitar hardware, ONLINE ou simulação server-side.
+Não existe env para habilitar hardware, ONLINE ou selecionar o simulador no
+runtime operacional. O perfil 3A exige outra entrada/fábrica e configuração de
+desenvolvimento explícita; variáveis desse perfil são recusadas na entrada operacional.
 
 ## Contratos preservados e novos
 

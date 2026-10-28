@@ -1,9 +1,14 @@
+import os
+
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def clear_supabase_environment(monkeypatch, tmp_path):
     # Nenhum teste pode herdar credenciais reais do processo que executa pytest.
+    for name in tuple(os.environ):
+        if name.startswith("BINGO_SIMULATION_"):
+            monkeypatch.delenv(name, raising=False)
     for name in (
         "BINGO_SUPABASE_URL",
         "BINGO_MACHINE_ID",
