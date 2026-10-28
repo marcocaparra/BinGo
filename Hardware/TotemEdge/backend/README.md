@@ -7,11 +7,12 @@ mantêm autenticação central, registro definitivo, idempotência e economia.
 com health central saudável. O controller operacional padrão é indisponível.
 Há um simulador mecânico privado para desenvolvimento/testes, sem GPIO,
 câmera física ou ligação à autorização de descarte. Contrato, uso e limites em
-[Controller mecânico — Incrementos 1 e 2](MECHANICAL_INTERNAL_V1.md).
+[Controller mecânico e integração simulada](MECHANICAL_INTERNAL_V1.md).
 
-O [ambiente Docker isolado de simulação — 3A](../deploy/SIMULATION.md) executa
-esse backend com central bloqueada, SQLite próprio e harness interno, sem
-integração de movimentos ao frontend. O runtime operacional padrão é preservado.
+O [ambiente Docker isolado de simulação — 3A/3B](../deploy/SIMULATION.md) executa
+esse backend com central bloqueada, SQLite próprio e contratos HTTP locais em
+127.0.0.1:8001 para a máquina de estados simulada. O frontend e o runtime
+operacional padrão permanecem preservados.
 
 Os [contratos locais](LOCAL_API_V1.md) foram documentados antes das novas rotas.
 O [relatório completo](../frontend/INTEGRATION_V1.md) descreve estados, mudanças
@@ -118,11 +119,14 @@ app/storage.py              SQLite e recuperação transacional
 app/routes/health.py        liveness
 app/routes/local.py         readiness operacional seguro
 app/routes/sessions.py      sessão/identificação/recuperação HTTP
+app/routes/simulation.py    ações e snapshots exclusivos do runtime simulado
 app/services/status.py      saúde central separada da operação local
 app/services/sessions.py    transições lógicas e reenvio do evento preservado
 app/services/capture.py     guardas de câmera/visão; ligação operacional bloqueada
 app/services/controller.py  controller indisponível e simulador temporizado isolado
 app/services/mechanical.py  coordenação privada com persistência antes de despacho
+app/services/simulation_flow.py ações simuladas sobre a mesma sessão/journal
+app/simulation_proxy.py     ingresso TCP fixo, sem controller ou acesso ao SQLite
 app/services/vision.py      adaptadores privados AWS/Gemini no mesmo processo
 app/services/vision_policy.py heurísticas de labels reutilizadas do PR #48
 app/clients/supabase.py      Functions existentes autenticadas
@@ -133,8 +137,9 @@ configuração e escolha arbitrária de arquivo por query não são expostos.
 
 ## SQLite e estados
 
-Schema local versão 2: preserva cycles/transitions e migra versão 1 de forma
-aditiva/transacional, acrescentando mechanical_commands/mechanical_history.
+Schema local versão 3: preserva cycles/transitions e o journal mecânico v2.
+Migra bancos v1/v2 de forma aditiva/transacional, acrescentando cycles.simulated
+com default 0 e trigger de imutabilidade; sessões antigas não são adotadas.
 Mantém UUID por ciclo, command_id de início,
 slot ativo único, transações BEGIN IMMEDIATE, WAL/synchronous FULL, CAS e trava
 de instância. Não modifica schema central. BINGO_SQLITE_PATH do exemplo é
@@ -144,8 +149,10 @@ desconhecida/trava em uso não é apagado ou recriado silenciosamente.
 `app.state.mechanical` coordena journal/controller sem ligação ao frontend.
 Intenção e claim são persistidos antes de despacho; aceitação e conclusão são
 distintas. Restart após possível despacho torna o ciclo indeterminado e mantém
-o slot. Não há redisparo automático. Conclusão simulada durável conserva
-`PHYSICAL_BLOCKED` e nunca define confirmação física ou elegibilidade econômica.
+o slot. Não há redisparo automático. No harness legado, conclusão simulada durável
+conserva `PHYSICAL_BLOCKED`. Na API isolada 3B, somente sessões simulated=1 avançam
+pela mesma máquina de estados, atomicamente com o journal, sem confirmação física
+ou elegibilidade econômica. O runtime operacional recusa bancos com essas sessões.
 Detalhes de migração, estados e limitações em MECHANICAL_INTERNAL_V1.md.
 
 IDENTIFYING → AUTHENTICATING → SAFETY é o fluxo lógico. Risco cancela antes de
@@ -153,7 +160,8 @@ etapa física; declaração segura fica PHYSICAL_BLOCKED. Retirei a mão só dec
 retirada em DOOR_OPEN e responde 503 enquanto falta integração, sem solicitar
 fechamento ou fabricar confirmação.
 
-Estados físicos são reservas, não produzidos pelo runtime atual. Reinício em
+Estados físicos continuam reservados no runtime operacional. A API simulada usa
+esses nomes apenas como estados lógicos, explicitando source=SIMULATED. Reinício em
 etapa física sem evidência confiável vira INDETERMINATE e mantém bloqueio.
 Preparação pré-física é cancelada no restart preservando o mesmo UUID.
 

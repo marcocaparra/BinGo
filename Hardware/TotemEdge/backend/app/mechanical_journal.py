@@ -237,7 +237,7 @@ class MechanicalJournal:
             return tuple(JournalEvent(**dict(row)) for row in rows)
 
     def request(
-        self, command: MechanicalCommand, *, source: Source
+        self, command: MechanicalCommand, *, source: Source, hand_removed: bool = False
     ) -> tuple[JournalEntry, bool]:
         command = MechanicalCommand.model_validate(command.model_dump())
         if source not in {"UNAVAILABLE", "SIMULATED", "PHYSICAL"}:
@@ -255,7 +255,7 @@ class MechanicalJournal:
             cycle = self.store._row(conn, command.event_id)
             if (
                 cycle["active_slot"] != 1
-                or cycle["state"] != "PHYSICAL_BLOCKED"
+                or (not cycle["simulated"] and cycle["state"] != "PHYSICAL_BLOCKED")
                 or cycle["physical_confirmed"]
             ):
                 raise ControllerError("MECHANICAL_CYCLE_NOT_BLOCKED")
@@ -281,7 +281,9 @@ class MechanicalJournal:
                 "INSERT INTO mechanical_history VALUES(?,0,'INTENT','PENDING',NULL,?)",
                 (str(command.mechanical_command_id), at),
             )
-            return self._entry(self._row(conn, command.mechanical_command_id)), True
+            entry = self._entry(self._row(conn, command.mechanical_command_id))
+            self.store.begin_simulated_motion(conn, entry, hand_removed=hand_removed)
+            return entry, True
 
     def _transition(self, conn, row, phase, result, code) -> JournalEntry:
         at = datetime.now(timezone.utc).isoformat()
@@ -313,8 +315,7 @@ class MechanicalJournal:
             row = self._row(conn, identifier)
             if row["phase"] != "INTENT" or row["version"] != version:
                 raise ControllerError("MECHANICAL_STALE_STATE")
-            cycle = self.store._row(conn, row["event_id"])
-            if cycle["active_slot"] != 1 or cycle["state"] != "PHYSICAL_BLOCKED":
+            if not self.store.check_simulated_claim(conn, self._entry(row)):
                 raise ControllerError("MECHANICAL_CYCLE_NOT_BLOCKED")
             return self._transition(conn, row, "DISPATCHING", "PENDING", None)
 
@@ -345,6 +346,7 @@ class MechanicalJournal:
             entry = self._transition(
                 conn, row, response.state, response.result, response.error_code
             )
+            self.store.apply_simulated_response(conn, entry)
             if (
                 entry.phase in {"FAILED", "TIMED_OUT", "CANCELLED"}
                 or entry.source == "PHYSICAL"
@@ -406,9 +408,10 @@ class MechanicalJournal:
         ).fetchall()
         for row in rows:
             if row["phase"] == "INTENT":
-                self._transition(
+                entry = self._transition(
                     conn, row, "ABORTED", "UNAVAILABLE", "RESTART_BEFORE_DISPATCH"
                 )
+                self.store.restore_simulated_intent(conn, entry)
             else:
                 self._transition(
                     conn,
@@ -417,6 +420,7 @@ class MechanicalJournal:
                     "UNKNOWN",
                     "RESTART_DURING_MECHANICAL_COMMAND",
                 )
+                self._block_cycle(conn, row["event_id"])
 
     def abort_intents(self, conn, event_id):
         rows = conn.execute(

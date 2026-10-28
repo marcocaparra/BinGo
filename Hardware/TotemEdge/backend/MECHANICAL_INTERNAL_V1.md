@@ -1,12 +1,67 @@
-# Controller mecânico interno — Incrementos 1 e 2
+# Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
-Atualização 3A: [ambiente Docker isolado](../deploy/SIMULATION.md) e harness
+Atualização 3B: máquina única de `cycles.py` conectada ao journal apenas para
+sessões com procedência simulada persistida. Contratos em
+[LOCAL_API_V1.md](LOCAL_API_V1.md), execução em [SIMULATION.md](../deploy/SIMULATION.md).
+Não há integração do frontend, hardware ou economia.
+
+Histórico 3A: [ambiente Docker isolado](../deploy/SIMULATION.md) e harness
 executável reutilizam estes contratos, adaptadores e journal. A fábrica de
 simulação bloqueia clientes centrais/saída HTTP, exige armazenamento marcado
 próprio e mantém PHYSICAL_BLOCKED/OFFLINE/false. Não houve mudança da máquina
 de estados, do schema v2 ou integração mecânica ao frontend nesta etapa.
 
-Implementado em 2026-10-27 na branch `feature/orange-pi-integration`.
+## Integração da sessão ao journal — Incremento 3B
+
+Inspeção inicial: branch feature/orange-pi-integration, working tree limpa,
+HEAD f3e1277, baseline 415 testes revalidada. Não foi encontrada decisão física
+que autorize sinais reais. A proibição anterior de endpoints referia-se às
+entregas 1/2/3A; o 3B autoriza somente as rotas da fábrica isolada.
+
+`SimulationFlow` valida escopo, cria snapshots e decide ações lógicas de teste;
+não implementa outra máquina. As transições permanecem em cycles.py.
+MECHANICAL_STEPS liga cada operação ao estado anterior, estado de movimento e
+estado após conclusão, acrescentando arestas à tabela TRANSITIONS existente.
+CycleStore.change recusa escrever diretamente essas arestas: precisam do journal.
+Não foram criados novos nomes de estado.
+
+SQLite v3 acrescenta cycles.simulated, default 0, com trigger de imutabilidade.
+É necessário distinguir sessão simulada desde SAFETY, antes do primeiro comando,
+sem reaproveitar mode, central_scope, command_id ou failure_code como identidade.
+Migração aditiva/transacional de v1/v2 conserva o restante das tabelas e dados;
+não há downgrade automático. Runtime operacional recusa linhas simulated=1.
+Sessões legadas não são promovidas silenciosamente ao fluxo novo.
+
+O journal chama guardas do store dentro da mesma transação:
+
+- request: valida pré-condição, origem e slot; grava comando/histórico, declaração
+  hand_removed quando aplicável e estado de movimento num commit antes do despacho;
+- claim: CAS + rechecagem do estado vinculado, sem I/O dentro da transação;
+- observe: valida comando inteiro, origem, fase e versão; grava resposta e estado
+  final juntos, com rollback conjunto se qualquer gravação falhar;
+- recover: intenção não despachada é abortada/restaurada; possível despacho sem
+  conclusão durável bloqueia journal e sessão na mesma transação, sem redisparo.
+
+Aceitação não cria transição redundante da sessão. A conclusão do alçapão conserva
+HATCH_IN_PROGRESS e registra seu resultado no journal; allowed_actions libera
+somente confirm-initial. Essa confirmação é uma verificação lógica adicional do
+estado inicial, não um segundo ciclo de queda. Seu sucesso simulado encerra a
+sessão como COMPLETED, receipt=null, physical_confirmed=0. Nenhum registro central.
+
+REVIEW é alcançado somente por review-fixture explícito após DOOR_CLOSED. É um
+checkpoint de teste auditado como SIMULATION_REVIEW_FIXTURE, sem classificação,
+categoria ou evidência de validade eletrônica. Não aprova o contrato de visão/
+revisão real. Os controles visuais e taxonomia continuam pendentes para 3C.
+
+Sem recuperação pública, limpeza ou TTL. A retenção futura precisa distinguir
+terminais reconciliados de intenções pendentes, slots ativos e indeterminações,
+preservando procedência, IDs, parâmetros imutáveis, FK, histórico e barreiras de
+replay. Nenhum critério arbitrário de idade foi introduzido.
+
+## Base do contrato interno — histórico dos Incrementos 1/2
+
+Base implementada em 2026-10-27 na branch `feature/orange-pi-integration`;
+integração simulada 3B atualizada em 2026-10-28, conforme seção anterior.
 Contrato privado do backend; não é contrato HTTP, protocolo físico homologado
 ou autorização de descarte. Nenhum sinal físico é emitido.
 

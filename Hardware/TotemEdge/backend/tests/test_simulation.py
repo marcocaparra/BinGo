@@ -85,7 +85,15 @@ def test_simulation_initializes_with_blocked_central_and_no_vision(
         assert client.get("/health").json() == {"status": "ok"}
         status = client.get("/local/status").json()
         assert status["status"] == "OFFLINE" and status["can_start_deposit"] is False
-        assert application.openapi()["paths"] == create_app().openapi()["paths"]
+        operational_paths = create_app().openapi()["paths"]
+        assert {
+            path: application.openapi()["paths"][path] for path in operational_paths
+        } == operational_paths
+        assert all(path in application.openapi()["paths"] for path in operational_paths)
+        assert all(
+            path in operational_paths or path.startswith("/local/simulation/")
+            for path in application.openapi()["paths"]
+        )
 
 
 def test_operational_default_stays_unavailable_without_simulation_flags():

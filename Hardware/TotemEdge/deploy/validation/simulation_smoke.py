@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import subprocess
 import time
+from urllib.error import HTTPError
+from urllib.request import ProxyHandler, Request, build_opener
 from uuid import uuid4
 
 DEPLOY = Path(__file__).resolve().parents[1]
@@ -31,6 +33,7 @@ def main():
     args = parser.parse_args()
     project = PREFIX + uuid4().hex[:12]
     projects = [project]
+    override_files = {}
     output = DEPLOY / ".validation" / project
     output.mkdir(parents=True)
     env = dict(os.environ)
@@ -72,6 +75,7 @@ def main():
                 "simulation.env",
                 "-f",
                 "compose.simulation.yaml",
+                *(["-f", str(override_files[name])] if name in override_files else []),
                 *arguments,
             ],
             check=check,
@@ -109,7 +113,7 @@ def main():
         return parsed(compose(*prefix, SERVICE, "python", "-c", PROBE, name=name))
 
     def assert_no_economy(snapshot):
-        assert snapshot["schema"] == 2
+        assert snapshot["schema"] == 3
         assert all(row[4] == "SIMULATED" for row in snapshot["commands"])
         assert all(row[2:] == [0, None, None, None] for row in snapshot["cycles"])
 
@@ -120,14 +124,18 @@ def main():
     try:
         config = json.loads(compose("config", "--format", "json").stdout)
         service = config["services"][SERVICE]
-        assert set(config["services"]) == {SERVICE}
+        assert set(config["services"]) == {SERVICE, "simulation-http"}
         assert service["build"]["target"] == "simulation"
         assert service["environment"]["BINGO_SIMULATION_CONTEXT"] == "development"
         assert service["environment"]["BINGO_SQLITE_PATH"] == DATABASE
         assert service["environment"]["BINGO_MACHINE_API_KEY"] == ""
         assert service["environment"]["BINGO_SUPABASE_URL"] == ""
         assert "AWS_PROFILE" not in service["environment"]
-        assert all(network["internal"] for network in config["networks"].values())
+        assert config["networks"]["simulation-private"]["internal"]
+        assert set(service["networks"]) == {"simulation-private"}
+        ingress = config["services"]["simulation-http"]
+        assert ingress["ports"][0]["host_ip"] == "127.0.0.1"
+        assert not ingress.get("volumes")
         assert service["volumes"][0]["target"] == "/var/lib/bingo-simulation"
         assert service["volumes"][0]["source"] == "simulation-data"
         assert not service.get("devices") and not service.get("privileged")
@@ -151,7 +159,9 @@ def main():
                     for line in state.splitlines()
                     if line.startswith("{")
                 ]
-                if records and records[0].get("Health") == "healthy":
+                if records and all(
+                    record.get("Health") == "healthy" for record in records
+                ):
                     assert http("/health") == {"status": "ok"}
                     return
                 time.sleep(0.5)
@@ -328,6 +338,186 @@ def main():
         assert read_database(running=False) == recovered
         check(
             "Abrupt interruption recovered as UNKNOWN; slot blocked; no redispatch across recreate/replay"
+        )
+        # Volume novo para a máquina integrada. O harness 3A anterior é preservado
+        # como legado e nunca é adotado silenciosamente pelas novas rotas.
+        http_project = project + "-http"
+        projects.append(http_project)
+        override = output / "http.override.json"
+        plans = {
+            operation: {"duration_seconds": 0.05}
+            for operation in (
+                "OPEN_INSERTION_DOOR",
+                "CLOSE_INSERTION_DOOR",
+                "CYCLE_LOWER_HATCH",
+                "CONFIRM_INITIAL_STATE",
+            )
+        }
+
+        def write_plans():
+            override.write_text(
+                json.dumps(
+                    {
+                        "services": {
+                            SERVICE: {
+                                "environment": {
+                                    "BINGO_SIMULATION_PLANS": json.dumps(plans)
+                                }
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+        write_plans()
+        override_files[http_project] = override
+        compose(
+            "up",
+            "-d",
+            "--no-build",
+            "--wait",
+            "--wait-timeout",
+            "90",
+            name=http_project,
+        )
+        origin = "http://127.0.0.1:" + str(ingress["ports"][0]["published"])
+        opener = build_opener(ProxyHandler({}))
+        base = "/local/simulation/sessions"
+
+        def request(path, body=None, *, headers=None):
+            fields = {"X-Totem-Request": "1", "Origin": origin}
+            if body is not None:
+                fields["Content-Type"] = "application/json"
+            fields.update(headers or {})
+            req = Request(
+                origin + path,
+                data=json.dumps(body).encode() if body is not None else None,
+                headers=fields,
+            )
+            try:
+                with opener.open(req, timeout=5) as response:
+                    return response.status, json.load(response)
+            except HTTPError as error:
+                return error.code, json.load(error)
+
+        def stable(event, state):
+            for _ in range(100):
+                status, body = request(base + "/" + event)
+                if status == 200 and body["session"]["state"] == state:
+                    return body
+                time.sleep(0.05)
+            raise AssertionError("Persisted state not reached: " + state)
+
+        assert request("/local/status")[1]["can_start_deposit"] is False
+        for headers in (
+            {"Origin": "https://foreign.invalid"},
+            {"Host": "foreign.invalid"},
+            {"X-Totem-Request": ""},
+        ):
+            assert (
+                request(base, {"command_id": str(uuid4())}, headers=headers)[0] == 403
+            )
+        key = str(uuid4())
+        status, snapshot = request(base, {"command_id": key})
+        assert status == 200 and snapshot["source"] == "SIMULATED"
+        event = snapshot["session"]["event_id"]
+        assert request(base, {"command_id": key})[1] == snapshot
+        assert request(f"{base}/{event}/safety", {"has_risk": False})[0] == 200
+        identifiers = []
+        for action, target in (
+            ("open", "DOOR_OPEN"),
+            ("close", "DOOR_CLOSED"),
+            ("hatch", "HATCH_IN_PROGRESS"),
+            ("confirm-initial", "COMPLETED"),
+        ):
+            if action == "hatch":
+                assert (
+                    request(
+                        f"{base}/{event}/hatch", {"mechanical_command_id": str(uuid4())}
+                    )[0]
+                    == 409
+                )
+                assert request(f"{base}/{event}/review-fixture", {})[0] == 200
+            identifier = str(uuid4())
+            identifiers.append(identifier)
+            body = {"mechanical_command_id": identifier}
+            if action == "close":
+                body["hand_removed"] = True
+            status, accepted = request(f"{base}/{event}/{action}", body)
+            assert status == 202
+            assert accepted["commands"][-1]["phase"] == "ACCEPTED"
+            final = stable(event, target)
+            # Alçapão mantém estado enquanto aguarda confirmação inicial.
+            for _ in range(100):
+                if final["commands"][-1]["phase"] == "COMPLETED":
+                    break
+                time.sleep(0.05)
+                final = request(f"{base}/{event}")[1]
+            assert final["commands"][-1]["phase"] == "COMPLETED"
+            assert request(f"{base}/{event}/{action}", body)[1] == final
+        assert request(base + "/active")[1] == {"snapshot": None}
+        assert (
+            request(f"{base}/{event}/commands/{identifiers[0]}")[1]["command"]["phase"]
+            == "COMPLETED"
+        )
+        assert final["session"]["receipt"] is None
+        before_http = read_database(name=http_project)
+        assert_no_economy(before_http)
+        assert before_http["history_count"] == 16
+        compose(
+            "up",
+            "-d",
+            "--no-build",
+            "--force-recreate",
+            "--wait",
+            "--wait-timeout",
+            "90",
+            name=http_project,
+        )
+        assert request(f"{base}/{event}")[1] == final
+        assert read_database(name=http_project) == before_http
+        # Tempo longo permite matar o backend antes da conclusão lógica.
+        plans["OPEN_INSERTION_DOOR"]["duration_seconds"] = 60.0
+        write_plans()
+        compose(
+            "up",
+            "-d",
+            "--no-build",
+            "--force-recreate",
+            "--wait",
+            "--wait-timeout",
+            "90",
+            name=http_project,
+        )
+        second = request(base, {"command_id": str(uuid4())})[1]["session"]["event_id"]
+        request(f"{base}/{second}/safety", {"has_risk": False})
+        identifier = str(uuid4())
+        body = {"mechanical_command_id": identifier, "timeout_seconds": 120.0}
+        assert (
+            request(f"{base}/{second}/open", body)[1]["session"]["state"] == "OPENING"
+        )
+        compose("kill", "--signal", "SIGKILL", SERVICE, name=http_project)
+        assert (
+            read_database(running=False, name=http_project)["commands"][-1][2]
+            == "ACCEPTED"
+        )
+        compose(
+            "up",
+            "-d",
+            "--no-build",
+            "--wait",
+            "--wait-timeout",
+            "90",
+            name=http_project,
+        )
+        uncertain = stable(second, "INDETERMINATE")
+        assert uncertain["allowed_actions"] == []
+        assert request(f"{base}/{second}/open", body)[1] == uncertain
+        assert request(f"{base}/{second}/cancel", {})[0] == 409
+        assert_no_economy(read_database(name=http_project))
+        check(
+            "Host loopback HTTP: protected actions, full state machine, atomic journal, reload/recreate and SIGKILL recovery without redispatch"
         )
         report["ok"] = True
     except Exception as error:

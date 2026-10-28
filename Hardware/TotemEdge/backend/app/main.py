@@ -11,11 +11,12 @@ from fastapi.staticfiles import StaticFiles
 
 from app.clients.supabase import CentralError, SupabaseEdgeClient
 from app.cycles import CycleError
-from app.mechanical import MechanicalController
+from app.mechanical import ControllerError, MechanicalController
 from app.routes import health, local, sessions
 from app.services.capture import CaptureService
 from app.services.controller import UnavailableController
 from app.services.mechanical import MechanicalService
+from app.services.simulation_flow import SimulationFlow
 from app.services.sessions import SessionService
 from app.services.status import LocalStatusService
 from app.services.vision import build_internal_vision
@@ -47,7 +48,7 @@ def create_app(
             sqlite_path = _simulation.sqlite_path
         else:
             reject_simulation_in_operational(sqlite_path)
-        store = CycleStore(sqlite_path)
+        store = CycleStore(sqlite_path, simulation_enabled=_simulation is not None)
         try:
             controller = (
                 controller_factory() if controller_factory else UnavailableController()
@@ -62,6 +63,10 @@ def create_app(
             try:
                 application.state.controller = controller
                 application.state.mechanical = mechanical
+                if _simulation:
+                    application.state.simulation_flow = SimulationFlow(
+                        store, mechanical
+                    )
                 async with httpx.AsyncClient(
                     transport=DenyExternalTransport() if _simulation else transport,
                     follow_redirects=False,
@@ -90,11 +95,27 @@ def create_app(
     application.include_router(health.router)
     application.include_router(local.router)
     application.include_router(sessions.router)
+    if _simulation:
+        from app.routes.simulation import router as simulation_router
+
+        application.include_router(simulation_router)
 
     @application.exception_handler(CycleError)
     @application.exception_handler(CentralError)
+    @application.exception_handler(ControllerError)
     async def safe_error(request: Request, error):
-        status = error.status if isinstance(error, CycleError) else error.http_status
+        if isinstance(error, ControllerError):
+            status = (
+                404
+                if error.code == "MECHANICAL_COMMAND_NOT_FOUND"
+                else 503
+                if error.code in {"CONTROLLER_CLOSED", "COMMAND_CAPACITY_REACHED"}
+                else 409
+            )
+        else:
+            status = (
+                error.status if isinstance(error, CycleError) else error.http_status
+            )
         return JSONResponse(
             {"error": {"code": error.code, "message": str(error)}},
             status_code=status,
@@ -119,7 +140,7 @@ def create_app(
     async def local_boundary(request: Request, call_next):
         path = request.url.path
         protected = path.startswith(
-            ("/local/sessions", "/local/context", "/assets/")
+            ("/local/sessions", "/local/context", "/local/simulation", "/assets/")
         ) or path in {
             "/",
             "/styles.css",

@@ -1,4 +1,4 @@
-"""Estados lógicos e snapshot público. Estados físicos são reservas bloqueadas."""
+"""Máquina única de sessão; movimentos conectados somente em sessões simuladas."""
 
 from typing import Literal
 from uuid import UUID
@@ -35,7 +35,7 @@ TRANSITIONS = {
     "AUTHENTICATING": {"IDENTIFYING", "SAFETY"},
     "SAFETY": {"PHYSICAL_BLOCKED", "CANCELLED"},
     "PHYSICAL_BLOCKED": {"CANCELLED"},
-    # Pontos reservados: nenhuma implementação de movimento gera esses estados.
+    # Reservados no runtime operacional; a integração simulada está definida abaixo.
     "DOOR_OPEN": {"TECHNICAL_FAILURE"},
     "DOOR_CLOSED": {"CAPTURING", "TECHNICAL_FAILURE"},
     "CAPTURING": {"CLASSIFYING", "TECHNICAL_FAILURE"},
@@ -45,6 +45,20 @@ TRANSITIONS = {
     "REGISTERED": {"COMPLETED"},
 }
 PRE_PHYSICAL = {"IDENTIFYING", "AUTHENTICATING", "SAFETY", "PHYSICAL_BLOCKED"}
+
+# Pré-condição, movimento em andamento, resultado. Integração da mesma máquina,
+# sem estados alternativos. As arestas só são escritas pelo journal em simulação.
+MECHANICAL_STEPS = {
+    "OPEN_INSERTION_DOOR": ("PHYSICAL_BLOCKED", "OPENING", "DOOR_OPEN"),
+    "CLOSE_INSERTION_DOOR": ("DOOR_OPEN", "CLOSING", "DOOR_CLOSED"),
+    "CYCLE_LOWER_HATCH": ("REVIEW", "HATCH_IN_PROGRESS", "HATCH_IN_PROGRESS"),
+    "CONFIRM_INITIAL_STATE": ("HATCH_IN_PROGRESS", "HATCH_IN_PROGRESS", "COMPLETED"),
+}
+SIMULATION_EDGES = {("DOOR_CLOSED", "REVIEW")}
+for before, moving, after in MECHANICAL_STEPS.values():
+    SIMULATION_EDGES.update({(before, moving), (moving, after), (moving, before)})
+for before, after in SIMULATION_EDGES:
+    TRANSITIONS.setdefault(before, set()).add(after)
 
 
 class CycleError(Exception):

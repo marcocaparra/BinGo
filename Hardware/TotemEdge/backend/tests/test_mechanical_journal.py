@@ -430,7 +430,7 @@ def test_v1_migration_preserves_old_schema_history_and_pending_event(store):
     try:
         assert migrated.get(event_id).state == "REGISTRATION_PENDING"
         with migrated.transaction() as conn:
-            assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
             assert [
                 tuple(row) for row in conn.execute("SELECT * FROM cycles")
             ] == cycles

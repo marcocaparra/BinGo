@@ -12,10 +12,12 @@ demonstração em `/?runtime=demo` mantém seu aviso e isolamento existentes.
 
 ## Fontes, compatibilidade e diretórios
 
-Para desenvolvimento sem hardware, o [perfil isolado do Incremento 3A](SIMULATION.md)
+Para desenvolvimento sem hardware, o [perfil isolado dos Incrementos 3A/3B](SIMULATION.md)
 reutiliza o Dockerfile com target explícito `simulation`, Compose independente,
 volume próprio e central bloqueada. Não usa o `.env.example` operacional e não
-publica portas no host; testes HTTP/harness são executados dentro do container.
+publica portas do backend no host. Um ingresso TCP separado expõe somente
+127.0.0.1:8001, preservando a rede interna do backend e as guardas HTTP. A API
+simulada permite acompanhar a mesma máquina/journal; o frontend segue inalterado.
 O target final/default deste Dockerfile continua sendo o runtime operacional.
 
 Foram consultados STATUS atual, operação offline, README do Totem Edge/backend,

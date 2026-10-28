@@ -7,6 +7,7 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from app.mechanical import ControllerError, MechanicalCommand, MechanicalController
+from app.cycles import CycleError
 from app.mechanical_journal import JournalEntry
 from app.storage import CycleStore
 
@@ -32,10 +33,14 @@ class MechanicalService:
     def get(self, identifier: UUID) -> JournalEntry:
         return self.store.mechanical.get(identifier)
 
-    async def submit(self, command: MechanicalCommand) -> JournalEntry:
+    async def submit(
+        self, command: MechanicalCommand, *, hand_removed: bool = False
+    ) -> JournalEntry:
         if self._closed:
             raise ControllerError("CONTROLLER_CLOSED")
-        entry, created = self.store.mechanical.request(command, source=self.source)
+        entry, created = self.store.mechanical.request(
+            command, source=self.source, hand_removed=hand_removed
+        )
         if not created:
             # Inclusive INTENT: replay nunca reivindica despacho pendente.
             return entry
@@ -69,7 +74,13 @@ class MechanicalService:
             entry = self.store.mechanical.observe(
                 command.mechanical_command_id, response, version=entry.version
             )
-        except (ControllerError, ValidationError, AttributeError, TypeError):
+        except (
+            ControllerError,
+            CycleError,
+            ValidationError,
+            AttributeError,
+            TypeError,
+        ):
             return self.store.mechanical.unknown(
                 command.mechanical_command_id,
                 version=entry.version,
@@ -110,7 +121,13 @@ class MechanicalService:
             return
         try:
             self.store.mechanical.observe(identifier, response, version=entry.version)
-        except (ControllerError, ValidationError, AttributeError, TypeError):
+        except (
+            ControllerError,
+            CycleError,
+            ValidationError,
+            AttributeError,
+            TypeError,
+        ):
             self.store.mechanical.unknown(
                 identifier, version=entry.version, code="INCONSISTENT_RESPONSE"
             )

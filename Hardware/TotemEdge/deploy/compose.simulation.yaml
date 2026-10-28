@@ -8,7 +8,7 @@ services:
       dockerfile: deploy/Dockerfile
       target: simulation
     restart: "no"
-    # 3A é interno: HTTP via docker compose exec; sem porta no host.
+    # Backend permanece exclusivamente na rede interna, sem porta no host.
     environment:
       BINGO_SIMULATION_CONTEXT: development
       BINGO_SIMULATION_PLANS: '{}'
@@ -44,6 +44,33 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  simulation-http:
+    image: bingo-totem-edge:simulation-dev
+    command: ["python", "-m", "app.simulation_proxy"]
+    restart: "no"
+    depends_on:
+      totem-edge-simulation:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      BINGO_SIMULATION_CONTEXT: development
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+    networks:
+      - simulation-private
+      - simulation-ingress
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
 volumes:
   simulation-data:
     labels:
@@ -52,3 +79,5 @@ volumes:
 networks:
   simulation-private:
     internal: true
+  simulation-ingress:
+    driver: bridge
