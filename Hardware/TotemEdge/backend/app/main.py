@@ -15,6 +15,7 @@ from app.mechanical import MechanicalController
 from app.routes import health, local, sessions
 from app.services.capture import CaptureService
 from app.services.controller import UnavailableController
+from app.services.mechanical import MechanicalService
 from app.services.sessions import SessionService
 from app.services.status import LocalStatusService
 from app.services.vision import build_internal_vision
@@ -39,8 +40,16 @@ def create_app(
             controller = (
                 controller_factory() if controller_factory else UnavailableController()
             )
+            mechanical = MechanicalService(
+                store,
+                controller,
+                source="UNAVAILABLE"
+                if isinstance(controller, UnavailableController)
+                else "SIMULATED",
+            )
             try:
                 application.state.controller = controller
+                application.state.mechanical = mechanical
                 async with httpx.AsyncClient(
                     transport=transport, follow_redirects=False, trust_env=False
                 ) as http_client:
@@ -53,7 +62,7 @@ def create_app(
                     application.state.capture = CaptureService(store)
                     yield
             finally:
-                await controller.aclose()
+                await mechanical.aclose()
         finally:
             store.close()
 

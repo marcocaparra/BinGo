@@ -1,6 +1,6 @@
 """SQLite local: transações curtas, slot único e journal sem dados secretos."""
 
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 import os
 from pathlib import Path
@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from app.central_contracts import DepositPayload, DepositReceipt
 from app.cycles import CycleError, PRE_PHYSICAL, Session, TRANSITIONS
+from app.mechanical_journal import MechanicalJournal, SCHEMA as MECHANICAL_SCHEMA
 
 
 def now() -> str:
@@ -34,6 +35,7 @@ class CycleStore:
                 import fcntl
 
                 fcntl.flock(self._lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.mechanical = MechanicalJournal(self)
             self._initialize()
             self._recover()
         except BaseException:
@@ -60,13 +62,14 @@ class CycleStore:
             connection.close()
 
     def _initialize(self):
-        with sqlite3.connect(self.path) as conn:
-            conn.execute("PRAGMA journal_mode=WAL")
+        with closing(sqlite3.connect(self.path, isolation_level=None)) as setup:
+            setup.execute("PRAGMA journal_mode=WAL")
+        with self.transaction() as conn:
             version = conn.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1):
+            if version not in (0, 1, 2):
                 raise RuntimeError("Versão SQLite local não suportada.")
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS cycles (
+            if version == 0:
+                conn.execute("""CREATE TABLE IF NOT EXISTS cycles (
                     event_id TEXT PRIMARY KEY, command_id TEXT NOT NULL UNIQUE,
                     state TEXT NOT NULL, mode TEXT NOT NULL,
                     class_id TEXT NOT NULL, student_id TEXT,
@@ -78,14 +81,12 @@ class CycleStore:
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
                     version INTEGER NOT NULL DEFAULT 0,
                     active_slot INTEGER UNIQUE CHECK(active_slot IS NULL OR active_slot=1)
-                );
-                CREATE TABLE IF NOT EXISTS transitions (
+                )""")
+                conn.execute("""CREATE TABLE IF NOT EXISTS transitions (
                     id INTEGER PRIMARY KEY, event_id TEXT NOT NULL REFERENCES cycles(event_id),
                     from_state TEXT, to_state TEXT NOT NULL,
                     code TEXT, at TEXT NOT NULL
-                );
-                PRAGMA user_version=1;
-            """)
+                )""")
             required = {
                 "event_id",
                 "command_id",
@@ -113,10 +114,19 @@ class CycleStore:
             if (
                 not required <= columns
                 or conn.execute("PRAGMA quick_check").fetchone()[0] != "ok"
+                or not {"id", "event_id", "from_state", "to_state", "code", "at"}
+                <= {row[1] for row in conn.execute("PRAGMA table_info(transitions)")}
             ):
                 raise RuntimeError(
                     "SQLite local incompatível ou corrompido; operação bloqueada."
                 )
+            if version < 2:
+                for statement in MECHANICAL_SCHEMA:
+                    conn.execute(statement)
+            self.mechanical.validate_schema(conn)
+            if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
+                raise RuntimeError("Referências SQLite inválidas; operação bloqueada.")
+            conn.execute("PRAGMA user_version=2")
 
     @staticmethod
     def _record(conn, row, state, *, code=None, updates=None):
@@ -138,10 +148,17 @@ class CycleStore:
 
     def _recover(self):
         with self.transaction() as conn:
+            self.mechanical.recover(conn)
             rows = conn.execute("SELECT * FROM cycles WHERE active_slot=1").fetchall()
             for row in rows:
                 state = row["state"]
-                if state in PRE_PHYSICAL:
+                if self.mechanical.has_risk(conn, row["event_id"]):
+                    self.mechanical._block_cycle(conn, row["event_id"])
+                elif self.mechanical.has_simulated_completion(conn, row["event_id"]):
+                    # Conclusão simulada persiste, sem avanço físico/econômico.
+                    if state != "PHYSICAL_BLOCKED":
+                        self.mechanical._block_cycle(conn, row["event_id"])
+                elif state in PRE_PHYSICAL:
                     self._record(
                         conn,
                         row,
@@ -306,6 +323,10 @@ class CycleStore:
             row = self._row(conn, event_id)
             if row["state"] != expected:
                 raise CycleError("COMMAND_OUT_OF_SEQUENCE")
+            if self.mechanical.has_risk(conn, event_id):
+                raise CycleError("MECHANICAL_RESULT_UNKNOWN", 503)
+            if state == "CANCELLED":
+                self.mechanical.abort_intents(conn, event_id)
             self._record(conn, row, state, code=code, updates=updates)
             return self._snapshot(self._row(conn, event_id))
 
@@ -332,7 +353,11 @@ class CycleStore:
             if central_scope is None or row["central_scope"] != central_scope:
                 raise CycleError("CENTRAL_SCOPE_NOT_CONFIRMED", 503)
             payload = self._ready_payload(row)
-            if payload is None:
+            if (
+                payload is None
+                or self.mechanical.has_risk(conn, event_id)
+                or self.mechanical.has_simulated_completion(conn, event_id)
+            ):
                 raise CycleError("MISSING_PHYSICAL_EVIDENCE", 503)
             self._record(conn, row, "REGISTERING")
             return payload

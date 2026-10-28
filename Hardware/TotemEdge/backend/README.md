@@ -7,7 +7,7 @@ mantêm autenticação central, registro definitivo, idempotência e economia.
 com health central saudável. O controller operacional padrão é indisponível.
 Há um simulador mecânico privado para desenvolvimento/testes, sem GPIO,
 câmera física ou ligação à autorização de descarte. Contrato, uso e limites em
-[Controller mecânico — Incremento 1](MECHANICAL_INTERNAL_V1.md).
+[Controller mecânico — Incrementos 1 e 2](MECHANICAL_INTERNAL_V1.md).
 
 Os [contratos locais](LOCAL_API_V1.md) foram documentados antes das novas rotas.
 O [relatório completo](../frontend/INTEGRATION_V1.md) descreve estados, mudanças
@@ -107,6 +107,7 @@ app/config.py               configuração server-side
 app/central_contracts.py    payload de sete campos e projeções centrais
 app/cycles.py               estados e snapshot público
 app/mechanical.py           contrato privado de comandos/respostas mecânicas
+app/mechanical_journal.py   identidade, histórico, CAS e recuperação mecânicos
 app/storage.py              SQLite e recuperação transacional
 app/routes/health.py        liveness
 app/routes/local.py         readiness operacional seguro
@@ -115,6 +116,7 @@ app/services/status.py      saúde central separada da operação local
 app/services/sessions.py    transições lógicas e reenvio do evento preservado
 app/services/capture.py     guardas de câmera/visão; ligação operacional bloqueada
 app/services/controller.py  controller indisponível e simulador temporizado isolado
+app/services/mechanical.py  coordenação privada com persistência antes de despacho
 app/services/vision.py      adaptadores privados AWS/Gemini no mesmo processo
 app/services/vision_policy.py heurísticas de labels reutilizadas do PR #48
 app/clients/supabase.py      Functions existentes autenticadas
@@ -125,11 +127,20 @@ configuração e escolha arbitrária de arquivo por query não são expostos.
 
 ## SQLite e estados
 
-Schema local versão 1: cycles/transitions, UUID por ciclo, command_id de início,
+Schema local versão 2: preserva cycles/transitions e migra versão 1 de forma
+aditiva/transacional, acrescentando mechanical_commands/mechanical_history.
+Mantém UUID por ciclo, command_id de início,
 slot ativo único, transações BEGIN IMMEDIATE, WAL/synchronous FULL, CAS e trava
 de instância. Não modifica schema central. BINGO_SQLITE_PATH do exemplo é
 relativo ao cwd do backend; default sem env é absoluto. Banco inválido/versão
 desconhecida/trava em uso não é apagado ou recriado silenciosamente.
+
+`app.state.mechanical` coordena journal/controller sem ligação ao frontend.
+Intenção e claim são persistidos antes de despacho; aceitação e conclusão são
+distintas. Restart após possível despacho torna o ciclo indeterminado e mantém
+o slot. Não há redisparo automático. Conclusão simulada durável conserva
+`PHYSICAL_BLOCKED` e nunca define confirmação física ou elegibilidade econômica.
+Detalhes de migração, estados e limitações em MECHANICAL_INTERNAL_V1.md.
 
 IDENTIFYING → AUTHENTICATING → SAFETY é o fluxo lógico. Risco cancela antes de
 etapa física; declaração segura fica PHYSICAL_BLOCKED. Retirei a mão só declara

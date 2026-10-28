@@ -1,8 +1,12 @@
-# Controller mecânico interno — Incremento 1
+# Controller mecânico interno — Incrementos 1 e 2
 
 Implementado em 2026-10-27 na branch `feature/orange-pi-integration`.
 Contrato privado do backend; não é contrato HTTP, protocolo físico homologado
 ou autorização de descarte. Nenhum sinal físico é emitido.
+
+O Incremento 2 acrescenta o journal SQLite v2 e a coordenação privada descritos
+ao final deste documento. O contrato dos adaptadores do Incremento 1 permanece
+inalterado; suas tabelas em memória não substituem o journal.
 
 ## Inspeção e decisões
 
@@ -20,14 +24,17 @@ simulador privado. Não foi encontrada decisão física que permita assumir
 pinagem, driver, sensores, Arduino obrigatório ou protocolo de transporte.
 
 Reaproveitados `Protocol`, modelos Pydantic, `asyncio`, fábrica `create_app`,
-`app.state`, lifespan e testes anyio existentes. Nenhuma dependência, serviço,
-container, endpoint, máquina de estados ou mecanismo SQLite novo.
+`app.state`, lifespan e testes anyio existentes. O Incremento 1 não acrescentou
+dependência, serviço, container, endpoint ou mecanismo SQLite. O Incremento 2
+evolui somente o schema local e suas guardas de recuperação.
 
 ## Responsabilidades e arquivos
 
 ```text
 FastAPI / lifespan
-  app.state.controller: MechanicalController
+  app.state.mechanical: MechanicalService
+    store.mechanical: MechanicalJournal (SQLite)
+    app.state.controller: MechanicalController
     UnavailableController (padrão)
     SimulatedController (injeção explícita development/test)
     futuro adaptador físico (aguarda journal e homologação)
@@ -38,6 +45,10 @@ FastAPI / lifespan
   vida em memória compartilhado entre eles.
 - `app/main.py`: composição e encerramento; nenhuma sessão recebe o controller.
 - `tests/test_controller.py`: relógio manual e verificações de isolamento.
+- `app/mechanical_journal.py`: identidade, histórico, CAS e recuperação duráveis.
+- `app/services/mechanical.py`: persistência antes do despacho e acompanhamento
+  assíncrono do resultado; caminho interno coordenado.
+- `tests/test_mechanical_journal.py`: migração, falhas, concorrência e reinícios.
 
 O código fica em `backend/app`, incluído pelo `COPY backend/app ./app` e pela
 allowlist de `.dockerignore`. Não é preciso mudar Docker, paths Python ou
@@ -159,9 +170,10 @@ capacidade, comandos novos falham antes de despacho; replay permanece disponíve
 Os métodos são destinados ao mesmo event loop do FastAPI, sem chamadas diretas
 de outras threads. Para testes com `TestClient`, usar seu portal assíncrono.
 
-Idempotência vale somente durante a vida da instância. Reinício perde comandos
-simulados. Não há journal durável, recuperação mecânica ou promessa de execução
-exatamente uma vez. Essa limitação impede usar esta base em hardware real.
+Nos adaptadores isolados, idempotência vale somente durante a vida da instância.
+Reinício perde sua memória. No caminho coordenado do Incremento 2, o journal
+preserva identidade e resultados entre instâncias. Isso ainda não garante
+execução exatamente uma vez em hardware real.
 
 ## Uso interno e testes
 
@@ -178,11 +190,12 @@ application = create_app(
     )
 )
 
-# Dentro de contexto assíncrono com o lifespan ativo:
+# Dentro de contexto assíncrono com o lifespan ativo e um ciclo de teste
+# já persistido em PHYSICAL_BLOCKED (não cria/libera sessão operacional):
 # request = MechanicalCommand(event_id=event_id, operation="OPEN_INSERTION_DOOR")
-# accepted = await application.state.controller.submit(request)
-# final = await application.state.controller.wait(request.mechanical_command_id)
-# assert accepted.state == "ACCEPTED"
+# accepted = await application.state.mechanical.submit(request)
+# final = await application.state.mechanical.wait(request.mechanical_command_id)
+# assert accepted.phase == "ACCEPTED"
 # assert final.source == "SIMULATED"
 ```
 
@@ -194,7 +207,7 @@ de forma determinística. O teste com duração zero exercita também o caminho
 padrão `asyncio.sleep`. Sempre encerrar o adaptador com `await aclose()`;
 o lifespan da aplicação assume essa responsabilidade para instâncias injetadas.
 
-## Garantias preservadas e validação
+## Garantias e validação históricas do Incremento 1
 
 Não mudaram SQLite/schema versão 1, estados/transições, slot único, UUID por
 ciclo, `command_id` de sessão, contratos de visão, frontend, modo demonstração,
@@ -233,7 +246,7 @@ O smoke Compose histórico não foi usado com seu exemplo de ambiente inválido.
 Não houve acesso a hardware, inferência externa, Supabase real, migration,
 commit, push, merge ou deploy. Os containers utilizados foram efêmeros de teste.
 
-## Recomendação técnica para o Incremento 2
+## Diretrizes anteriores para o Incremento 2 (histórico)
 
 1. **Definir invariantes antes da migration local.** Journal mecânico separado
    de `cycles.command_id`, chave única `mechanical_command_id`, vínculo ao mesmo
@@ -284,3 +297,198 @@ internamente; frontend e contratos Supabase não precisam conhecer o driver.
 Ele não deverá herdar `_MemoryController`: a durabilidade e a reconciliação
 precisam existir antes de qualquer envio real. Novas evidências específicas
 serão definidas no contrato do journal/hardware, sem inferi-las deste simulador.
+
+## Incremento 2 — persistência e recuperação implementadas
+
+Inspeção inicial: branch `feature/orange-pi-integration`, working tree limpa,
+HEAD `387312a`, com o Incremento 1 já preservado. Revalidação anterior às
+alterações: 310 testes aprovados. O modelo abaixo foi apresentado antes da
+alteração do schema. Não foi encontrada divergência de decisão oficial que
+exigisse mudar o fluxo físico ou econômico.
+
+### Schema e compatibilidade
+
+`CycleStore` cria banco novo em versão 2 e migra versão 1 de forma aditiva.
+`cycles` e `transitions` conservam suas definições, identificadores, dados,
+payloads e histórico. Não há migration Supabase ou dependência adicional.
+
+DDL, validação estrutural/referencial e `PRAGMA user_version=2` executam na
+mesma transação `BEGIN IMMEDIATE`. Não se usa `executescript`, que separaria
+o commit da migração. Falha reverte DDL e versão; a recuperação só roda depois
+da migração válida. Banco v2 incompleto, histórico divergente ou versão futura
+são recusados, sem recriar silenciosamente tabelas que poderiam conter dados.
+WAL, synchronous FULL, foreign_keys e a trava de instância continuam ativos.
+
+| Estrutura | Conteúdo e finalidade |
+| --- | --- |
+| `mechanical_commands` | PK `mechanical_command_id`; FK `event_id`; operação, timeout e origem imutáveis; fase, resultado, erro, versão, instantes e reserva única `active_slot`. |
+| `mechanical_history` | PK composta `(mechanical_command_id, version)`; fase, resultado, erro e instante de cada transição. Escrita somente por append. |
+| `mechanical_by_event` | Índice para correlação e guardas por ciclo. |
+
+Operação e timeout são a identidade paramétrica completa do contrato atual.
+Não há cópia JSON do comando/resposta, hash duplicado ou novo identificador de
+ciclo. A origem é definida por comando e não muda conforme a resposta recebida.
+Assim, o histórico herda a origem pela FK, sem repeti-la em cada linha.
+O estado atual no cabeçalho permite CAS, reserva única e consulta eficiente;
+o histórico preserva os estados anteriores para auditoria. Não são dois eventos
+lógicos independentes. Triggers impedem alterar identidade e editar/apagar o
+histórico. Não existe rotina de expurgo nesta etapa.
+
+Um runtime antigo que só conhece schema 1 recusará um banco migrado para 2.
+Não há downgrade automático. Backup e reversão de implantação precisam levar
+em conta a versão do volume; nenhum banco operacional foi migrado nesta tarefa.
+
+### Ciclo de vida e coordenação
+
+`app.state.mechanical` compõe `MechanicalService`, usando o mesmo `CycleStore`
+e o adaptador do Incremento 1. `app.state.controller` permanece disponível para
+compatibilidade e testes unitários do adaptador, mas não oferece durabilidade.
+O caminho coordenado é obrigatório para a futura orquestração. Nenhum adaptador
+físico existe ou foi autorizado: a coordenação recusa `source="PHYSICAL"`.
+O schema suporta essa procedência para representar/auditar o domínio futuro;
+os testes de recuperação usam somente respostas controladas, sem equipamento.
+
+| Fase persistida | Semântica |
+| --- | --- |
+| `INTENT / PENDING` | Identidade, intenção e reserva gravadas; despacho ainda não reivindicado. |
+| `DISPATCHING / PENDING` | Commit realizado antes de chamar o adaptador; atuação pode ter começado. |
+| `ACCEPTED / PENDING` | Aceitação validada e persistida, separada da conclusão. |
+| `COMPLETED / SUCCEEDED` | Conclusão declarada pelo adaptador; origem preservada. Não confirma queda real. |
+| `REJECTED / UNAVAILABLE` | Recusa explícita antes de aceitação; reserva mecânica liberada. |
+| `FAILED / FAILURE ou UNKNOWN` | Falha após despacho; reserva e bloqueio mantidos. |
+| `TIMED_OUT / UNKNOWN` | Prazo esgotado sem evidência conclusiva; sem retry. |
+| `CANCELLED / UNKNOWN` | Cancelamento lógico após aceitação; não prova ausência de movimento. |
+| `INDETERMINATE / UNKNOWN` | Falha de despacho, inconsistência ou recuperação sem conclusão durável. |
+| `ABORTED / UNAVAILABLE` | Intenção encerrada antes da reivindicação de despacho; nenhuma execução solicitada por esse caminho. |
+
+`submit` grava intenção e reserva em transação curta, verificando que o ciclo
+está ativo em `PHYSICAL_BLOCKED` e sem confirmação física. Em outra transação,
+CAS reivindica `DISPATCHING`. Só depois do commit chama `controller.submit`.
+Uma aceitação válida é persistida antes de retornar. Uma tarefa interna aguarda
+`controller.wait` e persiste o resultado final, mesmo sem observador de UI.
+Nunca há transação SQLite aberta durante `await`, temporização ou chamada ao
+adaptador. Os métodos privados não fazem transições positivas do fluxo físico.
+
+`get`, `wait` e `cancel` consultam/acompanham comandos existentes. Cancelar
+somente a consulta `wait` não cancela a operação nem perde o acompanhamento.
+`aclose` encerra o adaptador e aguarda/cancela despachos e observadores internos
+antes do fechamento do store. Operação interrompida fica desconhecida; uma
+conclusão que não foi persistida não é promovida a sucesso no encerramento.
+Falha de SQLite é propagada, sem retorno fictício de sucesso: permanece a
+última fase durável e sua reserva, a ser tratada pela recuperação.
+
+### Concorrência e idempotência
+
+- Mesmo ID e mesmo comando retornam o estado durável atual, sem novo despacho,
+  inclusive após restart, mudança de adaptador ou recusa anterior.
+- Mesmo ID com outro ciclo, operação ou timeout é conflito. A origem original
+  permanece na consulta/replay, mesmo se o adaptador atual for indisponível.
+- Reserva mecânica única no SQLite impede duas operações incompatíveis, mesmo
+  por coordenadores concorrentes. Sem fila, expiração ou liberação por timeout.
+- CAS usa versão e fase anteriores; cabeçalho e evento de histórico são gravados
+  na mesma transação. Resultado idêntico duplicado não incrementa versão.
+- Correlacionam-se ID, ciclo, operação, timeout e origem. Aceitação atrasada,
+  conclusão anterior à aceitação e respostas de outro comando são recusadas.
+  Divergência recebida pelo coordenador vira indeterminação; não vira sucesso.
+- Replay de `INTENT` não reivindica despacho, mesmo no mesmo processo. Não há
+  retomada automática de intenções. Identidades novas exigem decisão explícita.
+- Cancelamento de sessão antes do claim aborta a intenção e libera suas reservas
+  na mesma transação. Depois do claim, a guarda impede cancelar/liberar o ciclo.
+  Essa corrida é serializada por `BEGIN IMMEDIATE` e rechecagem do estado.
+
+A identidade durável impede duplicação local pelo mesmo ID. Um ID novo não é
+deduplicado só por ter a mesma operação: reabrir a porta, por exemplo, pode ser
+outra intenção legítima. O futuro protocolo físico também precisará tratar
+idempotência e consultas por ID; SQLite não comprova execução única no hardware.
+
+### Recuperação e bloqueios
+
+Startup reconcilia journal e sessão na mesma transação, sem chamar controller,
+Supabase ou temporizadores:
+
+| Janela de falha | Resultado no startup |
+| --- | --- |
+| Intenção persistida, antes do claim | `ABORTED/UNAVAILABLE`; segue cancelamento pré-físico legado se não houver outra evidência de atuação. |
+| Claim persistido, antes/durante envio | `INDETERMINATE/UNKNOWN`; sessão indeterminada e slot mantido. Mesmo sem aceitação, não se presume ausência de atuação. |
+| Aceitação persistida ou falha durante movimento | `INDETERMINATE/UNKNOWN`; nenhum redisparo. |
+| Conclusão recebida somente em memória | Mesma indeterminação; a evidência em memória foi perdida. |
+| Timeout, falha ou cancelamento já persistidos | Preserva resultado/histórico; mantém bloqueio. |
+| Conclusão simulada persistida | Preserva comando concluído e origem simulada; sessão continua `PHYSICAL_BLOCKED`, sem confirmação física ou registro. |
+| Declaração física persistida | Preserva declaração, mas sessão permanece indeterminada: ainda não há contrato homologado de evidências físicas. |
+| Recusa persistida sem aceitação | Preserva recusa; permite recuperação pré-física existente. |
+
+Repetir startup não duplica eventos de recuperação. Estados indeterminados não
+têm reconciliação manual pública, comando de manutenção ou retry mecânico.
+Será necessário um contrato futuro de consulta/evidências e intervenção segura.
+
+Sessões antigas sem journal mantêm sua recuperação anterior: preparação
+pré-física é cancelada; registros centrais já elegíveis continuam recuperáveis
+com o mesmo UUID/payload. Nenhum campo `physical_confirmed` é escrito pelo
+journal. A guarda de registro recusa risco mecânico ou conclusão simulada,
+mesmo diante de payload válido e flag física incorretamente preenchida por
+código externo de teste. Os testes econômicos usam transportes controlados.
+
+Não houve ligação com frontend, câmera, visão, estados físicos positivos ou
+registro de descarte. `OFFLINE`, `can_start_deposit=false` e o controller
+indisponível por padrão permanecem. O simulador não comprova funcionamento real.
+
+### Verificação do Incremento 2
+
+| Verificação executada nesta implementação | Resultado |
+| --- | --- |
+| Baseline antes das alterações: `uv run --locked pytest -q` | 310 aprovados, zero falhas/skips. |
+| Suíte completa após implementação: `uv run --locked pytest -q` | 369 aprovados, zero falhas/skips; preserva 310 anteriores e acrescenta 59. |
+| Runtime/deploy: `python -B -m unittest discover -s tests -p test_runtime.py -v` | 6 aprovados, zero skips. |
+| API local JS: `node --test Hardware/TotemEdge/frontend/validation/local_api.test.cjs` | 7 aprovados, zero skips. |
+| `uv format --check -- app tests` | 33 arquivos formatados. |
+| `git diff --check` | Aprovado. |
+| Build Docker local `linux/amd64`, tag `bingo-totem-edge:mechanical-increment-2` | Aprovado; sem alteração de Dockerfile ou lock. |
+| Smoke na imagem sem rede, rootfs readonly, tmpfs de teste, UID 10001, capabilities removidas | Aprovado: import, migração 1→2, resultado simulado durável, replay com adaptador vazio sem despacho, restart indeterminado, OFFLINE/false e ausência de confirmação/registro econômico. |
+
+Os testes novos verificam cada janela de restart, conflito de parâmetros,
+respostas duplicadas/atrasadas/cruzadas, origem divergente, CAS, concorrência
+entre threads/coordenadores, corrida de cancelamento versus claim, rollback
+de cabeçalho/histórico/bloqueio, falha de commit após receber conclusão,
+shutdown durante despacho/movimento e preservação de sessão central elegível.
+Utilizam SQLite temporário, relógio manual e adaptadores/transportes controlados.
+As execuções inicial e completa não tiveram falhas nos testes novos.
+
+Não foram executados ARM64, pytest dentro da imagem, smoke de navegador ou
+homologação no equipamento. Não houve rede externa em simulações, Supabase
+real, mudança de frontend/câmera/visão/contratos centrais, commit, push, merge
+ou deploy. Containers utilizados foram efêmeros de teste, sem volumes reais.
+Os problemas preexistentes do verificador histórico e de `.env.example`, listados
+na validação do Incremento 1, não foram corrigidos nem reexecutados nesta etapa.
+
+Persistem limites de homologação: nenhum protocolo físico para reconciliar
+posição/queda, ausência de garantia de execução única no dispositivo, dependência
+da durabilidade real do meio de armazenamento e crescimento do histórico sem
+política de expurgo. Operações desconhecidas exigem contrato futuro de evidências;
+não existe caminho público para desbloqueá-las. Não se infere segurança física
+a partir dos resultados do simulador ou de uma origem declarada como PHYSICAL.
+
+### Recomendação específica para o Incremento 3
+
+Criar uma composição de simulação explicitamente isolada do runtime operacional,
+com sessões e SQLite de teste próprios e sem credenciais/transporte econômico
+real. O frontend deve solicitar intenções ao orquestrador e renderizar snapshots
+do backend; duração e conclusão continuam exclusivamente no backend. Nenhum
+temporizador JavaScript deve fabricar `DOOR_OPEN`, `DOOR_CLOSED` ou sucesso.
+
+Antes de criar rotas, definir o contrato local da simulação, identidade das ações
+do usuário e transições permitidas. Associar cada avanço simulado ao comando
+durável: aceitação representa movimento em andamento; conclusão simulada permite
+somente o próximo estado no ambiente isolado. Reutilizar journal, IDs e CAS para
+cliques repetidos e consultas após reload, sem reenviar movimentos pendentes.
+
+Reservar o próximo comando e validar/CAS o estado do ciclo na mesma transação;
+na conclusão, persistir resultado e avanço simulado atomicamente. Não afrouxar
+as guardas operacionais deste incremento para facilitar a UI. Indeterminação
+deve manter bloqueio e mostrar necessidade de recuperação sem botão que repita
+o movimento. Recibo/pontuação demonstrativos exigem fonte isolada explícita.
+
+Testar ponta a ponta abertura, inserção/declarar mão retirada, fechamento e
+alçapão com relógio controlado; reload durante cada etapa; cliques concorrentes;
+timeout/falha/cancelamento; restart; resposta atrasada; e ausência de qualquer
+chamada a registro real. Integração com visão/revisão continua dependente dos
+contratos próprios. Homologação física e liberação ONLINE serão etapas futuras.

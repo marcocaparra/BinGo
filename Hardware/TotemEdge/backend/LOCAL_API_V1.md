@@ -58,6 +58,14 @@ a exclusão de simulador que valia na entrega da fundação; não liga operaçõ
 à sessão, aos estados físicos ou ao registro econômico.
 Não há caminho no processo atual para produzir confirmação física ou ONLINE.
 
+O Incremento 2 acrescenta journal mecânico durável e coordenação privada, sem
+alterar as rotas acima. Cancelamento pré-físico só libera sessão se o journal
+comprovar ausência de possível despacho; após claim/aceitação, mantém bloqueio.
+Startup não cancela como preparação um ciclo com risco mecânico: recupera como
+`INDETERMINATE`. Conclusão simulada persistida mantém `PHYSICAL_BLOCKED`.
+O schema local migra de 1 para 2; registros centrais antigos já elegíveis
+preservam a recuperação existente. Não existe reconciliação manual pública.
+
 Contratos de preview/classificação precisam definir transporte, resultado
 canônico, auditoria e mapeamento das opções visuais (especialmente `small`).
 O gateway de visão do Simulator fornece uma referência de saída, não uma rota

@@ -35,7 +35,7 @@ As regras de negócio definitivas, como pontuação, saldo e persistência ofici
 
 O contrato interno e os adaptadores indisponível/simulado ficam atualmente em
 `backend/app`, incluídos na imagem Docker. Consulte
-[Controller mecânico — Incremento 1](backend/MECHANICAL_INTERNAL_V1.md).
+[Controller mecânico — Incrementos 1 e 2](backend/MECHANICAL_INTERNAL_V1.md).
 Esta pasta permanece reservada para a implementação física futura.
 
 Código responsável pela comunicação com os componentes físicos conectados ao Orange Pi.
