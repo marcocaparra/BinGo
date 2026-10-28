@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from collections.abc import Callable
 import os
 from pathlib import Path
 
@@ -10,15 +11,21 @@ from fastapi.staticfiles import StaticFiles
 
 from app.clients.supabase import CentralError, SupabaseEdgeClient
 from app.cycles import CycleError
+from app.mechanical import MechanicalController
 from app.routes import health, local, sessions
 from app.services.capture import CaptureService
+from app.services.controller import UnavailableController
 from app.services.sessions import SessionService
 from app.services.status import LocalStatusService
 from app.services.vision import build_internal_vision
 from app.storage import CycleStore
 
 
-def create_app(*, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
+def create_app(
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
+    controller_factory: Callable[[], MechanicalController] | None = None,
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         sqlite_path = Path(
@@ -29,18 +36,24 @@ def create_app(*, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
         )
         store = CycleStore(sqlite_path)
         try:
-            async with httpx.AsyncClient(
-                transport=transport, follow_redirects=False, trust_env=False
-            ) as http_client:
-                central = SupabaseEdgeClient(http_client)
-                status = LocalStatusService(central)
-                application.state.status_service = status
-                application.state.sessions = SessionService(store, central, status)
-                # Serviço interno disponível no mesmo processo. A ligação à sessão
-                # aguarda contratos de classificação/revisão; nenhuma rota o expõe.
-                application.state.vision = build_internal_vision(http_client)
-                application.state.capture = CaptureService(store)
-                yield
+            controller = (
+                controller_factory() if controller_factory else UnavailableController()
+            )
+            try:
+                application.state.controller = controller
+                async with httpx.AsyncClient(
+                    transport=transport, follow_redirects=False, trust_env=False
+                ) as http_client:
+                    central = SupabaseEdgeClient(http_client)
+                    status = LocalStatusService(central)
+                    application.state.status_service = status
+                    application.state.sessions = SessionService(store, central, status)
+                    # Serviços privados, desconectados da autorização física.
+                    application.state.vision = build_internal_vision(http_client)
+                    application.state.capture = CaptureService(store)
+                    yield
+            finally:
+                await controller.aclose()
         finally:
             store.close()
 

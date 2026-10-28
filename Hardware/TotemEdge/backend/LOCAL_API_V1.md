@@ -51,9 +51,11 @@ documenta o serviço privado disponível no processo FastAPI. Não acrescenta ro
 nem aprova os contratos de classificação/correção/auditoria abaixo.
 
 Não criar rotas de movimento, escotilha, confirmação física, preview, captura,
-classificação, correção ou reconciliação manual nesta etapa. A restrição final
-do usuário exclui implementação e simulação do controller. O código poderá
-apenas reconhecer estados persistidos reservados para integração futura.
+classificação, correção ou reconciliação manual nesta etapa.
+O [Incremento 1 mecânico](MECHANICAL_INTERNAL_V1.md) acrescenta contrato e
+simulador privados no backend, com controller indisponível por padrão. Substitui
+a exclusão de simulador que valia na entrega da fundação; não liga operações
+à sessão, aos estados físicos ou ao registro econômico.
 Não há caminho no processo atual para produzir confirmação física ou ONLINE.
 
 Contratos de preview/classificação precisam definir transporte, resultado

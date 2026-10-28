@@ -4,9 +4,10 @@ FastAPI orquestra sessões e persistência local. Supabase/PostgreSQL/Edge Funct
 mantêm autenticação central, registro definitivo, idempotência e economia.
 
 **O Totem não está operacional.** /local/status permanece OFFLINE/false, mesmo
-com health central saudável. Não há controller, controller simulado, GPIO ou
-câmera física nesta entrega. A restrição final prevalece sobre a solicitação
-anterior de simular movimentos; nenhum arquivo em ../controller/ foi alterado.
+com health central saudável. O controller operacional padrão é indisponível.
+Há um simulador mecânico privado para desenvolvimento/testes, sem GPIO,
+câmera física ou ligação à autorização de descarte. Contrato, uso e limites em
+[Controller mecânico — Incremento 1](MECHANICAL_INTERNAL_V1.md).
 
 Os [contratos locais](LOCAL_API_V1.md) foram documentados antes das novas rotas.
 O [relatório completo](../frontend/INTEGRATION_V1.md) descreve estados, mudanças
@@ -105,6 +106,7 @@ app/main.py                 composição, lifespan, origem e arquivos estáticos
 app/config.py               configuração server-side
 app/central_contracts.py    payload de sete campos e projeções centrais
 app/cycles.py               estados e snapshot público
+app/mechanical.py           contrato privado de comandos/respostas mecânicas
 app/storage.py              SQLite e recuperação transacional
 app/routes/health.py        liveness
 app/routes/local.py         readiness operacional seguro
@@ -112,6 +114,7 @@ app/routes/sessions.py      sessão/identificação/recuperação HTTP
 app/services/status.py      saúde central separada da operação local
 app/services/sessions.py    transições lógicas e reenvio do evento preservado
 app/services/capture.py     guardas de câmera/visão; ligação operacional bloqueada
+app/services/controller.py  controller indisponível e simulador temporizado isolado
 app/services/vision.py      adaptadores privados AWS/Gemini no mesmo processo
 app/services/vision_policy.py heurísticas de labels reutilizadas do PR #48
 app/clients/supabase.py      Functions existentes autenticadas
