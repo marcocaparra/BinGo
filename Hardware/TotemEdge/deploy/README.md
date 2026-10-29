@@ -20,6 +20,11 @@ publica portas do backend no host. Um ingresso TCP separado expõe somente
 simulada permite acompanhar a mesma máquina/journal; o frontend segue inalterado.
 O target final/default deste Dockerfile continua sendo o runtime operacional.
 
+O terceiro [perfil de integração DEV 3C.1](DEV_INTEGRATION.md) usa target explícito
+dev_integration, Compose/volume próprios e ingresso 127.0.0.1:8002. Um broker
+separado limita a chave de máquina a health/contexto/PIN; o processo com simulador
+não tem chave ou rota externa. Não combinar os arquivos Compose dos três perfis.
+
 Foram consultados STATUS atual, operação offline, README do Totem Edge/backend,
 LOCAL_API_V1, INTEGRATION_V1 e MIGRATION_DIAGNOSTIC. O diagnóstico descreve uma
 etapa histórica; INTEGRATION_V1 e o código atual já têm hospedagem da UI e SQLite.

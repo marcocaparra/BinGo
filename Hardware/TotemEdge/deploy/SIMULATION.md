@@ -5,6 +5,13 @@ No 3B, sessões simuladas identificadas no SQLite v3 usam os estados persistidos
 de abertura/fechamento/alçapão. Não há integração do frontend, atuação física ou
 registro de pontos. A demonstração visual anterior permanece independente.
 
+Atualização 3C.1: este perfil continua sem conexão externa. O novo
+[perfil DEV conectado](DEV_INTEGRATION.md) é outra composição/target/volume, não
+uma flag para liberar este ambiente. As rotas /local/sessions e /local/context
+foram retiradas de ambas as fábricas simuladas e retornam 404; somente o runtime
+operacional as monta. Isso substitui a coexistência de APIs documentada no 3B,
+sem mudar os contratos /local/simulation ou as proteções HTTP.
+
 ## Arquitetura e isolamento
 
 | Item | Simulação | Operacional existente |

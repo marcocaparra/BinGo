@@ -1,5 +1,14 @@
 # Contratos locais — fundação de sessão V1
 
+Atualização 3C.1: as rotas operacionais deste documento são montadas somente na
+fábrica operacional. As fábricas isolada e DEV não as montam (404), impedindo que
+sessões simulated=1 sejam projetadas/mutadas por contratos sem procedência.
+O [perfil de integração DEV](../deploy/DEV_INTEGRATION.md) acrescenta somente
+GET /local/dev/health, GET /local/dev/context e POST /local/dev/student-pin,
+além das rotas simuladas 3B existentes. Esses caminhos não existem nos outros
+dois runtimes. PIN usa o contrato central existente class_id/student_id/pin;
+não cria nem autentica uma sessão mecânica. Nenhuma rota DEV registra descarte.
+
 Esta especificação precede as novas rotas desta entrega. `/health` e
 `/local/status` mantêm seus contratos existentes. As demais operações abaixo
 são contratos **locais novos desta implementação**, derivados do fluxo aprovado

@@ -68,12 +68,21 @@ def _matches_health_contract(body: object, available: bool) -> bool:
 
 
 class SupabaseEdgeClient:
-    def __init__(self, http_client: httpx.AsyncClient):
+    def __init__(
+        self,
+        http_client: httpx.AsyncClient,
+        *,
+        settings: SupabaseSettings | None = None,
+    ):
         self._http = http_client
         self._settings: SupabaseSettings | None = None
         self._configuration_outcome: ReadinessOutcome = "NOT_CONFIGURED"
         try:
-            self._settings = SupabaseSettings.from_environment()
+            self._settings = (
+                settings
+                if settings is not None
+                else SupabaseSettings.from_environment()
+            )
         except SupabaseConfigurationError as error:
             self._configuration_outcome = error.outcome
 

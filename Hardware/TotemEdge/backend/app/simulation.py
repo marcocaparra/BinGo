@@ -43,9 +43,13 @@ class SimulationConfigurationError(RuntimeError):
 
 
 def reject_simulation_in_operational(sqlite_path: Path):
-    if any(name.startswith("BINGO_SIMULATION_") for name in os.environ):
+    if any(name.startswith(("BINGO_SIMULATION_", "BINGO_DEV_")) for name in os.environ):
         raise SimulationConfigurationError()
-    if any((parent / MARKER).exists() for parent in sqlite_path.resolve().parents):
+    if any(
+        (parent / marker).exists()
+        for parent in sqlite_path.resolve().parents
+        for marker in (MARKER, ".bingo-dev-integration-only")
+    ):
         raise SimulationConfigurationError()
 
 
@@ -77,11 +81,22 @@ class SimulationSettings:
     directory: Path
     plans: dict[str, SimulationPlan]
 
+    marker_name = MARKER
+    marker_content = MARKER_CONTENT
+
+    def build_transport(self, transport=None):
+        return DenyExternalTransport()
+
+    def build_central(self, http_client):
+        return BlockedCentralClient()
+
     @property
     def sqlite_path(self) -> Path:
         return self.directory / DATABASE_NAME
 
     def validate_environment(self):
+        if any(name.startswith("BINGO_DEV_") for name in os.environ):
+            raise SimulationConfigurationError()
         if os.getenv("BINGO_SIMULATION_CONTEXT") not in {"development", "test"}:
             raise SimulationConfigurationError()
         if any(
@@ -127,7 +142,7 @@ class SimulationSettings:
         self.validate_environment()
         self.directory.mkdir(parents=True, exist_ok=True)
         allowed = {
-            MARKER,
+            self.marker_name,
             DATABASE_NAME,
             DATABASE_NAME + "-wal",
             DATABASE_NAME + "-shm",
@@ -139,16 +154,16 @@ class SimulationSettings:
             for path in files
         ):
             raise SimulationConfigurationError()
-        marker = self.directory / MARKER
+        marker = self.directory / self.marker_name
         if not marker.exists():
             if files:
                 raise SimulationConfigurationError()
             # Nunca adotar automaticamente um volume/banco já existente.
             with marker.open("x", encoding="utf-8") as stream:
-                stream.write(MARKER_CONTENT)
+                stream.write(self.marker_content)
                 stream.flush()
                 os.fsync(stream.fileno())
-        if marker.read_text(encoding="utf-8") != MARKER_CONTENT:
+        if marker.read_text(encoding="utf-8") != self.marker_content:
             raise SimulationConfigurationError()
         if self.sqlite_path.exists():
             try:

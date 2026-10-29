@@ -40,4 +40,13 @@ ENV BINGO_SQLITE_PATH=/var/lib/bingo-simulation/simulation.sqlite3 \
 USER 10001:10001
 CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start_simulation.py"]
 
+FROM runtime_base AS dev_integration
+USER root
+RUN install -d -o bingo -g bingo -m 0700 /var/lib/bingo-dev-integration
+COPY deploy/start_dev_integration.py /opt/totem/deploy/
+ENV BINGO_SQLITE_PATH=/var/lib/bingo-dev-integration/simulation.sqlite3 \
+    BINGO_DEV_CONTEXT=development
+USER 10001:10001
+CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start_dev_integration.py"]
+
 FROM runtime_base AS runtime

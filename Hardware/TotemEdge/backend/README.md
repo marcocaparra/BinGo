@@ -14,6 +14,11 @@ esse backend com central bloqueada, SQLite próprio e contratos HTTP locais em
 127.0.0.1:8001 para a máquina de estados simulada. O frontend e o runtime
 operacional padrão permanecem preservados.
 
+O [perfil de integração DEV 3C.1](../deploy/DEV_INTEGRATION.md) acrescenta consultas
+e PIN autorizados por broker restrito, com chave fora do processo mecânico,
+SQLite/volume próprios e nenhum registro econômico. Rotas operacionais existem
+somente no runtime operacional; não são montadas nas duas fábricas simuladas.
+
 Os [contratos locais](LOCAL_API_V1.md) foram documentados antes das novas rotas.
 O [relatório completo](../frontend/INTEGRATION_V1.md) descreve estados, mudanças
 frontend, recuperação, evidências e contratos físicos/visão pendentes.

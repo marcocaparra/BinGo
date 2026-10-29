@@ -86,10 +86,10 @@ def test_simulation_initializes_with_blocked_central_and_no_vision(
         status = client.get("/local/status").json()
         assert status["status"] == "OFFLINE" and status["can_start_deposit"] is False
         operational_paths = create_app().openapi()["paths"]
-        assert {
-            path: application.openapi()["paths"][path] for path in operational_paths
-        } == operational_paths
-        assert all(path in application.openapi()["paths"] for path in operational_paths)
+        assert not any(
+            path.startswith(("/local/sessions", "/local/context"))
+            for path in application.openapi()["paths"]
+        )
         assert all(
             path in operational_paths or path.startswith("/local/simulation/")
             for path in application.openapi()["paths"]
@@ -398,7 +398,7 @@ def test_simulated_success_does_not_enable_registration_or_physical_confirmation
             client.post(
                 f"/local/sessions/{session.event_id}/retry-registration", json={}
             ).status_code
-            == 409
+            == 404
         )
         for path in ("/local/controller", f"/local/sessions/{session.event_id}/open"):
             assert client.post(path, json={}).status_code == 404

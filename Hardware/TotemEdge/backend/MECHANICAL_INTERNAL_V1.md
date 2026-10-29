@@ -5,6 +5,12 @@ sessões com procedência simulada persistida. Contratos em
 [LOCAL_API_V1.md](LOCAL_API_V1.md), execução em [SIMULATION.md](../deploy/SIMULATION.md).
 Não há integração do frontend, hardware ou economia.
 
+Incremento 3C.1: o [perfil DEV](../deploy/DEV_INTEGRATION.md) reutiliza exatamente
+este fluxo/journal com SQLite próprio. Consulta e PIN centrais passam por broker
+de capacidades sem registro. Identidade central não modifica procedência mecânica,
+physical_confirmed ou elegibilidade econômica. Rotas operacionais não são montadas
+nas fábricas com simulador. Não houve mudança do schema v3, estados ou retenção.
+
 Histórico 3A: [ambiente Docker isolado](../deploy/SIMULATION.md) e harness
 executável reutilizam estes contratos, adaptadores e journal. A fábrica de
 simulação bloqueia clientes centrais/saída HTTP, exige armazenamento marcado

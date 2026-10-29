@@ -21,8 +21,6 @@ from app.services.sessions import SessionService
 from app.services.status import LocalStatusService
 from app.services.vision import build_internal_vision
 from app.simulation import (
-    BlockedCentralClient,
-    DenyExternalTransport,
     SimulationSettings,
     reject_simulation_in_operational,
 )
@@ -68,18 +66,21 @@ def create_app(
                         store, mechanical
                     )
                 async with httpx.AsyncClient(
-                    transport=DenyExternalTransport() if _simulation else transport,
+                    transport=_simulation.build_transport(transport)
+                    if _simulation
+                    else transport,
                     follow_redirects=False,
                     trust_env=False,
                 ) as http_client:
                     central = (
-                        BlockedCentralClient()
+                        _simulation.build_central(http_client)
                         if _simulation
                         else SupabaseEdgeClient(http_client)
                     )
                     status = LocalStatusService(central)
                     application.state.status_service = status
                     application.state.sessions = SessionService(store, central, status)
+                    application.state.dev_central = central
                     # Serviços privados, desconectados da autorização física.
                     application.state.vision = (
                         None if _simulation else build_internal_vision(http_client)
@@ -94,11 +95,16 @@ def create_app(
     application = FastAPI(title="BinGo Totem Edge", lifespan=lifespan)
     application.include_router(health.router)
     application.include_router(local.router)
-    application.include_router(sessions.router)
+    if _simulation is None:
+        application.include_router(sessions.router)
     if _simulation:
         from app.routes.simulation import router as simulation_router
 
         application.include_router(simulation_router)
+        if getattr(_simulation, "dev_integration", False):
+            from app.routes.dev import router as dev_router
+
+            application.include_router(dev_router)
 
     @application.exception_handler(CycleError)
     @application.exception_handler(CentralError)
@@ -140,7 +146,13 @@ def create_app(
     async def local_boundary(request: Request, call_next):
         path = request.url.path
         protected = path.startswith(
-            ("/local/sessions", "/local/context", "/local/simulation", "/assets/")
+            (
+                "/local/sessions",
+                "/local/context",
+                "/local/simulation",
+                "/local/dev",
+                "/assets/",
+            )
         ) or path in {
             "/",
             "/styles.css",

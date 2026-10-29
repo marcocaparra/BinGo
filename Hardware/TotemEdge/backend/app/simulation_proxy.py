@@ -48,7 +48,14 @@ async def forward(reader, writer):
 
 
 async def serve():
-    if os.getenv("BINGO_SIMULATION_CONTEXT") not in {"development", "test"}:
+    global UPSTREAM
+    dev = os.getenv("BINGO_DEV_CONTEXT")
+    simulation = os.getenv("BINGO_SIMULATION_CONTEXT")
+    if dev in {"development", "test"} and simulation is None:
+        UPSTREAM = "totem-edge-dev"
+    elif simulation in {"development", "test"} and dev is None:
+        UPSTREAM = "totem-edge-simulation"
+    else:
         raise RuntimeError("SIMULATION_PROXY_CONTEXT_REQUIRED")
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()

@@ -369,7 +369,7 @@ def test_failures_unknown_block_and_never_retry(
     )
     assert (
         client.post(f"/local/sessions/{event}/retry-registration", json={}).status_code
-        == 409
+        == 404
     )
 
 
