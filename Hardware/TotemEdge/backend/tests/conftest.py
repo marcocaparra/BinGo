@@ -1,13 +1,52 @@
 import os
+import ipaddress
+import socket
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def loopback_network_only(monkeypatch):
+    """Fail closed before DNS/connect; TestClient and mocked transports still work."""
+    resolve = socket.getaddrinfo
+    connect = socket.socket.connect
+    connect_ex = socket.socket.connect_ex
+
+    def permitted(host):
+        if host in ("localhost", b"localhost"):
+            return
+        try:
+            if ipaddress.ip_address(host).is_loopback:
+                return
+        except ValueError:
+            pass
+        raise OSError("External network is disabled in TotemEdge tests")
+
+    def local_resolve(host, *args, **kwargs):
+        if host is not None:
+            permitted(host)
+        return resolve(host, *args, **kwargs)
+
+    def local_connect(sock, address):
+        if sock.family in (socket.AF_INET, socket.AF_INET6):
+            permitted(address[0])
+        return connect(sock, address)
+
+    def local_connect_ex(sock, address):
+        if sock.family in (socket.AF_INET, socket.AF_INET6):
+            permitted(address[0])
+        return connect_ex(sock, address)
+
+    monkeypatch.setattr(socket, "getaddrinfo", local_resolve)
+    monkeypatch.setattr(socket.socket, "connect", local_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", local_connect_ex)
 
 
 @pytest.fixture(autouse=True)
 def clear_supabase_environment(monkeypatch, tmp_path):
     # Nenhum teste pode herdar credenciais reais do processo que executa pytest.
     for name in tuple(os.environ):
-        if name.startswith("BINGO_SIMULATION_"):
+        if name.startswith(("BINGO_", "SUPABASE_", "AWS_", "GEMINI_")):
             monkeypatch.delenv(name, raising=False)
     for name in (
         "BINGO_SUPABASE_URL",

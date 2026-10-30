@@ -6,8 +6,9 @@ sessões simulated=1 sejam projetadas/mutadas por contratos sem procedência.
 O [perfil de integração DEV](../deploy/DEV_INTEGRATION.md) acrescenta somente
 GET /local/dev/health, GET /local/dev/context e POST /local/dev/student-pin,
 além das rotas simuladas 3B existentes. Esses caminhos não existem nos outros
-dois runtimes. PIN usa o contrato central existente class_id/student_id/pin;
-não cria nem autentica uma sessão mecânica. Nenhuma rota DEV registra descarte.
+dois runtimes. PIN usa o contrato central existente class_id/student_id/pin.
+A consulta stateless student-pin não autentica uma sessão mecânica. O 3C.1.1
+acrescenta a associação durável descrita abaixo. Nenhuma rota DEV registra descarte.
 
 Esta especificação precede as novas rotas desta entrega. `/health` e
 `/local/status` mantêm seus contratos existentes. As demais operações abaixo
@@ -104,8 +105,10 @@ forma canônica hifenizada, seguindo os modelos existentes.
 Comando mecânico: `{mechanical_command_id: UUID, timeout_seconds?: número finito
 positivo}`; timeout default técnico 10s, sem medição/homologação física. O tipo
 da operação é fixado pela rota; não há endpoint genérico para chamar controller.
-Campos como operation, simulated, physical_confirmed, GPIO, PIN, categoria e
-pontuação são recusados. Fechamento também exige hand_removed=true, sem coerção
+Campos como operation, simulated, physical_confirmed, GPIO, categoria e
+pontuação são recusados. PIN também é recusado na simulação isolada e em
+close/confirm-initial; a exceção DEV open/hatch está descrita abaixo.
+Fechamento também exige hand_removed=true, sem coerção
 de string/número e sem aceitar false.
 
 Snapshot: `{source: "SIMULATED", session: Session, commands: JournalEntry[],
@@ -133,12 +136,124 @@ SIMULATION_LEGACY_SESSION_ACTIVE. 503: coordenador fechado/capacidade indisponí
 ou tentativa econômica. Recusa do adaptador é resultado REJECTED/UNAVAILABLE,
 não autorização para continuar o fluxo.
 
+## Identidade persistida no DEV — Incremento 3C.1.1
+
+Extensão local nova deste incremento, somente na fábrica DEV. Não altera as
+Functions/RPCs centrais nem as rotas operacionais. A fábrica isolada continua
+criando fixtures class_only em SAFETY, sem depender de contexto/PIN.
+
+No DEV, POST `/local/simulation/sessions` mantém `{command_id: UUID}` e passa a
+criar uma sessão student em IDENTIFYING. class_id/class_name iniciais são somente
+o placeholder existente de simulação, não uma turma escolhida/autorizada.
+student_id e identity são null. allowed_actions é `["identify", "cancel"]`.
+Após confirmação, os campos públicos de turma/aluno vêm da resposta central.
+Repetir command_id recupera a mesma sessão, mesmo depois dessa atualização.
+
+POST `/local/dev/sessions/{event_id}/identity` recebe exclusivamente:
+
+```json
+{
+  "class_id": "33333333-3333-4333-8333-333333333333",
+  "student_id": "44444444-4444-4444-8444-444444444444",
+  "pin": "0000"
+}
+```
+
+UUIDs e PIN acima são fictícios. PIN exige string de quatro dígitos ASCII.
+Escola/máquina/confirmed/source não são aceitos como declarações do browser.
+Valem as mesmas guardas Host/Origin/JSON/header/query e no-store.
+
+O backend verifica health e contexto atuais e usa verify_pin pelo broker existente.
+Máquina/escola são conferidas com a política; turma/aluno ACTIVE precisam pertencer
+ao contexto e a Function revalida sua relação. Só confirmed=true com IDs
+correspondentes autoriza o commit local. Não há transação SQLite durante HTTP.
+
+Resposta 200: SimulationSnapshot existente, acrescido de `identity` (null antes
+da associação), com event_id, project_ref, machine_id, school_id, class_id,
+student_id, validated_at UTC e source=`SUPABASE_DEV_PIN_V1`. A procedência do
+envelope e dos comandos continua SIMULATED. A identidade nunca confirma atuação.
+O commit grava vínculo, atualiza turma/aluno e audita
+IDENTIFYING → AUTHENTICATING → SAFETY atomicamente; AUTHENTICATING registra a
+confirmação local e não fica persistido como estado pendente durante a chamada.
+
+| Situação | HTTP / efeito |
+| --- | --- |
+| Primeira confirmação consistente | 200, vínculo único e SAFETY; libera safety/cancel. |
+| Mesmo event_id/turma/aluno já vinculados | Revalida health/contexto/PIN no Supabase. 200 somente após confirmação atual; retorna snapshot sem novo vínculo, histórico, transição ou alteração de validated_at, inclusive em sessão terminal. |
+| Outra turma/aluno em sessão vinculada | 409 DEV_IDENTITY_CONFLICT antes de qualquer chamada remota. |
+| Sem vínculo em sessão cancelada/encerrada, legada class_only ou após movimento | 409 COMMAND_OUT_OF_SEQUENCE; não adota identidade retroativamente. |
+| PIN errado recusado pela Function | 401 STUDENT_PIN_INVALID, inclusive após associação/restart. Preserva o estado anterior e eventual vínculo existente. |
+| IDs fora do contexto permitido | 403 DEV_TEST_SCOPE_MISMATCH; sem associação. |
+| Resposta inesperada, credencial inválida, timeout ou falha central | Falha segura 503 pela normalização existente do broker/cliente; 401 para health com autenticação negada e 502 para resposta inconsistente detectada diretamente no cliente local. Sem associação. |
+| Contrato/UUID inválido ou campos extras | 422 INVALID_LOCAL_CONTRACT sem expor entrada. |
+| Sessão inexistente ou operacional | 404; nenhuma associação. |
+
+Correção de segurança do 3C.1.1: o retorno antecipado anterior confundia replay
+de estado com autenticação. Todo POST identity agora revalida o PIN na Function;
+PIN de formato válido mas incorreto nunca é aceito como nova autenticação.
+Indisponibilidade central retorna erro, preservando o vínculo. validated_at
+permanece o instante da associação original, não a última tentativa de autenticação.
+Idempotência significa não duplicar a associação; não dispensa a validação do
+segredo em outra requisição. GET é o contrato de recuperação sem PIN e sem rede.
+Para autenticar outra pessoa é preciso cancelar com segurança e criar outro ciclo.
+
+GET da sessão e GET active restauram o vínculo diretamente do SQLite, sem dados
+de identidade reenviados pelo navegador. No DEV, POST open/hatch exige também
+`pin` no JSON, string de quatro dígitos ASCII, validada na Function para os IDs
+do vínculo persistido. Não recebe outro aluno/turma nem aproveita autenticação
+de um POST anterior. Vale para novo comando e replay de comando existente.
+Ausência/null de PIN: 401 DEV_ACTION_PIN_REQUIRED; PIN incorreto: 401
+STUDENT_PIN_INVALID; formato inválido: 422. PIN nunca integra MechanicalCommand,
+journal, snapshot ou banco. Nas outras operações/perfil isolado, o campo é recusado.
+Exige health/contexto disponíveis e permanência do aluno ACTIVE na turma autorizada.
+allowed_actions informa os estágios persistidos; não promete disponibilidade da
+rede no instante de uma chamada seguinte. GET de comandos consulta o journal
+sem rede/redisparo; POST open/hatch exige nova autenticação mesmo em replay.
+Após autenticação, o mesmo ID/parâmetros continua retornando o comando durável
+sem redisparo. Fechamento e confirm-initial válidos continuam disponíveis
+sem consulta central para preservar recuperação segura. Estado indeterminado
+continua bloqueando movimentos novos/cancelamento; PIN não o desbloqueia.
+
+event_id é público e não é credencial: conhecer o ID/vínculo já não autoriza
+abrir porta ou executar alçapão. Safety/review-fixture apenas avançam checkpoints;
+cancel/close/confirm-initial preservam recuperação local sem autenticação central,
+com as pré-condições/journal existentes. Um processo local capaz de satisfazer
+as guardas HTTP ainda pode consultar dados sintéticos, interferir em checkpoints,
+cancelar preparação segura ou pedir esses movimentos de recuperação simulados.
+Host/Origin/header são proteção de origem, não identidade de usuário/processo.
+Este DEV exige computador confiável; não fornece isolamento entre usuários locais
+nem autorização homologada para hardware. Antes de atuação física, será necessário
+um contrato aprovado de autorização do dispositivo/operador e recuperação segura.
+Não foram criados tokens locais, cookies de sessão ou cache de PIN.
+
+Uma sessão DEV 3B/3C.1 sem vínculo conserva o histórico: SAFETY/PHYSICAL_BLOCKED
+podem ser cancelados se seguros para criar outra sessão identificada. Não se
+retrocede o fluxo nem se presume que o PIN stateless anterior foi validado para
+ela. Se já houve movimento, não se adota a identidade; somente fechamento/retorno
+seguros já previstos podem continuar. Não há reconciliação pública nova.
+
 ## Atomicidade, recuperação e retenção da simulação integrada
 
-SQLite v3 acrescenta somente cycles.simulated (default 0) e sua imutabilidade.
+SQLite v3 acrescentou cycles.simulated (default 0) e sua imutabilidade.
 Bancos v1/v2 migram transacionalmente, sem reclassificar sessões antigas. A
 procedência é devolvida no envelope simulado, preservando o contrato operacional
 de Session. Runtime operacional recusa banco com sessões simulated=1.
+
+SQLite v4 adiciona simulation_identities, PK/FK event_id e vínculo imutável por
+ciclo. Migra v1/v2/v3 na mesma transação de schema, sem apagar/recriar ciclos ou
+journal. IDs, instante UTC e origem da confirmação são a evidência local mínima;
+nomes continuam somente na projeção Session. Triggers recusam UPDATE/DELETE do
+vínculo e alteração dos IDs associados na sessão. O histórico reutiliza transitions.
+Startup valida schema, FK, vínculo/sessão/histórico e escopo da instalação.
+
+Após a chamada remota, BEGIN IMMEDIATE e a versão esperada serializam o commit:
+mesmos IDs concorrentes retornam o vencedor; IDs diferentes conflitam; cancelamento
+concorrente impede associação tardia. Antes do commit não existe vínculo e um
+retry precisa validar novamente; depois dele, o vínculo é durável mesmo se a
+resposta HTTP se perder. Falha de INSERT/transição reverte tudo. Não existe
+transação distribuída ou promessa de validação remota exatamente uma vez.
+IDENTIFYING sem vínculo e SAFETY com vínculo são restaurados, sem reautenticação
+ou movimento automático. PIN/hash/chave/corpo remoto não são persistidos.
 
 Intenção + estado de movimento + declaração de mão são um commit antes de
 despacho; aceitação fica no journal separada; conclusão + estado final são outro

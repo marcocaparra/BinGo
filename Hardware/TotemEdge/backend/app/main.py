@@ -46,7 +46,14 @@ def create_app(
             sqlite_path = _simulation.sqlite_path
         else:
             reject_simulation_in_operational(sqlite_path)
-        store = CycleStore(sqlite_path, simulation_enabled=_simulation is not None)
+        policy = getattr(_simulation, "policy", None)
+        store = CycleStore(
+            sqlite_path,
+            simulation_enabled=_simulation is not None,
+            identity_scope=(policy.project_ref, policy.machine_id, policy.school_id)
+            if policy is not None
+            else None,
+        )
         try:
             controller = (
                 controller_factory() if controller_factory else UnavailableController()
@@ -61,10 +68,6 @@ def create_app(
             try:
                 application.state.controller = controller
                 application.state.mechanical = mechanical
-                if _simulation:
-                    application.state.simulation_flow = SimulationFlow(
-                        store, mechanical
-                    )
                 async with httpx.AsyncClient(
                     transport=_simulation.build_transport(transport)
                     if _simulation
@@ -81,6 +84,14 @@ def create_app(
                     application.state.status_service = status
                     application.state.sessions = SessionService(store, central, status)
                     application.state.dev_central = central
+                    if _simulation:
+                        application.state.simulation_flow = SimulationFlow(
+                            store,
+                            mechanical,
+                            central=central
+                            if store.identity_scope is not None
+                            else None,
+                        )
                     # Serviços privados, desconectados da autorização física.
                     application.state.vision = (
                         None if _simulation else build_internal_vision(http_client)

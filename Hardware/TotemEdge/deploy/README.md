@@ -5,6 +5,10 @@ SQLite ocupa um volume Docker persistente. O navegador permanece no Linux do
 equipamento, acessando loopback. Não há Node, Nginx, Chromium, IA local, serviços
 auxiliares ou acesso a dispositivos nesta imagem.
 
+Os [perfis automatizados de regressão](TESTING.md) documentam FAST, INTEGRATION,
+FULL e HOSTED DEV, comandos PowerShell, isolamento, resultados agregados e os
+E2E pendentes do 3C.2.
+
 **O Totem continua indisponível para descartes reais.** Um healthcheck saudável
 confirma somente o processo. `/local/status` permanece `OFFLINE` e
 `can_start_deposit=false`, inclusive com o backend central disponível. A

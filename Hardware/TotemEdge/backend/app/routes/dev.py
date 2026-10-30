@@ -8,6 +8,7 @@ from pydantic import Field
 from app.central_contracts import PinConfirmation, TotemContext
 from app.clients.supabase import CentralError
 from app.routes.sessions import StrictRequest
+from app.services.simulation_flow import SimulationSnapshot
 
 router = APIRouter(prefix="/local/dev")
 
@@ -48,6 +49,19 @@ async def context(request: Request):
 @router.post("/student-pin", response_model=PinConfirmation)
 async def pin(request: Request, body: DevPin):
     # Contrato de identificação existente; não cria sessão nem confirma mecânica.
-    return await (await available(request)).verify_pin(
-        body.class_id, body.student_id, body.pin
-    )
+    try:
+        return await (await available(request)).verify_pin(
+            body.class_id, body.student_id, body.pin
+        )
+    finally:
+        body.pin = ""
+
+
+@router.post("/sessions/{event_id}/identity", response_model=SimulationSnapshot)
+async def associate_identity(event_id: UUID, request: Request, body: DevPin):
+    try:
+        return await request.app.state.simulation_flow.identify(
+            event_id, body.class_id, body.student_id, body.pin
+        )
+    finally:
+        body.pin = ""

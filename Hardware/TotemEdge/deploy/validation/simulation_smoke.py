@@ -4,11 +4,14 @@ import argparse
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import time
 from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 from uuid import uuid4
+
+from smoke_cleanup import cleanup_projects
 
 DEPLOY = Path(__file__).resolve().parents[1]
 SERVICE = "totem-edge-simulation"
@@ -36,6 +39,13 @@ def main():
     override_files = {}
     output = DEPLOY / ".validation" / project
     output.mkdir(parents=True)
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    port_override = output / "port.yaml"
+    port_override.write_text(
+        f'services:\n  simulation-http:\n    ports: !override\n      - "127.0.0.1:{port}:8000"\n'
+    )
     env = dict(os.environ)
     # Iscas de teste: Compose precisa ignorar o ambiente operacional do shell.
     env.update(
@@ -76,6 +86,8 @@ def main():
                 "-f",
                 "compose.simulation.yaml",
                 *(["-f", str(override_files[name])] if name in override_files else []),
+                "-f",
+                str(port_override),
                 *arguments,
             ],
             check=check,
@@ -113,7 +125,7 @@ def main():
         return parsed(compose(*prefix, SERVICE, "python", "-c", PROBE, name=name))
 
     def assert_no_economy(snapshot):
-        assert snapshot["schema"] == 3
+        assert snapshot["schema"] == 4
         assert all(row[4] == "SIMULATED" for row in snapshot["commands"])
         assert all(row[2:] == [0, None, None, None] for row in snapshot["cycles"])
 
@@ -524,12 +536,17 @@ def main():
         report.update(ok=False, error=str(error))
         raise
     finally:
-        for name in reversed(projects):
-            compose("down", "--volumes", "--remove-orphans", name=name, check=False)
+        report["cleanup"] = cleanup_projects(projects, compose, run)
+        if not all(item["ok"] for item in report["cleanup"]):
+            report["ok"] = False
         (output / "report.json").write_text(
             json.dumps(report, indent=2), encoding="utf-8"
         )
         print("Report:", output / "report.json", flush=True)
+        if not all(item["ok"] for item in report["cleanup"]):
+            raise RuntimeError(
+                "Smoke cleanup failed; see report for exact UUID projects"
+            )
 
 
 if __name__ == "__main__":

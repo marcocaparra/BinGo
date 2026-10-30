@@ -4,12 +4,15 @@ import argparse
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import tempfile
 import time
 from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 from uuid import uuid4
+
+from smoke_cleanup import cleanup_projects
 
 DEPLOY = Path(__file__).resolve().parents[1]
 HOST = "ddxmohrjcxuibswmrtla.supabase.co"
@@ -24,18 +27,16 @@ def main():
     project = "bingo-dev-integration-test-" + uuid4().hex[:12]
     output = DEPLOY / ".validation" / project
     output.mkdir(parents=True)
-    fixture = Path(tempfile.mkdtemp(prefix="bingo-dev-integration-"))
+    temporary = tempfile.TemporaryDirectory(prefix="bingo-dev-integration-")
+    fixture = Path(temporary.name)
     # Diretório externo ao build/repositório. Somente credenciais sintéticas.
     policy = fixture / "policy.json"
     policy.write_text(
         json.dumps(
             {
                 "project_ref": HOST.split(".")[0],
-                "test_data_only": True,
                 "machine_id": IDS[0],
                 "school_id": IDS[1],
-                "class_ids": [IDS[2]],
-                "student_ids": [IDS[3]],
             }
         )
     )
@@ -51,6 +52,15 @@ def main():
     )
     report = {"project": project, "remote_supabase": False, "checks": []}
     override = output / "override.json"
+    # Coexiste com o DEV hospedado do operador sem parar seus containers/volume.
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    port_override = output / "http.yaml"
+    port_override.write_text(
+        f'services:\n  dev-http:\n    ports: !override\n      - "127.0.0.1:{port}:8000"\n'
+    )
+    report["http_port"] = port
     image = "bingo-dev-validation:" + project.rsplit("-", 1)[1]
 
     def run(command, check=True):
@@ -69,8 +79,9 @@ def main():
             )
         return result
 
-    def compose(*arguments, check=True):
+    def compose(*arguments, name=project, check=True):
         assert project.startswith("bingo-dev-integration-test-")
+        assert name == project
         return run(
             [
                 "docker",
@@ -83,6 +94,8 @@ def main():
                 "compose.dev-integration.yaml",
                 "-f",
                 str(override),
+                "-f",
+                str(port_override),
                 *arguments,
             ],
             check,
@@ -138,13 +151,13 @@ def main():
     def http(path, body=None, headers=None):
         data = None if body is None else json.dumps(body).encode()
         request = Request(
-            "http://127.0.0.1:8002" + path,
+            f"http://127.0.0.1:{port}" + path,
             data=data,
             headers={
                 "Accept": "application/json",
                 "Content-Type": "application/json",
                 "X-Totem-Request": "1",
-                "Origin": "http://127.0.0.1:8002",
+                "Origin": f"http://127.0.0.1:{port}",
                 **(headers or {}),
             },
         )
@@ -332,6 +345,17 @@ def main():
         )
         base = "/local/simulation/sessions"
         event = http(base, {"command_id": str(uuid4())})[1]["session"]["event_id"]
+        identity_path = f"/local/dev/sessions/{event}/identity"
+        assert http(f"{base}/{event}")[1]["session"]["state"] == "IDENTIFYING"
+        assert http(f"{base}/{event}/safety", {"has_risk": False})[0] == 409
+        assert http(identity_path, {**pin, "pin": "9999"})[0] == 401
+        identified = http(identity_path, pin)
+        assert identified[0] == 200
+        assert identified[1]["identity"]["school_id"] == IDS[1]
+        assert http(identity_path, pin)[1] == identified[1]
+        assert http(identity_path, {**pin, "pin": "9999"})[0] == 401
+        assert http(identity_path, {**pin, "pin": "123"})[0] == 422
+        assert http(f"{base}/{event}")[1] == identified[1]
         assert http(f"{base}/{event}/safety", {"has_risk": False})[0] == 200
         for action, extra in [
             ("open", {}),
@@ -343,6 +367,12 @@ def main():
                 assert http(f"{base}/{event}/review-fixture", {})[0] == 200
             identifier = str(uuid4())
             body = {"mechanical_command_id": identifier, **extra}
+            if action in {"open", "hatch"}:
+                assert http(f"{base}/{event}/{action}", body)[0] == 401
+                assert (
+                    http(f"{base}/{event}/{action}", {**body, "pin": "9999"})[0] == 401
+                )
+                body["pin"] = pin["pin"]
             assert http(f"{base}/{event}/{action}", body)[0] in (200, 202)
             for attempt in range(100):
                 snapshot = http(f"{base}/{event}")[1]
@@ -379,8 +409,17 @@ def main():
             "90",
         )
         assert http(f"{base}/{event}")[1] == snapshot and database() == before
+        before_pin = probe()
+        assert http(identity_path, {**pin, "pin": "9999"})[0] == 401
+        after_pin = probe()
+        assert sum(
+            c["path"].endswith("totem-student-pin-v1") for c in after_pin["calls"]
+        ) > sum(c["path"].endswith("totem-student-pin-v1") for c in before_pin["calls"])
+        assert database() == before
+        assert http(identity_path, pin)[1] == snapshot
+        assert http(identity_path, {**pin, "student_id": str(uuid4())})[0] == 409
         report["checks"].append(
-            "Máquina/journal existentes: quatro operações, replay, conclusão sem recibo, restart/recreate duráveis"
+            "Identidade PIN/SQLite v4 e journal: bloqueio antes do vínculo, quatro operações, replay, conclusão sem recibo, restart/recreate duráveis"
         )
         unsafe = compose(
             "run",
@@ -426,8 +465,13 @@ def main():
             "90",
         )
         event = http(base, {"command_id": str(uuid4())})[1]["session"]["event_id"]
+        assert http(f"/local/dev/sessions/{event}/identity", pin)[0] == 200
         http(f"{base}/{event}/safety", {"has_risk": False})
-        command = {"mechanical_command_id": str(uuid4()), "timeout_seconds": 120.0}
+        command = {
+            "mechanical_command_id": str(uuid4()),
+            "timeout_seconds": 120.0,
+            "pin": pin["pin"],
+        }
         assert http(f"{base}/{event}/open", command)[0] == 202
         compose("kill", "--signal", "SIGKILL", SERVICE)
         compose("up", "-d", "--no-build", "--wait", "--wait-timeout", "90")
@@ -456,12 +500,19 @@ def main():
             )
         raise
     finally:
+        report["cleanup"] = cleanup_projects([project], compose, run)
+        temporary.cleanup()
+        report["temporary_fixture_removed"] = not fixture.exists()
+        if not all(item["ok"] for item in report["cleanup"]):
+            report["ok"] = False
         (output / "report.json").write_text(
             json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
         )
-        if override.exists():
-            compose("down", "--volumes", "--remove-orphans", check=False)
         run(["docker", "image", "rm", image], check=False)
+        if not all(item["ok"] for item in report["cleanup"]):
+            raise RuntimeError(
+                "Smoke cleanup failed; see report for exact UUID project"
+            )
     print(json.dumps(report, ensure_ascii=False))
 
 

@@ -534,6 +534,30 @@ política de expurgo. Operações desconhecidas exigem contrato futuro de evidê
 não existe caminho público para desbloqueá-las. Não se infere segurança física
 a partir dos resultados do simulador ou de uma origem declarada como PHYSICAL.
 
+### Identidade DEV persistida — 3C.1.1
+
+O perfil DEV reutiliza SimulationFlow, journal e controller. A nova associação
+SQLite v4 é separada da evidência mecânica: SUPABASE_DEV_PIN_V1 identifica a
+confirmação de aluno/turma/máquina/escola; comandos permanecem SIMULATED.
+Não altera physical_confirmed, payload, receipt ou central_scope.
+
+A sessão DEV começa em IDENTIFYING. Após confirmação pelo broker, vínculo e
+avanço auditado até SAFETY são atômicos, com versão e estado revalidados.
+Safety e intenção de abertura não podem anteceder o vínculo. Todo POST identity
+revalida PIN central, preservando o vínculo/validated_at original. POST open/hatch
+no DEV também exige PIN atual para os IDs vinculados, inclusive em replay.
+GET é recuperação durável/offline; close/confirm-initial seguros preservam
+seu caminho sem rede. IDs/comandos continuam idempotentes, sem redisparo;
+identidade não resolve INDETERMINATE nem autoriza descarte real. event_id não é
+credencial. Clientes locais ainda podem pedir checkpoints e ações de recuperação
+previstas: este DEV exige host confiável e não homologa autorização física.
+O simulador isolado mantém suas fixtures sem dependência do Supabase.
+
+Contratos, legado, concorrência e janelas de falha em
+[LOCAL_API_V1](LOCAL_API_V1.md) e [DEV_INTEGRATION](../deploy/DEV_INTEGRATION.md).
+Retenção futura deverá preservar também a associação imutável e seus eventos
+em transitions. Não há TTL, expurgo ou limpeza nova neste incremento.
+
 ### Recomendação específica para o Incremento 3
 
 Criar uma composição de simulação explicitamente isolada do runtime operacional,

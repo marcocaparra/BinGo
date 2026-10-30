@@ -10,9 +10,8 @@ const backend = path.join(repo, 'Hardware/TotemEdge/backend');
 const output = path.join(frontend, '.validation');
 fs.mkdirSync(path.join(output, 'tmp'), { recursive: true });
 process.env.TMP = process.env.TEMP = path.join(output, 'tmp');
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || path.join(repo, 'Software/apps/admin_web/node_modules/playwright'));
+const { chromium, launchOptions } = require('./browser_tools.cjs');
 const python = process.env.BINGO_TEST_PYTHON || path.join(backend, process.platform === 'win32' ? '.venv/Scripts/python.exe' : '.venv/bin/python');
-const executablePath = process.env.BROWSER_EXECUTABLE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const uuid = '00000000-0000-4000-8000-000000000001';
 const studentId = '00000000-0000-4000-8000-000000000011';
@@ -25,9 +24,15 @@ async function main() {
   const port = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
   const origin = `http://127.0.0.1:${port}`;
-  const env = { ...process.env, BINGO_SQLITE_PATH: path.join(output, `browser-backend-${process.pid}.sqlite3`) };
-  for (const key of ['BINGO_SUPABASE_URL', 'BINGO_MACHINE_ID', 'BINGO_MACHINE_API_KEY', 'BINGO_BACKEND_TIMEOUT_SECONDS']) delete env[key];
-  const server = spawn(python, ['-B', '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(port)], { cwd: backend, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const temporary = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'bingo-browser-'));
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (/^(BINGO_|SUPABASE_|AWS_|GEMINI_|GOOGLE_)/i.test(key) || /^(https?_proxy|all_proxy|no_proxy)$/i.test(key)) delete env[key];
+  }
+  env.BINGO_SQLITE_PATH = path.join(temporary, 'totem.sqlite3');
+  const server = spawn(python, ['-B', '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', String(port), '--no-access-log', '--no-proxy-headers'], { cwd: backend, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  let serverHasClosed = false;
+  const serverClosed = new Promise(resolve => server.once('close', () => { serverHasClosed = true; resolve(); }));
   let logs = '', browser;
   server.stdout.on('data', data => { logs += data; }); server.stderr.on('data', data => { logs += data; });
   const errors = [], results = [], calls = [];
@@ -40,7 +45,7 @@ async function main() {
       await pause(100);
     }
     assert.ok(ready, logs);
-    browser = await chromium.launch({ executablePath, headless: true });
+    browser = await chromium.launch(launchOptions);
     const context = await browser.newContext({ viewport: { width: 600, height: 1024 } });
     await context.route('**/*', route => {
       assert.equal(new URL(route.request().url()).origin, origin, 'Nenhum destino externo permitido');
@@ -119,10 +124,15 @@ async function main() {
     fs.writeFileSync(path.join(output, 'operational-browser.json'), JSON.stringify({ browser: await browser.version(), results, errors }, null, 2) + '\n');
     console.log(JSON.stringify({ checks: results.length, errors: errors.length, browser: await browser.version() }));
   } finally {
-    if (browser) await browser.close();
-    server.kill();
-    await Promise.race([new Promise(resolve => server.on('exit', resolve)), pause(5000)]);
-    fs.writeFileSync(path.join(output, 'uvicorn-smoke.log'), logs);
+    try {
+      if (browser) await browser.close();
+    } finally {
+      server.kill();
+      await Promise.race([serverClosed, pause(5000)]);
+      fs.writeFileSync(path.join(output, 'uvicorn-smoke.log'), logs);
+      assert.ok(serverHasClosed, 'Backend and its streams must close before removing SQLite');
+      fs.rmSync(temporary, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+    }
   }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

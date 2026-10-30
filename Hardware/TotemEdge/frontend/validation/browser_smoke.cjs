@@ -11,10 +11,7 @@ const output = path.join(frontend, '.validation');
 fs.mkdirSync(path.join(output, 'tmp'), { recursive: true });
 process.env.TEMP = process.env.TMP = path.join(output, 'tmp');
 // Usa uma instalação de ferramentas já disponível; não adiciona dependência ao produto.
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE ||
-  path.join(repo, 'Software/apps/admin_web/node_modules/playwright'));
-const executablePath = process.env.BROWSER_EXECUTABLE ||
-  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const { chromium, launchOptions } = require('./browser_tools.cjs');
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.ttf': 'font/ttf' };
 
@@ -45,7 +42,7 @@ async function main() {
   const flows = [];
   let requests = 0;
   try {
-    browser = await chromium.launch({ executablePath, headless: true });
+    browser = await chromium.launch(launchOptions);
     const contexts = [];
     for (const target of [original, copy]) {
       const context = await browser.newContext({ viewport: { width: 600, height: 1024 } });
@@ -66,7 +63,8 @@ async function main() {
         if (response.status() >= 400) problems.push(`HTTP ${response.status()}: ${response.url()}`);
       });
       const time = new Date('2026-10-08T12:00:00Z');
-      await page.clock.install({ time });
+      // Install before the pause target: install starts a progressing clock.
+      await page.clock.install({ time: new Date(time.getTime() - 60_000) });
       await page.clock.pauseAt(time);
       contexts.push({ context, page, base: target.url + (target === original ? '/apps/totem_ui/' : '/') });
     }

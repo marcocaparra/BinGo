@@ -7,12 +7,13 @@ from pathlib import Path
 import sqlite3
 from uuid import UUID, uuid4
 
-from app.central_contracts import DepositPayload, DepositReceipt
+from app.central_contracts import ConfirmedStudent, DepositPayload, DepositReceipt
 from app.cycles import (
     CycleError,
     MECHANICAL_STEPS,
     PRE_PHYSICAL,
     Session,
+    SimulationIdentity,
     SIMULATION_EDGES,
     TRANSITIONS,
 )
@@ -24,7 +25,16 @@ def now() -> str:
 
 
 class CycleStore:
-    def __init__(self, path: Path, *, simulation_enabled: bool = False):
+    def __init__(
+        self,
+        path: Path,
+        *,
+        simulation_enabled: bool = False,
+        identity_scope: tuple[str, UUID, UUID] | None = None,
+    ):
+        if identity_scope is not None and not simulation_enabled:
+            raise ValueError("Identidade DEV exige simulação.")
+        self.identity_scope = identity_scope
         self.simulation_enabled = simulation_enabled
         self.path = path.resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -74,7 +84,7 @@ class CycleStore:
             setup.execute("PRAGMA journal_mode=WAL")
         with self.transaction() as conn:
             version = conn.execute("PRAGMA user_version").fetchone()[0]
-            if version not in (0, 1, 2, 3):
+            if version not in (0, 1, 2, 3, 4):
                 raise RuntimeError("Versão SQLite local não suportada.")
             if version == 0:
                 conn.execute("""CREATE TABLE IF NOT EXISTS cycles (
@@ -159,9 +169,68 @@ class CycleStore:
                     "Sessões simuladas não pertencem ao runtime operacional."
                 )
             self.mechanical.validate_schema(conn)
+            if version < 4:
+                conn.execute("""CREATE TABLE simulation_identities (
+                    event_id TEXT PRIMARY KEY NOT NULL REFERENCES cycles(event_id),
+                    project_ref TEXT NOT NULL, machine_id TEXT NOT NULL,
+                    school_id TEXT NOT NULL, class_id TEXT NOT NULL, student_id TEXT NOT NULL,
+                    validated_at TEXT NOT NULL,
+                    source TEXT NOT NULL CHECK(source='SUPABASE_DEV_PIN_V1')
+                )""")
+                for action in ("UPDATE", "DELETE"):
+                    conn.execute(
+                        f"CREATE TRIGGER simulation_identity_no_{action.lower()} BEFORE {action} ON simulation_identities BEGIN SELECT RAISE(ABORT,'Immutable simulation identity'); END"
+                    )
+                conn.execute("""CREATE TRIGGER simulation_identity_cycle_immutable
+                    BEFORE UPDATE OF mode,class_id,student_id ON cycles
+                    WHEN EXISTS(SELECT 1 FROM simulation_identities WHERE event_id=OLD.event_id)
+                    AND (NEW.mode IS NOT OLD.mode OR NEW.class_id IS NOT OLD.class_id OR NEW.student_id IS NOT OLD.student_id)
+                    BEGIN SELECT RAISE(ABORT,'Immutable associated session identity'); END""")
+            if {
+                r[1] for r in conn.execute("PRAGMA table_info(simulation_identities)")
+            } != {
+                "event_id",
+                "project_ref",
+                "machine_id",
+                "school_id",
+                "class_id",
+                "student_id",
+                "validated_at",
+                "source",
+            } or not {
+                "simulation_identity_no_update",
+                "simulation_identity_no_delete",
+                "simulation_identity_cycle_immutable",
+            } <= {
+                r[0]
+                for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='trigger'"
+                )
+            }:
+                raise RuntimeError(
+                    "Associação de identidade incompatível; operação bloqueada."
+                )
+            for binding in conn.execute("SELECT * FROM simulation_identities"):
+                identity = SimulationIdentity(**dict(binding))
+                row = self._row(conn, identity.event_id)
+                if (
+                    not row["simulated"]
+                    or row["mode"] != "student"
+                    or row["class_id"] != str(identity.class_id)
+                    or row["student_id"] != str(identity.student_id)
+                    or identity.validated_at.utcoffset() is None
+                    or not conn.execute(
+                        "SELECT 1 FROM transitions WHERE event_id=? AND code='DEV_IDENTITY_CONFIRMED' AND to_state='SAFETY'",
+                        (row["event_id"],),
+                    ).fetchone()
+                ):
+                    raise RuntimeError(
+                        "Associação de identidade divergente; operação bloqueada."
+                    )
+                self._check_identity_scope(identity)
             if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
                 raise RuntimeError("Referências SQLite inválidas; operação bloqueada.")
-            conn.execute("PRAGMA user_version=3")
+            conn.execute("PRAGMA user_version=4")
 
     @staticmethod
     def _record(conn, row, state, *, code=None, updates=None):
@@ -314,7 +383,7 @@ class CycleStore:
         if simulated and (
             not self.simulation_enabled
             or central_scope is not None
-            or mode != "class_only"
+            or mode != ("student" if self.identity_scope else "class_only")
         ):
             raise CycleError("SIMULATION_RUNTIME_REQUIRED", 403)
         with self.transaction() as conn:
@@ -324,7 +393,14 @@ class CycleStore:
             if existing:
                 if (
                     existing["mode"] != mode
-                    or existing["class_id"] != str(class_id)
+                    or (
+                        existing["class_id"] != str(class_id)
+                        and not (
+                            # No DEV a turma só é escolhida ao associar identidade;
+                            # POST de criação aceita apenas command_id, sem turma.
+                            simulated and self.identity_scope and mode == "student"
+                        )
+                    )
                     or existing["simulated"] != int(simulated)
                 ):
                     raise CycleError("COMMAND_ID_CONFLICT")
@@ -454,6 +530,11 @@ class CycleStore:
         if not row["simulated"]:
             return
         self.simulation_row(conn, entry.command.event_id)
+        if self.identity_scope and entry.command.operation not in {
+            "CLOSE_INSERTION_DOOR",
+            "CONFIRM_INITIAL_STATE",
+        }:
+            self.require_simulation_identity(conn, row["event_id"])
         before, moving, _ = MECHANICAL_STEPS[entry.command.operation]
         if (
             row["state"] != before
@@ -554,6 +635,113 @@ class CycleStore:
                 (event_id, needed[row["state"]]),
             ).fetchone():
                 return
-        elif row["state"] in {"SAFETY", "PHYSICAL_BLOCKED", "INDETERMINATE"}:
+        elif row["state"] in {
+            "IDENTIFYING",
+            "SAFETY",
+            "PHYSICAL_BLOCKED",
+            "INDETERMINATE",
+        }:
             return
         self.mechanical._block_cycle(conn, event_id)
+
+    def _check_identity_scope(self, identity: SimulationIdentity) -> None:
+        if (
+            self.identity_scope is not None
+            and (identity.project_ref, identity.machine_id, identity.school_id)
+            != self.identity_scope
+        ):
+            raise CycleError("DEV_IDENTITY_SCOPE_MISMATCH", 403)
+
+    def simulation_identity(self, conn, event_id) -> SimulationIdentity | None:
+        binding = conn.execute(
+            "SELECT * FROM simulation_identities WHERE event_id=?", (str(event_id),)
+        ).fetchone()
+        identity = SimulationIdentity(**dict(binding)) if binding else None
+        if identity:
+            self._check_identity_scope(identity)
+        return identity
+
+    def require_simulation_identity(self, conn, event_id) -> SimulationIdentity:
+        identity = self.simulation_identity(conn, event_id)
+        if identity is None:
+            raise CycleError("DEV_IDENTITY_REQUIRED")
+        return identity
+
+    def identity_attempt(
+        self,
+        event_id: UUID,
+        class_id: UUID,
+        student_id: UUID,
+    ) -> tuple[SimulationIdentity | None, int]:
+        """Pré-checagem sem reserva/segredo; o commit revalida estado e versão."""
+        with self.transaction() as conn:
+            row = self.simulation_row(conn, event_id)
+            identity = self.simulation_identity(conn, event_id)
+            if identity:
+                if (identity.class_id, identity.student_id) != (class_id, student_id):
+                    raise CycleError("DEV_IDENTITY_CONFLICT")
+                return identity, row["version"]
+            if (
+                self.identity_scope is None
+                or row["mode"] != "student"
+                or row["state"] != "IDENTIFYING"
+                or row["active_slot"] != 1
+                or conn.execute(
+                    "SELECT 1 FROM mechanical_commands WHERE event_id=?",
+                    (str(event_id),),
+                ).fetchone()
+            ):
+                raise CycleError("COMMAND_OUT_OF_SEQUENCE")
+            return None, row["version"]
+
+    def bind_simulation_identity(
+        self,
+        identity: SimulationIdentity,
+        student: ConfirmedStudent,
+        expected_version: int,
+    ) -> None:
+        with self.transaction() as conn:
+            row = self.simulation_row(conn, identity.event_id)
+            self._check_identity_scope(identity)
+            previous = self.simulation_identity(conn, identity.event_id)
+            if previous:
+                if (previous.class_id, previous.student_id) != (
+                    identity.class_id,
+                    identity.student_id,
+                ):
+                    raise CycleError("DEV_IDENTITY_CONFLICT")
+                return  # Outro request já confirmou a mesma identidade.
+            if (
+                self.identity_scope is None
+                or row["state"] != "IDENTIFYING"
+                or row["mode"] != "student"
+                or row["active_slot"] != 1
+                or row["version"] != expected_version
+                or conn.execute(
+                    "SELECT 1 FROM mechanical_commands WHERE event_id=?",
+                    (row["event_id"],),
+                ).fetchone()
+            ):
+                raise CycleError("COMMAND_OUT_OF_SEQUENCE")
+            if (
+                student.id != identity.student_id
+                or student.class_id != identity.class_id
+            ):
+                raise CycleError("DEV_IDENTITY_CONFLICT")
+            self._record(conn, row, "AUTHENTICATING", code="DEV_IDENTITY_VALIDATED")
+            self._record(
+                conn,
+                self._row(conn, identity.event_id),
+                "SAFETY",
+                code="DEV_IDENTITY_CONFIRMED",
+                updates={
+                    "class_id": str(identity.class_id),
+                    "student_id": str(identity.student_id),
+                    "class_name": student.class_name,
+                    "student_name": student.name,
+                },
+            )
+            conn.execute(
+                "INSERT INTO simulation_identities(event_id,project_ref,machine_id,school_id,class_id,student_id,validated_at,source) VALUES(?,?,?,?,?,?,?,?)",
+                tuple(identity.model_dump(mode="json").values()),
+            )

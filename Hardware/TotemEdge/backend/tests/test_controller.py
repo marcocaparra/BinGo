@@ -579,7 +579,7 @@ def test_injected_simulation_cannot_confirm_physics_or_register_points(
         )
         assert store.by_command(session_command_id).event_id == session.event_id
         with store.transaction() as conn:
-            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
             assert tuple(
                 conn.execute(
                     "SELECT physical_confirmed,payload,receipt FROM cycles"

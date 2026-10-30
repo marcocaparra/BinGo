@@ -17,6 +17,7 @@ from app.dev_integration import (
     BROKER,
     DEV_URL,
     DevConfigurationError,
+    DevPolicy,
     FunctionTransport,
     create_dev_app,
     load_machine_key,
@@ -86,11 +87,8 @@ def dev_environment(monkeypatch, tmp_path):
         json.dumps(
             {
                 "project_ref": "ddxmohrjcxuibswmrtla",
-                "test_data_only": True,
                 "machine_id": str(MACHINE),
                 "school_id": str(SCHOOL),
-                "class_ids": [str(CLASS)],
-                "student_ids": [str(STUDENT)],
             }
         )
     )
@@ -123,15 +121,25 @@ def connected(dev_environment):
             )
         if request.url.path.endswith("totem-context-v1"):
             return httpx.Response(200, json=CONTEXT)
-        if json.loads(request.content)["pin"] != "0012":
+        body = json.loads(request.content)
+        student = next(
+            (
+                s
+                for s in CONTEXT["students"]
+                if s["id"] == body["student_id"]
+                and s["class_id"] == body["class_id"]
+                and s["status"] == "ACTIVE"
+            ),
+            None,
+        )
+        if body["pin"] != "0012" or student is None:
             return httpx.Response(401, json={"error": {"code": "STUDENT_PIN_INVALID"}})
         return httpx.Response(
             200,
             json={
                 "confirmed": True,
                 "student": {
-                    k: CONTEXT["students"][0][k]
-                    for k in ("id", "name", "class_id", "class_name")
+                    k: student[k] for k in ("id", "name", "class_id", "class_name")
                 },
             },
         )
@@ -216,7 +224,7 @@ def test_operational_routes_absent_and_cannot_mutate_simulated_sessions(
     assert calls == []
 
 
-def test_simulated_flow_and_journal_remain_independent_of_central_identification(
+def test_dev_simulated_flow_requires_durable_central_identification(
     connected,
 ):
     client, app, _, calls = connected
@@ -225,11 +233,19 @@ def test_simulated_flow_and_journal_remain_independent_of_central_identification
     ]
     assert client.post("/local/dev/student-pin", json=PIN).status_code == 200
     assert client.get(BASE + "/" + event).json()["session"]["student_id"] is None
+    assert (
+        client.post(f"{BASE}/{event}/safety", json={"has_risk": False}).status_code
+        == 409
+    )
+    assert (
+        client.post(f"/local/dev/sessions/{event}/identity", json=PIN).status_code
+        == 200
+    )
     client.post(f"{BASE}/{event}/safety", json={"has_risk": False})
     for action, extra in [
-        ("open", {}),
+        ("open", {"pin": PIN["pin"]}),
         ("close", {"hand_removed": True}),
-        ("hatch", {}),
+        ("hatch", {"pin": PIN["pin"]}),
         ("confirm-initial", {}),
     ]:
         if action == "hatch":
@@ -248,6 +264,20 @@ def test_simulated_flow_and_journal_remain_independent_of_central_identification
     final = client.get(BASE + "/" + event).json()
     assert final["source"] == "SIMULATED" and final["session"]["state"] == "COMPLETED"
     assert final["session"]["receipt"] is None and len(final["commands"]) == 4
+    number = len(calls)
+    assert (
+        client.post(f"/local/dev/sessions/{event}/identity", json=PIN).json() == final
+    )
+    assert len(calls) > number
+    number = len(calls)
+    assert (
+        client.post(
+            f"/local/dev/sessions/{event}/identity",
+            json={**PIN, "student_id": str(uuid4())},
+        ).status_code
+        == 409
+    )
+    assert len(calls) == number
     with app.state.sessions.store.transaction() as conn:
         assert tuple(
             conn.execute(
@@ -404,7 +434,8 @@ def test_test_scope_denial_precedes_student_pin_request(connected):
         "/local/dev/student-pin", json={**PIN, "student_id": str(uuid4())}
     )
     assert response.status_code == 403
-    assert all(r.url.path.endswith("health-v1") for r in calls)
+    assert any(r.url.path.endswith("totem-context-v1") for r in calls)
+    assert not any(r.url.path.endswith("totem-student-pin-v1") for r in calls)
 
 
 def test_dev_recovery_preserves_journal_without_redispatch(dev_environment):
@@ -416,6 +447,29 @@ def test_dev_recovery_preserves_journal_without_redispatch(dev_environment):
         event = client.post(BASE, json={"command_id": str(uuid4())}).json()["session"][
             "event_id"
         ]
+        from app.cycles import SimulationIdentity
+        from app.central_contracts import ConfirmedStudent
+        from app.storage import now
+
+        store = app.state.sessions.store
+        store.bind_simulation_identity(
+            SimulationIdentity(
+                event_id=event,
+                project_ref="ddxmohrjcxuibswmrtla",
+                machine_id=MACHINE,
+                school_id=SCHOOL,
+                class_id=CLASS,
+                student_id=STUDENT,
+                validated_at=now(),
+            ),
+            ConfirmedStudent(
+                **{
+                    k: CONTEXT["students"][0][k]
+                    for k in ("id", "name", "class_id", "class_name")
+                }
+            ),
+            store.identity_attempt(UUID(event), CLASS, STUDENT)[1],
+        )
         client.post(f"{BASE}/{event}/safety", json={"has_risk": False})
         from app.mechanical import MechanicalCommand
 
@@ -483,16 +537,11 @@ def test_network_timeout_does_not_confirm_identity(connected):
     assert client.post("/local/dev/student-pin", json=PIN).status_code == 503
 
 
-@pytest.mark.parametrize("field", ["machine", "school", "class", "student"])
+@pytest.mark.parametrize("field", ["machine", "school"])
 def test_unapproved_context_never_reaches_local_consumer(connected, field):
     client, _, broker, _ = connected
     context = json.loads(json.dumps(CONTEXT))
-    if field in {"machine", "school"}:
-        context[field]["id"] = str(uuid4())
-    elif field == "class":
-        context["classes"].append({**context["classes"][0], "id": str(uuid4())})
-    else:
-        context["students"].append({**context["students"][0], "id": str(uuid4())})
+    context[field]["id"] = str(uuid4())
     requests = []
 
     def remote(request):
@@ -570,4 +619,201 @@ def test_isolated_api_also_prevents_cross_access(simulation_environment):
             client.post(f"/local/sessions/{event}/cancel", json={}).status_code == 404
         )
         assert client.get("/local/dev/context").status_code == 404
+        assert (
+            client.post(f"/local/dev/sessions/{event}/identity", json=PIN).status_code
+            == 404
+        )
         assert client.get(f"{BASE}/{event}").json() == before
+
+
+def test_minimal_policy_only_requires_installation_identity(dev_environment):
+    _, path, _ = dev_environment
+    policy = load_policy(path)
+    assert set(json.loads(path.read_text())) == {
+        "project_ref",
+        "machine_id",
+        "school_id",
+    }
+    assert policy.machine_id == MACHINE and policy.school_id == SCHOOL
+    assert policy.class_ids is None and policy.student_ids is None
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"class_ids": []},
+        {"student_ids": []},
+        {"class_ids": None, "student_ids": None},
+        {"class_ids": [], "student_ids": []},
+        {"class_ids": [str(CLASS)] * 2, "student_ids": [str(STUDENT)]},
+        {"class_ids": [str(CLASS)], "student_ids": [str(STUDENT)] * 2},
+        {"class_ids": [str(CLASS)], "student_ids": None},
+    ],
+)
+def test_incomplete_or_ambiguous_legacy_restrictions_fail_closed(
+    dev_environment, extra
+):
+    _, path, _ = dev_environment
+    path.write_text(json.dumps({**json.loads(path.read_text()), **extra}))
+    with pytest.raises(DevConfigurationError):
+        load_policy(path)
+
+
+@pytest.mark.parametrize("field", ["project_ref", "machine_id", "school_id"])
+def test_installation_identity_fields_remain_required(dev_environment, field):
+    _, path, _ = dev_environment
+    body = json.loads(path.read_text())
+    del body[field]
+    path.write_text(json.dumps(body))
+    with pytest.raises(DevConfigurationError):
+        load_policy(path)
+
+
+@pytest.mark.parametrize("addition", ["class", "student"])
+def test_legacy_policy_restrictions_are_preserved_not_silently_discarded(
+    connected, addition
+):
+    client, app, broker, _ = connected
+    values = {
+        "project_ref": "ddxmohrjcxuibswmrtla",
+        "test_data_only": True,
+        "machine_id": MACHINE,
+        "school_id": SCHOOL,
+        "class_ids": [CLASS],
+        "student_ids": [STUDENT],
+    }
+    policy = DevPolicy.model_validate(values)
+    app.state.dev_central.policy = policy
+    broker.app.state.central.policy = policy
+    assert client.get("/local/dev/context").status_code == 200
+    context = json.loads(json.dumps(CONTEXT))
+    if addition == "class":
+        context["classes"].append({**context["classes"][0], "id": str(uuid4())})
+    else:
+        context["students"].append({**context["students"][0], "id": str(uuid4())})
+    # Chamada direta ao cliente tipado evita confundir falha de health com escopo.
+    broker.app.state.central._http._transport.inner = httpx.MockTransport(
+        lambda r: httpx.Response(200, json=context)
+    )
+    with pytest.raises(CentralError) as error:
+        broker.portal.call(broker.app.state.central.context)
+    assert error.value.code == "DEV_TEST_SCOPE_MISMATCH"
+
+
+def test_classes_and_active_students_are_discovered_dynamically(connected, monkeypatch):
+    client, _, _, calls = connected
+    initial = client.get("/local/dev/context").json()
+    new_class, new_student = str(uuid4()), str(uuid4())
+    monkeypatch.setitem(
+        CONTEXT,
+        "classes",
+        [
+            *CONTEXT["classes"],
+            {**CONTEXT["classes"][0], "id": new_class, "name": "Nova turma sintética"},
+        ],
+    )
+    monkeypatch.setitem(
+        CONTEXT,
+        "students",
+        [
+            *CONTEXT["students"],
+            {
+                **CONTEXT["students"][0],
+                "id": new_student,
+                "class_id": new_class,
+                "class_name": "Nova turma sintética",
+                "name": "Novo aluno sintético",
+            },
+        ],
+    )
+    current = client.get("/local/dev/context").json()
+    assert len(current["classes"]) == len(initial["classes"]) + 1
+    assert len(current["students"]) == len(initial["students"]) + 1
+    response = client.post(
+        "/local/dev/student-pin",
+        json={**PIN, "class_id": new_class, "student_id": new_student},
+    )
+    assert (
+        response.status_code == 200 and response.json()["student"]["id"] == new_student
+    )
+    assert all((r.method, r.url.path) in ALLOWED for r in calls)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {**PIN, "student_id": str(uuid4())},
+        {**PIN, "class_id": str(uuid4())},
+        {**PIN, "student_id": str(uuid4()), "class_id": str(uuid4())},
+    ],
+)
+def test_foreign_school_identifiers_cannot_escape_authenticated_context(
+    connected, body
+):
+    client, _, _, calls = connected
+    assert client.post("/local/dev/student-pin", json=body).status_code == 403
+    assert any(r.url.path.endswith("totem-context-v1") for r in calls)
+    assert not any(r.url.path.endswith("totem-student-pin-v1") for r in calls)
+
+
+def test_student_moved_to_another_authorized_class_requires_current_membership(
+    connected, monkeypatch
+):
+    client, _, _, calls = connected
+    assert client.post("/local/dev/student-pin", json=PIN).status_code == 200
+    other_class = str(uuid4())
+    monkeypatch.setitem(
+        CONTEXT,
+        "classes",
+        [*CONTEXT["classes"], {**CONTEXT["classes"][0], "id": other_class}],
+    )
+    monkeypatch.setitem(
+        CONTEXT, "students", [{**CONTEXT["students"][0], "class_id": other_class}]
+    )
+    calls.clear()
+    assert client.post("/local/dev/student-pin", json=PIN).status_code == 403
+    assert not any(r.url.path.endswith("totem-student-pin-v1") for r in calls)
+    assert (
+        client.post(
+            "/local/dev/student-pin", json={**PIN, "class_id": other_class}
+        ).status_code
+        == 200
+    )
+
+
+def test_student_no_longer_in_active_context_cannot_be_confirmed(
+    connected, monkeypatch
+):
+    client, _, _, calls = connected
+    assert client.post("/local/dev/student-pin", json=PIN).status_code == 200
+    monkeypatch.setitem(CONTEXT, "students", [])
+    calls.clear()
+    assert client.post("/local/dev/student-pin", json=PIN).status_code == 403
+    assert not any(r.url.path.endswith("totem-student-pin-v1") for r in calls)
+
+
+def test_central_denial_after_context_lookup_remains_authoritative(connected):
+    client, _, broker, _ = connected
+    original = broker.app.state.central._http._transport.inner
+    pin_calls = []
+
+    async def remote(request):
+        if request.url.path.endswith("totem-student-pin-v1"):
+            pin_calls.append(request)
+            return httpx.Response(401, json={"error": {"code": "STUDENT_PIN_INVALID"}})
+        return await original.handle_async_request(request)
+
+    broker.app.state.central._http._transport.inner = httpx.MockTransport(remote)
+    response = client.post("/local/dev/student-pin", json=PIN)
+    assert response.status_code == 401 and len(pin_calls) == 1
+    assert "confirmed" not in response.json()
+
+
+@pytest.mark.parametrize("value", ["", "123", "12345", "１２３４", 1234, None])
+def test_pin_contract_is_not_weakened_by_dynamic_context(connected, value):
+    client, _, _, calls = connected
+    assert (
+        client.post("/local/dev/student-pin", json={**PIN, "pin": value}).status_code
+        == 422
+    )
+    assert calls == []

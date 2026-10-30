@@ -1,6 +1,9 @@
 # TotemEdge — simulação isolada (3A) e contratos HTTP/estados (3B)
 
 Este perfil executa FastAPI, SimulatedController e o mesmo journal mecânico.
+No 3C.1.1, o SQLite comum evolui para v4, sem exigir identidade central neste
+perfil isolado: identity=null e fixtures class_only/SAFETY continuam disponíveis.
+Somente o [DEV conectado](DEV_INTEGRATION.md) exige associação PIN persistida.
 No 3B, sessões simuladas identificadas no SQLite v3 usam os estados persistidos
 de abertura/fechamento/alçapão. Não há integração do frontend, atuação física ou
 registro de pontos. A demonstração visual anterior permanece independente.

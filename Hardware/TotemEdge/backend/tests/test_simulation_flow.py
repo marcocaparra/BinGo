@@ -21,6 +21,19 @@ BASE = "/local/simulation/sessions"
 HEADERS = {"X-Totem-Request": "1"}
 
 
+@pytest.mark.parametrize("pin", [None, "0012"])
+def test_isolated_motion_contract_keeps_rejecting_pin(client_app, pin):
+    client, _, _ = client_app
+    event, _ = start(client)
+    assert (
+        client.post(
+            f"{BASE}/{event}/open",
+            json={"mechanical_command_id": str(uuid4()), "pin": pin},
+        ).status_code
+        == 422
+    )
+
+
 @pytest.fixture
 def client_app(simulation_environment, monkeypatch):
     clock = ManualClock()
@@ -663,6 +676,13 @@ def test_real_legacy_schema_migrates_without_reclassifying_sessions(
     session = store.create(uuid4(), "class_only", uuid4(), "Legacy")
     store.close()
     with sqlite3.connect(path) as conn:
+        for trigger in (
+            "simulation_identity_no_update",
+            "simulation_identity_no_delete",
+            "simulation_identity_cycle_immutable",
+        ):
+            conn.execute(f"DROP TRIGGER {trigger}")
+        conn.execute("DROP TABLE simulation_identities")
         conn.execute("DROP TRIGGER cycle_simulation_source_immutable")
         conn.execute("ALTER TABLE cycles DROP COLUMN simulated")
         if old_version == 1:
@@ -672,7 +692,7 @@ def test_real_legacy_schema_migrates_without_reclassifying_sessions(
     migrated = CycleStore(path)
     try:
         with migrated.transaction() as conn:
-            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
             assert conn.execute("SELECT simulated FROM cycles").fetchone()[0] == 0
         assert migrated.get(session.event_id).state == "CANCELLED"
     finally:

@@ -1,9 +1,10 @@
 """Máquina única de sessão; movimentos conectados somente em sessões simuladas."""
 
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.central_contracts import DepositReceipt
 
@@ -80,3 +81,17 @@ class Session(BaseModel):
     failure_code: str | None
     receipt: DepositReceipt | None
     updated_at: str
+
+
+class SimulationIdentity(BaseModel):
+    """Confirmação de identidade central; nunca evidência física/econômica."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    event_id: UUID
+    project_ref: str
+    machine_id: UUID
+    school_id: UUID
+    class_id: UUID
+    student_id: UUID
+    validated_at: datetime
+    source: Literal["SUPABASE_DEV_PIN_V1"] = "SUPABASE_DEV_PIN_V1"

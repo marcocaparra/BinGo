@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field, StrictBool, model_validator
 
+from app.cycles import CycleError
 from app.routes.sessions import StrictRequest, Safety
 from app.services.simulation_flow import (
     SimulationCommandSnapshot,
@@ -30,6 +31,8 @@ class SimulationStart(StrictRequest):
 class Motion(StrictRequest):
     mechanical_command_id: UUID
     timeout_seconds: float = Field(default=10.0, gt=0, allow_inf_nan=False, strict=True)
+    # Exigido em open/hatch somente no DEV conectado; nunca compõe o comando.
+    pin: str | None = Field(default=None, pattern=r"^[0-9]{4}$", repr=False)
 
 
 class Close(Motion):
@@ -85,13 +88,22 @@ def command(event_id: UUID, identifier: UUID, flow: Service):
 
 
 async def act(flow, event_id, operation, body, response, *, hand_removed=False):
-    entry, snapshot = await flow.act(
-        event_id,
-        operation,
-        body.mechanical_command_id,
-        body.timeout_seconds,
-        hand_removed=hand_removed,
-    )
+    try:
+        if "pin" in body.model_fields_set and (
+            not flow.store.identity_scope
+            or operation not in {"OPEN_INSERTION_DOOR", "CYCLE_LOWER_HATCH"}
+        ):
+            raise CycleError("INVALID_LOCAL_CONTRACT", 422)
+        entry, snapshot = await flow.act(
+            event_id,
+            operation,
+            body.mechanical_command_id,
+            body.timeout_seconds,
+            hand_removed=hand_removed,
+            pin=body.pin,
+        )
+    finally:
+        body.pin = None
     response.status_code = (
         202 if entry.phase in {"INTENT", "DISPATCHING", "ACCEPTED"} else 200
     )

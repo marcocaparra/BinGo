@@ -42,22 +42,32 @@ class DevConfigurationError(RuntimeError):
 class DevPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     project_ref: Literal["ddxmohrjcxuibswmrtla"]
-    test_data_only: Literal[True]
+    # Compatibilidade com a declaração do formato 3C.1; não concede autorização.
+    test_data_only: Literal[True] = True
     machine_id: UUID
     school_id: UUID
-    class_ids: tuple[UUID, ...]
-    student_ids: tuple[UUID, ...]
+    # Formato legado: restrições adicionais opcionais, nunca ignoradas.
+    class_ids: tuple[UUID, ...] | None = None
+    student_ids: tuple[UUID, ...] | None = None
 
     @model_validator(mode="before")
     @classmethod
     def explicit_test_scope(cls, value):
-        if not isinstance(value, dict) or value.get("test_data_only") is not True:
+        if not isinstance(value, dict) or (
+            "test_data_only" in value and value["test_data_only"] is not True
+        ):
             raise ValueError("Escopo sintético obrigatório.")
+        legacy = {"class_ids", "student_ids"} & value.keys()
+        if legacy and (
+            legacy != {"class_ids", "student_ids"}
+            or any(value[key] is None for key in legacy)
+        ):
+            raise ValueError("Restrições legadas devem ser fornecidas juntas.")
         return value
 
     @model_validator(mode="after")
     def unique_scope(self):
-        if (
+        if self.class_ids is not None and (
             not self.class_ids
             or len(set(self.class_ids)) != len(self.class_ids)
             or len(set(self.student_ids)) != len(self.student_ids)
@@ -183,20 +193,23 @@ class DevCentralClient(SupabaseEdgeClient):
         context = await super().context()
         if (
             context.school.id != self.policy.school_id
-            or any(c.id not in self.policy.class_ids for c in context.classes)
-            or any(s.id not in self.policy.student_ids for s in context.students)
+            or self.policy.class_ids is not None
+            and (
+                any(c.id not in self.policy.class_ids for c in context.classes)
+                or any(s.id not in self.policy.student_ids for s in context.students)
+            )
         ):
             raise CentralError("DEV_TEST_SCOPE_MISMATCH", 403)
         return context
 
     async def verify_pin(self, class_id, student_id, pin):
-        if (
+        if self.policy.class_ids is not None and (
             class_id not in self.policy.class_ids
             or student_id not in self.policy.student_ids
         ):
             raise CentralError("DEV_TEST_SCOPE_MISMATCH", 403)
         context = await self.context()
-        if not any(
+        if not any(c.id == class_id for c in context.classes) or not any(
             s.id == student_id and s.class_id == class_id for s in context.students
         ):
             raise CentralError("DEV_TEST_SCOPE_MISMATCH", 403)

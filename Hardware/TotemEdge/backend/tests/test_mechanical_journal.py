@@ -76,9 +76,16 @@ def restart(store):
 
 
 def as_v1(store):
-    """As tabelas originais não mudam em v2: remover só as adições produz v1."""
+    """Remove as extensões posteriores para exercitar a migração de v1."""
     store.close()
     with sqlite3.connect(store.path) as conn:
+        for trigger in (
+            "simulation_identity_no_update",
+            "simulation_identity_no_delete",
+            "simulation_identity_cycle_immutable",
+        ):
+            conn.execute(f"DROP TRIGGER {trigger}")
+        conn.execute("DROP TABLE simulation_identities")
         conn.execute("DROP TABLE mechanical_history")
         conn.execute("DROP TABLE mechanical_commands")
         conn.execute("PRAGMA user_version=1")
@@ -430,7 +437,7 @@ def test_v1_migration_preserves_old_schema_history_and_pending_event(store):
     try:
         assert migrated.get(event_id).state == "REGISTRATION_PENDING"
         with migrated.transaction() as conn:
-            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
             assert [
                 tuple(row) for row in conn.execute("SELECT * FROM cycles")
             ] == cycles
