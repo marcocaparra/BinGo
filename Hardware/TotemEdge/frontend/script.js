@@ -1381,6 +1381,180 @@ function closeSearchKeyboard() {
   }, 260);
 }
 
+// Presentation adapter only: reuse the team's identification templates. Never call
+// render()/jump() here: their demo timers are not authorities for a DEV session.
+// Login-only component from Software/apps/totem_ui's approved renderPinScreen /
+// pinPadMarkup. The historical demo renderer remains unchanged; no setup logic.
+function approvedLoginPin() {
+  const keypad = `
+    <div class="pin-pad">
+      ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "Apagar", "0", "OK"].map((key) => `
+        <button class="key ${["Apagar", "OK"].includes(key) ? "key-action" : ""} ${key === "OK" && pinDigits < 4 ? "key-disabled" : ""}" data-pin="${key}" ${key === "OK" && pinDigits < 4 ? "disabled" : ""}>${key}</button>
+      `).join("")}
+    </div>
+  `;
+  return `
+    <section class="screen screen--corner screen--pin screen--with-cancel" data-pin-step="login">
+      ${topbar("PIN", { back: false })}
+      <div class="content-zone content-zone--corner content-zone--pin">
+        ${talk(assets.b1nPrivacyCorner, "Digite seu PIN. Eu fecho os olhos.", "corner privacy-guide character-privacy")}
+        <div class="pin-display" role="img" aria-label="${pinDigits} de 4 números preenchidos">
+          ${[0, 1, 2, 3].map((index) => `<span class="pin-dot ${index < pinDigits ? "filled" : ""}" aria-hidden="true"></span>`).join("")}
+        </div>
+        ${keypad}
+        <div class="pin-hint" role="alert">Digite 4 números.</div>
+      </div>
+      <div class="action-zone action-zone--cancel">
+        <button class="cancel-action" data-cancel-discard>Cancelar descarte</button>
+      </div>
+    </section>
+  `;
+}
+
+function renderDevIdentity(view) {
+  currentIndex = screens.findIndex(screen => screen.id === view.screen);
+  if (currentIndex < 0) throw new Error("Unknown presentation");
+  // Backend labels enter only through textContent/dataset below. Keep the
+  // original template's placeholder inert, even when a grade contains markup.
+  selectedYear = null;
+  searchQuery = "";
+  searchActive = view.searchActive;
+  keyboardShift = view.keyboardShift;
+  lastPressedKey = view.keyFeedback;
+  keyboardOpening = false;
+  keyboardClosing = view.keyboardClosing;
+  pinDigits = view.pinLength;
+  pinWarning = false;
+  const template = document.createElement("template");
+  template.innerHTML = view.screen === "pin" ? approvedLoginPin() : screens[currentIndex].render();
+  const fragment = template.content;
+  const bind = (selector, action, value = "") => fragment.querySelectorAll(selector).forEach(node => {
+    node.dataset.devOp = action;
+    node.dataset.value = value;
+  });
+  // Clone existing controls; replace only server data, never their composition.
+  function fillList(selector, rows, action, studentList = false) {
+    const list = fragment.querySelector(selector);
+    const prototype = list.querySelector("button").cloneNode(true);
+    list.replaceChildren(...rows.map(row => {
+      const button = prototype.cloneNode(true);
+      const label = button.querySelector("span");
+      if (studentList) {
+        label.className = "student-button-label";
+        const strong = document.createElement("strong");
+        strong.textContent = row.name;
+        label.replaceChildren(strong);
+        button.dataset.student = row.id;
+      } else label.textContent = row.name;
+      button.dataset.devOp = action;
+      button.dataset.value = row.id;
+      return button;
+    }));
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = studentList ? "Nenhum aluno disponível nesta turma." : "Nenhuma turma disponível no contexto DEV.";
+      list.append(empty);
+    }
+  }
+  bind(".screen--sleep[data-next]", "wake");
+  bind(".wake-action", view.terminal ? "new" : view.command ? "resume" : view.screen === "sleep" ? "wake" : "begin");
+  bind('[data-mode="student"]', "mode", "student");
+  bind('[data-mode="classOnly"]', "mode", "class_only");
+  bind("[data-back]", "back");
+  bind("[data-cancel-discard]", "cancel");
+  if (view.screen === "segment") fillList(".option-stack", view.segments, "segment");
+  if (view.screen === "year") fillList(".year-list", view.grades, "grade");
+  if (view.screen === "class") fillList(".class-list", view.classes, "class");
+  if (view.screen === "student") {
+    fillList(".student-list", view.students, "student", true);
+    const search = fragment.querySelector("[data-search-toggle]");
+    search.dataset.devOp = "search-toggle";
+    search.classList.toggle("has-value", Boolean(view.filter));
+    const label = search.querySelector(":scope > span");
+    label.textContent = view.filter || "Digite seu nome...";
+    label.classList.toggle("search-placeholder", !view.filter);
+    fragment.querySelectorAll("[data-key]").forEach(node => {
+      node.dataset.devOp = "search-key";
+      node.dataset.value = node.dataset.key;
+    });
+  }
+  if (view.screen === "pin") {
+    const screen = fragment.querySelector(".screen");
+    screen.dataset.pinStep = "login";
+    const display = fragment.querySelector(".pin-display");
+    display.setAttribute("role", "img");
+    display.setAttribute("aria-label", `${view.pinLength} de 4 números preenchidos`);
+    display.querySelectorAll(".pin-dot").forEach(dot => dot.setAttribute("aria-hidden", "true"));
+    fragment.querySelectorAll("[data-pin]").forEach(node => {
+      node.dataset.devOp = "pin";
+      node.dataset.value = node.dataset.pin;
+    });
+    const hint = fragment.querySelector(".pin-hint");
+    hint.setAttribute("role", "alert");
+    hint.textContent = view.warning || "Digite 4 números.";
+    hint.classList.toggle("show", Boolean(view.warning));
+  } else if (view.warning) {
+    const speech = fragment.querySelector(".guide-bubble");
+    speech.textContent = view.warning;
+    speech.setAttribute("role", "alert");
+  }
+  if (view.screen === "safety") {
+    bind("[data-safety-safe]", "safety", "safe");
+    bind("[data-safety-risk]", "safety", "risk");
+    fragment.querySelectorAll("[data-safety-safe], [data-safety-risk]").forEach(button => { button.disabled = !view.safetyAllowed; });
+  }
+  if (["unavailable", "teacher"].includes(view.screen)) {
+    bind("[data-jump]", "refresh");
+    if (view.riskReported) bind("[data-jump]", "new", "idle");
+    const panel = fragment.querySelector(".status-panel");
+    if (panel) {
+      panel.querySelector("strong").textContent = view.uncertain ? "Resposta não confirmada" : "Identificação indisponível";
+      panel.querySelector("span:not(.status-mark)").textContent = "Consulte a sessão persistida antes de continuar.";
+      panel.querySelector("small").textContent = "Ambiente DEV · Sem movimentos ou pontuação";
+    }
+  }
+  fragment.querySelectorAll("button").forEach(button => { if (view.busy) button.disabled = true; });
+  // Attributes stay on the host: legacy operational PIN CSS must not resize
+  // the approved screen. Browser data contains no identity/authentication state.
+  const sameEvent = kiosk.dataset.eventId === (view.eventId || "");
+  const existing = kiosk.querySelector(".screen");
+  kiosk.dataset.operationalState = view.state;
+  kiosk.dataset.devStage = view.stage;
+  kiosk.dataset.eventId = view.eventId || "";
+  if (sameEvent && view.screen === "pin" && existing?.matches('.screen--pin[data-pin-step="login"]')) {
+    const display = existing.querySelector(".pin-display"), next = fragment.querySelector(".pin-display");
+    display.setAttribute("aria-label", next.getAttribute("aria-label"));
+    display.querySelectorAll(".pin-dot").forEach((dot, index) => dot.classList.toggle("filled", index < view.pinLength));
+    const keys = fragment.querySelectorAll("[data-pin]");
+    existing.querySelectorAll("[data-pin]").forEach((key, index) => { key.className = keys[index].className; key.disabled = keys[index].disabled; });
+    const hint = existing.querySelector(".pin-hint"), nextHint = fragment.querySelector(".pin-hint");
+    hint.textContent = nextHint.textContent; hint.className = nextHint.className;
+    existing.querySelector("[data-cancel-discard]").disabled = view.busy;
+    return;
+  }
+  if (sameEvent && view.screen === "student" && existing?.matches(".screen--student") && existing.classList.contains("is-searching") === Boolean(view.searchActive || view.keyboardClosing)) {
+    existing.className = fragment.querySelector(".screen").className;
+    const search = existing.querySelector(".search-box"), nextSearch = fragment.querySelector(".search-box");
+    search.className = nextSearch.className;
+    search.querySelector("span").textContent = nextSearch.querySelector("span").textContent;
+    search.querySelector("span").className = nextSearch.querySelector("span").className;
+    existing.querySelector(".student-list").replaceChildren(...fragment.querySelector(".student-list").childNodes);
+    const keys = fragment.querySelectorAll("[data-key]");
+    existing.querySelectorAll("[data-key]").forEach((key, index) => { key.className = keys[index].className; key.dataset.label = keys[index].dataset.label; if (key.querySelector("span")) key.querySelector("span").textContent = keys[index].querySelector("span").textContent; });
+    const speech = existing.querySelector(".guide-bubble"), nextSpeech = fragment.querySelector(".guide-bubble");
+    speech.textContent = nextSpeech.textContent;
+    if (nextSpeech.hasAttribute("role")) speech.setAttribute("role", "alert"); else speech.removeAttribute("role");
+    existing.querySelectorAll("button").forEach(button => { button.disabled = view.busy; });
+    return;
+  }
+  kiosk.innerHTML = template.innerHTML;
+  kiosk.querySelectorAll("img").forEach(image => {
+    image.decoding = "async";
+    image.draggable = false;
+  });
+}
+
 if (new URLSearchParams(window.location.search).get("runtime") === "demo") {
   const notice = document.createElement("div");
   notice.className = "demo-notice";
@@ -1395,7 +1569,7 @@ if (new URLSearchParams(window.location.search).get("runtime") === "demo") {
   render();
 } else {
   // Parâmetros de revisão e timers do protótipo não participam do modo operacional.
-  window.BinGoOperational.start(kiosk, { assets, talk, topbar, keyboardRows, normalize });
+  window.BinGoOperational.start(kiosk, { assets, talk, topbar, keyboardRows, normalize, renderIdentity: renderDevIdentity });
 }
 document.addEventListener("dragstart", (event) => {
   if (event.target instanceof HTMLImageElement) {

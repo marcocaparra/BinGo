@@ -26,6 +26,7 @@ def assert_safe_status(response):
 
 
 def test_process_health_preserves_existing_contract(client):
+    assert "X-Totem-Runtime" not in client.get("/health").headers
     response = client.get("/health")
 
     assert response.status_code == 200

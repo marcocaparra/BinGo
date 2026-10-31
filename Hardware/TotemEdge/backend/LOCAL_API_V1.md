@@ -18,6 +18,13 @@ Não dependem de nova regra econômica. Revisar antes da habilitação física.
 
 O frontend é servido pelo FastAPI na mesma origem, em `/`. Demonstração
 explícita em `/?runtime=demo` não chama a API de negócio. Não há CORS aberto.
+No 3C.2.1, GET `/health` conserva `{status:"ok"}` e acrescenta somente na fábrica
+DEV o cabeçalho `X-Totem-Runtime: dev-integration`. É descoberta local de perfil,
+sem consulta central, credenciais ou autorização física. As fábricas operacional
+e isolada não emitem esse marcador. A UI DEV consulta o snapshot durável antes
+de readiness/contexto e integra identificação e declaração de segurança até
+PHYSICAL_BLOCKED/CANCELLED, sem movimento. `/local/status`
+continua OFFLINE/false, sem liberação de descarte real.
 Chamadas de escrita usam JSON e `X-Totem-Request: 1`; Origin, quando presente,
 deve coincidir com a origem local. Hosts locais aceitos: localhost e loopback.
 PIN nunca aparece em query, erro de validação, resposta, log ou SQLite.

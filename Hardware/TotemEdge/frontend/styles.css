@@ -3995,3 +3995,16 @@ p {
   text-align: center;
   pointer-events: none;
 }
+
+/* Identification labels from the approved Software/apps/totem_ui design. */
+.student-button-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+.student-button-label strong {
+  overflow-wrap: anywhere;
+}

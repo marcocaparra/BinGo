@@ -1,5 +1,9 @@
 # Totem Edge V1 — integração local e limites atuais
 
+Atualização 3C.2.1: a identificação DEV está descrita ao final. O relato da
+fundação de 08/10 abaixo permanece histórico; seu modo operacional e a
+demonstração comparada ao commit da migração continuam preservados.
+
 Entrega de 2026-10-08, posterior ao [diagnóstico de migração](MIGRATION_DIAGNOSTIC.md).
 O frontend oficial continua sendo derivado de `Software/apps/totem_ui/`.
 As mudanças estão somente no frontend/backend do Totem Edge, na branch atual
@@ -253,3 +257,66 @@ preexistentes foram preservados. Evidências ficam ignoradas em `.validation/`.
 `git diff --check` e formatação Python aprovados; não houve commit, merge,
 push, deploy ou Docker. Hashes agregados confirmam preservação da UI original,
 Simulator, BinGoVision, controller, docs centrais, Supabase e migrations.
+
+## Identificação DEV — 3C.2.1
+
+O mesmo frontend servido pelo FastAPI/Docker ganhou um ramo DEV em operational.js,
+selecionado exclusivamente pelo cabeçalho X-Totem-Runtime da liveness local. O
+cliente DevApi compartilha o transporte de mesma origem, mas recusa ações
+genéricas operacionais/econômicas. Só expõe contexto/health, criação, GET,
+identificação vinculada, declaração de segurança e cancelamento seguro. O cabeçalho não autoriza um aluno
+nem muda prontidão física: o vínculo e allowed_actions vêm do backend.
+
+Revisão visual posterior: reutilizar assets/CSS no primeiro 3C.2.1 não preservou
+a composição aprovada. O renderizador DEV que criava painéis próprios foi
+substituído pelo adaptador renderDevIdentity em script.js. Ele usa os templates
+existentes de descanso, início, participação, segmento, ano, turma, aluno, PIN e
+segurança; clona seus controles e atualiza dados/eventos. Não chama render/jump
+do demo nem seus timers. A apresentação não promove estado do backend.
+
+O desenvolvedor aprovou explicitamente como referência o design mais recente
+de Software/apps/totem_ui no HEAD a9310a6eba3a979cc1349319d64656c0c7898064.
+Foram aproveitados somente a composição visual de aluno/PIN login e o estilo
+student-button-label dessa versão. Câmera, visão e criação de PIN não foram
+copiados. O comparativo histórico do 3C.2.0 continua separado e intacto.
+
+O marcador de estado fica no host #kiosk, para não ativar o redimensionamento
+legado .screen--pin[data-operational-state]. Não há cartões, avisos ou formulários
+DEV novos no fluxo normal. Erros usam o pin-hint ou o balão/status existentes;
+contexto vazio usa o empty-state existente. Os controles ficam desabilitados
+durante requisições, preservando seus estilos e sua disposição.
+
+Decisão explícita do desenvolvedor: Voltar em SAFETY cancela a preparação pela
+API, se allowed_actions permitir, e exibe o início existente. Não retrocede uma
+identidade validada a IDENTIFYING. Os botões originais de triagem enviam somente
+POST /local/simulation/sessions/{event_id}/safety com has_risk=false/true, quando
+safety consta em allowed_actions. Não solicitam movimento. A declaração segura
+leva ao PHYSICAL_BLOCKED devolvido pelo backend, apresentado na consulta existente.
+O risco cancela pela própria rota safety, sem um segundo POST cancel. O código
+persistido SAFETY_RISK recupera a orientação original de procurar um responsável,
+inclusive após refresh. Entendi usa o controle original para voltar ao início.
+Contribuir só com a turma mantém seu elemento visual, mas não cria uma sessão
+DEV class_only: esse fluxo continua sem homologação neste perfil.
+
+O fluxo não avança por timer, estado de navegador ou sucesso HTTP isolado.
+DevApi valida source=SIMULATED, identidade/IDs coerentes e receipt=null. Após
+erro ou perda de resposta, a UI lê o snapshot persistido. HTTP 401 limpa PIN e
+permite tentativa manual; 422 indica contrato inválido; 409 mostra conflito e
+o vínculo real recuperado; 403/503 e falhas de transporte bloqueiam nova
+submissão até reconsulta. Resposta inesperada não confirma autenticação. Enquanto
+busy, os controles ficam desabilitados; novos eventos são ignorados.
+
+Em refresh, GET active tem prioridade. O event_id público permite consultar um
+terminal por GET; command_id preserva retry de início, inclusive após reload.
+Somente esses UUIDs são armazenados em sessionStorage. A turma/aluno escolhidos
+antes do vínculo são transitórios e não sobrescrevem os campos persistidos. O PIN
+é apagado das referências da UI antes do await e do corpo transitório no finally;
+strings e buffers internos de fetch não podem ser zerados garantidamente pelo
+JavaScript. Não há PIN em cookies, storage, URL, mensagem de erro ou relatório.
+
+Primeiro acesso exige decisão separada: o contexto não fornece contrato de
+ativação nem existe endpoint DEV para criar/resetar PIN. A UI usa exclusivamente
+PIN já cadastrado. Para 3C.2.2, integrar as ações posteriores à declaração de
+segurança conforme allowed_actions, preservando IDs, autenticação atual e journal;
+esta entrega termina em PHYSICAL_BLOCKED ou CANCELLED, sem movimento, visão ou
+economia. Nenhum controle de abertura foi habilitado.

@@ -210,6 +210,9 @@ def create_app(
                 status_code=422,
             )
         response = await call_next(request)
+        if path == "/health" and getattr(_simulation, "dev_integration", False):
+            # Profile discovery is local liveness, independent of central readiness.
+            response.headers["X-Totem-Runtime"] = "dev-integration"
         if request.url.path.startswith("/local/"):
             response.headers["Cache-Control"] = "no-store"
         return response

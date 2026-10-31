@@ -64,6 +64,7 @@ def safe_environment(source):
     }
     env.update(
         PYTHONDONTWRITEBYTECODE="1",
+        PYTHONUNBUFFERED="1",
         PYTHONIOENCODING="utf-8",
         UV_NO_ENV_FILE="1",
         UV_OFFLINE="1",
@@ -172,32 +173,40 @@ def main(argv=None):
         )
 
     def run(name, command, cwd=DEPLOY, kind=None, timeout=900):
-        group = {"name": name, "status": "running"}
+        log_path = output / (name + ".log")
+        group = {
+            "name": name,
+            "status": "running",
+            "timeout_seconds": timeout,
+            "log_file": str(log_path),
+        }
         report["groups"].append(group)
         save()
         print(f"RUN {name}", flush=True)
+        print(f"  Log: {log_path} (timeout: {timeout}s)", flush=True)
         started = time.monotonic()
         existing = set((DEPLOY / ".validation").glob("bingo-*-test-*/report.json"))
         try:
-            result = subprocess.run(
-                command,
-                cwd=cwd,
-                env=env,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout,
-            )
-            logs = result.stdout + result.stderr
-            (output / (name + ".log")).write_text(logs, encoding="utf-8")
+            # A pipe collected only on normal return loses all output on Ctrl+C.
+            # Write directly to the owned artifact, including stderr in time order.
+            with log_path.open("w", encoding="utf-8") as log:
+                result = subprocess.run(
+                    command,
+                    cwd=cwd,
+                    env=env,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=timeout,
+                )
+            logs = log_path.read_text(encoding="utf-8", errors="replace")
             group.update(
                 status="passed" if result.returncode == 0 else "failed",
                 returncode=result.returncode,
             )
-            if kind == "pytest" and (output / "pytest.xml").exists():
-                group["tests"] = junit_counts(output / "pytest.xml")
-            elif kind == "node":
+            if kind == "node":
                 counts = {
                     key: re.search(r"# " + label + r" (\d+)", logs)
                     for key, label in (
@@ -223,10 +232,7 @@ def main(argv=None):
                     "failed": failed,
                     "skipped": skip,
                 }
-            if (
-                kind in ("node", "pytest")
-                and group.get("tests", {}).get("passed", 0) == 0
-            ):
+            if kind == "node" and group.get("tests", {}).get("passed", 0) == 0:
                 group["status"] = "failed"
             if result.returncode:
                 print(f"  Details: {output / (name + '.log')}", flush=True)
@@ -241,19 +247,41 @@ def main(argv=None):
                     group["checks_passed"] = len(smoke.get("checks", []))
                     if smoke.get("ok") is not True:
                         group["status"] = "failed"
-            elif name in ("browser_smoke", "operational_smoke"):
+            elif name in (
+                "browser_smoke",
+                "operational_smoke",
+                "dev_identification_smoke",
+            ):
                 evidence = (
                     FRONTEND
                     / ".validation"
                     / (
                         "browser.json"
                         if name == "browser_smoke"
+                        else "dev-identification-browser.json"
+                        if name == "dev_identification_smoke"
                         else "operational-browser.json"
                     )
                 )
                 if evidence.exists() and result.returncode == 0:
                     shutil.copyfile(evidence, output / evidence.name)
                     group["evidence"] = str(output / evidence.name)
+                    if name == "dev_identification_smoke":
+                        details = json.loads(evidence.read_text(encoding="utf-8"))
+                        visual = details["visual_checks"]
+                        if not visual or not all(c["passed"] for c in visual):
+                            raise ValueError("Missing or failed approved UI comparison")
+                        group["checks_passed"] = len(details["results"])
+                        group["visual_checks_passed"] = len(visual)
+                        for check in visual:
+                            if not re.fullmatch(r"[a-z-]+", check["screen"]):
+                                raise ValueError("Invalid visual artifact name")
+                            for kind in ("reference", "actual"):
+                                filename = f"approved-{check['screen']}-{kind}.png"
+                                shutil.copyfile(
+                                    FRONTEND / ".validation" / filename,
+                                    output / filename,
+                                )
         except FileNotFoundError:
             group.update(
                 status="unavailable", reason="Required executable not installed"
@@ -261,21 +289,41 @@ def main(argv=None):
         except subprocess.TimeoutExpired:
             group.update(
                 status="failed",
+                termination="TimeoutExpired",
                 reason="Group timeout; inspect owned resources before retry",
             )
         except KeyboardInterrupt:
             group.update(
                 status="interrupted",
-                reason="Interrupted; owned smoke projects may need cleanup",
+                termination="KeyboardInterrupt",
+                reason="KeyboardInterrupt received; origin unknown; inspect partial log/JUnit",
             )
             raise
         except (ValueError, ET.ParseError) as error:
             group.update(status="failed", reason=str(error))
         finally:
+            if kind == "pytest":
+                junit = output / "pytest.xml"
+                group["partial_results"] = (
+                    group["status"] == "interrupted"
+                    or group.get("termination") == "TimeoutExpired"
+                )
+                if junit.exists():
+                    try:
+                        group["tests"] = junit_counts(junit)
+                    except (ValueError, ET.ParseError, OSError) as error:
+                        group["junit_error"] = type(error).__name__
+                if group["status"] == "passed" and not group.get("tests", {}).get(
+                    "passed", 0
+                ):
+                    group.update(
+                        status="failed", reason="Missing, invalid or empty pytest JUnit"
+                    )
             group["seconds"] = round(time.monotonic() - started, 2)
             save()
             print(f"{group['status'].upper()} {name}", flush=True)
 
+    temporary = None
     try:
         if args.profile == "hosted-dev":
             group = {"name": "hosted-read-only", "status": "failed"}
@@ -347,6 +395,7 @@ def main(argv=None):
                         "--test",
                         "--test-reporter=tap",
                         "validation/local_api.test.cjs",
+                        "validation/dev_api.test.cjs",
                     ],
                     FRONTEND,
                     "node",
@@ -416,7 +465,11 @@ def main(argv=None):
                         if shutil.which("node")
                         else None
                     )
-                    for smoke in ("browser_smoke", "operational_smoke"):
+                    for smoke in (
+                        "browser_smoke",
+                        "operational_smoke",
+                        "dev_identification_smoke",
+                    ):
                         if probe and probe.returncode == 0:
                             run(smoke, ["node", f"validation/{smoke}.cjs"], FRONTEND)
                         else:
@@ -427,12 +480,11 @@ def main(argv=None):
                                     "reason": "Playwright module/browser missing; see TESTING.md",
                                 }
                             )
-            report["temporary_sqlite_removed"] = not Path(temporary).exists()
             report["groups"].append(
                 {
-                    "name": "frontend-3c2-e2e",
+                    "name": "frontend-3c2-mechanical-e2e",
                     "status": "pending",
-                    "reason": "3C.2.1/2/3 UI integration is not implemented",
+                    "reason": "3C.2.2/3 mechanical UI integration is not implemented",
                 }
             )
     except KeyboardInterrupt:
@@ -447,6 +499,8 @@ def main(argv=None):
             }
         )
     finally:
+        if temporary is not None:
+            report["temporary_sqlite_removed"] = not Path(temporary).exists()
         save()
         print(
             json.dumps(

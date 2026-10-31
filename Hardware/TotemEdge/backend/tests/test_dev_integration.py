@@ -163,6 +163,8 @@ def connected(dev_environment):
 
 def test_dev_health_context_pin_without_economic_or_physical_authority(connected):
     client, app, _, calls = connected
+    assert client.get("/health").headers["X-Totem-Runtime"] == "dev-integration"
+    assert not calls  # Discovery cannot depend on hosted health/context.
     assert isinstance(app.state.controller, SimulatedController)
     assert app.state.sessions.central.configuration_scope is None
     assert app.state.sessions.central._settings.machine_api_key != KEY

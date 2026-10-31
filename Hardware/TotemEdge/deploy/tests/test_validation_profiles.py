@@ -1,7 +1,11 @@
 """Isolation boundaries and truthful aggregate results for validation tooling."""
 
 import importlib.util
+import io
+import json
+from contextlib import redirect_stdout
 from pathlib import Path
+import subprocess
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -22,6 +26,99 @@ cleanup = load("smoke_cleanup", "validation/smoke_cleanup.py")
 
 
 class ValidationTests(unittest.TestCase):
+    def run_controlled_backend(self, outcome):
+        """Exercise the real profile/finally path without starting any services."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            calls = []
+
+            def execute(command, **kwargs):
+                log = kwargs["stdout"]
+                if "pytest" in command:
+                    calls.append(kwargs)
+                    log.write("controlled backend progress\n")
+                    log.flush()
+                    junit = Path(
+                        next(
+                            arg.split("=", 1)[1]
+                            for arg in command
+                            if arg.startswith("--junitxml=")
+                        )
+                    )
+                    body = '<testsuites><testsuite><testcase name="completed"/></testsuite></testsuites>'
+                    if outcome == "invalid-interrupt":
+                        body = "<testsuites>"
+                    elif outcome == "failure":
+                        body = '<testsuites><testsuite><testcase><failure message="controlled"/></testcase></testsuite></testsuites>'
+                    junit.write_text(body, encoding="utf-8")
+                    if outcome in ("interrupt", "invalid-interrupt"):
+                        raise KeyboardInterrupt
+                    if outcome == "timeout":
+                        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+                    return subprocess.CompletedProcess(command, 1)
+                if "unittest" in command:
+                    log.write("Ran 1 test in 0.001s\n\nOK\n")
+                elif "--test" in command:
+                    log.write("# pass 1\n# fail 0\n# skipped 0\n")
+                return subprocess.CompletedProcess(command, 0)
+
+            with (
+                patch.object(validation, "DEPLOY", root),
+                patch.object(validation.subprocess, "run", side_effect=execute),
+                redirect_stdout(io.StringIO()),
+            ):
+                code = validation.main(["fast"])
+            report_path = next((root / ".validation").glob("profiles-*/report.json"))
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            backend = report["groups"][0]
+            logs = Path(backend["log_file"]).read_text(encoding="utf-8")
+            return code, report, backend, logs, calls
+
+    def test_keyboard_interrupt_preserves_log_and_completed_junit_cases(self):
+        code, report, backend, logs, calls = self.run_controlled_backend("interrupt")
+        self.assertEqual(code, 1)
+        self.assertTrue(report["interrupted"])
+        self.assertTrue(report["temporary_sqlite_removed"])
+        self.assertEqual(backend["status"], "interrupted")
+        self.assertEqual(backend["termination"], "KeyboardInterrupt")
+        self.assertTrue(backend["partial_results"])
+        self.assertEqual(backend["tests"], {"passed": 1, "failed": 0, "skipped": 0})
+        self.assertIn("controlled backend progress", logs)
+        self.assertEqual(calls[0]["timeout"], 900)
+        self.assertEqual(calls[0]["stderr"], subprocess.STDOUT)
+        self.assertNotIn("capture_output", calls[0])
+
+    def test_timeout_preserves_log_without_becoming_keyboard_interrupt(self):
+        code, report, backend, logs, calls = self.run_controlled_backend("timeout")
+        self.assertEqual(code, 1)
+        self.assertNotIn("interrupted", report)
+        self.assertEqual(backend["status"], "failed")
+        self.assertEqual(backend["termination"], "TimeoutExpired")
+        self.assertTrue(backend["partial_results"])
+        self.assertEqual(backend["tests"]["failed"], 0)
+        self.assertEqual(calls[0]["timeout"], 900)
+        self.assertIn("controlled backend progress", logs)
+
+    def test_invalid_partial_junit_does_not_hide_keyboard_interrupt(self):
+        code, report, backend, logs, _ = self.run_controlled_backend(
+            "invalid-interrupt"
+        )
+        self.assertEqual(code, 1)
+        self.assertTrue(report["interrupted"])
+        self.assertEqual(backend["status"], "interrupted")
+        self.assertEqual(backend["junit_error"], "ParseError")
+        self.assertTrue(backend["partial_results"])
+        self.assertIn("controlled backend progress", logs)
+
+    def test_nonzero_exit_and_failed_junit_remain_test_failures(self):
+        code, report, backend, logs, _ = self.run_controlled_backend("failure")
+        self.assertEqual(code, 1)
+        self.assertNotIn("interrupted", report)
+        self.assertEqual(backend["status"], "failed")
+        self.assertFalse(backend["partial_results"])
+        self.assertEqual(backend["tests"]["failed"], 1)
+        self.assertIn("controlled backend progress", logs)
+
     def test_inherited_credentials_profiles_and_proxies_are_not_forwarded(self):
         source = {
             name: "sensitive-test-value"

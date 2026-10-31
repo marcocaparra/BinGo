@@ -26,12 +26,15 @@ arquivo, independentemente do cwd; não usa caminhos pessoais. Após a preparaç
 FAST e INTEGRATION usam uv offline e não precisam de Docker, internet, hardware
 ou credenciais. Não há configuração TypeScript nem lint próprios no frontend;
 node --check e o formatter Python são as verificações existentes aplicáveis.
+O comparativo do FULL também exige Git e o commit de referência disponível no
+histórico local. Não faz fetch automático; um checkout raso precisa disponibilizar
+esse histórico antes do teste (em uma futura CI FULL, usar fetch-depth: 0).
 
 | Perfil | Grupos executados | Recursos adicionais |
 | --- | --- | --- |
 | FAST | contratos JS, runtime/infraestrutura, sintaxe JS, formato Python, testes backend de isolamento/rotas/contratos centrais | Nenhum serviço |
 | INTEGRATION | FAST e testes existentes de identidade DEV, broker, journal, fluxo simulado, sessões e transporte HTTP loopback | SQLite descartável e mocks/servidor loopback no processo de teste |
-| FULL | backend completo (inclui INTEGRATION, sem repetir sua seleção), runtime, JS, formato, os dois smokes Docker sintéticos e os dois smokes browser existentes | Docker Linux/Compose com !override (validado em 2.40.3), imagens/dependências de build, Playwright e navegador |
+| FULL | backend completo, runtime, JS, formato, dois smokes Docker sintéticos e três smokes browser (histórico, operacional e identificação DEV) | Docker Linux/Compose com !override, imagens/dependências de build, Playwright, navegador e histórico Git |
 | HOSTED DEV | somente duas leituras via ingresso local DEV já configurado: health e contexto | Opt-in explícito, broker DEV autorizado e internet; nunca CI |
 
 FULL constrói os targets de teste; um build frio pode baixar imagens e wheels.
@@ -62,14 +65,24 @@ Os smokes individuais e seus comandos anteriores continuam disponíveis.
 Cada execução gera `deploy/.validation/profiles-<UUID>/report.json`, logs por grupo,
 JUnit do pytest e referências/cópias das evidências dos smokes. O JSON registra
 contagens de testes, estados dos grupos e remoção do diretório SQLite temporário.
+Cada log é aberto antes do subprocesso; stdout/stderr são gravados diretamente
+no arquivo, na ordem de chegada, com Python sem buffering. O terminal informa o
+caminho e o timeout. Em outro terminal, use Get-Content -LiteralPath CAMINHO_DO_LOG
+-Tail 20 -Wait para acompanhar esse arquivo, substituindo CAMINHO_DO_LOG pelo
+caminho exibido, entre aspas. Não é necessário interromper o perfil para ler o log.
+O relatório registra log_file, timeout_seconds e, quando aplicável, termination.
+KeyboardInterrupt mantém o perfil interrompido e não é convertido em falha de
+asserção. Contagens recuperadas do JUnit nesses casos ou em timeout recebem
+partial_results=true: são somente os casos registrados, não aprovação da suíte.
+XML parcial inválido é indicado por junit_error, sem mascarar a interrupção.
 Grupos de smoke, telas e fluxos não são somados como se fossem testes unitários.
 Os relatórios nativos dos smokes Docker registram os projetos exclusivos, checks
 e o resultado da limpeza. Artefatos ficam ignorados pelo Git.
 
 Código de saída `0`: grupos executáveis passaram; `1`: falha ou interrupção;
 `2`: recurso indisponível, execução ainda em curso ou teste ignorado. Consulte `status`, `reason`, `tests`
-e o log do grupo. Teste ignorado não equivale a aprovado. `frontend-3c2-e2e` aparece
-como `pending`, sem contagem de aprovação: a integração ainda não existe. Essa
+e o log do grupo. Teste ignorado não equivale a aprovado. `frontend-3c2-mechanical-e2e` aparece
+como `pending`, sem contagem de aprovação: os fluxos mecânicos 3C.2.2/3 ainda não existem. Essa
 pendência planejada não impede validar a infraestrutura do 3C.2.0.
 
 Uma falha de asserção requer comparação com a baseline; não é classificada
@@ -150,7 +163,7 @@ abrir SQLite ou definir estado/autenticação/pontuação.
 FULL coleta automaticamente novos arquivos `backend/tests/test_*.py`. Para incluí-los
 também no ciclo cotidiano ou na CI, acrescente o arquivo à seleção FAST ou
 INTEGRATION de validate.py. unittest descobre automaticamente novos test_*.py em
-deploy/tests. Os contratos Node atuais ficam em local_api.test.cjs; se surgirem
+deploy/tests. Os contratos Node atuais ficam em local_api.test.cjs e dev_api.test.cjs; se surgirem
 outros arquivos, inclua-os explicitamente no comando desse grupo. Ao transformar
 um cenário E2E pendente em executável, substitua sua indicação de pendência pelo
 grupo real e registre a evidência; não contabilize placeholders como aprovação.
@@ -170,13 +183,40 @@ operacional com início `g#` também permanece fora dos perfis. Não foram alter
 contratos de produto, schema, frontend funcional, drivers ou políticas econômicas.
 Não há teste físico, desempenho ARM, manutenção/expurgo de SQLite ou E2E 3C.2.
 
-A execução atual de `browser_smoke.cjs`, após corrigir a instalação do relógio
-para preceder o alvo de pauseAt, revelou divergência preexistente na tela student:
-o protótipo Software/apps/totem_ui contém Primeiro acesso/student-button-label,
-enquanto a cópia oficial TotemEdge conserva o DOM anterior. A asserção de igualdade
-foi preservada e reprova o grupo/FULL. Essa comparação entre versões não é um E2E
-DEV aprovado. Resolver a referência histórica ou a decisão de produto exige
-revisão própria; não copiar funcionalidade para fazer o gate passar.
+### Referência do comparativo de migração
+
+O frontend oficial **executado pelo TotemEdge** é Hardware/TotemEdge/frontend:
+app/main.py serve essa pasta, e o Dockerfile copia seus arquivos. A origem visual
+da migração é Software/apps/totem_ui na revisão efetivamente copiada, conforme
+[MIGRATION_DIAGNOSTIC.md](../frontend/MIGRATION_DIAGNOSTIC.md) e
+[INTEGRATION_V1.md](../frontend/INTEGRATION_V1.md), ambos de 08/10.
+
+browser_smoke.cjs prova a preservação dessa migração, com 29 comparações de DOM,
+texto/imagens/fontes, três pares de screenshots e dez fluxos demonstrativos.
+Não é um teste de paridade com todas as funcionalidades futuras do protótipo.
+A referência agora é o commit completo
+`b4ebdc14427649d7257e1345abbf015b384e1817` (08/10/2026), que introduziu a migração
+e o próprio comparativo. Os bytes são lidos diretamente do Git local e servidos
+em memória: não há nova interface, snapshot gerado do frontend atual ou aceitação
+automática. O relatório browser.json registra propósito, revisão e caminho.
+
+A falha anterior tinha uma referência móvel: o teste lia a origem do checkout
+atual. O commit dfe8fe5, escrito em 23/09 em outra branch e incorporado pelo merge
+9f385ab em 26/10, acrescentou Primeiro acesso/student-button-label e câmera/visão.
+Ele não é ancestral de b4ebdc1. Já index.html, styles.css, script.js, local_api.js
+e operational.js do TotemEdge não mudaram entre b4ebdc1 e a retomada em a9310a6.
+O JavaScript anterior ao bootstrap continua idêntico à origem histórica.
+
+Diferenças autorizadas da migração: caminhos locais dos três assets incorporados,
+bootstrap/API operacional e aviso de demonstração. O teste conserva a remoção
+apenas desse aviso para comparar imagens e preserva todas as asserções anteriores.
+Primeiro acesso, webcam e visão novos existem no protótipo atual, mas estão
+ausentes do TotemEdge: isso é evolução não portada, não regressão da cópia de 08/10.
+Portá-los ou exigir paridade funcional atual requer outro escopo aprovado. Alterar
+DOM, texto, imagens ou estilos da cópia nos cenários comparados continua causando
+falha; a referência só pode mudar mediante revisão explícita e documentada.
+
+Essa prova histórica e os smokes operacionais não aprovam E2E DEV 3C.2.
 O ajuste do relógio segue o [padrão oficial do Playwright](https://playwright.dev/docs/clock#consistent-time-and-timers).
 
 No Windows, o smoke operacional aguarda o fechamento do processo e streams antes
@@ -195,7 +235,7 @@ pull_request_target, deploy, hosted-dev, Docker ou hardware. A execução GitHub
 Actions só pode ser confirmada após publicação pelo desenvolvedor; validação
 local não é evidência de execução no GitHub.
 
-## Evidência local — 30/10/2026
+## Evidência local anterior à correção da referência — 30/10/2026
 
 Windows/PowerShell, backend Python 3.12, runtime Python 3.14, Node 24.19.0,
 uv 0.12.19, Docker 29.0.1/Compose 2.40.3 e Edge headless 156.0.4314.50.
@@ -237,5 +277,414 @@ harness foram corrigidas e revalidadas. A fragilidade preexistente de pauseAt fo
 corrigida sem mudar UI; a divergência de conteúdo seguinte foi preservada como
 falha. O gate hosted-dev sem opt-in foi exercitado e recusou antes da rede.
 Não executados: hosted-dev autorizado, hardware/ARM, E2E 3C.2, verificador de
-migração histórico e GitHub Actions. A aprovação integral do incremento continua
-pendente da revisão do comparativo visual e do resíduo temporário descrito acima.
+migração histórico e GitHub Actions. Naquela execução, a aprovação integral do
+incremento ficou pendente da revisão do comparativo e do resíduo descrito acima.
+
+## Retomada de encerramento — 30/10/2026
+
+Branch feature/orange-pi-integration, HEAD inicial a9310a6 e Git inicialmente limpo.
+Não foi encontrado AGENTS.md aplicável; consultados STATUS técnico atualizado em
+23/10, contratos locais/centrais/offline, diagnóstico e relatório da migração.
+Somente browser_smoke.cjs e este documento foram alterados. A correção fixa a
+origem histórica comprovada no Git, mantendo todas as comparações e fluxos; não
+porta Primeiro acesso, câmera ou visão para o TotemEdge e não antecipa 3C.2.1.
+
+| Perfil/cenário reexecutado | Resultado atual |
+| --- | --- |
+| FAST | 62 testes aprovados, zero falhas/skips, saída 0 |
+| INTEGRATION | 348 testes aprovados, zero falhas/skips, saída 0 |
+| FULL — testes | 641 testes aprovados, zero falhas/skips; formato/sintaxe aprovados |
+| FULL — comparativo | 29 telas, três pares de screenshots idênticos, dez fluxos, zero erros |
+| FULL — browser operacional | Seis verificações aprovadas, zero erros |
+| FULL — Docker | Dois grupos unavailable: engine Linux indisponível desde o início; não reexecutados os 15 grupos Docker históricos |
+| FULL — agregado | Saída 2 por indisponibilidade; nenhuma falha de teste |
+| Prova negativa do comparativo | Mutação somente em memória no bodyText de student: comparação recusada nessa tela, saída 1 esperada; arquivos da UI intactos |
+
+Relatórios: `.validation/profiles-df521de927bb/report.json` (FAST),
+`.validation/profiles-4a858ff4937c/report.json` (INTEGRATION) e
+`.validation/profiles-8048582a0b14/report.json` (FULL). A auditoria adicional fica
+em `.validation/3c2-closure/`: proveniência Git, prova negativa e hashes antes/depois.
+Os hashes de index.html, styles.css, script.js, local_api.js, operational.js e
+do workflow de CI ficaram idênticos. YAML e git diff --check passaram; o workflow
+permaneceu sem alterações, secrets, deploy ou execução GitHub Actions nesta tarefa.
+
+Todos os diretórios SQLite temporários dos três perfis foram removidos. A referência
+histórica é servida em memória e não cria cópia temporária em disco. O browser
+operacional removeu seu diretório; restou somente bingo-browser-EKzfC1 da tentativa
+anterior. Ele foi inspecionado, sem apagar: um único lock de um byte nulo, sem
+symlink, acessível por abertura exclusiva de leitura, sem indício de uso ativo.
+
+Docker não foi iniciado nem houve comandos mutantes contra containers/volumes.
+Não foram acessados Supabase hospedado, credenciais ou bancos DEV persistentes.
+Com o engine desligado, a comparação atual do conteúdo SQLite dos volumes e a
+revalidação Docker não puderam ser executadas; não usar hashes/resultados históricos
+como se fossem desta retomada.
+
+A divergência visual está resolvida no escopo de preservação da migração, sem
+decisão de produto pendente. O encerramento integral do 3C.2.0 ainda exige
+disponibilizar o Docker Linux e repetir `python -B Hardware/TotemEdge/deploy/validate.py full`.
+Os E2E 3C.2 continuam planejados; não houve commit, push, merge ou deploy.
+
+## Diagnóstico da interrupção do FULL — 30/10/2026
+
+Execução original preservada: `.validation/profiles-4e4e4ee987e9/`.
+O perfil iniciou em 30/10 às 21:24:45 no horário de São Paulo. O grupo backend
+registrou interrupted após 95,56s; esse status só era atribuído no except
+KeyboardInterrupt de validate.py. O timeout do grupo era 900s, tratado por
+TimeoutExpired em outro ramo. Não há evidência de timeout interno ou de falha
+de asserção nessa execução.
+
+pytest.xml contém 143 casos registrados, com zero failures/errors/skips e tempo
+de suíte de 79,674s. O XML foi gravado antes do report.json final. Isso comprova
+progresso parcial; não identifica o teste que estava em execução ao interromper
+nem comprova o restante da suíte. Não foi encontrado evento correspondente de
+crash/hang Python/uv ou Resource-Exhaustion-Detector na janela consultada de
+21:23:30 a 21:28:00. Essa consulta negativa não determina a origem do sinal.
+O operador informou não se recordar de Ctrl+C/cancelamento. A origem exata do
+KeyboardInterrupt permanece não confirmada: console, IDE ou outro emissor são
+hipóteses, não conclusões. Também não se pode excluir lentidão ou travamento
+anterior a um cancelamento só com os artefatos disponíveis.
+
+Defeito de diagnóstico comprovado: subprocess.run(capture_output=True) só tinha
+sua saída gravada depois do retorno normal. KeyboardInterrupt descartava o log
+capturado e pulava a leitura do JUnit, produzindo zero contagens mesmo com 143
+casos no XML. Corrigida somente essa perda de evidências: log direto desde o
+início, tipo de término explícito, leitura de JUnit no finally e verificação da
+remoção do temporário também após interrupção. Os limites de 900s/1500s e o
+tratamento de sinais do subprocesso não foram aumentados ou flexibilizados.
+
+Quatro regressões novas exercitam o perfil real com subprocessos controlados:
+interrupção com log/JUnit parcial; timeout distinto de KeyboardInterrupt; XML
+parcial inválido sem mascarar a interrupção; saída não zero/falha JUnit mantidas
+como falha. Os 11 testes de infraestrutura passaram isoladamente. Depois:
+
+| Perfil executado nesta investigação | Resultado |
+| --- | --- |
+| FAST | 41 backend + 18 runtime/infraestrutura + 7 JS = 66 aprovados, zero falhas/skips, saída 0 |
+| INTEGRATION | 327 backend + 18 runtime/infraestrutura + 7 JS = 352 aprovados, zero falhas/skips, saída 0 |
+| FULL e grupos Docker | Não reexecutados: origem da interrupção ainda não confirmada; respeitada a condição de reexecução desta investigação |
+
+Relatórios atuais: `.validation/profiles-e7928c368823/report.json` e
+`.validation/profiles-b2c9e776db16/report.json`. A evidência forense, hashes dos
+artefatos originais e auditoria somente leitura estão em
+`.validation/interrupt-diagnostic/`. O relatório original não foi reescrito para
+parecer uma execução aprovada. O aumento de quatro testes é só de infraestrutura.
+
+Nenhum processo pytest/runner remanescente ou diretório bingo-validation-* foi
+encontrado antes da investigação. Os dois perfis executados removeram seus SQLite
+temporários. A inspeção Docker não encontrou containers, volumes ou redes de
+projetos UUID da simulação/DEV sintético. Não foi necessário fazer teardown.
+Os quatro containers persistentes TotemEdge/DEV conservaram IDs, início e mounts;
+o dump lógico do SQLite DEV, consultado por conexão mode=ro, conservou o mesmo
+hash e contagens antes/depois. Não houve chamadas ao Supabase hospedado, leitura
+de credenciais, movimentos físicos ou alteração dos volumes DEV. O lock antigo
+bingo-browser-EKzfC1 permanece como resíduo histórico já documentado.
+
+Próximos passos: antes de uma reexecução FULL sob a condição atual, identificar
+o emissor da interrupção ou estabelecer que foi um evento externo transitório.
+Se for acordada uma rodada especificamente diagnóstica com a origem ainda
+desconhecida, acompanhar o novo backend.log em outro terminal e preservar
+report.json/JUnit/log antes de cancelar. Em nova ocorrência, esses dados devem
+permitir localizar o ponto de execução e distinguir saída do filho, timeout e
+KeyboardInterrupt no pai. A ausência de nova falha em FAST/INTEGRATION não prova
+que a interrupção original foi corrigida. O 3C.2.0 continua sem validação FULL
+conclusiva; nenhum dos 15 grupos Docker históricos foi contado como reexecutado.
+
+## Identificação do frontend — Incremento 3C.2.1
+
+O FULL anterior informado pelo desenvolvedor foi conferido no relatório
+`.validation/profiles-cb9084713045/report.json`: saída 0, 645 testes. O Git desta
+retomada já continha as quatro alterações anteriores de runner/documentação e
+comparativo; elas foram preservadas. Não houve commit automático.
+
+FAST/INTEGRATION executam também 13 contratos Node de DevApi (dez originais e
+três de declaração de segurança). O backend já
+cobre identidade/PIN, replay, concorrência e recuperação; os testes existentes
+ganharam asserções para descoberta local DEV e ausência do marcador no operacional.
+Não há nova máquina de estados ou suíte duplicada de negócio.
+
+FULL acrescenta `frontend/validation/dev_identification_smoke.cjs`. Ele inicia
+Uvicorn com `backend/tests/dev_frontend_fixture.py`, o aplicativo DEV real, SQLite
+descartável, broker real em ASGI e transporte central sintético. Os dados de
+CONTEXT/PIN/KEY são reutilizados de test_dev_integration; um segundo aluno fictício
+foi acrescentado apenas para conflito. Não há fixture ou dados de turma/aluno no
+frontend de produção. O test harness não cria endpoints de controle: um arquivo
+temporário local controla falhas da central sintética.
+
+A UI de sucesso chama HTTP real; intercepções Playwright injetam somente erros
+de transporte, perda de resposta após commit ou uma resposta malformada. Isso não
+é homologação de PIN/Supabase hospedado. O navegador não abre SQLite. Refresh e
+reinício recuperam o mesmo vínculo/event_id pela API, inclusive com central
+indisponível. O controle de readiness do harness consome a resposta e fecha a
+conexão; os processos de browser/backend reiniciam sequencialmente, sem aumentar
+os prazos existentes. O teste guarda somente nomes de cenários e método/path,
+sem corpos PIN, headers de credenciais ou traces/HAR.
+
+Cobertura browser: contexto/seleção, 422 e PIN incompleto, 401, identificação
+correta, clique duplo, refresh IDENTIFYING/SAFETY, persistência após reinício,
+terminal, contexto vazio, 503, resposta perdida após commit, resposta inconsistente,
+command_id reutilizado após criação sem resposta/reload, conflito 409, etapa já
+avançada, storage de IDs indisponível, ausência de PIN/segredos em storage/cookies/
+URLs e ausência de chamadas mecânicas/econômicas. O relatório é
+frontend/.validation/dev-identification-browser.json, copiado para o relatório FULL.
+Screenshots de QA são capturados somente com PIN vazio, em SAFETY ou na
+orientação original de risco, sem valores de PIN.
+
+Os scripts de browser e o JUnit seguem os perfis existentes; nenhum runner ou
+dependência foi adicionado. A CI continua executando INTEGRATION sem hosted secrets;
+o navegador é verificado no FULL. Primeiro acesso/ativação/reset de PIN continuam
+sem contrato DEV; 3C.2.2/3 e homologação física não são aprovados por estes testes.
+
+### Evidências finais do 3C.2.1
+
+Executados no PowerShell, na branch feature/orange-pi-integration, com os comandos
+padronizados deste documento. As contagens abaixo são por perfil, com sobreposição
+entre eles, e não devem ser somadas como testes distintos.
+
+| Perfil | Resultado executado | Relatório em deploy/.validation |
+| --- | --- | --- |
+| FAST | 41 backend + 18 runtime + 17 JS = 76 aprovados; zero falhas/skips; saída 0 | profiles-d12805d8976f/report.json |
+| INTEGRATION | 327 backend + 18 runtime + 17 JS = 362 aprovados; zero falhas/skips; saída 0 | profiles-833881ac40c1/report.json |
+| FULL | 620 backend + 18 runtime + 17 JS = 655 aprovados; zero falhas/skips; saída 0 | profiles-e09fc21f517f/report.json |
+
+O FULL executou efetivamente os sete grupos Docker DEV sintéticos e os oito de
+simulação isolada. Os três grupos browser passaram: histórico (29 telas, três
+screenshots idênticos, referência b4ebdc14427649d7257e1345abbf015b384e1817),
+operacional (seis verificações) e identificação DEV (17 verificações, zero erros).
+Sintaxe JS, formato dos 59 arquivos Python e git diff --check passaram. Não foram
+alterados prazos nem referências visuais para obter aprovação. O grupo futuro
+frontend-3c2-mechanical-e2e permanece pending para 3C.2.2/3; não é teste executado
+nem falha/skip escondido na contagem dos testes implementados.
+
+O relatório DEV copiado no FULL confirma recuperação do mesmo event_id em
+IDENTIFYING/SAFETY, validated_at preservado e reinício do backend com SQLite
+durável da fixture, inclusive sem central. Nenhuma dessas evidências acessa o
+Supabase hospedado ou homologa o ambiente DEV persistente.
+
+Os três perfis removeram seus SQLite temporários. O novo browser confirmou
+temporary_removed=true, e o smoke Docker DEV temporary_fixture_removed=true.
+Todos os projetos Docker UUID da rodada registraram cleanup ok. A inspeção final
+não encontrou containers, volumes, redes ou processos remanescentes da suíte.
+A auditoria em .validation/3c21-audit preserva os registros antes/depois: os
+quatro containers persistentes conservaram ID/início/mounts (comparados sem
+depender da ordem de enumeração dos mounts). O SQLite DEV, consultado mode=ro,
+conservou hash lógico, schema 4, um ciclo, uma identidade e quatro comandos.
+
+Resíduos históricos foram somente inspecionados por metadados: o lock de um byte
+bingo-browser-EKzfC1 e seis diretórios bingo-dev-integration-* criados em rodadas
+anteriores, entre 28 e 30/10 UTC, antes desta auditoria. Não foram lidos seus
+arquivos de chaves nem removidos diretórios antigos ou dados persistentes. Não
+há bingo-dev-ui-* ou bingo-validation-* remanescente da rodada atual. Os nomes
+e datas estão em .validation/3c21-audit/historical-temp-metadata.json.
+
+A CI foi inspecionada, sem alteração de workflow ou execução remota: INTEGRATION
+continua sintético e sem secrets. O 3C.2.1 fica pronto para homologação manual com
+aluno fictício e PIN já provisionado; a imagem DEV persistente não foi recriada.
+
+## Revisão visual do 3C.2.1 — referência aprovada pela equipe
+
+A aprovação funcional acima não comprovava preservação visual. O diagnóstico
+identificou que startDev substituía #kiosk por outra composição, enquanto o
+comparativo histórico verificava somente runtime=demo. O desenvolvedor escolheu
+explicitamente a opção B: design mais recente de Software/apps/totem_ui no commit
+a9310a6eba3a979cc1349319d64656c0c7898064. Essa referência é diferente da migração
+histórica de 08/10 e não substitui aquele teste.
+
+O FULL mantém os grupos existentes. Dentro do smoke de identificação,
+validation/approved_visual.cjs serve essa revisão Git em loopback, somente leitura,
+e compara a UI DEV integrada com os próprios renderizadores aprovados. Não há
+arquivo golden aceito a partir do working tree, comando de atualização automática
+ou cópia integral do protótipo para o produto. Uma futura troca da revisão exige
+aprovação explícita da equipe e revisão do código que fixa a referência.
+
+Viewport 600x1024, DPR 1, mesmo navegador e fontes/assets locais. O contexto
+sintético fornece os mesmos nomes, quantidade de linhas, segmentos e anos para
+ambos os lados. As substituições na referência mudam somente dados visíveis;
+nenhuma dimensão, fonte, CSS, elemento ou organização é ajustado pelo teste.
+São comparados todos os pixels, sem máscaras ou tolerância. As definições de
+animação (nome, duração, atraso, curva e iterações) também precisam coincidir;
+o screenshot estabiliza animações apenas durante a captura com o mecanismo
+animations=disabled do Playwright. O produto mantém suas animações originais.
+
+As 12 capturas cobrem descanso, início, participação, segmento, ano, turma,
+aluno, busca/teclado aberto, PIN vazio, erro de PIN, SAFETY e a orientação de risco
+original (Professor). Referência e resultado
+ficam em frontend/.validation/approved-<tela>-reference.png e -actual.png, com
+hashes e igualdade em dev-identification-browser.json. O perfil FULL copia esses
+pares para seu diretório UUID e registra visual_checks_passed. Divergência gera
+falha; examinar os dois arquivos completos, sem aceitar o resultado novo como
+referência. Asserções funcionais de PIN, HTTP, replay, concorrência, recuperação
+offline e ausência de operações mecânicas/econômicas continuam no mesmo smoke.
+
+Além do PNG integral, cada captura exige igualdade de estrutura/textos visíveis,
+geometria, todos os estilos computados (inclusive pseudo-elementos), propriedades
+das imagens, fontes e hashes dos assets. URLs locais são normalizadas somente
+para o nome do recurso. Nenhum elemento é mascarado. Dois frames consecutivos
+devem ser estáveis em cada página, independentemente do resultado da outra.
+Falhas visuais são agregadas ao final: não impedem executar os cenários
+funcionais restantes e continuam produzindo exit code diferente de zero.
+
+O smoke cobre também busca/filtro/fechamento do teclado, cancelamento pelo
+controle original do PIN e dados de contexto contendo marcação HTML. Os rótulos
+entram como texto, nunca como HTML. A fixture usa marcador local stop para fechar
+Uvicorn e liberar o lease SQLite antes da limpeza/reinício. O servidor exclusivo
+da referência fecha suas conexões após fechar a página, evitando espera por
+conexão especulativa do navegador. Nenhuma porta de controle HTTP foi adicionada.
+
+O adaptador de apresentação usa os templates existentes e clona os controles;
+não chama os timers/jump do demo. Foram incorporados apenas a marcação visual
+do aluno/PIN login e os estilos student-button-label aprovados. O protótipo em
+Software permanece inalterado. O teste histórico continua com sua referência
+original e com o aviso do modo demo; nenhuma referência histórica foi atualizada.
+
+Decisão complementar: Voltar em SAFETY encerra a preparação por cancel quando
+allowed_actions permitir. Não há retorno do estado autenticado a IDENTIFYING.
+Os botões de triagem preservam a aparência e usam o endpoint safety existente,
+sem chamar movimentos. Primeiro acesso continua
+sem operação DEV homologada de criação/reset; nenhuma ativação visual é tratada
+como autorização real. O modo somente turma também permanece bloqueado no DEV.
+
+As capturas do diagnóstico anterior à correção ficaram fora do repositório em
+TEMP/bingo-visual-diagnostic-WSDRyn. A tentativa de limpeza da fixture própria
+falhou com EPERM no Windows; uma tentativa nativa foi bloqueada pela revisão
+automática (blocked by policy). Não houve nova tentativa de exclusão desse
+resíduo, nem remoção de dados persistentes ou mudança nos containers DEV.
+
+Arquivos da revisão visual: frontend/script.js (adaptador dos templates),
+operational.js (handlers DEV), styles.css (somente os estilos de rótulo aprovados),
+validation/approved_visual.cjs (referência Git e comparação estrita),
+validation/dev_identification_smoke.cjs (fluxos/capturas),
+backend/tests/dev_frontend_fixture.py (contexto controlado e shutdown),
+deploy/validate.py (evidências visuais no FULL) e esta documentação,
+DEV_INTEGRATION.md e frontend/INTEGRATION_V1.md. As alterações funcionais anteriores
+de LocalApi, descoberta de perfil e testes backend foram preservadas.
+
+Limpeza adicional: TEMP/bingo-dev-ui-euhfQ5 veio de uma rodada intermediária desta
+revisão. A inspeção por metadados encontrou apenas arquivos sintéticos e lock,
+sem processo node/python usando esse root. A remoção nativa com caminho literal
+validado também foi rejeitada pela revisão automática: blocked by policy. Não
+houve tentativa alternativa de exclusão. Esse resíduo e a fixture de diagnóstico
+acima continuam pendentes de limpeza manual; não são dados persistentes DEV.
+
+Uma rodada diagnóstica aguardou uma conexão do servidor de referência após fechar
+a página. Seu navegador próprio foi encerrado, e a fixture confirmou limpeza;
+as seis verificações parciais não foram contadas como aprovação. O fechamento
+explícito das conexões próprias corrigiu essa espera nas rodadas posteriores.
+
+### Execução da correção visual — 31/10/2026
+
+| Perfil | Relatório em deploy/.validation | Resultado |
+| --- | --- | --- |
+| FAST | profiles-2db49856a31f/report.json | saída 0; 76 aprovados, zero falhas/ignorados |
+| INTEGRATION | profiles-6d8fe379f3c9/report.json | saída 0; 362 aprovados, zero falhas/ignorados |
+| FULL | profiles-c2c695938ff5/report.json | saída 0; 655 aprovados, zero falhas/ignorados; 7 grupos Docker DEV + 8 isolados |
+
+FULL: backend 620, runtime 18, contratos JS 17; formato dos 59 arquivos Python e
+sintaxe JS aprovados. Browser histórico: 29 telas, três PNG idênticos, dez fluxos;
+operacional: seis verificações; identificação DEV: 21 verificações e 11 capturas
+com hashes idênticos, zero pixels diferentes e igualdade dos contratos de design.
+Todas as verificações implementadas foram executadas. O grupo mecânico futuro
+continua pending, não contado como teste aprovado ou ignorado.
+
+Rodadas intermediárias reprovaram pequenas diferenças em bordas/SVG apesar dos
+contratos de design iguais; esses resultados foram preservados em
+visual-fix-audit/final-ui e standalone-before-full. Não foram aceitos como nova
+referência. A configuração final do processo de teste usa cor sRGB, DPR 1,
+composição controlada e rasterização integral (disable-partial-raster), além da
+decodificação dos assets e estabilização de frames. A opção está definida no
+[Chromium](https://chromium.googlesource.com/chromium/src/+/HEAD/third_party/blink/common/switches.cc).
+Não muda CSS do produto, não mascara regiões e não introduz tolerância.
+
+O FULL confirmou temporary_sqlite_removed=true e a fixture browser confirmou
+temporary_removed=true. A fixture Docker DEV foi removida e os cinco projetos
+UUID de Docker registraram cleanup ok. A auditoria de labels encontrou zero
+containers, redes e volumes remanescentes desses projetos. Em visual-fix-audit,
+database-verification.json confirma IDs/início/mounts persistentes inalterados e
+SQLite DEV consultado mode=ro com hash lógico/schema/contagens inalterados.
+
+Capturas comparativas antes/referência B/depois estão em
+visual-fix-audit/comparison-pin.png e comparison-safety.png, sempre com capturas
+sintéticas 600x1024. O código está pronto para revisão visual do desenvolvedor;
+passar nos testes não substitui essa homologação. Os containers DEV persistentes
+não foram atualizados. A CI foi inspecionada, permanece inalterada, executa apenas
+INTEGRATION sintético e não foi disparada remotamente.
+
+Reprodução adicional após o FULL: o mesmo dev_identification_smoke.cjs terminou
+novamente com saída 0, 21 verificações funcionais, 11 capturas idênticas (também
+contratos de design iguais), zero erros e temporary_removed=true. A evidência
+está em visual-fix-audit/repeat-browser.json. São duas execuções consecutivas da
+configuração final sem divergências; não houve aceitação de snapshots ou
+relaxamento do critério de pixels. git diff --check final também passou.
+
+## Correção dos controles SAFETY — 31/10/2026
+
+O diagnóstico da homologação identificou handlers safety-pending, que somente
+informavam uma pendência sem chamar o backend. A correção usa a rota safety já
+documentada e o mesmo transporte DevApi, sem endpoint novo nem alteração backend.
+has_risk=false confirma PHYSICAL_BLOCKED; has_risk=true confirma CANCELLED com
+failure_code=SAFETY_RISK. Não há segundo POST cancel no caminho de risco.
+
+Os controles existentes preservam marcação visual/textos/estilos e só recebem
+handlers e disabled durante a requisição ou ausência de safety em allowed_actions.
+O risco usa o template Professor original; o motivo persistido recupera a mesma
+orientação após refresh e Entendi retorna ao início sem criar sessão. A declaração
+segura usa a apresentação de consulta existente de PHYSICAL_BLOCKED, sem habilitar
+open, câmera, alçapão ou economia. Snapshot, identidade e allowed_actions continuam
+autoridade do backend; não há estado de conclusão otimista.
+
+Foram acrescentados três contratos node:test (payload/retorno, validação estrita,
+falhas HTTP/transporte). O smoke browser substitui a antiga asserção de ausência
+de safety por oito verificações: declaração segura e recuperação; risco e orientação
+original; 503 sem commit; 200 inconsistente; perda da resposta após commit false;
+perda após commit true; conflito 409 concorrente; ausência de safety em
+allowed_actions. Cliques duplicados e opostos ficam bloqueados enquanto o POST
+está pendente. A orientação de risco acrescenta uma 12ª captura estrita contra a
+mesma referência Git aprovada, sem mudar a referência ou o critério de pixels.
+
+Arquivos desta correção: frontend/local_api.js, operational.js, script.js,
+validation/dev_api.test.cjs e dev_identification_smoke.cjs; documentação em
+backend/LOCAL_API_V1.md, deploy/DEV_INTEGRATION.md, frontend/INTEGRATION_V1.md e
+este TESTING.md. styles.css, index.html, assets, templates originais, backend,
+fixture sintética, runner, workflow e comparativo histórico não foram alterados
+nesta correção. Alterações anteriores do 3C.2.1 no working tree foram preservadas.
+
+Resultados executados nesta correção:
+
+| Perfil | Relatório em deploy/.validation | Resultado |
+| --- | --- | --- |
+| FAST | profiles-d918d1575155/report.json | saída 0; 79 aprovados, zero falhas/ignorados |
+| INTEGRATION | profiles-2f1263791a78/report.json | saída 0; 365 aprovados, zero falhas/ignorados |
+| FULL | profiles-93fd1899c83f/report.json | saída 0; 658 aprovados, zero falhas/ignorados |
+
+FULL: backend 620, runtime 18 e contratos JS 20; sete grupos Docker DEV e oito
+isolados aprovados. Browser histórico: 29 telas, três PNG idênticos e dez fluxos;
+operacional: seis verificações; identificação DEV: 28 verificações, 12 capturas
+idênticas, contratos de design iguais e zero erros. O smoke DEV isolado anterior
+ao FULL também aprovou 28 verificações/12 capturas, com evidência preservada em
+safety-controls-audit/pilot-browser.json. Nenhum limite de rasterização foi aplicado.
+O grupo futuro de mecânica continua pending e fora das contagens executadas.
+
+Formato Python/sintaxe JS e git diff --check passaram. O FULL confirmou
+temporary_sqlite_removed=true, e o browser temporary_removed=true. A fixture
+Docker DEV foi removida, e os cinco projetos UUID não deixaram containers,
+volumes ou redes. Em safety-controls-audit/verification.json, a auditoria mode=ro
+confirma hash lógico/schema/contagens do SQLite DEV inalterados, os quatro
+containers persistentes com mesmos IDs/início/mounts e hashes de styles.css e
+index.html inalterados. Nenhum ambiente hospedado foi acessado, nem imagem DEV
+persistente atualizada; resíduos antigos foram preservados. Não houve commit,
+push, merge ou deploy.
+
+### Rótulos escolares — revisão de apresentação
+
+schoolLabels formata somente name; id mantém o valor recebido do contexto. Os
+anos são filtrados pela etapa antes de formatar, sem completar séries ausentes.
+ENSINO_MEDIO/FUNDAMENTAL_2 ganham os rótulos solicitados; anos reconhecidos dessas
+etapas usam ° ANO. Valores desconhecidos continuam visíveis sem reclassificação.
+O teste Node cobre as duas etapas, associação, subconjunto, contexto vazio e
+imutabilidade dos dados. FAST profiles-4e53713645ad: 80 aprovados; INTEGRATION
+profiles-191ec26767f9: 366 aprovados; ambos saída 0, zero falhas/ignorados.
+FULL não repetido nesta alteração puramente textual: não foram alterados DOM,
+CSS, transporte, sessão ou backend. A validação FULL anterior da segurança fica
+registrada separadamente. A inspeção confirmou que Entendi em PHYSICAL_BLOCKED
+continua refresh/GET, sem cancelamento, limpeza do event_id ou criação de sessão;
+a tela informativa preserva a sessão ativa, sem representar falha mecânica.

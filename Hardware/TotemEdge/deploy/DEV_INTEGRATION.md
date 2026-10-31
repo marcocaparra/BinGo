@@ -5,7 +5,8 @@ machine_id e school_id. Turmas e alunos são consultados dinamicamente no contex
 da máquina autenticada; não é necessário duplicar o cadastro no JSON local.
 
 Perfil explícito para leituras e identificação no Supabase DEV com mecânica
-simulada. Não integra frontend, câmera ou hardware. Não registra descartes,
+simulada. A UI de identificação 3C.2.1 está descrita ao final; câmera e hardware
+continuam sem integração. Não registra descartes,
 recibos, BinCoins ou XP. O target Docker default continua operacional e bloqueado.
 
 ## Diagnóstico dos contratos e permissões
@@ -540,3 +541,53 @@ Não foram adicionados TTL, exclusão, expurgo ou reconciliação pública.
 
 Problemas preexistentes .env.example (g# inicial) e verificador de migração que
 procura camera_controller.js continuam separados e não foram corrigidos.
+
+## Frontend oficial — identificação 3C.2.1
+
+Ao abrir `/` no DEV atualizado, o frontend reconhece o cabeçalho local de perfil
+em `/health`, consulta GET active e, para nova identificação/IDENTIFYING, usa
+`/local/dev/health` e `/local/dev/context`. O contexto fornecido pelo backend é a
+única lista de turmas/alunos; não há fixture de produção ou acesso central direto
+no navegador. A seleção envia POST `/local/simulation/sessions` somente com
+command_id e POST `/local/dev/sessions/{event_id}/identity` com turma, aluno e PIN.
+O placeholder inicial da sessão não é tratado como turma autorizada.
+
+A UI avança apenas com snapshot validado e identidade durável. Em SAFETY mostra
+o cartão de segurança original. Sim, está seguro envia has_risk=false e Encontrei
+um risco envia has_risk=true ao POST /local/simulation/sessions/{event_id}/safety,
+somente quando safety consta em allowed_actions. O snapshot confirma
+PHYSICAL_BLOCKED ou CANCELLED; não são solicitados open/close/hatch/confirm-initial.
+SAFETY_RISK persistido restaura a orientação original de procurar um responsável,
+inclusive após refresh; Entendi volta ao início. Durante o POST, os controles
+existentes ficam bloqueados. Falha HTTP ou resposta perdida exige GET do mesmo
+event_id; não há confirmação otimista nem retry automático.
+Por decisão do desenvolvedor, o botão Voltar original encerra a preparação pela
+API, somente quando cancel estiver em allowed_actions. O vínculo nunca retrocede. Uma
+sessão que já avançou é apresentada somente para consulta. CANCELLED/COMPLETED
+simulados são terminais sem recibo econômico. A composição operacional continua
+bloqueada; a isolada não é promovida a DEV por parâmetro de URL.
+
+Refresh em IDENTIFYING recupera o mesmo evento e solicita novamente seleção e
+PIN. Refresh em SAFETY recupera o vínculo por GET, inclusive sem central. Apenas
+event_id e command_id públicos ficam em sessionStorage, como ponteiros para GET
+e barreira de replay; não são identidade/autorização. Nenhum PIN, nome, snapshot,
+chave ou token é persistido pelo frontend. IDs de tentativa são salvos antes do
+POST; falha desse armazenamento bloqueia a criação. Resposta perdida leva a GET
+de recuperação e retry explícito do mesmo comando, nunca a UUID novo automático.
+
+Não existe contrato DEV para cadastro/alteração de PIN. O primeiro acesso do
+protótipo Software/apps/totem_ui é demonstração visual, não operação homologada.
+O aluno DEV precisa de PIN já provisionado pelo canal autorizado; aprovar API,
+autorização de ativação/reset e política de contas é trabalho separado.
+
+Testes comuns utilizam o broker sintético e SQLite descartável; não homologam
+Supabase hospedado. Não foi feito rebuild/recreate do DEV persistente do operador.
+O desenvolvedor deve carregar a imagem atualizada pelos comandos deste documento
+para a homologação manual, preservando seu volume e arquivos externos.
+
+A referência visual aprovada é Software/apps/totem_ui no commit
+a9310a6eba3a979cc1349319d64656c0c7898064. A UI DEV reutiliza seus elementos de
+identificação por meio dos templates existentes do Edge, sem copiar câmera,
+visão ou primeiro acesso. O login PIN, busca de aluno e navegação usam a composição
+original. Erros e ações ainda indisponíveis usam os espaços de mensagem existentes.
+TESTING.md descreve a comparação visual específica, além do teste histórico.

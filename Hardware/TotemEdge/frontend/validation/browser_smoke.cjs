@@ -4,9 +4,18 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
+const { execFileSync } = require('node:child_process');
 
 const frontend = path.resolve(__dirname, '..');
 const repo = path.resolve(frontend, '../../..');
+// Preservation of the documented 2026-10-08 migration, not feature parity with
+// the independently evolving prototype. See deploy/TESTING.md for provenance.
+const referenceRevision = 'b4ebdc14427649d7257e1345abbf015b384e1817';
+const referenceAssets = new Set([
+  'Software/mobile/bingo_app/assets/fonts/Sora[wght].ttf',
+  'Software/mobile/bingo_app/assets/fonts/Inter[opsz,wght].ttf',
+  'Software/mobile/bingo_app/assets/images/Praça Central - Limpa.png',
+]);
 const output = path.join(frontend, '.validation');
 fs.mkdirSync(path.join(output, 'tmp'), { recursive: true });
 process.env.TEMP = process.env.TMP = path.join(output, 'tmp');
@@ -15,16 +24,27 @@ const { chromium, launchOptions } = require('./browser_tools.cjs');
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.ttf': 'font/ttf' };
 
-async function serve(root) {
+async function serve(root, revision = null) {
+  const cache = new Map();
   const server = http.createServer((req, res) => {
     try {
       assert.equal(req.method, 'GET');
       const relative = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
       let file = path.resolve(root, '.' + relative);
       assert.ok(file === root || file.startsWith(root + path.sep));
-      if (fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
+      if (relative.endsWith('/') || (!revision && fs.statSync(file).isDirectory())) file = path.join(file, 'index.html');
+      let historical;
+      if (revision) {
+        const gitPath = path.relative(repo, file).split(path.sep).join('/');
+        assert.ok(gitPath.startsWith('Software/apps/totem_ui/') || referenceAssets.has(gitPath));
+        if (!cache.has(gitPath)) cache.set(gitPath, execFileSync('git', ['show', `${revision}:${gitPath}`], {
+          cwd: repo, windowsHide: true, maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
+        }));
+        historical = cache.get(gitPath);
+      }
       res.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream' });
-      fs.createReadStream(file).pipe(res);
+      if (revision) res.end(historical);
+      else fs.createReadStream(file).pipe(res);
     } catch {
       res.writeHead(404); res.end();
     }
@@ -34,7 +54,9 @@ async function serve(root) {
 }
 
 async function main() {
-  const original = await serve(path.join(repo, 'Software'));
+  // Local history only: never fetch a reference or accept a working-tree snapshot.
+  execFileSync('git', ['cat-file', '-e', `${referenceRevision}^{commit}`], { cwd: repo, windowsHide: true, stdio: 'pipe' });
+  const original = await serve(path.join(repo, 'Software'), referenceRevision);
   const copy = await serve(frontend);
   let browser;
   const problems = [];
@@ -180,6 +202,7 @@ async function main() {
     flows.push('Modo somente turma pula aluno e PIN');
     assert.deepEqual(problems, []);
     const report = { browser: await browser.version(), viewport: '600x1024',
+      reference: { purpose: 'migration-preservation', revision: referenceRevision, path: 'Software/apps/totem_ui' },
       screens: comparisons, simulatedFlows: flows, httpRequests: requests, errors: problems };
     fs.writeFileSync(path.join(output, 'browser.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify({ browser: report.browser, screens: comparisons.length,
