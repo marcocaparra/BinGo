@@ -592,8 +592,23 @@ def test_existing_binding_does_not_override_current_student_eligibility(
     assert counts(app.state.sessions.store) == (1, 1, 0)
 
 
-def test_offline_initial_confirmation_keeps_safe_completion_available(connected):
-    client, app, broker, _ = connected
+def test_offline_initial_confirmation_keeps_safe_completion_available(
+    connected, monkeypatch
+):
+    client, app, broker, calls = connected
+    original_wait = app.state.controller.wait
+    calls_after_hatch = []
+
+    async def disconnect_after_hatch(identifier):
+        response = await original_wait(identifier)
+        if response.command.operation == "CYCLE_LOWER_HATCH":
+            broker.app.state.central._http._transport.inner = httpx.MockTransport(
+                lambda r: httpx.Response(503, json={})
+            )
+            calls_after_hatch.append(len(calls))
+        return response
+
+    monkeypatch.setattr(app.state.controller, "wait", disconnect_after_hatch)
     event = start(client)
     assert associate(client, event).status_code == 200
     client.post(f"{BASE}/{event}/safety", json={"has_risk": False})
@@ -613,7 +628,7 @@ def test_offline_initial_confirmation_keeps_safe_completion_available(connected)
     broker.app.state.central._http._transport.inner = httpx.MockTransport(
         lambda r: httpx.Response(503, json={})
     )
-    command = uuid4()
+    command = app.state.mechanical.initial_identifier(UUID(event))
     assert client.post(
         f"{BASE}/{event}/confirm-initial", json={"mechanical_command_id": str(command)}
     ).status_code in {200, 202}
@@ -622,6 +637,7 @@ def test_offline_initial_confirmation_keeps_safe_completion_available(connected)
     assert final["session"]["state"] == "COMPLETED"
     assert final["session"]["receipt"] is None
     assert final["identity"]["student_id"] == str(STUDENT)
+    assert calls_after_hatch == [len(calls)]
 
 
 def test_v3_upgrade_preserves_journal_and_mechanical_history(dev_environment):
@@ -795,7 +811,9 @@ def test_event_id_is_not_authorization_for_risky_dev_commands(
             ).status_code
             == 401
         )
-        assert counts(app.state.sessions.store)[2] == before_counts[2] + 1
+        assert counts(app.state.sessions.store)[2] == before_counts[2] + (
+            2 if action == "hatch" else 1
+        )
     else:
         assert response.status_code == status
         assert client.get(f"{BASE}/{event}").json() == before

@@ -255,7 +255,11 @@ def test_dev_simulated_flow_requires_durable_central_identification(
                 client.post(f"{BASE}/{event}/review-fixture", json={}).status_code
                 == 200
             )
-        identifier = uuid4()
+        identifier = (
+            app.state.mechanical.initial_identifier(UUID(event))
+            if action == "confirm-initial"
+            else uuid4()
+        )
         body = {"mechanical_command_id": str(identifier), **extra}
         assert client.post(f"{BASE}/{event}/{action}", json=body).status_code in (
             200,

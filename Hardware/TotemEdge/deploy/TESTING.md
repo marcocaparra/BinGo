@@ -81,9 +81,13 @@ e o resultado da limpeza. Artefatos ficam ignorados pelo Git.
 
 Código de saída `0`: grupos executáveis passaram; `1`: falha ou interrupção;
 `2`: recurso indisponível, execução ainda em curso ou teste ignorado. Consulte `status`, `reason`, `tests`
-e o log do grupo. Teste ignorado não equivale a aprovado. `frontend-3c2-mechanical-e2e` aparece
-como `pending`, sem contagem de aprovação: os fluxos mecânicos 3C.2.2/3 ainda não existem. Essa
-pendência planejada não impede validar a infraestrutura do 3C.2.0.
+e o log do grupo. Teste ignorado não equivale a aprovado. O antigo marcador
+`frontend-3c2-mechanical-e2e` fica registrado nas evidências históricas abaixo;
+o ciclo mecânico simulado agora é
+exercitado no smoke DEV existente até COMPLETED, com retorno inicial coordenado
+pelo backend. O marcador futuro frontend-3c23-vision-e2e identifica câmera/IA ainda
+fora do escopo, sem contagem de aprovação. Essa pendência planejada não impede
+validar a infraestrutura do 3C.2.0.
 
 Uma falha de asserção requer comparação com a baseline; não é classificada
 automaticamente como regressão. Dependência/cache ausente no uv offline exige
@@ -397,8 +401,8 @@ O FULL anterior informado pelo desenvolvedor foi conferido no relatório
 retomada já continha as quatro alterações anteriores de runner/documentação e
 comparativo; elas foram preservadas. Não houve commit automático.
 
-FAST/INTEGRATION executam também 13 contratos Node de DevApi (dez originais e
-três de declaração de segurança). O backend já
+FAST/INTEGRATION executam também 16 contratos Node de DevApi (identificação,
+segurança, rótulos e integração mecânica parcial). O backend já
 cobre identidade/PIN, replay, concorrência e recuperação; os testes existentes
 ganharam asserções para descoberta local DEV e ausência do marcador no operacional.
 Não há nova máquina de estados ou suíte duplicada de negócio.
@@ -506,9 +510,13 @@ animação (nome, duração, atraso, curva e iterações) também precisam coinc
 o screenshot estabiliza animações apenas durante a captura com o mecanismo
 animations=disabled do Playwright. O produto mantém suas animações originais.
 
-As 12 capturas cobrem descanso, início, participação, segmento, ano, turma,
+As 21 capturas cobrem descanso, início, participação, segmento, ano, turma,
 aluno, busca/teclado aberto, PIN vazio, erro de PIN, SAFETY e a orientação de risco
-original (Professor). Referência e resultado
+original (Professor), PIN de abertura, opening, insert, hand-confirm,
+door-progress, review com o placeholder unknown aprovado, PIN de alçapão e
+computing e a tela terminal DEV existente. A disponibilidade dos controles Corrigir/Cancelar reflete os contratos
+implementados; a referência usa os mesmos estados disabled, sem mudar estilos.
+Referência e resultado
 ficam em frontend/.validation/approved-<tela>-reference.png e -actual.png, com
 hashes e igualdade em dev-identification-browser.json. O perfil FULL copia esses
 pares para seu diretório UUID e registra visual_checks_passed. Divergência gera
@@ -688,3 +696,154 @@ CSS, transporte, sessão ou backend. A validação FULL anterior da segurança f
 registrada separadamente. A inspeção confirmou que Entendi em PHYSICAL_BLOCKED
 continua refresh/GET, sem cancelamento, limpeza do event_id ou criação de sessão;
 a tela informativa preserva a sessão ativa, sem representar falha mecânica.
+
+## 3C.2.2 parcial — operações simuladas, retorno inicial pendente
+
+Mapeamento/limites e homologação manual em frontend/INTEGRATION_V1.md (seção
+3C.2.2). Os templates aprovados são usados sem substituir textos, CSS, fontes,
+imagens ou animações. O estado unknown original representa ausência de
+classificação; não há câmera ou tipo de eletrônico inventado. Não houve mudança
+em contratos/transições/backend, dados hospedados, migrations ou controladores.
+
+Os dois testes Node acrescentados exercitam payloads open/close/hatch,
+review-fixture vazio, GET de journal sem PIN, validação de mão/PIN, fase/resultado,
+rejeição de origem física e ausência de operação confirm-initial no cliente.
+Os testes existentes de identidade, proteção econômica e SQLite/journal foram
+reutilizados. O smoke DEV foi estendido no runner existente, sem outra suíte.
+O ramo mecânico usa HTTP/SQLite/broker/controlador simulado reais locais; apenas
+falhas de transporte e o caso negativo de snapshot indeterminado são injetados.
+Esse último é teste de contrato da UI, não evidência de falha física real.
+
+| Perfil | Relatório em deploy/.validation | Resultado executado |
+| --- | --- | --- |
+| FAST | profiles-029feb1ceae8/report.json | saída 0; 82 aprovados, zero falhas/ignorados |
+| INTEGRATION | profiles-168529d0b9c1/report.json | saída 0; 368 aprovados, zero falhas/ignorados |
+| FULL | profiles-21f3c18613be/report.json | saída 0; 661 aprovados, zero falhas/ignorados |
+
+FULL: backend 620, runtime 18, JS 23; sete grupos Docker DEV + oito isolados;
+histórico 29 telas/três PNG/dez fluxos, operacional seis verificações, DEV 30
+verificações/20 capturas. Todos os PNG e contratos de design coincidiram; zero
+erros de navegador. O piloto final também aprovou 30 verificações/20 capturas,
+preservado em 3c22-audit/pilot-browser.json. A revisão final dos 23 contratos JS
+está em 3c22-audit/js-contracts-final.log; formato dos 59 arquivos Python passou.
+Uma rodada intermediária de abertura/fechamento falhou ao procurar o controle
+refresh em DOOR_CLOSED após a adoção de review; a expectativa foi atualizada,
+sem relaxar as referências. Seu JSON permanece em
+3c22-audit/intermediate-open-close-browser.json, sem contagem de aprovação.
+
+O browser comprova PIN novo/central recusada em open/hatch, clique duplo,
+hand_removed explícito, fechamento offline, perda da resposta após despacho,
+refresh durante movimentos, IDs preservados, replay sem novo movimento e recusa
+de cancelamento após movimento. Após o alçapão, mantém HATCH_IN_PROGRESS ativo,
+três comandos COMPLETED/SUCCEEDED/SIMULATED e receipt=null. Nenhum POST
+confirm-initial, câmera, classificação ou registro econômico é emitido pela UI.
+
+A saída 0 do FULL aprova os grupos implementados, NÃO o ciclo completo pela UI.
+O marcador frontend-3c2-mechanical-e2e continua pending para o retorno inicial.
+Não houve aceitação automática de snapshots, máscaras ou tolerância adicional.
+O fixture browser e o SQLite dos perfis foram removidos. Os cinco projetos UUID
+Docker registraram cleanup ok e zero containers/redes/volumes remanescentes.
+3c22-audit/verification.json registra SQLite DEV mode=ro inalterado, mesmos
+containers persistentes e mesmos hashes de styles.css/index.html. Resíduos
+históricos não foram excluídos e containers DEV persistentes não foram atualizados.
+
+Arquivos alterados: frontend/local_api.js, operational.js, script.js,
+validation/dev_api.test.cjs, dev_identification_smoke.cjs, approved_visual.cjs;
+frontend/INTEGRATION_V1.md, deploy/DEV_INTEGRATION.md, TESTING.md e validate.py
+(somente explicação da pendência, sem alterar grupos/prazos). Não houve commit,
+push, merge ou deploy. Não homologar COMPLETED pela interface nesta entrega.
+
+## 3C.2.2 — retorno inicial coordenado pelo backend — 31/10/2026
+
+Esta atualização substitui a pendência de retorno inicial da entrega parcial
+acima. A decisão oficial dispensa confirmação mecânica pelo aluno. Os contratos
+LOCAL_API_V1.md e MECHANICAL_INTERNAL_V1.md definem CYCLE_LOWER_HATCH como ciclo
+lógico completo do alçapão e CONFIRM_INITIAL_STATE como verificação da condição
+inicial, sem homing ou movimento corretivo. A evidência disponível neste escopo
+é exclusivamente SIMULATED: não comprova sensores ou posição física real.
+
+Somente no DEV integrado simulado, após persistir hatch COMPLETED/SUCCEEDED,
+MechanicalService solicita a verificação inicial com UUID5 determinístico por
+event_id. A mesma orquestração roda no startup para recuperar a lacuna entre o
+commit do hatch e a criação dessa intenção. Uma tentativa inicial já existente,
+inclusive rejeitada, falha, interrompida ou indeterminada, impede novo despacho.
+Nenhuma consulta GET, renderização ou temporizador do navegador solicita essa
+operação. A API existente é preservada; replay usa o ID persistido e outra
+tentativa com ID diferente é conflito no DEV. allowed_actions omite uma nova
+confirmação quando já existe tentativa. A simulação isolada mantém a API manual.
+
+COMPLETED depende da resposta correlacionada do controlador com
+source=SIMULATED, phase=COMPLETED e result=SUCCEEDED, persistida atomicamente
+com a transição da sessão. Falha ou ausência desse commit mantém o bloqueio.
+physical_confirmed continua 0; payload, central_scope e receipt permanecem NULL.
+O controlador físico e suas guardas não foram alterados. A confirmação efetiva
+do hardware exige contratos futuros de sensores/protocolo; não foi inventada.
+
+test_auto_initial.py acrescenta 14 casos, cobrindo sucesso somente após resposta
+e commit, replay, falha/rejeição/timeout, falha de hatch, interrupções em INTENT,
+DISPATCHING e ACCEPTED, reinício na lacuna após hatch, conflito entre IDs,
+falha SQLite e resposta insuficiente. Inclui encerramento abrupto de um processo
+Python próprio durante a confirmação, seguido de reabertura do mesmo SQLite:
+o journal fica UNKNOWN/INDETERMINATE, sem outro despacho ou conclusão indevida.
+SQLite e broker são sintéticos/temporários; não há consulta hospedada.
+
+No desenvolvimento, expectativas antigas foram corrigidas: uma interrupção
+controlada pode registrar CANCELLED/UNKNOWN e hatch concluído agora acrescenta
+também o comando inicial. Um ensaio isolado do teste de queda não atingiu o
+handshake no prazo porque incluía a preparação inteira do ciclo no processo
+filho; a preparação passou ao processo pai, mantendo o mesmo prazo. Os 14 casos
+e os perfis finais abaixo passaram; não houve aumento de timeout.
+
+O navegador exercita os quatro comandos duráveis e recupera COMPLETED após
+refresh, sem POST confirm-initial. Um snapshot atrasado na lacuna hatch/inicial
+é injetado para verificar que a UI continua apenas consultando até recuperar o
+estado real. O caso negativo indeterminado é teste controlado de contrato da UI,
+sem alegação de falha física. Revisão usa o estado unknown original, sem
+classificação inventada; o encerramento não usa a tela de recompensas.
+
+| Perfil | Relatório em deploy/.validation | Resultado executado |
+| --- | --- | --- |
+| FAST | profiles-483d424f7574/report.json | saída 0; 82 aprovados, zero falhas/ignorados |
+| INTEGRATION | profiles-a2500c0bbfe0/report.json | saída 0; 382 aprovados, zero falhas/ignorados |
+| FULL | profiles-74ec4461d0b0/report.json | saída 0; 675 aprovados, zero falhas/ignorados |
+
+FULL: backend 634, runtime 18 e contratos JS 23; sete grupos Docker DEV e oito
+isolados efetivamente aprovados. Browser histórico: 29 telas, três PNG e dez
+fluxos; operacional: seis verificações; DEV: 30 verificações e 21 capturas.
+Todas as capturas DEV tiveram zero pixels diferentes e contratos de design
+iguais, em 600x1024, contra a referência B fixada em a9310a6, sem máscaras,
+aceitação de snapshots ou tolerância adicional. styles.css, index.html, assets,
+textos/templates e animações aprovados permanecem preservados. O comparativo
+histórico do 3C.2.0 também foi preservado. Formato de 60 arquivos Python, sintaxe
+JavaScript e git diff --check passaram. O piloto browser também passou 30/21,
+em auto-initial-audit/pilot-browser.json. O marcador frontend-3c23-vision-e2e
+permanece pending, fora da contagem de testes executados, para câmera/IA futura.
+
+Os relatórios confirmam temporary_sqlite_removed=true e temporary_removed=true
+no browser. Os cinco projetos Docker exclusivos da suíte deixaram zero
+containers, redes ou volumes. auto-initial-audit/verification.json registra os
+containers persistentes com os mesmos IDs/início/mounts, o hash lógico e as
+contagens do SQLite DEV inalterados em leitura mode=ro, e os hashes de
+styles.css/index.html iguais. Resíduos temporários históricos foram preservados;
+não foram usados como fixtures desta execução. Não houve acesso hospedado,
+escrita econômica, GPIO, atualização do DEV persistente, commit, push, merge ou
+deploy. O workflow existente não foi alterado; execução remota de CI não foi
+realizada.
+
+Arquivos desta conclusão: backend/app/main.py, services/mechanical.py,
+services/simulation_flow.py, storage.py, tests/test_auto_initial.py e adaptações
+dos testes test_dev_identity.py/test_dev_integration.py; deploy/validate.py e
+validation/dev_integration_smoke.py; frontend/operational.js e os smokes
+validation/dev_identification_smoke.cjs/approved_visual.cjs. Documentação em
+LOCAL_API_V1.md, MECHANICAL_INTERNAL_V1.md, DEV_INTEGRATION.md, INTEGRATION_V1.md,
+STATUS técnico e este arquivo. As integrações parciais anteriores foram mantidas.
+
+Para homologação manual, após o desenvolvedor atualizar explicitamente seu
+Docker DEV pelo procedimento de DEV_INTEGRATION.md, identificar aluno fictício,
+declarar segurança, autorizar open com novo PIN, declarar colocação/retirada da
+mão, confirmar revisão e autorizar hatch com novo PIN. Aguardar o backend
+registrar os quatro comandos e COMPLETED; atualizar a página deve recuperar o
+mesmo event_id, sem pedir confirmação inicial nem conceder pontos. Nenhum desses
+passos foi executado automaticamente no ambiente DEV persistente. A atualização
+da imagem pode recuperar uma sessão antiga com hatch duravelmente concluído e
+nenhuma tentativa inicial; uma tentativa interrompida permanece bloqueada.

@@ -320,3 +320,59 @@ PIN já cadastrado. Para 3C.2.2, integrar as ações posteriores à declaração
 segurança conforme allowed_actions, preservando IDs, autenticação atual e journal;
 esta entrega termina em PHYSICAL_BLOCKED ou CANCELLED, sem movimento, visão ou
 economia. Nenhum controle de abertura foi habilitado.
+
+## 3C.2.2 — ciclo DEV simulado, retorno inicial coordenado pelo backend
+
+Base: 2d34b45, feature/orange-pi-integration. Nenhum template, texto, imagem,
+animação, CSS ou fluxo demo/operacional foi substituído. O adaptador DEV reutiliza:
+
+| Snapshot | Template/controle | Efeito explícito |
+| --- | --- | --- |
+| PHYSICAL_BLOCKED | PIN existente, OK | Health atual e POST open com novo PIN |
+| OPENING | opening | Somente GET de sessão/journal |
+| DOOR_OPEN | insert, Coloquei um item; hand-confirm, Retirei a mão | Apresentar declaração; POST close com hand_removed=true |
+| CLOSING | door-progress | Somente GET de sessão/journal |
+| DOOR_CLOSED | review, Confirmar descarte | POST review-fixture vazio |
+| REVIEW | review, Confirmar descarte; PIN, OK | Pedir PIN novo e POST hatch |
+| HATCH_IN_PROGRESS pendente | computing | Somente GET de sessão/journal |
+| HATCH_IN_PROGRESS após alçapão | computing | Backend solicita retorno inicial e aguarda journal |
+| COMPLETED | idle terminal já existente | Encerramento sem recibo ou pontuação; snapshot recuperável |
+| Falha/indeterminação | mechanical-error, Chamar responsável; teacher, Entendi | Orientação e reconsulta; nenhum novo comando |
+
+O placeholder unknown (Eletrônico não identificado, marcador ?) já pertence ao
+template aprovado. É ausência de identificação, não resultado de câmera/IA nem
+categoria persistida. Os textos originais das etapas permanecem, conforme decisão
+do desenvolvedor; as telas camera/classification não são executadas. Corrigir fica
+desabilitado porque não há contrato de classificação/correção neste incremento.
+Cancelar descarte no PIN só funciona quando cancel consta em allowed_actions.
+
+Além dos ponteiros de sessão existentes, sessionStorage guarda somente UUIDs de
+intenção em bingo.dev.motion.{event_id}.{open|close|hatch}. A gravação/verificação
+precede o POST. Retentativa explícita reaproveita o ID; não guarda PIN ou declaração
+de mão. Antes de submeter, consulta snapshot e journal; pendência, recusa ou
+indeterminação bloqueiam novo despacho. Retentativas de intenções recusadas ou
+abortadas ficam conservadoramente bloqueadas nesta UI; não se cria outro ID para
+contornar a recusa. PIN é solicitado novamente em cada tentativa open/hatch.
+
+O temporizador de 500ms agenda apenas GETs enquanto houver intenção/despacho/
+aceitação pendentes ou HATCH_IN_PROGRESS sem falha, inclusive na lacuna anterior
+à publicação do comando inicial. Não mede duração nem decide resultado mecânico. HTTP 200/202
+não basta: as telas dependem de estado persistido e COMPLETED/SUCCEEDED/SIMULATED
+no journal. Falha de consulta interrompe o acompanhamento e exige reconsulta pelo
+controle existente. Refresh não envia POST e não apaga sessão/journal.
+
+Decisão oficial de 31/10: não haverá controle de retorno inicial pelo aluno.
+Retirei o item e Concluir não foram reinterpretados. O backend solicita a operação
+existente após hatch durável, usando UUID determinístico e o journal. O frontend
+não envia confirm-initial; continua consultando os snapshots. Nenhuma animação,
+renderização ou GET dispara movimento ou grava COMPLETED. O encerramento exige
+confirmação do controlador SIMULATED persistida; receipt=null e physical_confirmed=0
+não representam evidência de hardware real ou elegibilidade econômica.
+
+Homologação manual: carregar a imagem DEV pelos comandos já documentados em
+deploy/DEV_INTEGRATION.md, preservando volumes/configuração; identificar aluno
+fictício, declarar segurança, fornecer novo PIN, Coloquei um item, Retirei a mão,
+Confirmar descarte e novo PIN. Conferir quatro comandos simulados no journal e
+COMPLETED sem confirmação adicional pelo aluno, inclusive após refresh. Em falha
+ou indeterminação, manter o bloqueio; não apagar journal ou gerar outro ID.
+Nenhum rebuild/recreate do DEV persistente é executado automaticamente pela suíte.

@@ -552,6 +552,15 @@ class CycleStore:
             and not self._simulated_hatch_completed(conn, row["event_id"])
         ):
             raise CycleError("HATCH_COMPLETION_REQUIRED")
+        if (
+            self.identity_scope
+            and entry.command.operation == "CONFIRM_INITIAL_STATE"
+            and conn.execute(
+                "SELECT 1 FROM mechanical_commands WHERE event_id=? AND operation='CONFIRM_INITIAL_STATE' AND mechanical_command_id<>?",
+                (str(entry.command.event_id), str(entry.command.mechanical_command_id)),
+            ).fetchone()
+        ):
+            raise CycleError("MECHANICAL_COMMAND_ID_CONFLICT")
         if moving != before:
             self._record(
                 conn,
@@ -587,6 +596,8 @@ class CycleStore:
         ):
             raise CycleError("MECHANICAL_SESSION_MISMATCH")
         if entry.phase == "COMPLETED":
+            if entry.result != "SUCCEEDED":
+                raise CycleError("MECHANICAL_SESSION_MISMATCH")
             if after != moving:
                 self._record(
                     conn,
@@ -612,7 +623,7 @@ class CycleStore:
     def _simulated_hatch_completed(conn, event_id):
         return (
             conn.execute(
-                "SELECT 1 FROM mechanical_commands WHERE event_id=? AND operation='CYCLE_LOWER_HATCH' AND source='SIMULATED' AND phase='COMPLETED' LIMIT 1",
+                "SELECT 1 FROM mechanical_commands WHERE event_id=? AND operation='CYCLE_LOWER_HATCH' AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED' LIMIT 1",
                 (str(event_id),),
             ).fetchone()
             is not None

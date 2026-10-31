@@ -169,6 +169,7 @@ async function openApprovedVisual(context, output, data) {
           students.splice(0, students.length, ...data.students.map(s => s.name));
           currentIndex = screens.findIndex(s => s.id === screen);
           selectedStudent = data.students[0].name;
+          if (options.itemId) recognizedItem = itemOptions.find(item => item.id === options.itemId);
           searchQuery = options.filter || '';
           searchActive = Boolean(options.searchActive);
           keyboardShift = true;
@@ -177,6 +178,9 @@ async function openApprovedVisual(context, output, data) {
           pinWarning = Boolean(options.warning);
           pinErrorMessage = options.warning || '';
           render();
+          if (options.notice) document.querySelector('.guide-bubble').textContent = options.notice;
+          if (options.disableCorrection) document.querySelector('[data-correction-open]').disabled = true;
+          if (options.disableCancel) document.querySelector('[data-cancel-discard]').disabled = true;
           if (screen === 'class') document.querySelectorAll('.class-list button span').forEach((node, i) => { node.textContent = data.classes[i].name; });
         }, { screen, data, options });
         // Match pointer state too: a prior click must not leave only one side

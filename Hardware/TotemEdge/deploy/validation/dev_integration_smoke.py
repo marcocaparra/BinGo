@@ -361,7 +361,6 @@ def main():
             ("open", {}),
             ("close", {"hand_removed": True}),
             ("hatch", {}),
-            ("confirm-initial", {}),
         ]:
             if action == "hatch":
                 assert http(f"{base}/{event}/review-fixture", {})[0] == 200
@@ -382,6 +381,34 @@ def main():
             else:
                 raise AssertionError("Operação não concluiu no fixture")
             assert http(f"{base}/{event}/{action}", body)[0] == 200
+        for attempt in range(100):
+            snapshot = http(f"{base}/{event}")[1]
+            if snapshot["session"]["state"] == "COMPLETED":
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError("Confirmação automática não concluiu no fixture")
+        initial = [
+            c
+            for c in snapshot["commands"]
+            if c["command"]["operation"] == "CONFIRM_INITIAL_STATE"
+        ]
+        assert (
+            len(initial) == 1
+            and initial[0]["phase"] == "COMPLETED"
+            and initial[0]["result"] == "SUCCEEDED"
+        )
+        assert (
+            http(
+                f"{base}/{event}/confirm-initial",
+                {
+                    "mechanical_command_id": initial[0]["command"][
+                        "mechanical_command_id"
+                    ]
+                },
+            )[0]
+            == 200
+        )
         assert (
             snapshot["session"]["state"] == "COMPLETED"
             and snapshot["session"]["receipt"] is None

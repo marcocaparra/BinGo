@@ -1425,6 +1425,9 @@ function renderDevIdentity(view) {
   keyboardClosing = view.keyboardClosing;
   pinDigits = view.pinLength;
   pinWarning = false;
+  // Absence of camera/classification uses the existing unknown-item component,
+  // never the prototype's default cable or a fabricated classifier result.
+  if (view.screen === 'review') recognizedItem = itemOptions.find(item => item.id === 'unknown');
   const template = document.createElement("template");
   template.innerHTML = view.screen === "pin" ? approvedLoginPin() : screens[currentIndex].render();
   const fragment = template.content;
@@ -1463,6 +1466,16 @@ function renderDevIdentity(view) {
   bind('[data-mode="classOnly"]', "mode", "class_only");
   bind("[data-back]", "back");
   bind("[data-cancel-discard]", "cancel");
+  if (view.mechanicalPin) fragment.querySelectorAll('[data-cancel-discard]').forEach(button => { button.disabled = !view.cancelAllowed; });
+  bind('[data-item-inserted]', 'inserted');
+  bind('[data-hand-confirmed]', 'hand');
+  bind('[data-discard-confirm]', 'discard');
+  if (view.screen === 'review') {
+    fragment.querySelector('[data-discard-confirm]').disabled = !view.reviewAllowed;
+    // Correction has no backend classification contract in this increment.
+    fragment.querySelector('[data-correction-open]').disabled = true;
+  }
+  if (view.screen === 'mechanical-error') bind('[data-jump]', 'help');
   if (view.screen === "segment") fillList(".option-stack", view.segments, "segment");
   if (view.screen === "year") fillList(".year-list", view.grades, "grade");
   if (view.screen === "class") fillList(".class-list", view.classes, "class");
@@ -1530,7 +1543,7 @@ function renderDevIdentity(view) {
     existing.querySelectorAll("[data-pin]").forEach((key, index) => { key.className = keys[index].className; key.disabled = keys[index].disabled; });
     const hint = existing.querySelector(".pin-hint"), nextHint = fragment.querySelector(".pin-hint");
     hint.textContent = nextHint.textContent; hint.className = nextHint.className;
-    existing.querySelector("[data-cancel-discard]").disabled = view.busy;
+    existing.querySelector("[data-cancel-discard]").disabled = view.busy || view.mechanicalPin && !view.cancelAllowed;
     return;
   }
   if (sameEvent && view.screen === "student" && existing?.matches(".screen--student") && existing.classList.contains("is-searching") === Boolean(view.searchActive || view.keyboardClosing)) {

@@ -2,7 +2,7 @@
 
 import asyncio
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid5, NAMESPACE_URL
 
 from pydantic import ValidationError
 
@@ -19,6 +19,7 @@ class MechanicalService:
         controller: MechanicalController,
         *,
         source: Literal["UNAVAILABLE", "SIMULATED"],
+        auto_initial: bool = False,
     ):
         # PHYSICAL continua sem despacho autorizado neste incremento.
         if source not in {"UNAVAILABLE", "SIMULATED"}:
@@ -26,9 +27,83 @@ class MechanicalService:
         self.store = store
         self.controller = controller
         self.source = source
+        if auto_initial and (source != "SIMULATED" or not store.simulation_enabled):
+            raise ValueError("Confirmação automática exige simulação isolada.")
+        self.auto_initial = auto_initial
         self._tasks: dict[UUID, asyncio.Task[None]] = {}
         self._dispatches: dict[UUID, asyncio.Task] = {}
         self._closed = False
+
+    @staticmethod
+    def initial_identifier(event_id: UUID) -> UUID:
+        return uuid5(NAMESPACE_URL, f"bingo:dev:confirm-initial:{event_id}")
+
+    async def resume_initial(self):
+        """Startup/event orchestration only. GETs never invoke this method."""
+        if not self.auto_initial or self._closed:
+            return
+        with self.store.transaction() as conn:
+            events = [
+                UUID(row[0])
+                for row in conn.execute(
+                    "SELECT event_id FROM cycles WHERE simulated=1 AND active_slot=1 AND state='HATCH_IN_PROGRESS' AND physical_confirmed=0 AND receipt IS NULL"
+                )
+            ]
+        for event_id in events:
+            await self._ensure_initial(event_id)
+
+    async def _ensure_initial(self, event_id: UUID):
+        if not self.auto_initial or self._closed:
+            return
+        with self.store.transaction() as conn:
+            row = self.store.simulation_row(conn, event_id)
+            if (
+                row["state"] != "HATCH_IN_PROGRESS"
+                or row["active_slot"] != 1
+                or row["physical_confirmed"]
+                or any(
+                    row[field] is not None
+                    for field in ("payload", "receipt", "central_scope")
+                )
+                or self.store.mechanical.has_risk(conn, event_id)
+            ):
+                return
+            if not self.store._simulated_hatch_completed(conn, event_id):
+                return
+            # Any prior attempt, including rejected/aborted/unknown, is a durable
+            # barrier. Startup must not turn uncertainty into a fresh dispatch.
+            if conn.execute(
+                "SELECT 1 FROM mechanical_commands WHERE event_id=? AND operation='CONFIRM_INITIAL_STATE'",
+                (str(event_id),),
+            ).fetchone():
+                return
+        try:
+            await self.submit(
+                MechanicalCommand(
+                    event_id=event_id,
+                    mechanical_command_id=self.initial_identifier(event_id),
+                    operation="CONFIRM_INITIAL_STATE",
+                )
+            )
+        except (CycleError, ControllerError):
+            # A concurrent explicit request may win. Its durable attempt is the
+            # barrier, never a reason to generate another command identifier.
+            with self.store.transaction() as conn:
+                existing = conn.execute(
+                    "SELECT 1 FROM mechanical_commands WHERE event_id=? AND operation='CONFIRM_INITIAL_STATE'",
+                    (str(event_id),),
+                ).fetchone()
+            if not existing:
+                raise
+
+    async def _completed(self, entry: JournalEntry):
+        if (
+            entry.source == "SIMULATED"
+            and entry.phase == "COMPLETED"
+            and entry.result == "SUCCEEDED"
+            and entry.command.operation == "CYCLE_LOWER_HATCH"
+        ):
+            await self._ensure_initial(entry.command.event_id)
 
     def get(self, identifier: UUID) -> JournalEntry:
         return self.store.mechanical.get(identifier)
@@ -97,6 +172,8 @@ class MechanicalService:
                     command.mechanical_command_id, completed
                 )
             )
+        elif entry.phase == "COMPLETED":
+            await self._completed(entry)
         return entry
 
     def _finished(self, identifier, task):
@@ -120,7 +197,9 @@ class MechanicalService:
             )
             return
         try:
-            self.store.mechanical.observe(identifier, response, version=entry.version)
+            completed = self.store.mechanical.observe(
+                identifier, response, version=entry.version
+            )
         except (
             ControllerError,
             CycleError,
@@ -131,6 +210,8 @@ class MechanicalService:
             self.store.mechanical.unknown(
                 identifier, version=entry.version, code="INCONSISTENT_RESPONSE"
             )
+            return
+        await self._completed(completed)
 
     async def wait(self, identifier: UUID) -> JournalEntry:
         task = self._tasks.get(identifier)

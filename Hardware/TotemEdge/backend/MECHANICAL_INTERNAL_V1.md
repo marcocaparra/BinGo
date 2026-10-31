@@ -66,6 +66,19 @@ replay. Nenhum critério arbitrário de idade foi introduzido.
 
 ## Base do contrato interno — histórico dos Incrementos 1/2
 
+Atualização de responsabilidade (31/10/2026): no DEV, MechanicalService coordena
+CONFIRM_INITIAL_STATE após a conclusão durável e bem-sucedida de CYCLE_LOWER_HATCH,
+sem botão do aluno e sem acionamento por GET do browser. O lifespan retoma somente
+a lacuna entre hatch concluído e a inexistência de uma tentativa inicial. UUID
+determinístico e barreiras no journal impedem repetição de comandos. API e máquina
+de estados existentes são preservadas; detalhes em LOCAL_API_V1.md.
+
+CONFIRM_INITIAL_STATE continua sendo verificação lógica, não homing ou movimento
+corretivo. No simulador, o resultado tipado SUCCEEDED com procedência SIMULATED
+pode encerrar apenas a sessão simulada. Para hardware real ainda faltam geometria,
+sensores/protocolo e critérios de confirmação aprovados; esta implementação não
+fornece essas evidências e não autoriza despacho PHYSICAL ou elegibilidade econômica.
+
 Base implementada em 2026-10-27 na branch `feature/orange-pi-integration`;
 integração simulada 3B atualizada em 2026-10-28, conforme seção anterior.
 Contrato privado do backend; não é contrato HTTP, protocolo físico homologado

@@ -3,6 +3,36 @@ const assert = require('node:assert/strict');
 const { DevApi } = require('../local_api.js');
 const { schoolLabels } = require('../local_api.js');
 
+test('Movimentos DEV limitam payload e consultam journal sem credencial em GET', async () => {
+  const id = '00000000-0000-4000-8000-000000000099';
+  for (const operation of ['open', 'close', 'hatch']) {
+    const entry = { source: 'SIMULATED', phase: 'ACCEPTED', result: 'PENDING', command: { event_id: event, mechanical_command_id: id, operation: { open: 'OPEN_INSERTION_DOOR', close: 'CLOSE_INSERTION_DOOR', hatch: 'CYCLE_LOWER_HATCH' }[operation] } };
+    const value = { ...bound, commands: [entry], session: { ...bound.session, state: { open: 'OPENING', close: 'CLOSING', hatch: 'HATCH_IN_PROGRESS' }[operation] }, allowed_actions: [] };
+    const api = new DevApi(async (path, options) => {
+      if (options.method === 'GET') { assert.equal(options.body, undefined); return response({ source: 'SIMULATED', command: entry, history: [] }); }
+      assert.equal(path, `/local/simulation/sessions/${event}/${operation}`);
+      assert.deepEqual(JSON.parse(options.body), { mechanical_command_id: id, ...(operation !== 'close' ? { pin: '0012' } : { hand_removed: true }) });
+      return response(value, 202);
+    });
+    assert.equal((await api.motion(event, operation, id, operation !== 'close' ? { pin: '0012' } : { hand_removed: true })).commands[0].phase, 'ACCEPTED');
+    assert.equal((await api.journal(event, id)).command.result, 'PENDING');
+  }
+  await new DevApi(async (path, options) => {
+    assert.equal(path, `/local/simulation/sessions/${event}/review-fixture`); assert.deepEqual(JSON.parse(options.body), {});
+    return response({ ...bound, session: { ...bound.session, state: 'REVIEW' }, allowed_actions: ['hatch'] });
+  }).reviewFixture(event);
+});
+
+test('Movimentos sem PIN/mão, ações não integradas e journal físico/inconsistente são recusados', async () => {
+  let calls = 0; const api = new DevApi(async () => { calls++; return response({}); });
+  for (const [op, options] of [['open', {}], ['close', { hand_removed: false }], ['close', { hand_removed: true, pin: '0012' }], ['hatch', {}], ['confirm-initial', {}]]) await assert.rejects(() => api.motion(event, op, machine, options), e => e.status === 422);
+  assert.equal(calls, 0);
+  for (const change of [{ source: 'PHYSICAL' }, { phase: 'COMPLETED', result: 'PENDING' }]) {
+    const entry = { source: 'SIMULATED', phase: 'ACCEPTED', result: 'PENDING', command: { event_id: event, mechanical_command_id: machine, operation: 'OPEN_INSERTION_DOOR' }, ...change };
+    await assert.rejects(() => new DevApi(async () => response({ source: 'SIMULATED', command: entry, history: [] })).journal(event, machine), e => e.code === 'INVALID_RESPONSE');
+  }
+});
+
 test('Rótulos escolares preservam valores e usam somente anos da etapa retornados pelo contexto', () => {
   const classes = [
     ...['1', '2º Ano', '3_ANO'].map(grade => ({ segment: 'ENSINO_MEDIO', grade })),

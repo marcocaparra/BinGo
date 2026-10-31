@@ -64,6 +64,7 @@ def create_app(
                 source="UNAVAILABLE"
                 if isinstance(controller, UnavailableController)
                 else "SIMULATED",
+                auto_initial=bool(getattr(_simulation, "dev_integration", False)),
             )
             try:
                 application.state.controller = controller
@@ -97,6 +98,7 @@ def create_app(
                         None if _simulation else build_internal_vision(http_client)
                     )
                     application.state.capture = CaptureService(store)
+                    await mechanical.resume_initial()
                     yield
             finally:
                 await mechanical.aclose()

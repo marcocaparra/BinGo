@@ -76,6 +76,10 @@ class SimulationFlow:
         elif row["state"] == "DOOR_CLOSED":
             actions = ["review-fixture"]
         identity = self.store.simulation_identity(conn, event_id)
+        if self.store.identity_scope and any(
+            entry.command.operation == "CONFIRM_INITIAL_STATE" for entry in entries
+        ):
+            actions = [action for action in actions if action != "confirm-initial"]
         if self.store.identity_scope and identity is None:
             actions = [
                 a

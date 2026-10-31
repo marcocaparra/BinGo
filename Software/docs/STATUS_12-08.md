@@ -1,6 +1,21 @@
 STATUS técnico — BinGo
 
-Atualizado em: `2026-10-23`
+Nota TotemEdge de 31/10/2026: foi definida a responsabilidade do backend local,
+não do aluno, por solicitar a verificação de retorno inicial dos mecanismos.
+No DEV simulado, hatch concluído duravelmente permite coordenar a operação
+CONFIRM_INITIAL_STATE; somente sua resposta SIMULATED/COMPLETED/SUCCEEDED e o
+commit do journal/sessão permitem COMPLETED, com receipt=null e sem pontuação.
+A implementação validada localmente na feature/orange-pi-integration preserva o UX e
+os contratos HTTP existentes, sem acesso hospedado ou atualização automática
+do DEV persistente. Isso não homologa hardware: geometria, sensores e protocolo
+físicos continuam pendentes. Detalhes vigentes em
+Hardware/TotemEdge/backend/LOCAL_API_V1.md e MECHANICAL_INTERNAL_V1.md.
+FAST: 82 aprovados; INTEGRATION: 382; FULL: 675, mais 15 grupos Docker,
+30 verificações DEV de navegador e 21 capturas estritamente iguais à referência
+aprovada. Relatórios e limites em Hardware/TotemEdge/deploy/TESTING.md.
+
+Atualizado em: `2026-10-31` — atualização localizada da responsabilidade mecânica
+DEV; as demais seções conservam suas datas de evidência.
 
 Este arquivo é a fonte rápida de verdade técnica do projeto. Ele consolida as decisões vigentes de `database-model.md`, `data-contracts-totem-app-backend.md`, `supabase-edge-functions-mvp.md`, `FLUXO_ECOSSISTEMA_DESCARTE_V1.md`, `operacao-offline.md`, `missions-contract-v1.md` e `class-journey-v1.md`, além dos relatórios recentes da fundação de autenticação técnica de máquinas e do inventário do FastAPI. Para descartes, permanecem vigentes as decisões revisadas a partir de `2026-08-12`; para missões, prevalece o contrato conceitual revisado em `2026-09-15`; para Jornada/BinGópolis, prevalece o contrato de `2026-09-22`. Código ou banco só devem prevalecer quando houver evidência de uma decisão posterior ainda não documentada.
 

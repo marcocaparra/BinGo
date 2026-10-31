@@ -52,6 +52,13 @@
       return snapshot(await this.request(`/local/sessions/${id}/${action}`, body));
     }
   }
+  function journalEntry(entry, event) {
+    const phases = { INTENT: 'PENDING', DISPATCHING: 'PENDING', ACCEPTED: 'PENDING', COMPLETED: 'SUCCEEDED', REJECTED: 'UNAVAILABLE', FAILED: 'FAILURE', TIMED_OUT: 'UNKNOWN', CANCELLED: 'UNKNOWN', INDETERMINATE: 'UNKNOWN', ABORTED: 'UNAVAILABLE' };
+    if (!entry || entry.source !== 'SIMULATED' || entry.command?.event_id !== event || !uuid.test(entry.command?.mechanical_command_id) ||
+        !['OPEN_INSERTION_DOOR', 'CLOSE_INSERTION_DOOR', 'CYCLE_LOWER_HATCH', 'CONFIRM_INITIAL_STATE'].includes(entry.command.operation) ||
+        !Object.hasOwn(phases, entry.phase) || !(phases[entry.phase] === entry.result || entry.phase === 'FAILED' && entry.result === 'UNKNOWN')) throw new LocalApiError('INVALID_RESPONSE');
+    return entry;
+  }
   function devSnapshot(value) {
     const s = value?.session, identity = value?.identity;
     const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture"]);
@@ -64,6 +71,7 @@
           [identity.machine_id, identity.school_id, identity.class_id, identity.student_id].some(id => !uuid.test(id)) || typeof identity.project_ref !== "string" || !identity.project_ref ||
           typeof identity.validated_at !== "string" || !Number.isFinite(Date.parse(identity.validated_at)) || typeof s.student_name !== "string" || typeof s.class_name !== "string" || s.state === "IDENTIFYING") throw new LocalApiError("INVALID_RESPONSE");
     } else if (s.student_id !== null || s.mode === "student" && s.state === "SAFETY") throw new LocalApiError("INVALID_RESPONSE");
+    value.commands.forEach(entry => journalEntry(entry, s.event_id));
     return value;
   }
   class DevApi extends LocalApi {
@@ -115,6 +123,30 @@
       const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/safety`, { has_risk: hasRisk }));
       if (value.session.event_id !== id || !value.identity || ["IDENTIFYING", "AUTHENTICATING", "SAFETY"].includes(value.session.state) ||
           hasRisk && (value.session.state !== "CANCELLED" || value.session.failure_code !== "SAFETY_RISK")) throw new LocalApiError("INVALID_RESPONSE");
+      return value;
+    }
+    async motion(id, operation, commandId, options = {}) {
+      if (!uuid.test(id) || !uuid.test(commandId) || !['open', 'close', 'hatch'].includes(operation) ||
+          (operation !== 'close' ? typeof options.pin !== 'string' || !/^[0-9]{4}$/.test(options.pin) || Object.keys(options).some(k => k !== 'pin') : options.hand_removed !== true || Object.keys(options).some(k => k !== 'hand_removed'))) throw new LocalApiError('INVALID_LOCAL_CONTRACT', 422);
+      const body = { mechanical_command_id: commandId, ...options };
+      try {
+        const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/${operation}`, body));
+        if (value.session.event_id !== id) throw new LocalApiError('INVALID_RESPONSE');
+        const entry = value.commands.find(c => c.command.mechanical_command_id === commandId);
+        if (!entry || entry.command.operation !== ({ open: 'OPEN_INSERTION_DOOR', close: 'CLOSE_INSERTION_DOOR', hatch: 'CYCLE_LOWER_HATCH' })[operation]) throw new LocalApiError('INVALID_RESPONSE');
+        return value;
+      } finally { if ('pin' in body) body.pin = ''; }
+    }
+    async reviewFixture(id) {
+      if (!uuid.test(id)) throw new LocalApiError('INVALID_ID');
+      const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/review-fixture`, {}));
+      if (value.session.event_id !== id || !value.identity || value.session.state !== 'REVIEW') throw new LocalApiError('INVALID_RESPONSE');
+      return value;
+    }
+    async journal(id, commandId) {
+      if (!uuid.test(id) || !uuid.test(commandId)) throw new LocalApiError('INVALID_ID');
+      const value = await this.request(`/local/simulation/sessions/${id}/commands/${commandId}`);
+      if (value?.source !== 'SIMULATED' || !Array.isArray(value.history) || journalEntry(value.command, id).command.mechanical_command_id !== commandId) throw new LocalApiError('INVALID_RESPONSE');
       return value;
     }
     async cancel(id) {

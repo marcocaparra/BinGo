@@ -21,6 +21,7 @@ EDGE = DEPLOY.parent
 BACKEND = EDGE / "backend"
 FRONTEND = EDGE / "frontend"
 INTEGRATION = (
+    "test_auto_initial.py",
     "test_dev_identity.py",
     "test_dev_integration.py",
     "test_mechanical_journal.py",
@@ -482,9 +483,9 @@ def main(argv=None):
                             )
             report["groups"].append(
                 {
-                    "name": "frontend-3c2-mechanical-e2e",
+                    "name": "frontend-3c23-vision-e2e",
                     "status": "pending",
-                    "reason": "3C.2.2/3 mechanical UI integration is not implemented",
+                    "reason": "Future camera/AI integration; simulated mechanical cycle is covered in dev_identification_smoke",
                 }
             )
     except KeyboardInterrupt:

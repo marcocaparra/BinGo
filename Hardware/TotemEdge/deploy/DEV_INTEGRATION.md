@@ -1,5 +1,14 @@
 # Integração DEV do TotemEdge — Incrementos 3C.1 e 3C.1.1
 
+Atualização UI 3C.2.2: abertura, fechamento, review-fixture e alçapão usam os
+controles existentes. Por decisão de 31/10, o retorno inicial é responsabilidade
+do backend: após hatch durável ele solicita confirm-initial e aguarda a resposta
+simulada antes de persistir COMPLETED. Não existe novo botão ou confirmação pelo
+aluno. Consultar o mapeamento em ../frontend/INTEGRATION_V1.md. Nenhum registro
+econômico ou funcionamento físico está habilitado. Ao iniciar uma imagem DEV nova,
+um hatch concluído sem tentativa inicial pode ser retomado pelo backend; tentativas
+existentes/indeterminadas ficam protegidas contra redisparo.
+
 Atualização de provisionamento: a política mínima exige somente project_ref,
 machine_id e school_id. Turmas e alunos são consultados dinamicamente no contexto
 da máquina autenticada; não é necessário duplicar o cadastro no JSON local.

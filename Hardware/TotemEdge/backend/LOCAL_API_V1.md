@@ -241,6 +241,32 @@ seguros já previstos podem continuar. Não há reconciliação pública nova.
 
 ## Atomicidade, recuperação e retenção da simulação integrada
 
+### Responsabilidade do retorno inicial no DEV — decisão de 31/10/2026
+
+Não existe confirmação mecânica pelo aluno. Na fábrica DEV, a orquestração
+local solicita CONFIRM_INITIAL_STATE após persistir CYCLE_LOWER_HATCH como
+COMPLETED/SUCCEEDED/SIMULATED. O UUID de confirmação é derivado deterministicamente
+do event_id e é registrado no journal existente antes de qualquer despacho.
+A API, os estados e os formatos de comando permanecem; confirm-initial permite
+replay do ID persistido, mas um segundo ID de confirmação no mesmo ciclo DEV
+retorna 409. allowed_actions não anuncia nova confirmação após tentativa existente.
+A fábrica isolada mantém seu contrato explícito de teste; o operacional não é
+habilitado por essa coordenação.
+
+COMPLETED depende da resposta correlacionada do controlador para a confirmação
+inicial, com COMPLETED/SUCCEEDED/SIMULATED, e do commit atômico de journal/sessão.
+Aceitação, conclusão do alçapão isoladamente, HTTP, GET, animação ou tempo decorrido
+não liberam a sessão. receipt permanece null e physical_confirmed permanece 0.
+Essa é evidência lógica simulada; não comprova posição/sensor/queda físicos.
+
+No startup DEV, um alçapão duravelmente concluído sem nenhuma tentativa inicial
+pode gerar a confirmação. Havendo tentativa anterior, não há novo ID ou redisparo,
+inclusive após recusa, aborto ou indeterminação. Intenção não despachada é abortada
+pela recuperação existente; possível despacho sem resultado durável mantém o
+bloqueio. Esses casos exigem diagnóstico, não limpeza de sessão ou retry automático.
+GET continua estritamente de consulta; a coordenação é disparada pelo resultado
+durável do controlador ou pelo ciclo de vida do backend.
+
 SQLite v3 acrescentou cycles.simulated (default 0) e sua imutabilidade.
 Bancos v1/v2 migram transacionalmente, sem reclassificar sessões antigas. A
 procedência é devolvida no envelope simulado, preservando o contrato operacional

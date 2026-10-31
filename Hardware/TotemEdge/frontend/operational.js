@@ -130,6 +130,12 @@ window.BinGoOperational = {
     let pin = "", command = null, online = false, busy = false, warning = "", uncertain = false;
     let segment = null, grade = null, filter = "", searchActive = false, keyboardShift = true, keyFeedback = null, feedbackTimer;
     let keyboardClosing = false, closeTimer;
+    let pollTimer, departed = false;
+    const pendingPhases = ['INTENT', 'DISPATCHING', 'ACCEPTED'];
+    const completedMotion = operation => snapshot?.commands.some(c => c.command.operation === operation && c.phase === 'COMPLETED' && c.result === 'SUCCEEDED');
+    const failedMotion = () => snapshot?.commands.some(c => !pendingPhases.includes(c.phase) && !(c.phase === 'COMPLETED' && c.result === 'SUCCEEDED'));
+    const openPin = () => snapshot?.session.state === 'PHYSICAL_BLOCKED' && allowed('open') && !failedMotion();
+    const hatchPin = () => snapshot?.session.state === 'REVIEW' && stage === 'hatch-pin' && allowed('hatch') && !failedMotion();
     const saved = name => { try { const id = sessionStorage.getItem(keys[name]); return uuid.test(id || "") ? id : null; } catch { return null; } };
     const remember = (name, id) => { try { sessionStorage.setItem(keys[name], id); return sessionStorage.getItem(keys[name]) === id; } catch { return false; } };
     const forget = name => { try { sessionStorage.removeItem(keys[name]); } catch { /* GET active remains authoritative. */ } };
@@ -161,14 +167,22 @@ window.BinGoOperational = {
       if (uncertain) screen = "unavailable";
       else if (snapshot?.session.state === "SAFETY" && snapshot.identity) screen = "safety";
       else if (riskReported) screen = "teacher";
+      else if (failedMotion() || snapshot?.session.state === 'INDETERMINATE') screen = stage === 'help' ? 'teacher' : 'mechanical-error';
+      else if (openPin() || hatchPin()) screen = 'pin';
+      else if (snapshot?.session.state === 'OPENING') screen = 'opening';
+      else if (snapshot?.session.state === 'DOOR_OPEN' && completedMotion('OPEN_INSERTION_DOOR')) screen = stage === 'hand' ? 'hand-confirm' : 'insert';
+      else if (snapshot?.session.state === 'CLOSING') screen = 'door-progress';
+      else if (['DOOR_CLOSED', 'REVIEW'].includes(snapshot?.session.state) && completedMotion('CLOSE_INSERTION_DOOR')) screen = 'review';
+      else if (snapshot?.session.state === 'HATCH_IN_PROGRESS') screen = 'computing';
       else if (terminal()) { screen = "idle"; notice = notice || "A sessão foi encerrada. Nenhum recibo econômico ou pontuação foi gerado."; }
-      else if (snapshot && !identifying()) { screen = "teacher"; notice = notice || "Sessão já avançou. Consulte o estado persistido; nenhum movimento foi solicitado por esta tela."; }
+      else if (snapshot && !identifying()) { screen = "teacher"; if (!snapshot.commands.length) notice = notice || "Sessão já avançou. Consulte o estado persistido; nenhum movimento foi solicitado por esta tela."; }
       else if (stage !== "loading" && !online) { screen = "unavailable"; notice = notice || "Novas autenticações exigem a central DEV disponível."; }
       renderIdentity({
         screen, stage: screen === "unavailable" ? "unavailable" : stage, state: snapshot?.session.state || stage,
         eventId: snapshot?.session.event_id, busy, uncertain, terminal: terminal(), command,
         warning: notice, pinLength: pin.length, grade, filter, searchActive, keyboardShift, keyFeedback, keyboardClosing,
-        riskReported, safetyAllowed: allowed("safety"),
+        riskReported, safetyAllowed: allowed("safety"), cancelAllowed: allowed('cancel'), mechanicalPin: openPin() || hatchPin(),
+        reviewAllowed: allowed('review-fixture') || allowed('hatch'),
         ...window.BinGoLocalApi.schoolLabels(context?.classes || [], segment),
         classes: (context?.classes || []).filter(c => (!segment || c.segment === segment) && (!grade || c.grade === grade)),
         students: (context?.students || []).filter(s => s.class_id === selectedClass && normalize(s.name).includes(normalize(filter))).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
@@ -178,7 +192,41 @@ window.BinGoOperational = {
       if (snapshot?.session.event_id !== value.session.event_id) { selectedClass = null; student = null; }
       snapshot = value; pin = ""; command = null; searchActive = false; keyboardClosing = false; clearTimeout(closeTimer); forget("command");
       remember("event", snapshot.session.event_id);
-      stage = identifying() ? student ? "pin" : selectedClass ? "students" : "classes" : "session";
+      stage = identifying() ? student ? "pin" : selectedClass ? "students" : "classes" : value.session.state === 'REVIEW' && stage === 'hatch-pin' ? 'hatch-pin' : "session";
+      clearTimeout(pollTimer);
+      if (!departed && (snapshot.commands.some(c => pendingPhases.includes(c.phase)) || snapshot.session.state === 'HATCH_IN_PROGRESS' && !failedMotion())) {
+        // This timer only schedules durable GETs. It never decides a movement's
+        // duration/result and never retries a POST.
+        pollTimer = setTimeout(async () => {
+          if (busy || departed) { if (!departed) accept(snapshot); return; }
+          busy = true;
+          try { await inspectMotion(); }
+          catch (error) { uncertain = true; warning = message(error); }
+          finally { busy = false; render(); }
+        }, 500);
+      }
+    }
+    async function inspectMotion() {
+      const id = snapshot.session.event_id;
+      const value = await api.session(id);
+      for (const entry of value.commands) await api.journal(id, entry.command.mechanical_command_id);
+      accept(value);
+    }
+    async function move(operation, options) {
+      const id = snapshot.session.event_id;
+      // Recheck durable state and journal even when the last response was lost.
+      await inspectMotion();
+      if (!allowed(operation) || failedMotion() || snapshot.commands.some(c => pendingPhases.includes(c.phase))) return;
+      const key = `bingo.dev.motion.${id}.${operation}`;
+      let identifier;
+      try {
+        identifier = sessionStorage.getItem(key) || crypto.randomUUID();
+        if (!uuid.test(identifier)) throw new Error('Invalid pointer');
+        sessionStorage.setItem(key, identifier);
+        if (sessionStorage.getItem(key) !== identifier) throw new Error('Storage unavailable');
+      } catch { throw new LocalApiError('SESSION_STORAGE_UNAVAILABLE'); }
+      try { accept(await api.motion(id, operation, identifier, options)); }
+      finally { if ('pin' in options) options.pin = ''; }
     }
     async function recover() {
       pin = ""; uncertain = false;
@@ -213,10 +261,11 @@ window.BinGoOperational = {
     async function handle(action, value) {
       warning = "";
       if (!["search-key", "search-toggle"].includes(action)) { keyboardClosing = false; clearTimeout(closeTimer); }
-      if (action === "refresh") return recover();
+      if (action === "refresh") { await recover(); if (snapshot?.commands.length) await inspectMotion(); return; }
       if (action === "new" && terminal()) { snapshot = null; command = null; selectedClass = null; student = null; forget("event"); forget("command"); await recover(); if (online && !snapshot) stage = value === "idle" ? "idle" : "identity"; return; }
       if (action === "cancel" && allowed("cancel")) return accept(await api.cancel(snapshot.session.event_id));
       if (action === "wake") { stage = "welcome"; return; }
+      if (action === 'help') { stage = 'help'; return; }
       if (action === "begin") { await recover(); if (!snapshot && online) stage = "identity"; return; }
       if (action === "mode") {
         if (value !== "student") { warning = "A identificação somente por turma ainda não está homologada neste DEV. Escolha participar com seu perfil."; return; }
@@ -242,6 +291,15 @@ window.BinGoOperational = {
         accept(await api.safety(snapshot.session.event_id, value === "risk"));
         return;
       }
+      if (action === 'inserted' && snapshot?.session.state === 'DOOR_OPEN' && completedMotion('OPEN_INSERTION_DOOR')) { stage = 'hand'; return; }
+      if (action === 'hand' && snapshot?.session.state === 'DOOR_OPEN' && allowed('close')) return move('close', { hand_removed: true });
+      if (action === 'discard') {
+        await inspectMotion();
+        if (failedMotion()) return;
+        if (allowed('review-fixture') && snapshot.session.state === 'DOOR_CLOSED') accept(await api.reviewFixture(snapshot.session.event_id));
+        if (snapshot.session.state === 'REVIEW' && allowed('hatch')) stage = 'hatch-pin';
+        return;
+      }
       if (action === "search-toggle") { keyboardClosing = false; clearTimeout(closeTimer); searchActive = true; if (!filter) keyboardShift = true; return; }
       if (action === "search-key") {
         keyFeedback = value;
@@ -263,11 +321,14 @@ window.BinGoOperational = {
       }
       if (action === "students" && identifying() && online) { student = null; pin = ""; stage = "students"; return; }
       if (action === "student" && identifying() && online && context?.students.some(s => s.id === value && s.class_id === selectedClass)) { student = value; pin = ""; searchActive = false; stage = "pin"; return; }
-      if (action === "pin" && identifying() && online) {
+      if (action === "pin" && (identifying() && online || openPin() || hatchPin())) {
         if (value === "Apagar") pin = pin.slice(0, -1);
         else if (value === "OK" && pin.length === 4) {
           let entered = pin; pin = ""; render();
-          try { accept(await api.identify(snapshot.session.event_id, selectedClass, student, entered)); }
+          try {
+            if (openPin() || hatchPin()) { const operation = openPin() ? 'open' : 'hatch'; await api.health(); await move(operation, { pin: entered }); }
+            else accept(await api.identify(snapshot.session.event_id, selectedClass, student, entered));
+          }
           finally { entered = ""; }
         } else if (/^[0-9]$/.test(value) && pin.length < 4) pin += value;
       }
@@ -284,7 +345,7 @@ window.BinGoOperational = {
         pin = ""; warning = message(error);
         if ([403, 503].includes(error.status) || error.status === 401 && error.code !== "STUDENT_PIN_INVALID" || ["LOCAL_TIMEOUT", "LOCAL_UNAVAILABLE"].includes(error.code)) online = false;
         try {
-          if (snapshot) accept(await api.session(snapshot.session.event_id));
+          if (snapshot) await inspectMotion();
           else { const active = await api.active(); if (active) accept(active); }
           if (!snapshot) { stage = "idle"; uncertain = true; }
           if (error.status === 409 && snapshot?.identity) warning += ` Vínculo recuperado: ${snapshot.session.student_name}.`;
@@ -296,6 +357,6 @@ window.BinGoOperational = {
     try { await recover(); }
     catch (error) { uncertain = true; warning = message(error); }
     finally { busy = false; render(); }
-    window.addEventListener("pagehide", () => { pin = ""; student = null; });
+    window.addEventListener("pagehide", () => { pin = ""; student = null; departed = true; clearTimeout(pollTimer); });
   },
 };
