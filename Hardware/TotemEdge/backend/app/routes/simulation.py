@@ -49,6 +49,20 @@ class SimulationActive(BaseModel):
     snapshot: SimulationSnapshot | None
 
 
+class VisionReview(StrictRequest):
+    capture_id: UUID
+    item_id: str = Field(pattern=r"^(battery|cable|phone|small|unknown)$")
+    action: str = Field(pattern=r"^(confirm|correct)$")
+
+
+@router.post("/sessions/{event_id}/vision-review", response_model=SimulationSnapshot)
+def vision_review(event_id: UUID, body: VisionReview, flow: Service):
+    if flow.vision is None:
+        raise CycleError("VISION_NOT_INTEGRATED", 503)
+    flow.vision.review(event_id, body.capture_id, body.item_id, body.action)
+    return flow.get(event_id)
+
+
 @router.post("/sessions", response_model=SimulationSnapshot)
 def start(body: SimulationStart, flow: Service):
     return flow.start(body.command_id)

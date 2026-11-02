@@ -1,5 +1,39 @@
 STATUS técnico — BinGo
 
+Nota TotemEdge 3C.3.1 — 01/11/2026: integração de CaptureService/CameraManager
+com InternalVision e revisão persistida em laboratório Windows/Docker separado,
+com mecânica/identidade sintéticas e provedores reais somente mediante opt-in.
+Contratos em Hardware/TotemEdge/backend/VISION_SESSION_V1.md; roteiro em
+Hardware/TotemEdge/deploy/VISION_LAB.md. O operador confirmou reaproveitar o
+mapeamento atual do Simulator, inclusive small→PERIPHERAL, sem bônus por tamanho.
+Não há registro econômico, GPIO ou alteração dos templates/estilos aprovados.
+Devolução física de recusados ainda carece de contrato; permanece bloqueada.
+Homologação AWS/Gemini reais deste incremento ainda não executada.
+Rodada final sequencial: FAST 105, INTEGRATION 574, FULL 756 aprovados,
+zero falhas/ignorados, exit code 0. Inclui 15 grupos Docker e 30 comparações B
+estritamente iguais, sem alterar referência, máscaras ou tolerâncias. Os SQLite
+persistentes operacional/DEV/camera-lab e os containers BinGo foram preservados.
+Relatórios, tentativas anteriores e auditoria em Hardware/TotemEdge/deploy/TESTING.md.
+
+Evidência manual 3C.3.0 fornecida pelo operador em 01/11: Integrated Camera via
+FFmpeg DirectShow, identidade estável persistida, bridge Windows 127.0.0.1:8766,
+Docker bingo-camera-lab:8016 saudável, JPEG real 20.744 bytes, simulated=false,
+journal COMPLETED e replay CAPTURE_ALREADY_ATTEMPTED sem alteração do registro.
+Não é execução do Codex; reinicialização/reconexão reais e Orange Pi permanecem
+pendentes de homologação específica. Essa evidência atualiza somente a pendência
+de captura real Windows/Docker da nota histórica abaixo.
+
+Nota TotemEdge 3C.3.0 de 31/10/2026: gerenciamento operacional de câmera
+validado localmente, com DirectShow no host Windows, V4L2 Linux, seleção estável
+persistida e captura sob demanda autenticada. Não modifica o UX, não conecta
+classificação/economia nem habilita GPIO/prontidão física. Contrato e homologação
+opt-in em Hardware/TotemEdge/backend/CAMERA_V1.md. Câmera real e Orange Pi ainda
+dependem de homologação específica; testes comuns usam dispositivos fictícios.
+FAST: 104 aprovados; INTEGRATION: 427; FULL: 720, mais 15 grupos Docker e os
+três smokes browser (21 capturas DEV iguais). A proteção de morte do processo
+pai foi comprovada em Windows e Linux, sem câmera física. Evidências e limites
+em Hardware/TotemEdge/deploy/TESTING.md.
+
 Nota TotemEdge de 31/10/2026: foi definida a responsabilidade do backend local,
 não do aluno, por solicitar a verificação de retorno inicial dos mecanismos.
 No DEV simulado, hatch concluído duravelmente permite coordenar a operação
@@ -14,14 +48,14 @@ FAST: 82 aprovados; INTEGRATION: 382; FULL: 675, mais 15 grupos Docker,
 30 verificações DEV de navegador e 21 capturas estritamente iguais à referência
 aprovada. Relatórios e limites em Hardware/TotemEdge/deploy/TESTING.md.
 
-Atualizado em: `2026-10-31` — atualização localizada da responsabilidade mecânica
-DEV; as demais seções conservam suas datas de evidência.
+Atualizado em: `2026-11-01` — atualização localizada da captura/visão TotemEdge
+e evidência manual de câmera; as demais seções conservam suas datas de evidência.
 
 Este arquivo é a fonte rápida de verdade técnica do projeto. Ele consolida as decisões vigentes de `database-model.md`, `data-contracts-totem-app-backend.md`, `supabase-edge-functions-mvp.md`, `FLUXO_ECOSSISTEMA_DESCARTE_V1.md`, `operacao-offline.md`, `missions-contract-v1.md` e `class-journey-v1.md`, além dos relatórios recentes da fundação de autenticação técnica de máquinas e do inventário do FastAPI. Para descartes, permanecem vigentes as decisões revisadas a partir de `2026-08-12`; para missões, prevalece o contrato conceitual revisado em `2026-09-15`; para Jornada/BinGópolis, prevalece o contrato de `2026-09-22`. Código ou banco só devem prevalecer quando houver evidência de uma decisão posterior ainda não documentada.
 
 ## Decisões oficiais vigentes
 
-O backend de nuvem do BinGo V1 tem como stack oficial **Supabase, PostgreSQL e Supabase Edge Functions em Deno/TypeScript**. O PostgreSQL concentra persistência, integridade, transações e regras que precisam de garantia atômica; as Edge Functions formam a camada HTTP server-side para autenticação técnica, validação do contrato, autorização e orquestração. O FastAPI não é o destino arquitetural: permanece temporariamente no repositório como legado e referência executável durante uma migração controlada, até que todas as suas responsabilidades tenham equivalência comprovada no Supabase.
+O backend de nuvem do BinGo V1 tem como stack oficial **Supabase, PostgreSQL e Supabase Edge Functions em Deno/TypeScript**. O PostgreSQL concentra persistência, integridade, transações e regras que precisam de garantia atômica; as Edge Functions formam a camada HTTP server-side para autenticação técnica, validação do contrato, autorização e orquestração central. Essa decisão refere-se ao backend de nuvem e ao FastAPI legado em Software: conforme a consolidação posterior do TotemEdge, seu FastAPI é o orquestrador local de sessão, câmera e mecânica. Não substitui a autoridade econômica do Supabase.
 
 Em `2026-09-13`, foi aprovada a redenominação oficial por fator `100`: a regra-alvo passa de **8 para 800 BinCoins** por descarte válido com aluno identificado, de **19 para 1900 XP** para a turma e de **100 para 10000 XP** na meta semanal configurável. Isso altera a unidade oficial compartilhada por domínio, banco, backend, APIs, Admin e Mobile; não é mera formatação do frontend nem aumento econômico real. A categoria ambiental continua acrescentando somente um bônus percentual de BinCoins, calculado server-side e preservado como fotografia histórica; `bonus_rate` não é multiplicado por `100`, e a categoria nunca altera o XP. Na unidade-alvo, por exemplo, base `800` com taxa `0,50` produz bônus `400` e total `1200`. Sem aluno identificado, um descarte válido concede `0` BinCoins e o XP-base da turma; um evento inválido concede `0` BinCoins e `0` XP. As categorias canônicas V1 continuam `BATTERY`, `MOBILE_DEVICE`, `CABLE_WIRE`, `PERIPHERAL`, `OTHER_EWASTE` e `UNKNOWN`. As taxas provisórias de `100%`, `50%` e `25%` presentes somente em seeds de desenvolvimento não constituem política aprovada de produção.
 

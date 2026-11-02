@@ -1,5 +1,16 @@
 # Visão interna no Totem Edge — 2026-10-27
 
+Atualização 3C.3.1: [contrato por sessão](VISION_SESSION_V1.md) conecta estes
+providers à captura e revisão no laboratório explicitamente isolado. A decisão
+posterior do desenvolvedor aprova o mapeamento vigente do Simulator, inclusive
+small→PERIPHERAL, sem regra de recompensa por tamanho. As propostas históricas
+abaixo não substituem esse contrato localizado. Sem registro ou recompensa central.
+
+Atualização 3C.3.0: [gerenciamento de câmera](CAMERA_V1.md) acrescenta acesso
+DirectShow/V4L2 sob demanda e composição explícita no CaptureService. Reutiliza
+validate_frame sem chamar providers. Captura isolada não conecta classify/analyze
+ao ciclo e não aprova as propostas de taxonomia/revisão abaixo.
+
 Implementação interna para revisão. **Não habilita operação física.**
 `OFFLINE` e `can_start_deposit=false` permanecem obrigatórios.
 

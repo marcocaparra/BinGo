@@ -1427,7 +1427,13 @@ function renderDevIdentity(view) {
   pinWarning = false;
   // Absence of camera/classification uses the existing unknown-item component,
   // never the prototype's default cable or a fabricated classifier result.
-  if (view.screen === 'review') recognizedItem = itemOptions.find(item => item.id === 'unknown');
+  if (['review', 'correct-item'].includes(view.screen)) {
+    recognizedItem = itemOptions.find(item => item.id === (view.vision?.decision?.item_id || view.vision?.observation?.itemId || 'unknown'));
+    visionCandidateIds = view.vision?.allowed_candidates || [];
+    // UNKNOWN is not inferred from an old visual label or browser decision.
+    recognitionOutcome = 'contracted-review';
+    draftRecognizedItem = itemOptions.find(item => item.id === view.correctionItem) || recognizedItem;
+  }
   const template = document.createElement("template");
   template.innerHTML = view.screen === "pin" ? approvedLoginPin() : screens[currentIndex].render();
   const fragment = template.content;
@@ -1470,10 +1476,14 @@ function renderDevIdentity(view) {
   bind('[data-item-inserted]', 'inserted');
   bind('[data-hand-confirmed]', 'hand');
   bind('[data-discard-confirm]', 'discard');
+  bind('[data-correction-open]', 'correction');
+  bind('[data-apply-correction]', 'apply-correction');
+  fragment.querySelectorAll('[data-correct-item]').forEach(node => { node.dataset.devOp = 'correct-item'; node.dataset.value = node.dataset.correctItem; });
+  fragment.querySelectorAll('[data-correction-open]').forEach(button => { button.disabled = !view.correctionAllowed; });
   if (view.screen === 'review') {
     fragment.querySelector('[data-discard-confirm]').disabled = !view.reviewAllowed;
     // Correction has no backend classification contract in this increment.
-    fragment.querySelector('[data-correction-open]').disabled = true;
+    fragment.querySelector('[data-correction-open]').disabled = !view.correctionAllowed;
   }
   if (view.screen === 'mechanical-error') bind('[data-jump]', 'help');
   if (view.screen === "segment") fillList(".option-stack", view.segments, "segment");

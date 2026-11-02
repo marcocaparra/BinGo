@@ -18,6 +18,7 @@ from app.cycles import (
     TRANSITIONS,
 )
 from app.mechanical_journal import MechanicalJournal, SCHEMA as MECHANICAL_SCHEMA
+from app.vision_journal import SCHEMA as VISION_SCHEMA
 
 
 def now() -> str:
@@ -230,6 +231,8 @@ class CycleStore:
                 self._check_identity_scope(identity)
             if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
                 raise RuntimeError("Referências SQLite inválidas; operação bloqueada.")
+            # Additive local audit extension; no change to economic payload/schema.
+            conn.execute(VISION_SCHEMA)
             conn.execute("PRAGMA user_version=4")
 
     @staticmethod
@@ -255,6 +258,18 @@ class CycleStore:
     def _recover(self):
         with self.transaction() as conn:
             self.mechanical.recover(conn)
+            for attempt in conn.execute(
+                "SELECT * FROM vision_attempts WHERE phase IN ('CAPTURING','CLASSIFYING')"
+            ).fetchall():
+                conn.execute(
+                    "UPDATE vision_attempts SET phase='FAILED',error_code='PROCESS_INTERRUPTED',updated_at=? WHERE capture_id=?",
+                    (now(), attempt["capture_id"]),
+                )
+                row = self._row(conn, attempt["event_id"])
+                if row["state"] in {"CAPTURING", "CLASSIFYING"}:
+                    self._record(
+                        conn, row, "TECHNICAL_FAILURE", code="PROCESS_INTERRUPTED"
+                    )
             rows = conn.execute("SELECT * FROM cycles WHERE active_slot=1").fetchall()
             for row in rows:
                 state = row["state"]
@@ -547,6 +562,13 @@ class CycleStore:
             and hand_removed is not True
         ):
             raise CycleError("HAND_REMOVAL_DECLARATION_REQUIRED", 422)
+        if entry.command.operation == "CYCLE_LOWER_HATCH":
+            attempt = conn.execute(
+                "SELECT phase,decision FROM vision_attempts WHERE event_id=?",
+                (row["event_id"],),
+            ).fetchone()
+            if attempt and (attempt["phase"] != "COMPLETED" or not attempt["decision"]):
+                raise CycleError("VISION_REVIEW_REQUIRED")
         if (
             entry.command.operation == "CONFIRM_INITIAL_STATE"
             and not self._simulated_hatch_completed(conn, row["event_id"])
@@ -633,6 +655,14 @@ class CycleStore:
         event_id = row["event_id"]
         if self.mechanical.has_risk(conn, event_id):
             self.mechanical._block_cycle(conn, event_id)
+            return
+        if (
+            row["state"] in {"TECHNICAL_FAILURE", "RETURN_REQUIRED"}
+            and conn.execute(
+                "SELECT 1 FROM vision_attempts WHERE event_id=? AND phase IN ('FAILED','COMPLETED')",
+                (event_id,),
+            ).fetchone()
+        ):
             return
         needed = {
             "DOOR_OPEN": "OPEN_INSERTION_DOOR",

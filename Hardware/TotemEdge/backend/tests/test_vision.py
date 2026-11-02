@@ -65,6 +65,19 @@ class ControlledProvider:
         return self.answer
 
 
+@pytest.mark.anyio
+async def test_audit_failure_prevents_secondary_network_call(frame):
+    primary = ControlledProvider(result("needs-secondary"))
+    secondary = ControlledProvider(result(origin="GEMINI_FALLBACK"))
+
+    def failed_audit(observation):
+        raise VisionError("VISION_AUDIT_FAILED")
+
+    with pytest.raises(VisionError, match="VISION_AUDIT_FAILED"):
+        await InternalVision(primary, secondary).classify(frame, observe=failed_audit)
+    assert len(primary.calls) == 1 and not secondary.calls
+
+
 def gemini_body(decision="cable", confidence=0.96):
     return {
         "candidates": [

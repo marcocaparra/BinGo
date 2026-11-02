@@ -310,13 +310,23 @@ async def test_process_killed_during_initial_confirmation_is_not_redispatched(tm
     script = """
 import asyncio, sys
 from pathlib import Path
-from test_auto_initial import Rig
+from app.storage import CycleStore
+from app.services.controller import SimulatedController
+from app.services.mechanical import MechanicalService
+async def blocked_sleep(_):
+    await asyncio.Event().wait()
 async def main():
-    rig = Rig(Path(sys.argv[1]))
-    event = rig.flow.active().session.event_id
-    await rig.service.resume_initial()
-    await rig.clock.advance(0)
-    Path(sys.argv[2]).write_text(str(event))
+    # Import only runtime components; this child does not need pytest, TestClient
+    # or the central/broker fixtures imported by the parent's test module.
+    store = CycleStore(Path(sys.argv[1]), simulation_enabled=True)
+    controller = SimulatedController(context='test', sleep=blocked_sleep)
+    service = MechanicalService(store, controller, source='SIMULATED', auto_initial=True)
+    event = store.active().event_id
+    await service.resume_initial()
+    ready = Path(sys.argv[2])
+    pending = ready.with_suffix('.pending')
+    pending.write_text(str(event))
+    pending.replace(ready)  # Publish only the complete UUID, never an empty file.
     await asyncio.Event().wait()
 asyncio.run(main())
 """
@@ -342,6 +352,10 @@ asyncio.run(main())
             if ready.exists() or process.poll() is not None:
                 break
             await asyncio.sleep(0.1)
+        if process.poll() is not None and not ready.exists():
+            raise AssertionError(
+                process.stderr.read().decode("utf-8", errors="replace")
+            )
         assert ready.exists(), (
             "Owned subprocess did not reach durable initial acceptance"
         )

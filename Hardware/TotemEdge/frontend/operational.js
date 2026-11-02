@@ -131,6 +131,7 @@ window.BinGoOperational = {
     let segment = null, grade = null, filter = "", searchActive = false, keyboardShift = true, keyFeedback = null, feedbackTimer;
     let keyboardClosing = false, closeTimer;
     let pollTimer, departed = false;
+    let correctionItem = null;
     const pendingPhases = ['INTENT', 'DISPATCHING', 'ACCEPTED'];
     const completedMotion = operation => snapshot?.commands.some(c => c.command.operation === operation && c.phase === 'COMPLETED' && c.result === 'SUCCEEDED');
     const failedMotion = () => snapshot?.commands.some(c => !pendingPhases.includes(c.phase) && !(c.phase === 'COMPLETED' && c.result === 'SUCCEEDED'));
@@ -172,6 +173,14 @@ window.BinGoOperational = {
       else if (snapshot?.session.state === 'OPENING') screen = 'opening';
       else if (snapshot?.session.state === 'DOOR_OPEN' && completedMotion('OPEN_INSERTION_DOOR')) screen = stage === 'hand' ? 'hand-confirm' : 'insert';
       else if (snapshot?.session.state === 'CLOSING') screen = 'door-progress';
+      // Preserve the already approved progress composition. The legacy camera
+      // preview/recognized templates differ from reference B; do not invent or
+      // substitute a preview, badge or layout to expose the new processing.
+      else if (['CAPTURING', 'CLASSIFYING'].includes(snapshot?.session.state)) screen = 'door-progress';
+      else if (snapshot?.session.state === 'RETURN_REQUIRED') screen = 'teacher';
+      else if (snapshot?.session.state === 'TECHNICAL_FAILURE') screen = 'teacher';
+      else if (snapshot?.session.state === 'REVIEW' && snapshot.vision) screen = stage === 'correct-item' && allowed('vision-review') ? 'correct-item' : 'review';
+      else if (snapshot?.session.state === 'DOOR_CLOSED' && !allowed('review-fixture')) screen = 'door-progress';
       else if (['DOOR_CLOSED', 'REVIEW'].includes(snapshot?.session.state) && completedMotion('CLOSE_INSERTION_DOOR')) screen = 'review';
       else if (snapshot?.session.state === 'HATCH_IN_PROGRESS') screen = 'computing';
       else if (terminal()) { screen = "idle"; notice = notice || "A sessão foi encerrada. Nenhum recibo econômico ou pontuação foi gerado."; }
@@ -182,7 +191,8 @@ window.BinGoOperational = {
         eventId: snapshot?.session.event_id, busy, uncertain, terminal: terminal(), command,
         warning: notice, pinLength: pin.length, grade, filter, searchActive, keyboardShift, keyFeedback, keyboardClosing,
         riskReported, safetyAllowed: allowed("safety"), cancelAllowed: allowed('cancel'), mechanicalPin: openPin() || hatchPin(),
-        reviewAllowed: allowed('review-fixture') || allowed('hatch'),
+        reviewAllowed: allowed('review-fixture') || allowed('hatch') || allowed('vision-review'),
+        vision: snapshot?.vision, correctionItem, correctionAllowed: allowed('vision-review'),
         ...window.BinGoLocalApi.schoolLabels(context?.classes || [], segment),
         classes: (context?.classes || []).filter(c => (!segment || c.segment === segment) && (!grade || c.grade === grade)),
         students: (context?.students || []).filter(s => s.class_id === selectedClass && normalize(s.name).includes(normalize(filter))).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
@@ -194,7 +204,7 @@ window.BinGoOperational = {
       remember("event", snapshot.session.event_id);
       stage = identifying() ? student ? "pin" : selectedClass ? "students" : "classes" : value.session.state === 'REVIEW' && stage === 'hatch-pin' ? 'hatch-pin' : "session";
       clearTimeout(pollTimer);
-      if (!departed && (snapshot.commands.some(c => pendingPhases.includes(c.phase)) || snapshot.session.state === 'HATCH_IN_PROGRESS' && !failedMotion())) {
+      if (!departed && (snapshot.commands.some(c => pendingPhases.includes(c.phase)) || ['HATCH_IN_PROGRESS', 'CAPTURING', 'CLASSIFYING'].includes(snapshot.session.state) && !failedMotion() || snapshot.session.state === 'DOOR_CLOSED' && !allowed('review-fixture'))) {
         // This timer only schedules durable GETs. It never decides a movement's
         // duration/result and never retries a POST.
         pollTimer = setTimeout(async () => {
@@ -266,6 +276,14 @@ window.BinGoOperational = {
       if (action === "cancel" && allowed("cancel")) return accept(await api.cancel(snapshot.session.event_id));
       if (action === "wake") { stage = "welcome"; return; }
       if (action === 'help') { stage = 'help'; return; }
+      if (action === 'correction' && allowed('vision-review')) { correctionItem = snapshot.vision.observation.itemId; stage = 'correct-item'; return; }
+      if (action === 'correct-item' && allowed('vision-review') && snapshot.vision.allowed_candidates.includes(value)) { correctionItem = value; return; }
+      if (action === 'apply-correction') {
+        if (!allowed('vision-review')) return;
+        const v = snapshot.vision;
+        accept(await api.visionReview(snapshot.session.event_id, v.capture_id, correctionItem, 'correct'));
+        return;
+      }
       if (action === "begin") { await recover(); if (!snapshot && online) stage = "identity"; return; }
       if (action === "mode") {
         if (value !== "student") { warning = "A identificação somente por turma ainda não está homologada neste DEV. Escolha participar com seu perfil."; return; }
@@ -274,6 +292,7 @@ window.BinGoOperational = {
       if (action === "segment" && segments().includes(value)) { segment = value; grade = null; stage = grades().length ? "year" : "classes"; return; }
       if (action === "grade" && grades().includes(value)) { grade = value; stage = "classes"; return; }
       if (action === "back") {
+        if (stage === 'correct-item') { stage = 'session'; return; }
         pin = ""; filter = ""; searchActive = false;
         // Developer decision: the existing SAFETY back control cancels the
         // preparation; it never rewinds an authenticated backend session.
@@ -296,6 +315,10 @@ window.BinGoOperational = {
       if (action === 'discard') {
         await inspectMotion();
         if (failedMotion()) return;
+        if (allowed('vision-review')) {
+          const v = snapshot.vision;
+          accept(await api.visionReview(snapshot.session.event_id, v.capture_id, v.observation.itemId, 'confirm'));
+        }
         if (allowed('review-fixture') && snapshot.session.state === 'DOOR_CLOSED') accept(await api.reviewFixture(snapshot.session.event_id));
         if (snapshot.session.state === 'REVIEW' && allowed('hatch')) stage = 'hatch-pin';
         return;
@@ -338,7 +361,7 @@ window.BinGoOperational = {
       if (!target && searchActive && !busy && event.target.closest("[data-search-screen]")) { closeKeyboard(); render(); return; }
       if (!target || target.disabled || busy) return;
       const action = target.dataset.devOp, value = target.dataset.value;
-      const local = ["wake", "mode", "segment", "grade", "classes", "students", "student", "search-toggle", "search-key"].includes(action) || action === "pin" && value !== "OK" || action === "back" && snapshot?.session.state !== "SAFETY";
+      const local = ["wake", "mode", "segment", "grade", "classes", "students", "student", "search-toggle", "search-key", "correction", "correct-item"].includes(action) || action === "pin" && value !== "OK" || action === "back" && snapshot?.session.state !== "SAFETY";
       if (!local) { busy = true; render(); }
       try { await handle(action, value); }
       catch (error) {

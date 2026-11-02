@@ -242,7 +242,11 @@ class DevSettings(SimulationSettings):
 
 
 def create_dev_app(
-    *, data_directory=DIRECTORY, policy_path=POLICY_FILE, transport=None
+    *,
+    data_directory=DIRECTORY,
+    policy_path=POLICY_FILE,
+    transport=None,
+    camera_transport=None,
 ):
     from app.main import create_app
 
@@ -266,6 +270,7 @@ def create_dev_app(
         raise DevConfigurationError() from None
     return create_app(
         transport=transport,
+        camera_transport=camera_transport,
         controller_factory=settings.build_controller,
         _simulation=settings,
     )

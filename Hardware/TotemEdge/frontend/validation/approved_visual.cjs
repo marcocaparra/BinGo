@@ -170,6 +170,11 @@ async function openApprovedVisual(context, output, data) {
           currentIndex = screens.findIndex(s => s.id === screen);
           selectedStudent = data.students[0].name;
           if (options.itemId) recognizedItem = itemOptions.find(item => item.id === options.itemId);
+          if (options.candidateIds) {
+            visionCandidateIds = options.candidateIds.filter(id => id !== 'unknown');
+            recognitionOutcome = 'electronic';
+            draftRecognizedItem = itemOptions.find(item => item.id === (options.draftItemId || options.itemId));
+          }
           searchQuery = options.filter || '';
           searchActive = Boolean(options.searchActive);
           keyboardShift = true;

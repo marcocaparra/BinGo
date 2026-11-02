@@ -20,13 +20,14 @@ import uvicorn
 
 from app.dev_broker import create_broker_app
 from app.dev_integration import ALLOWED, create_dev_app
-from test_dev_integration import CONTEXT, KEY, MACHINE, SCHOOL, PIN
+from dev_data import CONTEXT, KEY, MACHINE, SCHOOL, PIN
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--port", type=int, required=True)
+    parser.add_argument("--vision", action="store_true")
     args = parser.parse_args()
     root = args.root.resolve()
     data = root / "dev-data"
@@ -120,18 +121,129 @@ def main():
             },
         )
 
-    broker = create_broker_app(
-        policy_path=policy, key_path=key, transport=httpx.MockTransport(remote)
-    )
-    app = create_dev_app(
-        data_directory=data,
-        policy_path=policy,
-        transport=httpx.ASGITransport(app=broker),
-    )
+    if not args.vision:
+        broker = create_broker_app(
+            policy_path=policy, key_path=key, transport=httpx.MockTransport(remote)
+        )
+        app = create_dev_app(
+            data_directory=data,
+            policy_path=policy,
+            transport=httpx.ASGITransport(app=broker),
+        )
+    if args.vision:
+        from app.vision_lab import create_vision_lab_app
+        from app.services.vision import InternalVision, VisionError
+        from app.services.vision_policy import classify_labels
+        from app.services.camera import device
+        from io import BytesIO
+        from PIL import Image
+
+        os.environ.pop("BINGO_DEV_CONTEXT")
+        os.environ["BINGO_VISION_LAB_CONTEXT"] = "test"
+        token = root / "camera.token"
+        token.write_text("synthetic-camera-capability-for-browser-tests")
+        os.environ.update(
+            BINGO_CAMERA_MODE="remote",
+            BINGO_CAMERA_URL="http://127.0.0.1:8766",
+            BINGO_CAMERA_TOKEN_FILE=str(token),
+        )
+        image = BytesIO()
+        Image.new("RGB", (24, 18), "green").save(image, format="JPEG")
+        pixels = image.getvalue()
+        stats.update(camera=[], primary=0, secondary=0, jpeg_delivered=False)
+        selected = device("Synthetic camera", "synthetic:browser", "device")
+
+        def controls():
+            return json.loads((root / "control.json").read_text())
+
+        def save():
+            stats_path.write_text(json.dumps(stats))
+
+        async def camera(request):
+            assert (
+                request.headers["authorization"]
+                == "Bearer synthetic-camera-capability-for-browser-tests"
+            )
+            if request.url.path.endswith("/selection"):
+                return httpx.Response(200, json=selected.model_dump())
+            assert request.url.path.endswith("/captures")
+            identifier = json.loads(request.content)["capture_id"]
+            assert identifier not in stats["camera"], "Never recapture the same intent"
+            stats["camera"].append(identifier)
+            save()
+            while controls().get("hold_capture"):
+                await asyncio.sleep(0.05)
+            await asyncio.sleep(0.25)
+            return httpx.Response(
+                200,
+                content=pixels,
+                headers={
+                    "Content-Type": "image/jpeg",
+                    "X-Capture-Id": identifier,
+                    "X-Camera-Source": "SIMULATED",
+                },
+            )
+
+        class Primary:
+            simulated = True
+
+            async def analyze(self, frame, candidates):
+                stats["primary"] += 1
+                stats["jpeg_delivered"] = frame.content == pixels
+                save()
+                while controls().get("hold_classification"):
+                    await asyncio.sleep(0.05)
+                await asyncio.sleep(0.25)
+                control = controls()
+                if control.get("vision_failure"):
+                    raise VisionError("PRIMARY_UNAVAILABLE")
+                if control.get("fallback"):
+                    return dict(
+                        status="needs-secondary",
+                        itemId=None,
+                        candidateIds=["cable"],
+                        confidence=0.5,
+                        origin="AWS_REKOGNITION",
+                    )
+                return (
+                    classify_labels([{"Name": "Water Bottle", "Confidence": 99}])
+                    if control.get("reject")
+                    else classify_labels(
+                        [
+                            {"Name": "Cable", "Confidence": 98},
+                            {"Name": "Battery", "Confidence": 80},
+                        ]
+                    )
+                )
+
+        class Secondary:
+            simulated = True
+
+            async def analyze(self, frame, candidates):
+                stats["secondary"] += 1
+                save()
+                return dict(
+                    status="recognized",
+                    itemId="battery",
+                    candidateIds=["battery", "cable"],
+                    confidence=0.95,
+                    origin="GEMINI_FALLBACK",
+                )
+
+        save()
+        app = create_vision_lab_app(
+            data_directory=data,
+            camera_transport=httpx.MockTransport(camera),
+            vision=InternalVision(Primary(), Secondary()),
+        )
     original = app.router.lifespan_context
 
     @asynccontextmanager
     async def lifespan(application):
+        if args.vision:
+            async with original(application):
+                yield
+            return
         async with broker.router.lifespan_context(broker):
             async with original(application):
                 yield

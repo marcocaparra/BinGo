@@ -43,12 +43,15 @@ class SimulationConfigurationError(RuntimeError):
 
 
 def reject_simulation_in_operational(sqlite_path: Path):
-    if any(name.startswith(("BINGO_SIMULATION_", "BINGO_DEV_")) for name in os.environ):
+    if any(
+        name.startswith(("BINGO_SIMULATION_", "BINGO_DEV_", "BINGO_VISION_LAB_"))
+        for name in os.environ
+    ):
         raise SimulationConfigurationError()
     if any(
         (parent / marker).exists()
         for parent in sqlite_path.resolve().parents
-        for marker in (MARKER, ".bingo-dev-integration-only")
+        for marker in (MARKER, ".bingo-dev-integration-only", ".bingo-vision-lab-only")
     ):
         raise SimulationConfigurationError()
 

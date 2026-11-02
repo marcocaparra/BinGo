@@ -49,4 +49,20 @@ ENV BINGO_SQLITE_PATH=/var/lib/bingo-dev-integration/simulation.sqlite3 \
 USER 10001:10001
 CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start_dev_integration.py"]
 
+FROM runtime_base AS vision_lab
+USER root
+RUN install -d -o bingo -g bingo -m 0700 /var/lib/bingo-vision-lab
+COPY deploy/start_vision_lab.py /opt/totem/deploy/
+ENV BINGO_SQLITE_PATH=/var/lib/bingo-vision-lab/simulation.sqlite3 \
+    BINGO_VISION_LAB_CONTEXT=development
+USER 10001:10001
+CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start_vision_lab.py"]
+
+FROM runtime_base AS camera_runtime
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && install -d -o bingo -g bingo -m 0700 /var/lib/bingo-camera
+USER 10001:10001
+
 FROM runtime_base AS runtime

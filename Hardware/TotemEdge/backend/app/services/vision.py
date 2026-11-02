@@ -27,8 +27,9 @@ DECISIONS = ["battery", "cable", "phone", "small", "rejected", "inconclusive"]
 
 
 class VisionError(Exception):
-    def __init__(self, code: str):
+    def __init__(self, code: str, *, observations=()):
         self.code = code
+        self.observations = observations
         super().__init__(code)
 
 
@@ -343,10 +344,11 @@ class InternalVision:
         self.secondary = secondary
         self._busy = False
 
-    async def classify(self, frame: Frame) -> Observation:
+    async def classify(self, frame: Frame, *, observe=None) -> Observation:
         if self._busy:
             raise VisionError("VISION_BUSY")
         self._busy = True
+        observations = []
         try:
             validate_frame(frame)
             if self.primary is None:
@@ -354,6 +356,9 @@ class InternalVision:
             async with asyncio.timeout(10):
                 raw = await self.primary.analyze(frame, [])
             result = validate_result(raw, "AWS_REKOGNITION")
+            observations = [result]
+            if observe is not None:
+                observe(result)
             # Mesmo limiar 0,75 do provider JS; não acrescenta critério secundário.
             if result.status == "recognized" and result.confidence < 0.75:
                 result = result.model_copy(
@@ -364,14 +369,24 @@ class InternalVision:
                 async with asyncio.timeout(21):
                     raw = await self.secondary.analyze(frame, list(result.candidateIds))
                 result = validate_result(raw, "GEMINI_FALLBACK")
+                observations.append(result)
+                if observe is not None:
+                    observe(result)
                 simulated = simulated or getattr(self.secondary, "simulated", True)
-            return Observation(result, simulated=simulated)
-        except VisionError:
+            return Observation(
+                result, simulated=simulated, observations=tuple(observations)
+            )
+        except VisionError as error:
+            error.observations = tuple(observations)
             raise
         except TimeoutError:
-            raise VisionError("VISION_TIMEOUT") from None
+            raise VisionError(
+                "VISION_TIMEOUT", observations=tuple(observations)
+            ) from None
         except Exception:
-            raise VisionError("VISION_PROVIDER_FAILED") from None
+            raise VisionError(
+                "VISION_PROVIDER_FAILED", observations=tuple(observations)
+            ) from None
         finally:
             self._busy = False
 

@@ -25,11 +25,14 @@ from app.simulation import (
     reject_simulation_in_operational,
 )
 from app.storage import CycleStore
+from app.camera_api import configured_camera, router as camera_router, camera_error
+from app.services.camera import CameraError
 
 
 def create_app(
     *,
     transport: httpx.AsyncBaseTransport | None = None,
+    camera_transport: httpx.AsyncBaseTransport | None = None,
     controller_factory: Callable[[], MechanicalController] | None = None,
     _simulation: SimulationSettings | None = None,
 ) -> FastAPI:
@@ -97,9 +100,40 @@ def create_app(
                     application.state.vision = (
                         None if _simulation else build_internal_vision(http_client)
                     )
-                    application.state.capture = CaptureService(store)
-                    await mechanical.resume_initial()
-                    yield
+                    # Camera traffic has its own bounded local capability; it
+                    # never shares/relaxes the central DEV broker's transport.
+                    async with httpx.AsyncClient(
+                        transport=camera_transport,
+                        follow_redirects=False,
+                        trust_env=False,
+                    ) as camera_http:
+                        camera, token = configured_camera(camera_http)
+                        application.state.camera = camera
+                        application.state.camera_token = token
+                        application.state.capture = CaptureService(store, camera=camera)
+                        session_vision = None
+                        if getattr(_simulation, "vision_enabled", False):
+                            from app.services.session_vision import SessionVision
+
+                            # Separate client: AI traffic never relaxes the central
+                            # broker transport, and carries no machine credentials.
+                            vision = _simulation.build_vision(camera_http)
+                            application.state.capture.vision = vision
+                            session_vision = SessionVision(
+                                application.state.capture,
+                                mechanical,
+                                model=_simulation.vision_settings.model,
+                            )
+                            application.state.simulation_flow.vision = session_vision
+                            session_vision.recover_unstarted()
+                        try:
+                            await mechanical.resume_initial()
+                            yield
+                        finally:
+                            if session_vision is not None:
+                                await session_vision.aclose()
+                            if camera is not None:
+                                await camera.aclose()
             finally:
                 await mechanical.aclose()
         finally:
@@ -108,6 +142,9 @@ def create_app(
     application = FastAPI(title="BinGo Totem Edge", lifespan=lifespan)
     application.include_router(health.router)
     application.include_router(local.router)
+    if os.getenv("BINGO_CAMERA_MODE", "disabled") != "disabled":
+        application.include_router(camera_router("/local/camera"))
+    application.add_exception_handler(CameraError, camera_error)
     if _simulation is None:
         application.include_router(sessions.router)
     if _simulation:
@@ -164,6 +201,7 @@ def create_app(
                 "/local/context",
                 "/local/simulation",
                 "/local/dev",
+                "/local/camera",
                 "/assets/",
             )
         ) or path in {

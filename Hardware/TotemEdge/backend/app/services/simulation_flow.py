@@ -22,6 +22,7 @@ class SimulationSnapshot(BaseModel):
     commands: list[JournalEntry]
     allowed_actions: list[str]
     identity: SimulationIdentity | None = None
+    vision: dict | None = None
 
 
 class SimulationCommandSnapshot(BaseModel):
@@ -43,6 +44,7 @@ class SimulationFlow:
         self.store = store
         self.mechanical = mechanical
         self.central = central  # Injetado somente pela composição DEV.
+        self.vision = None
 
     def _snapshot(self, conn, event_id) -> SimulationSnapshot:
         row = self.store.simulation_row(conn, event_id)
@@ -100,11 +102,27 @@ class SimulationFlow:
             for entry in entries
         ):
             actions = []
+        vision = self.vision.snapshot(conn, event_id) if self.vision else None
+        if self.vision:
+            actions = [a for a in actions if a != "review-fixture"]
+            if row["state"] == "REVIEW":
+                actions = [a for a in actions if a != "hatch"]
+                if (
+                    vision
+                    and vision["phase"] == "COMPLETED"
+                    and vision["observation"]["status"] == "recognized"
+                    and all(
+                        entry.phase == "COMPLETED" and entry.result == "SUCCEEDED"
+                        for entry in entries
+                    )
+                ):
+                    actions.append("hatch" if vision["decision"] else "vision-review")
         return SimulationSnapshot(
             session=self.store._snapshot(row),
             commands=entries,
             allowed_actions=actions,
             identity=identity,
+            vision=vision,
         )
 
     def get(self, event_id) -> SimulationSnapshot:
@@ -158,6 +176,8 @@ class SimulationFlow:
             return self._snapshot(conn, event_id)
 
     def review_fixture(self, event_id: UUID) -> SimulationSnapshot:
+        if self.vision:
+            raise CycleError("VISION_FIXTURE_DISABLED", 403)
         with self.store.transaction() as conn:
             row = self.store.simulation_row(conn, event_id)
             if self.store.identity_scope:
@@ -210,6 +230,16 @@ class SimulationFlow:
         # A checagem definitiva de estado e a transição ocorrem na transação
         # de intenção do journal. Esta leitura apenas valida escopo/procedência.
         snapshot = self.get(event_id)
+        if (
+            self.vision
+            and operation == "CYCLE_LOWER_HATCH"
+            and (
+                not snapshot.vision
+                or not snapshot.vision["decision"]
+                or snapshot.vision["phase"] != "COMPLETED"
+            )
+        ):
+            raise CycleError("VISION_REVIEW_REQUIRED")
         try:
             if self.store.identity_scope and operation in {
                 "OPEN_INSERTION_DOOR",
@@ -238,6 +268,8 @@ class SimulationFlow:
             ),
             hand_removed=hand_removed,
         )
+        if self.vision and operation == "CLOSE_INSERTION_DOOR":
+            self.vision.after_close(entry)
         return entry, self.get(event_id)
 
     async def _available_context(self) -> TotemContext:

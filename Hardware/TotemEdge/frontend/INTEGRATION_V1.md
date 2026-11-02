@@ -1,5 +1,13 @@
 # Totem Edge V1 — integração local e limites atuais
 
+3C.3.1: o laboratório de visão separado reutiliza as mesmas composições aprovadas.
+Progresso persiste durante CAPTURING/CLASSIFYING; review recebe sugestão/candidatos
+do snapshot; Corrigir e Confirmar correção registram a decisão pelo TotemEdge.
+Confirmar descarte confirma a sugestão antes do PIN de hatch, sem recompensa.
+Não foram modificados templates, estilos, textos ou assets. Contrato vigente em
+[VISION_SESSION_V1.md](../backend/VISION_SESSION_V1.md); ensaio explicitamente
+opt-in em [VISION_LAB.md](../deploy/VISION_LAB.md). Não é integração hospedada.
+
 Atualização 3C.2.1: a identificação DEV está descrita ao final. O relato da
 fundação de 08/10 abaixo permanece histórico; seu modo operacional e a
 demonstração comparada ao commit da migração continuam preservados.

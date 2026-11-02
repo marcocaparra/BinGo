@@ -3,6 +3,19 @@ const assert = require('node:assert/strict');
 const { DevApi } = require('../local_api.js');
 const { schoolLabels } = require('../local_api.js');
 
+test('Revisão de visão usa somente API local, IDs correlacionados e decisão durável', async () => {
+  const id = '00000000-0000-4000-8000-000000000090';
+  const entry = { source: 'SIMULATED', phase: 'COMPLETED', result: 'SUCCEEDED', command: { event_id: event, mechanical_command_id: id, operation: 'CLOSE_INSERTION_DOOR' } };
+  const value = { ...bound, commands: [entry], session: { ...bound.session, state: 'REVIEW' }, allowed_actions: ['hatch'], vision: { event_id: event, capture_id: id, close_command_id: id, phase: 'COMPLETED', observation: { status: 'recognized', itemId: 'cable', candidateIds: ['cable', 'battery'], confidence: 0.98, origin: 'AWS_REKOGNITION' }, allowed_candidates: ['cable', 'battery', 'unknown'], decision: { item_id: 'battery', action: 'correct' } } };
+  const api = new DevApi(async (url, options) => { assert.equal(url, `/local/simulation/sessions/${event}/vision-review`); assert.deepEqual(JSON.parse(options.body), { capture_id: id, item_id: 'battery', action: 'correct' }); return response(value); });
+  assert.deepEqual(await api.visionReview(event, id, 'battery', 'correct'), value);
+  await assert.rejects(() => api.visionReview(event, id, 'invented', 'correct'), e => e.status === 422);
+  const bad = structuredClone(value); bad.vision.close_command_id = machine;
+  await assert.rejects(() => new DevApi(async () => response(bad)).session(event), e => e.code === 'INVALID_RESPONSE');
+  const arbitrary = structuredClone(value); arbitrary.vision.allowed_candidates.push('phone');
+  await assert.rejects(() => new DevApi(async () => response(arbitrary)).session(event), e => e.code === 'INVALID_RESPONSE');
+});
+
 test('Movimentos DEV limitam payload e consultam journal sem credencial em GET', async () => {
   const id = '00000000-0000-4000-8000-000000000099';
   for (const operation of ['open', 'close', 'hatch']) {

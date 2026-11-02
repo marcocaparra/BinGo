@@ -1,5 +1,77 @@
 # Validação automatizada do TotemEdge — 3C.2.0
 
+3C.3.1: INTEGRATION reutiliza test_vision.py e inclui test_session_vision.py e
+test_vision_lab.py; FULL inclui
+vision_session_smoke.cjs, usando o mesmo harness/browser/comparador da referência B.
+Câmera e IA determinísticas; JPEG entregue efetivamente ao InternalVision.
+Testes incluem morte real de subprocesso durante CAPTURING/CLASSIFYING, journal,
+concorrência, revisão, rejeição, falha técnica e nenhuma capacidade econômica.
+Um encerramento forçado durante fallback comprova preservação da saída primária
+antes de Gemini; uma falha de auditoria impede a chamada secundária.
+Novo laboratório real é separado e opt-in: [VISION_LAB.md](VISION_LAB.md).
+O marcador physical-return-protocol permanece pendente: não há devolução física
+implementada, e objetos recusados continuam bloqueados. Não equivale a skip de
+teste implementado nem a aprovação física. Não altera o comparativo histórico.
+
+## Resultados 3C.3.1 — 01/11/2026
+
+Rodada final sequencial, com exit code 0 em todos os perfis:
+
+| Perfil | Aprovados | Falhos | Ignorados | Relatório local |
+| --- | ---: | ---: | ---: | --- |
+| FAST | 105 | 0 | 0 | .validation/profiles-7627b46440b3/report.json |
+| INTEGRATION | 574 | 0 | 0 | .validation/profiles-210955d1517f/report.json |
+| FULL | 756 | 0 | 0 | .validation/profiles-af0f1bb77375/report.json |
+
+FULL: 714 backend, 18 runtime e 24 contratos JS; formato e sintaxe aprovados.
+35 testes backend novos e um contrato JS novo; INTEGRATION também reutiliza
+os 111 testes preexistentes de visão. Nenhuma chamada real a câmera/AWS/Gemini.
+Docker: os sete grupos DEV sintéticos e oito grupos isolados foram executados
+e passaram. Histórico: 29 telas, três screenshots iguais, dez fluxos; operacional:
+seis verificações. DEV: 30 verificações/21 comparações; visão: sete verificações/
+nove comparações. As 30 comparações B têm igualdade binária e de design, zero
+pixels/canais diferentes, zero máscaras e tolerância zero. Referência a9310a6 intacta.
+
+Teste adicional da imagem final vision_lab: build/startup e seis verificações
+em container readonly, UID 10001, sem rede, sem webcam/IA reais; container removido.
+Compose standalone validado com arquivos descartáveis sintéticos. Evidências
+em .validation/vision-3c31-audit/lab-container-final.json e compose-check.json.
+
+Os três perfis removeram seu SQLite temporário. Dez projetos Docker exclusivos
+das duas execuções FULL tiveram containers, redes e volumes removidos.
+Os 15 containers persistentes mantiveram IDs/montagens; os BinGo também mantiveram
+StartedAt. SQLite/WAL dos ambientes operacional, DEV integrado e camera-lab
+permaneceram byte a byte iguais. Não houve acesso hospedado, atualização do DEV
+ou GPIO. Auditoria em .validation/vision-3c31-audit/isolation-final.json,
+scope-check.json, visual-final.json e native-cleanup-final.json.
+Nenhum processo de fixture ficou ativo. O resíduo anterior
+%TEMP%/bingo-dev-ui-euhfQ5, criado/alterado em 31/10 às 01:18, foi inspecionado
+somente por metadados e preservado; não foi criado nem reutilizado neste incremento.
+
+Tentativas anteriores foram preservadas, sem aprovação retroativa:
+profiles-dcb5ae75ae47 detectou leitura de UUID vazio no handshake preexistente;
+profiles-50986b5ac8bc e profiles-556624cdbdd5 registraram prazos de inicialização
+de subprocessos não atendidos. A primeira FULL, profiles-d2e36a894c53, teve
+752 testes e os 15 grupos Docker aprovados, mas falhou na inicialização de duas
+fixtures browser; não comprovou os cenários restantes nem foi declarada aprovada.
+Foi medida CPU do host em 100%, sem atribuir causa única. Corrigidos publicação
+atômica e imports de fixtures/test runners desnecessários em subprocessos;
+dados sintéticos foram compartilhados em dev_data.py. Não aumentamos timeouts,
+alteramos asserções de garantia, aceitamos snapshots ou reduzimos cobertura.
+
+CI: workflow totem-ci.yml inspecionado, preservado e abrangendo os novos testes
+pelo INTEGRATION. Sem secrets/deploy/hardware; GitHub Actions não foi executado
+nesta sessão. Homologação real 3C.3.1 continua opt-in e pendente; a captura real
+3C.3.0 fornecida pelo operador está registrada no STATUS e CAMERA_V1.md.
+
+## Base histórica 3C.2.0 / 3C.3.0
+
+Atualização 3C.3.0: testes de gerenciamento de câmera usam exclusivamente
+dispositivos fictícios. FAST inclui test_camera.py; INTEGRATION acrescenta
+test_camera_api.py/test_camera_capture.py/test_camera_process.py; FULL coleta todos. FFmpeg e webcam
+nunca são necessários aos perfis comuns. Procedimento opt-in real e contrato
+em ../backend/CAMERA_V1.md. A visão/E2E do aluno permanece pendente de integração.
+
 Infraestrutura de regressão, sem integração funcional nova do frontend. Os runners
 continuam sendo pytest, unittest e node:test. Playwright já é usado pelos dois
 smokes do frontend oficial; não há outro frontend, banco ou máquina de estados.
@@ -847,3 +919,106 @@ mesmo event_id, sem pedir confirmação inicial nem conceder pontos. Nenhum dess
 passos foi executado automaticamente no ambiente DEV persistente. A atualização
 da imagem pode recuperar uma sessão antiga com hatch duravelmente concluído e
 nenhuma tentativa inicial; uma tentativa interrompida permanece bloqueada.
+
+## 3C.3.0 — gerenciamento operacional de câmeras — 31/10/2026
+
+Contrato e comandos completos: backend/CAMERA_V1.md. CameraManager acessa FFmpeg
+DirectShow no host Windows ou V4L2 Linux; RemoteCamera conecta o TotemEdge ao
+bridge autenticado no host. Não há câmera fictícia no runtime operacional nem
+fallback para outro dispositivo. O banco próprio de câmera guarda seleção e
+intenções, sem imagens/segredos, com lease de processo e recuperação conservadora.
+O banco de sessão não recebeu migration. CaptureService.capture_only reserva
+CAPTURING depois do journal de fechamento, entrega Frame em memória e não chama
+análise, classificação, GPIO ou registro. As telas do aluno não foram alteradas.
+
+Novos testes: test_camera.py (22 casos FAST), test_camera_api.py,
+test_camera_capture.py e test_camera_process.py, total de 45 casos. Os testes comuns usam câmera fictícia,
+SQLite temporário, HTTP controlado/loopback e filhos Python próprios; não usam
+webcam, FFmpeg instalado, Docker ou providers externos. Há cobertura de seleção,
+persistência, reconexão sem fallback, falha/permissão/ocupação/desconexão, imagem
+inválida, limites de pipes, concorrência, cancelamento e liberação. Um processo
+real é morto após intenção durável; startup conserva seleção e marca a captura
+indeterminada sem repetir. A publicação do PID no teste de cancelamento é
+atômica, para não observar arquivo ainda vazio. Gate de sessão exige comando
+de fechamento concluído no mesmo evento; estado DOOR_CLOSED isolado não basta.
+O transporte de câmera é separado da capacidade central DEV e tem teste próprio.
+
+| Perfil | Relatório em deploy/.validation | Resultado executado |
+| --- | --- | --- |
+| FAST | profiles-3d00b7df9a2f/report.json | saída 0; 104 aprovados, zero falhas/ignorados |
+| INTEGRATION | profiles-4a022082e420/report.json | saída 0; 427 aprovados, zero falhas/ignorados |
+| FULL final | profiles-935bad2cce91/report.json | saída 0; 720 aprovados, zero falhas/ignorados |
+
+O FULL intermediário profiles-ef5c1400be02 passou com 718 testes, 15 grupos Docker
+e os três smokes browser, mas antecede a proteção de morte abrupta do processo
+nativo. A revisão acrescentou um teste que comprovou filho sobrevivente antes
+da correção. Agora camera_worker.py usa Job Object no Windows e PDEATHSIG no
+Linux, sem SDK ou câmera no worker. O teste passou no Windows; uma prova em
+container Linux read-only/sem rede, montando a fonte atual readonly, comprovou
+JPEG lavfi válido e término do filho por morte do pai usando pidfd. A suíte
+final acima foi repetida após essa correção; não se usa o FULL anterior como
+aprovação da proteção nova. O caso de driver ausente também preserva seu código
+explícito, sem iniciar processo.
+
+Evidências complementares em camera-3c30-audit/: docker-host-transport.json
+comprova Linux Docker -> host Windows em loopback, Bearer obrigatório, imagem
+sintética validada, procedência SIMULATED preservada, recurso liberado e diretório
+temporário removido. A câmera física não foi usada. O script da prova fica nesse
+diretório para auditoria. O target camera_runtime foi construído em Linux AMD64
+com FFmpeg 5.1.9; um frame lavfi sintético passou pela rotina existente de validação,
+em container read-only/sem rede/sem dispositivos físicos. Isso não homologa V4L2
+real, DirectShow real, ARM64 ou qualidade da webcam. Os overlays Windows/Linux
+passaram em compose config --quiet, sem iniciar seus serviços.
+
+Falhas intermediárias preservadas: o primeiro FULL, profiles-7d00f1d02c80,
+detectou exposição das rotas capture no schema sem configuração. Corrigido o
+runtime para montar essas rotas somente quando explicitamente habilitadas,
+preservando integralmente a asserção existente de test_vision.py. Seu smoke
+Docker DEV também encontrou broker sintético unhealthy após force-recreate;
+containers.log só comprova startup concluído, sem causa conclusiva do healthcheck.
+Não houve relaxamento de readiness/timeouts; a repetição final é registrada
+separadamente. profiles-e7f5d0f3bde7 registrou falha do handshake PID do teste,
+corrigida com rename atômico; não é resultado aprovado. O primeiro ensaio do
+limite de saída revelou espera bloqueada em pipe cheio: após kill, o runner do
+dispositivo agora cancela leitores e drena/descarta antes de aguardar o filho.
+Esse ensaio foi interrompido e repetido, sem aumentar prazos. Erros iniciais de
+Host/registro de fixture foram corrigidos no harness, mantendo as guardas reais.
+
+O primeiro caractere g antes do comentário de deploy/.env.example já existia em
+c3e6dd9 e impedia o Compose de ler o template. Foi removido, sem alterar valores
+ou credenciais. Esse ajuste permite usar os comandos de câmera documentados.
+Os overlays esvaziam explicitamente credenciais centrais/IA herdadas e usam
+projeto, imagem e volumes próprios; não ampliam redes do DEV persistente.
+
+Não foi executado o procedimento opt-in de webcam real: FFmpeg não estava
+instalado no Windows. Também não houve teste no Orange Pi físico, escrita
+Supabase hospedada ou execução remota de CI. O workflow existente continua
+executando INTEGRATION, que agora inclui os testes fictícios de câmera.
+
+FULL final: backend 679, runtime 18 e contratos JavaScript 23. Os sete grupos
+Docker DEV e oito isolados foram efetivamente aprovados, sem alteração de
+timeouts/readiness. Histórico: 29 telas, três PNG e dez fluxos; operacional:
+seis verificações; DEV: 30 verificações e 21 capturas estritamente iguais à
+referência B, com design igual, sem máscaras ou tolerância adicional. Formato
+dos 68 arquivos Python, sintaxe JavaScript e git diff --check passaram.
+frontend-3c23-vision-e2e continua pending, fora da contagem de testes executados.
+
+camera-3c30-audit/verification.json registra SQLite DEV inalterado em mode=ro,
+mesmos quatro containers persistentes (IDs/início/mounts), ausência de diff dos
+dois frontends e remoção dos diretórios temporários do perfil/browser. A auditoria
+dos 15 projetos Docker exclusivos das três execuções FULL encontrou zero
+containers, redes e volumes restantes; nenhum processo de teste ficou ativo.
+process-guard.json preserva a falha anterior e as provas Windows/Linux da
+correção. compose-linux-aliases.json comprova também by-path com dois-pontos,
+usando devices em sintaxe longa. Artefatos de auditoria e resíduos históricos
+foram preservados. Não houve atualização do DEV persistente ou acesso hospedado.
+
+Arquivos criados: backend/CAMERA_V1.md; app/camera_api.py, app/camera_cli.py,
+app/services/camera.py e camera_worker.py; tests/test_camera.py,
+test_camera_api.py, test_camera_capture.py e test_camera_process.py;
+deploy/compose.camera-windows.yaml e compose.camera-linux.yaml.
+Arquivos ajustados: backend/app/main.py, app/dev_integration.py,
+app/services/capture.py; deploy/Dockerfile, validate.py e .env.example;
+backend/LOCAL_API_V1.md, VISION_INTERNAL_V1.md, deploy/TESTING.md e STATUS técnico.
+Não houve alteração de frontend, controlador físico, pipeline de classificação,
+PostgreSQL, Functions, regras econômicas, dependências Python ou lockfile.

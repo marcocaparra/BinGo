@@ -61,7 +61,7 @@
   }
   function devSnapshot(value) {
     const s = value?.session, identity = value?.identity;
-    const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture"]);
+    const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture", "vision-review"]);
     if (value?.source !== "SIMULATED" || !s || !uuid.test(s.event_id) || !states.has(s.state) || !uuid.test(s.class_id) || !["student", "class_only"].includes(s.mode) || s.receipt !== null ||
         !Array.isArray(value.commands) || value.commands.some(c => !c || c.source !== "SIMULATED") ||
         !Array.isArray(value.allowed_actions) || value.allowed_actions.some(a => !actions.has(a)) || new Set(value.allowed_actions).size !== value.allowed_actions.length ||
@@ -72,9 +72,27 @@
           typeof identity.validated_at !== "string" || !Number.isFinite(Date.parse(identity.validated_at)) || typeof s.student_name !== "string" || typeof s.class_name !== "string" || s.state === "IDENTIFYING") throw new LocalApiError("INVALID_RESPONSE");
     } else if (s.student_id !== null || s.mode === "student" && s.state === "SAFETY") throw new LocalApiError("INVALID_RESPONSE");
     value.commands.forEach(entry => journalEntry(entry, s.event_id));
+    if (value.vision != null) {
+      const v = value.vision, ids = ['battery', 'cable', 'phone', 'small', 'unknown'];
+      const r = v.observation;
+      if (!Array.isArray(v.allowed_candidates) || v.allowed_candidates.some(id => !ids.includes(id)) || new Set(v.allowed_candidates).size !== v.allowed_candidates.length || v.allowed_candidates.some(id => id !== 'unknown' && !r?.candidateIds.includes(id)) || v.allowed_candidates.length && (v.phase !== 'COMPLETED' || r?.status !== 'recognized')) throw new LocalApiError('INVALID_RESPONSE');
+      if (v.event_id !== s.event_id || !uuid.test(v.capture_id) || !uuid.test(v.close_command_id) ||
+          !value.commands.some(c => c.command.mechanical_command_id === v.close_command_id && c.command.operation === 'CLOSE_INSERTION_DOOR' && c.phase === 'COMPLETED') ||
+          !['CAPTURING', 'CLASSIFYING', 'COMPLETED', 'FAILED'].includes(v.phase) ||
+          r && (!['recognized', 'rejected', 'needs-secondary'].includes(r.status) || !Array.isArray(r.candidateIds) || r.candidateIds.some(id => !ids.includes(id)) ||
+          new Set(r.candidateIds).size !== r.candidateIds.length || typeof r.confidence !== 'number' || !Number.isFinite(r.confidence) || r.confidence < 0 || r.confidence > 1 ||
+          !['AWS_REKOGNITION', 'GEMINI_FALLBACK'].includes(r.origin) || r.status === 'recognized' && (!ids.includes(r.itemId) || !r.candidateIds.includes(r.itemId))) ||
+          v.phase === 'COMPLETED' && !r || v.decision && (!r || r.status !== 'recognized' || !ids.includes(v.decision.item_id) || !v.allowed_candidates.includes(v.decision.item_id) || !['confirm', 'correct'].includes(v.decision.action))) throw new LocalApiError('INVALID_RESPONSE');
+    }
     return value;
   }
   class DevApi extends LocalApi {
+    async visionReview(id, captureId, itemId, action) {
+      if (!uuid.test(id) || !uuid.test(captureId) || !['battery', 'cable', 'phone', 'small', 'unknown'].includes(itemId) || !['confirm', 'correct'].includes(action)) throw new LocalApiError('INVALID_LOCAL_CONTRACT', 422);
+      const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/vision-review`, { capture_id: captureId, item_id: itemId, action }));
+      if (value.session.event_id !== id || value.vision?.capture_id !== captureId || value.vision?.decision?.item_id !== itemId || value.vision?.decision?.action !== action) throw new LocalApiError('INVALID_RESPONSE');
+      return value;
+    }
     async action() { throw new LocalApiError("DEV_ACTION_NOT_SUPPORTED"); }
     async isDev() {
       const response = await this.request("/health", undefined, true);

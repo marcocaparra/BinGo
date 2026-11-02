@@ -21,6 +21,12 @@ EDGE = DEPLOY.parent
 BACKEND = EDGE / "backend"
 FRONTEND = EDGE / "frontend"
 INTEGRATION = (
+    "test_vision.py",
+    "test_session_vision.py",
+    "test_vision_lab.py",
+    "test_camera_process.py",
+    "test_camera_api.py",
+    "test_camera_capture.py",
     "test_auto_initial.py",
     "test_dev_identity.py",
     "test_dev_integration.py",
@@ -29,7 +35,12 @@ INTEGRATION = (
     "test_http_smoke.py",
     "test_sessions.py",
 )
-FAST = ("test_test_isolation.py", "test_routes.py", "test_central_business.py")
+FAST = (
+    "test_test_isolation.py",
+    "test_routes.py",
+    "test_central_business.py",
+    "test_camera.py",
+)
 
 
 def safe_environment(source):
@@ -252,6 +263,7 @@ def main(argv=None):
                 "browser_smoke",
                 "operational_smoke",
                 "dev_identification_smoke",
+                "vision_session_smoke",
             ):
                 evidence = (
                     FRONTEND
@@ -261,13 +273,15 @@ def main(argv=None):
                         if name == "browser_smoke"
                         else "dev-identification-browser.json"
                         if name == "dev_identification_smoke"
+                        else "vision-session-browser.json"
+                        if name == "vision_session_smoke"
                         else "operational-browser.json"
                     )
                 )
                 if evidence.exists() and result.returncode == 0:
                     shutil.copyfile(evidence, output / evidence.name)
                     group["evidence"] = str(output / evidence.name)
-                    if name == "dev_identification_smoke":
+                    if name in {"dev_identification_smoke", "vision_session_smoke"}:
                         details = json.loads(evidence.read_text(encoding="utf-8"))
                         visual = details["visual_checks"]
                         if not visual or not all(c["passed"] for c in visual):
@@ -470,6 +484,7 @@ def main(argv=None):
                         "browser_smoke",
                         "operational_smoke",
                         "dev_identification_smoke",
+                        "vision_session_smoke",
                     ):
                         if probe and probe.returncode == 0:
                             run(smoke, ["node", f"validation/{smoke}.cjs"], FRONTEND)
@@ -483,9 +498,9 @@ def main(argv=None):
                             )
             report["groups"].append(
                 {
-                    "name": "frontend-3c23-vision-e2e",
+                    "name": "physical-return-protocol",
                     "status": "pending",
-                    "reason": "Future camera/AI integration; simulated mechanical cycle is covered in dev_identification_smoke",
+                    "reason": "Rejected objects remain safely blocked; physical return protocol is not implemented. Synthetic vision E2E runs in vision_session_smoke; real AI is opt-in.",
                 }
             )
     except KeyboardInterrupt:

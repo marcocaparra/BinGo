@@ -1,5 +1,15 @@
 # Contratos locais — fundação de sessão V1
 
+3C.3.1: [visão por sessão](VISION_SESSION_V1.md) documenta composição opt-in,
+extensão vision do snapshot e POST vision-review, separados do DEV persistente.
+Close explícito coordena captura após journal concluído; GET nunca fotografa.
+Homologação real isolada em [VISION_LAB.md](../deploy/VISION_LAB.md).
+
+Atualização 3C.3.0: gerenciamento técnico autenticado de câmeras definido em
+[CAMERA_V1.md](CAMERA_V1.md). Rotas /local/camera são separadas do fluxo do aluno,
+desabilitadas por ausência de configuração/token. GET não captura. A captura de
+sessão exige confirmação durável de fechamento e não chama visão/economia.
+
 Atualização 3C.1: as rotas operacionais deste documento são montadas somente na
 fábrica operacional. As fábricas isolada e DEV não as montam (404), impedindo que
 sessões simulated=1 sejam projetadas/mutadas por contratos sem procedência.
