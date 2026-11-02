@@ -28,10 +28,19 @@ CATEGORIES = {
 
 
 class SessionVision:
-    def __init__(self, capture: CaptureService, mechanical, *, model: str):
+    def __init__(
+        self,
+        capture: CaptureService,
+        mechanical,
+        *,
+        model: str,
+        deferred_analysis=False,
+    ):
         self.capture, self.store = capture, capture.store
         self.mechanical, self.model = mechanical, model
         self.tasks = {}
+        self.deferred_analysis = deferred_analysis
+        self.frames = {}
 
     @staticmethod
     def identifier(close_id):
@@ -80,6 +89,9 @@ class SessionVision:
             and result["status"] == "recognized"
             and value["phase"] == "COMPLETED"
             else []
+        )
+        value["image_available"] = (
+            str(event) in self.frames and value["phase"] == "CAPTURING"
         )
         return value
 
@@ -133,15 +145,62 @@ class SessionVision:
                 capture=dict(media_type=frame.media_type, bytes=len(frame.content)),
                 observations=[],
             )
+            if self.deferred_analysis:
+                audit["capture_ready"] = True
+                with self.store.transaction() as conn:
+                    conn.execute(
+                        "UPDATE vision_attempts SET provenance=?,updated_at=? WHERE capture_id=? AND phase='CAPTURING'",
+                        (json.dumps(audit), now(), str(identifier)),
+                    )
+                    self.frames[str(event)] = frame
+                    return self.snapshot(conn, event)
+            return await self._classify(event, identifier, frame, audit)
+        except BaseException as error:
+            self.frames.pop(str(event), None)
+            # Never persist repr/message from a device, HTTP client or provider.
+            code = (
+                error.code
+                if isinstance(error, (VisionError, CameraError, CycleError))
+                else "PROCESS_INTERRUPTED"
+                if isinstance(error, asyncio.CancelledError)
+                else "CAPTURE_OR_CLASSIFICATION_FAILED"
+            )
             with self.store.transaction() as conn:
                 row = self.store._row(conn, event)
-                if row["state"] != "CAPTURING":
+                conn.execute(
+                    "UPDATE vision_attempts SET phase='FAILED',error_code=?,provenance=?,updated_at=? WHERE capture_id=? AND phase IN ('CAPTURING','CLASSIFYING')",
+                    (
+                        code,
+                        json.dumps(
+                            self.snapshot(conn, event)["provenance"]
+                            or {
+                                "mechanical": "SIMULATED",
+                                "policy": POLICY,
+                                "observations": [],
+                            }
+                        ),
+                        now(),
+                        str(identifier),
+                    ),
+                )
+                if row["state"] in {"CAPTURING", "CLASSIFYING"}:
+                    self.store._record(conn, row, "TECHNICAL_FAILURE", code=code)
+            if isinstance(error, asyncio.CancelledError):
+                raise
+            raise CycleError(code, 503) from None
+
+    async def _classify(self, event, identifier, frame, audit):
+        try:
+            with self.store.transaction() as conn:
+                row = self.store._row(conn, event)
+                if row["state"] not in {"CAPTURING", "CLASSIFYING"}:
                     raise CycleError("COMMAND_OUT_OF_SEQUENCE")
                 conn.execute(
                     "UPDATE vision_attempts SET phase='CLASSIFYING',provenance=?,updated_at=? WHERE capture_id=?",
                     (json.dumps(audit), now(), str(identifier)),
                 )
-                self.store._record(conn, row, "CLASSIFYING")
+                if row["state"] == "CAPTURING":
+                    self.store._record(conn, row, "CLASSIFYING")
             if not isinstance(self.capture.vision, InternalVision):
                 raise VisionError("PRIMARY_UNAVAILABLE")
 
@@ -202,6 +261,7 @@ class SessionVision:
                     updates={"vision_result": result.model_dump_json()},
                 )
         except BaseException as error:
+            self.frames.pop(str(event), None)
             # Never persist repr/message from a device, HTTP client or provider.
             code = (
                 error.code
@@ -235,6 +295,55 @@ class SessionVision:
             raise CycleError(code, 503) from None
         with self.store.transaction() as conn:
             return self.snapshot(conn, event)
+
+    def image(self, event, identifier):
+        with self.store.transaction() as conn:
+            row = self.store.simulation_row(conn, event)
+            attempt = self.snapshot(conn, event)
+            if (
+                not attempt
+                or attempt["capture_id"] != str(identifier)
+                or row["active_slot"] != 1
+                or row["state"] != "CAPTURING"
+                or str(event) not in self.frames
+            ):
+                raise CycleError("VISION_IMAGE_UNAVAILABLE", 410)
+            return self.frames[str(event)]
+
+    def request_analysis(self, event, identifier):
+        with self.store.transaction() as conn:
+            row = self.store.simulation_row(conn, event)
+            attempt = self.snapshot(conn, event)
+            if not attempt or attempt["capture_id"] != str(identifier):
+                raise CycleError("CAPTURE_ID_CONFLICT")
+            if attempt["phase"] != "CAPTURING":
+                return  # A consumed classification intent is never repeated.
+            if (
+                row["state"] != "CAPTURING"
+                or row["active_slot"] != 1
+                or self.store.mechanical.has_risk(conn, event)
+                or not attempt["image_available"]
+                or not attempt["provenance"].get("capture_ready")
+            ):
+                raise CycleError("VISION_IMAGE_UNAVAILABLE", 409)
+            audit = attempt["provenance"]
+            audit["capture_ready"] = False
+            conn.execute(
+                "UPDATE vision_attempts SET phase='CLASSIFYING',provenance=?,updated_at=? WHERE capture_id=?",
+                (json.dumps(audit), now(), str(identifier)),
+            )
+            self.store._record(conn, row, "CLASSIFYING")
+            frame = self.frames[str(event)]
+        self.frames.pop(str(event))
+        self.tasks["analysis:" + str(identifier)] = asyncio.create_task(
+            self._run_classification(event, identifier, frame, audit)
+        )
+
+    async def _run_classification(self, event, identifier, frame, audit):
+        try:
+            await self._classify(event, identifier, frame, audit)
+        except CycleError:
+            pass  # The controlled failure is already durable.
 
     def review(self, event, capture_id, item_id, action):
         with self.store.transaction() as conn:
@@ -282,3 +391,4 @@ class SessionVision:
         for task in self.tasks.values():
             task.cancel()
         await asyncio.gather(*self.tasks.values(), return_exceptions=True)
+        self.frames.clear()

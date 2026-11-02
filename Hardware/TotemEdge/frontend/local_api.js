@@ -61,7 +61,7 @@
   }
   function devSnapshot(value) {
     const s = value?.session, identity = value?.identity;
-    const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture", "vision-review"]);
+    const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture", "vision-review", "vision-analyze"]);
     if (value?.source !== "SIMULATED" || !s || !uuid.test(s.event_id) || !states.has(s.state) || !uuid.test(s.class_id) || !["student", "class_only"].includes(s.mode) || s.receipt !== null ||
         !Array.isArray(value.commands) || value.commands.some(c => !c || c.source !== "SIMULATED") ||
         !Array.isArray(value.allowed_actions) || value.allowed_actions.some(a => !actions.has(a)) || new Set(value.allowed_actions).size !== value.allowed_actions.length ||
@@ -87,6 +87,29 @@
     return value;
   }
   class DevApi extends LocalApi {
+    async visionAnalyze(id, captureId) {
+      if (!uuid.test(id) || !uuid.test(captureId)) throw new LocalApiError('INVALID_ID');
+      const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/vision-analyze`, { capture_id: captureId }));
+      if (value.session.event_id !== id || value.vision?.capture_id !== captureId) throw new LocalApiError('INVALID_RESPONSE');
+      return value;
+    }
+    async photo(id, captureId) {
+      if (!uuid.test(id) || !uuid.test(captureId)) throw new LocalApiError('INVALID_ID');
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), 10000);
+      try {
+        const response = await this.fetcher(`/local/simulation/sessions/${id}/vision-image/${captureId}`, { headers: { Accept: 'image/jpeg', 'X-Totem-Request': '1' }, credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: abort.signal });
+        if (!response.ok) throw new LocalApiError('VISION_IMAGE_UNAVAILABLE', response.status);
+        if (response.headers.get('content-type') !== 'image/jpeg' || response.headers.get('x-capture-id') !== captureId) throw new LocalApiError('INVALID_RESPONSE');
+        const blob = await response.blob();
+        if (!blob.size || blob.size > 5 * 1024 * 1024) throw new LocalApiError('INVALID_RESPONSE');
+        return blob;
+      } catch (error) {
+        if (error instanceof LocalApiError) throw error;
+        throw new LocalApiError(abort.signal.aborted || error?.name === 'AbortError' ? 'LOCAL_TIMEOUT' : 'LOCAL_UNAVAILABLE');
+      } finally { clearTimeout(timer); }
+    }
+
     async visionReview(id, captureId, itemId, action) {
       if (!uuid.test(id) || !uuid.test(captureId) || !['battery', 'cable', 'phone', 'small', 'unknown'].includes(itemId) || !['confirm', 'correct'].includes(action)) throw new LocalApiError('INVALID_LOCAL_CONTRACT', 422);
       const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/vision-review`, { capture_id: captureId, item_id: itemId, action }));

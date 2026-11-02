@@ -24,6 +24,7 @@ INTEGRATION = (
     "test_vision.py",
     "test_session_vision.py",
     "test_vision_lab.py",
+    "test_vision_photo_flow.py",
     "test_camera_process.py",
     "test_camera_api.py",
     "test_camera_capture.py",

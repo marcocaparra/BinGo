@@ -131,7 +131,7 @@ window.BinGoOperational = {
     let segment = null, grade = null, filter = "", searchActive = false, keyboardShift = true, keyFeedback = null, feedbackTimer;
     let keyboardClosing = false, closeTimer;
     let pollTimer, departed = false;
-    let correctionItem = null;
+    let correctionItem = null, photo = null, photoLoading = null;
     const pendingPhases = ['INTENT', 'DISPATCHING', 'ACCEPTED'];
     const completedMotion = operation => snapshot?.commands.some(c => c.command.operation === operation && c.phase === 'COMPLETED' && c.result === 'SUCCEEDED');
     const failedMotion = () => snapshot?.commands.some(c => !pendingPhases.includes(c.phase) && !(c.phase === 'COMPLETED' && c.result === 'SUCCEEDED'));
@@ -173,13 +173,11 @@ window.BinGoOperational = {
       else if (snapshot?.session.state === 'OPENING') screen = 'opening';
       else if (snapshot?.session.state === 'DOOR_OPEN' && completedMotion('OPEN_INSERTION_DOOR')) screen = stage === 'hand' ? 'hand-confirm' : 'insert';
       else if (snapshot?.session.state === 'CLOSING') screen = 'door-progress';
-      // Preserve the already approved progress composition. The legacy camera
-      // preview/recognized templates differ from reference B; do not invent or
-      // substitute a preview, badge or layout to expose the new processing.
-      else if (['CAPTURING', 'CLASSIFYING'].includes(snapshot?.session.state)) screen = 'door-progress';
-      else if (snapshot?.session.state === 'RETURN_REQUIRED') screen = 'teacher';
-      else if (snapshot?.session.state === 'TECHNICAL_FAILURE') screen = 'teacher';
-      else if (snapshot?.session.state === 'REVIEW' && snapshot.vision) screen = stage === 'correct-item' && allowed('vision-review') ? 'correct-item' : 'review';
+      else if (snapshot?.session.state === 'CAPTURING') screen = 'camera';
+      else if (snapshot?.session.state === 'CLASSIFYING') screen = snapshot.vision?.provenance?.observations.some(r => r.origin === 'AWS_REKOGNITION' && (r.status === 'needs-secondary' || r.confidence < 0.75)) ? 'secondary-analysis' : 'classification';
+      else if (snapshot?.session.state === 'RETURN_REQUIRED') screen = 'rejected';
+      else if (snapshot?.session.state === 'TECHNICAL_FAILURE') screen = snapshot.vision?.error_code === 'CLASSIFICATION_INCONCLUSIVE' ? 'rejected' : 'vision-error';
+      else if (snapshot?.session.state === 'REVIEW' && snapshot.vision) screen = stage === 'correct-item' && allowed('vision-review') ? 'correct-item' : snapshot.vision.decision ? 'review' : 'recognized';
       else if (snapshot?.session.state === 'DOOR_CLOSED' && !allowed('review-fixture')) screen = 'door-progress';
       else if (['DOOR_CLOSED', 'REVIEW'].includes(snapshot?.session.state) && completedMotion('CLOSE_INSERTION_DOOR')) screen = 'review';
       else if (snapshot?.session.state === 'HATCH_IN_PROGRESS') screen = 'computing';
@@ -193,18 +191,35 @@ window.BinGoOperational = {
         riskReported, safetyAllowed: allowed("safety"), cancelAllowed: allowed('cancel'), mechanicalPin: openPin() || hatchPin(),
         reviewAllowed: allowed('review-fixture') || allowed('hatch') || allowed('vision-review'),
         vision: snapshot?.vision, correctionItem, correctionAllowed: allowed('vision-review'),
+        analyzeAllowed: allowed('vision-analyze') && photo?.id === snapshot?.vision?.capture_id,
         ...window.BinGoLocalApi.schoolLabels(context?.classes || [], segment),
         classes: (context?.classes || []).filter(c => (!segment || c.segment === segment) && (!grade || c.grade === grade)),
         students: (context?.students || []).filter(s => s.class_id === selectedClass && normalize(s.name).includes(normalize(filter))).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
       });
+      if (screen === 'camera' && snapshot?.vision?.image_available) {
+        const id = snapshot.vision.capture_id, event = snapshot.session.event_id;
+        if (photo?.id === id) {
+          const canvas = kiosk.querySelector('[data-camera-canvas]');
+          canvas.width = photo.bitmap.width; canvas.height = photo.bitmap.height;
+          canvas.getContext('2d').drawImage(photo.bitmap, 0, 0);
+          canvas.dataset.loaded = 'true';
+        } else if (photoLoading !== id) {
+          photoLoading = id;
+          api.photo(event, id).then(blob => createImageBitmap(blob)).then(bitmap => {
+            if (snapshot?.session.event_id === event && snapshot?.session.state === 'CAPTURING') { photo?.bitmap.close(); photo = { id, bitmap }; render(); }
+            else bitmap.close();
+          }).catch(async error => { warning = message(error); try { await inspectMotion(); } catch { uncertain = true; } render(); });
+        }
+      } else if (photo) { photo.bitmap.close(); photo = null; }
     }
+
     function accept(value) {
       if (snapshot?.session.event_id !== value.session.event_id) { selectedClass = null; student = null; }
       snapshot = value; pin = ""; command = null; searchActive = false; keyboardClosing = false; clearTimeout(closeTimer); forget("command");
       remember("event", snapshot.session.event_id);
       stage = identifying() ? student ? "pin" : selectedClass ? "students" : "classes" : value.session.state === 'REVIEW' && stage === 'hatch-pin' ? 'hatch-pin' : "session";
       clearTimeout(pollTimer);
-      if (!departed && (snapshot.commands.some(c => pendingPhases.includes(c.phase)) || ['HATCH_IN_PROGRESS', 'CAPTURING', 'CLASSIFYING'].includes(snapshot.session.state) && !failedMotion() || snapshot.session.state === 'DOOR_CLOSED' && !allowed('review-fixture'))) {
+      if (!departed && (snapshot.commands.some(c => pendingPhases.includes(c.phase)) || (['HATCH_IN_PROGRESS', 'CLASSIFYING'].includes(snapshot.session.state) || snapshot.session.state === 'CAPTURING' && !snapshot.vision?.image_available) && !failedMotion() || snapshot.session.state === 'DOOR_CLOSED' && !allowed('review-fixture'))) {
         // This timer only schedules durable GETs. It never decides a movement's
         // duration/result and never retries a POST.
         pollTimer = setTimeout(async () => {
@@ -271,13 +286,15 @@ window.BinGoOperational = {
     async function handle(action, value) {
       warning = "";
       if (!["search-key", "search-toggle"].includes(action)) { keyboardClosing = false; clearTimeout(closeTimer); }
-      if (action === "refresh") { await recover(); if (snapshot?.commands.length) await inspectMotion(); return; }
+      if (action === "refresh") { photoLoading = null; await recover(); if (snapshot?.commands.length) await inspectMotion(); return; }
       if (action === "new" && terminal()) { snapshot = null; command = null; selectedClass = null; student = null; forget("event"); forget("command"); await recover(); if (online && !snapshot) stage = value === "idle" ? "idle" : "identity"; return; }
       if (action === "cancel" && allowed("cancel")) return accept(await api.cancel(snapshot.session.event_id));
       if (action === "wake") { stage = "welcome"; return; }
       if (action === 'help') { stage = 'help'; return; }
       if (action === 'correction' && allowed('vision-review')) { correctionItem = snapshot.vision.observation.itemId; stage = 'correct-item'; return; }
       if (action === 'correct-item' && allowed('vision-review') && snapshot.vision.allowed_candidates.includes(value)) { correctionItem = value; return; }
+      if (action === 'vision-analyze' && allowed('vision-analyze') && photo?.id === snapshot.vision.capture_id) { accept(await api.visionAnalyze(snapshot.session.event_id, snapshot.vision.capture_id)); return; }
+      if (action === 'recognition-confirm' && allowed('vision-review')) { const v = snapshot.vision; accept(await api.visionReview(snapshot.session.event_id, v.capture_id, v.observation.itemId, 'confirm')); return; }
       if (action === 'apply-correction') {
         if (!allowed('vision-review')) return;
         const v = snapshot.vision;

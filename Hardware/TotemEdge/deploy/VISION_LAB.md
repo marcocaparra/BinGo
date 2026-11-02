@@ -1,5 +1,65 @@
 # 3C.3.1 — homologação opt-in Windows/Docker
 
+## Cadastro Supabase DEV existente + câmera/IA reais
+
+Para homologar com os cadastros existentes autorizados pelo operador, há agora
+`compose.vision-dev.yaml`, um overlay **somente** de `compose.dev-integration.yaml`.
+Reutiliza o broker 3C.2.1 e sua política de máquina/escola, sem criar endpoints
+hospedados, fixtures de identidade ou capacidade econômica. O backend tem saída
+para IA/câmera, mas não recebe a chave da máquina; só o broker recebe essa chave.
+O broker continua limitado a health/contexto/PIN. Não usar service_role.
+
+Usar um **novo** projeto `bingo-vision-dev`, porta 8018 e volume vision-dev-data;
+não aplicar esse overlay ao DEV persistente ou ao vision-lab existente. O banco
+é `/var/lib/bingo-vision-dev/simulation.sqlite3`, com marcador exclusivo. Nenhum
+banco é copiado. A seleção da câmera e os arquivos privados já existentes são
+montados somente para leitura; o bridge Windows existente não é reiniciado.
+
+PowerShell na raiz, após conferir a câmera e preparar providers.json conforme
+o procedimento abaixo. Informar somente caminhos de arquivos já autorizados:
+
+```powershell
+$env:BINGO_DEV_POLICY_FILE = Read-Host 'Caminho da política DEV existente'
+$env:BINGO_DEV_MACHINE_KEY_FILE = Read-Host 'Caminho do arquivo da chave da máquina'
+$env:BINGO_CAMERA_TOKEN_FILE = Join-Path $env:LOCALAPPDATA 'BinGo/camera/camera.token'
+$env:BINGO_VISION_CREDENTIALS_FILE = Join-Path $env:LOCALAPPDATA 'BinGo/vision-lab/providers.json'
+$env:BINGO_VISION_DEV_PORT = '8018'
+$visionCompose = @('-p', 'bingo-vision-dev', '-f', 'Hardware/TotemEdge/deploy/compose.dev-integration.yaml', '-f', 'Hardware/TotemEdge/deploy/compose.vision-dev.yaml')
+docker compose @visionCompose config --quiet
+if ($LASTEXITCODE -ne 0) { throw 'Configuração de visão DEV inválida' }
+docker compose @visionCompose up -d --build --wait
+if ($LASTEXITCODE -ne 0) { throw 'Laboratório não ficou saudável' }
+Start-Process 'http://127.0.0.1:8018'
+```
+
+Esses comandos são opt-in e não foram executados contra seus ambientes nesta
+entrega. Usam Compose com suporte a `!reset`/`!override`. Não imprimir config
+expandido, credenciais, PIN ou conteúdo do contexto com dados pessoais.
+
+Fluxo: cadastro retornado pelo DEV → PIN → triagem → novo PIN/abertura simulada →
+item inserido/retirada da mão → fechamento confirmado → **foto visível** →
+**Analisar item** → reconhecimento AWS ou fallback permitido → confirmar/corrigir →
+revisão final → Confirmar descarte/novo PIN → hatch/retorno simulado → COMPLETED.
+O mesmo JPEG mostrado é entregue à IA. Refresh antes da análise recupera a foto
+em RAM, sem nova captura; após análise recupera resultado/decisão do SQLite.
+Reinício do backend antes da análise perde a foto volátil e registra falha segura,
+sem tentar fotografar novamente. Não há vídeo ou permissão de webcam no navegador.
+
+Conferir os metadados pela API do roteiro abaixo, mudando baseUrl para 8018.
+Na auditoria SQLite, usar `docker compose @visionCompose exec -T totem-edge-dev`
+em vez de `totem-edge` do laboratório sintético. Ao concluir, receipt continua
+null: não há pontos/BinCoins/XP nem tela de recompensa fictícia. A homologação
+conjunta com cadastro hospedado é pendente, mesmo com câmera/AWS já relatados
+como funcionais pelo operador no vision-lab. Gemini real não foi homologado aqui.
+
+Refazer captura, devolver item e repetir após falha permanecem desabilitados:
+faltam os contratos de nova intenção e devolução mecânica segura. Rejeição,
+inconclusão e falha técnica preservam a sessão bloqueada e não liberam o alçapão.
+Não apagar bancos para contornar esses bloqueios. Para parar apenas esse projeto,
+preservando sua auditoria: `docker compose @visionCompose down` (sem `-v`).
+
+## Laboratório com identidade sintética (perfil anterior, preservado)
+
 TotemEdge FastAPI orquestra câmera e visão localmente. Supabase permanece a
 autoridade de registro/recompensa, **não utilizada por este laboratório**.
 Identidade e mecânica são sintéticas; a webcam e os provedores podem ser reais.
@@ -80,8 +140,9 @@ docker compose -p bingo-vision-lab -f Hardware/TotemEdge/deploy/compose.vision-l
 Start-Process 'http://127.0.0.1:8017'
 ```
 
-Ao confirmar a retirada da mão, haverá **captura física e possível cobrança
-dos provedores configurados**. Nada é disparado apenas ao abrir/atualizar a página.
+Ao confirmar a retirada da mão, haverá **captura física**. A IA e a possível
+cobrança só começam com **Analisar item**, sobre a foto já exibida. Nada é
+disparado apenas ao abrir/atualizar a página.
 O cliente central desse laboratório é exclusivamente em memória e não possui
 capacidade de escrita hospedada. Seu PIN público de fixture é 0012; nunca é PIN
 de aluno real. Os nomes/UUIDs fictícios não são comprovantes Supabase.
@@ -91,12 +152,13 @@ de aluno real. Os nomes/UUIDs fictícios não são comprovantes Supabase.
 - Selecionar a turma/aluno fictícios; PIN 0012; declarar triagem segura.
 - PIN novo 0012 autoriza open simulado. Colocar somente um item diante da webcam.
 - Coloquei um item → Retirei a mão. CLOSE deve alcançar COMPLETED/SUCCEEDED
-  antes da captura. A interface conserva a tela de progresso já homologada.
-- Aguardar REVIEW: o card existente mostra a sugestão real normalizada.
+  antes da captura. A tela original mostra uma foto, sem vídeo contínuo.
+- Conferir se o item está visível e clicar **Analisar item**. Não há segunda foto.
+  Aguardar reconhecimento: **Sim, está certo** confirma a sugestão;
   Corrigir mostra somente candidatos permitidos e eletrônico não identificado
   quando o resultado reconhecido já estabeleceu domínio eletrônico.
-- Confirmar correção registra a decisão; Confirmar descarte confirma a sugestão
-  quando ainda não houver decisão. Só depois pode pedir PIN para hatch simulado.
+- Confirmar correção registra a decisão. A revisão final conserva o botão
+  Confirmar descarte; só depois pede novo PIN para hatch simulado.
 - Conferir o snapshot, sem imagem nem segredo:
 
 ```powershell
@@ -105,7 +167,15 @@ $active = Invoke-RestMethod "$baseUrl/local/simulation/sessions/active"
 $eventId = $active.snapshot.session.event_id
 if ($eventId) {
   $snapshot = Invoke-RestMethod "$baseUrl/local/simulation/sessions/$eventId"
-  $snapshot | ConvertTo-Json -Depth 12
+  [pscustomobject]@{
+    event_id = $snapshot.session.event_id
+    state = $snapshot.session.state
+    capture_id = $snapshot.vision.capture_id
+    vision_phase = $snapshot.vision.phase
+    origin = $snapshot.vision.observation.origin
+    has_decision = ($null -ne $snapshot.vision.decision)
+    has_receipt = ($null -ne $snapshot.session.receipt)
+  } | ConvertTo-Json
 }
 ```
 

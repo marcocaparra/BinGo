@@ -1,12 +1,27 @@
 # Totem Edge V1 — integração local e limites atuais
 
-3C.3.1: o laboratório de visão separado reutiliza as mesmas composições aprovadas.
-Progresso persiste durante CAPTURING/CLASSIFYING; review recebe sugestão/candidatos
-do snapshot; Corrigir e Confirmar correção registram a decisão pelo TotemEdge.
-Confirmar descarte confirma a sugestão antes do PIN de hatch, sem recompensa.
-Não foram modificados templates, estilos, textos ou assets. Contrato vigente em
+3C.3.1, ajuste funcional: o perfil de visão apresenta a foto única no canvas do
+template original da equipe. Não há vídeo ou getUserMedia. O fechamento durável
+autoriza a captura; o botão existente **Analisar item** autoriza a IA sobre os
+mesmos bytes, sem nova fotografia. CAPTURING aguarda essa ação; CLASSIFYING mostra
+a análise original, inclusive análise secundária somente quando o journal a
+comprova. REVIEW apresenta primeiro o reconhecimento, depois a confirmação ou
+correção pelos candidatos permitidos e a revisão final. Confirmar descarte pede
+novo PIN para hatch simulado; o retorno inicial permanece no backend.
+
+Os templates condicionais de câmera/análise/reconhecimento e o CSS específico
+da câmera foram recuperados da referência da equipe, sem redesenho, alterações de
+textos ou assets. Os ramos demo/legado continuam preservados. Refazer captura,
+devolver e tentar novamente ficam indisponíveis enquanto faltarem contratos
+seguros. A foto só vive na RAM do backend e no canvas, com acesso local no-store;
+refresh a recupera, reinício do backend antes da análise produz falha durável
+sem recaptura silenciosa. Não há tela de pontos nem recibo fictício.
+
+O novo perfil vision-dev reutiliza contexto/PIN do broker 3C.2.1, sem fallback
+de alunos fictícios. O vision-lab sintético permanece separado. Contrato vigente em
 [VISION_SESSION_V1.md](../backend/VISION_SESSION_V1.md); ensaio explicitamente
-opt-in em [VISION_LAB.md](../deploy/VISION_LAB.md). Não é integração hospedada.
+opt-in em [VISION_LAB.md](../deploy/VISION_LAB.md). Os testes usam apenas fakes;
+a homologação dessa composição com o cadastro hospedado depende do operador.
 
 Atualização 3C.2.1: a identificação DEV está descrita ao final. O relato da
 fundação de 08/10 abaixo permanece histórico; seu modo operacional e a

@@ -1,5 +1,63 @@
 # Validação automatizada do TotemEdge — 3C.2.0
 
+## Ajuste funcional 3C.3.1 — 02/11/2026
+
+INTEGRATION inclui agora `test_vision_photo_flow.py`: foto privada/GET puro,
+análise explícita idempotente, perda da foto volátil na recuperação SQLite e
+perfil de identidade pelo broker existente, sem fallback sintético. O smoke
+`vision_session_smoke.cjs` cobre foto no canvas, AWS, fallback controlado, resultado
+visível, confirmação/correção, perda de resposta, refresh, continuidade simulada,
+rejeição e falha técnica. Os controles sem contrato mecânico seguro continuam
+desabilitados. A referência B, assets, máscaras e tolerâncias permanecem intactos.
+No comparador, somente o provider da **página de referência** é suspenso para
+manter a tela original de análise; a aplicação testada usa HTTP/SQLite/provedores
+sintéticos. A prontidão visual continua exigindo fontes, imagens decodificadas,
+animações/estrutura/CSS e pixels, sem depender do heurístico networkidle.
+
+O Compose vision-dev foi validado com caminhos/arquivos sintéticos, sem iniciar
+containers ou ler segredos. Usa somente seu volume e porta, e a chave de máquina
+permanece exclusivamente no broker. O roteiro hospedado é opt-in em VISION_LAB.md.
+Nenhum teste desta correção chama webcam, AWS, Gemini ou Supabase reais.
+FAST/INTEGRATION/FULL completos não foram reexecutados nesta correção pontual;
+os números da seção seguinte são históricos, não evidência do novo código.
+
+Verificações focadas efetivamente executadas:
+
+- `uv run --locked --offline python -B -m pytest -q tests/test_vision_photo_flow.py tests/test_session_vision.py tests/test_vision_lab.py tests/test_vision.py --tb=short`:
+  150 aprovados na primeira rodada (antes de acrescentar o terceiro teste de foto).
+- `uv run --locked --offline python -B -m pytest -q tests/test_vision_photo_flow.py tests/test_dev_identity.py tests/test_dev_integration.py --tb=short`:
+  158 aprovados; broker/contexto/PIN, recuperação e ausência de fallback.
+- `uv run --locked --offline python -B -m pytest -q tests/test_vision_photo_flow.py tests/test_simulation_flow.py --tb=short`:
+  50 aprovados, incluindo o teste de marcador exclusivo após a última alteração.
+- `uv run --locked --offline python -B -m pytest -q ../deploy/tests/test_validation_profiles.py ../deploy/tests/test_runtime.py --tb=short`:
+  18 aprovados e 16 subtestes aprovados.
+- `node --test validation/dev_api.test.cjs`: 19 aprovados. Sintaxe de seis arquivos
+  JavaScript e formato dos onze arquivos Python alterados: aprovados.
+
+As suítes backend acima se sobrepõem; os números não são somados como testes
+distintos. Zero falhas/ignorados nessas rodadas. Todas usam recursos descartáveis.
+O smoke browser aceita nomes de cenários opcionais (`recognized`, `rejected`,
+`failure`, `fallback`) para execução focada; sem argumentos executa todos.
+Relatórios por cenário ficam em frontend/.validation/vision-session-browser-*.json.
+Tentativas iniciais pararam na prontidão da fixture (`ECONNREFUSED`, prazo existente
+de 80 sondagens) e uma navegação da referência excedeu o heurístico networkidle.
+Não foram classificadas como falha de PIN/IA nem ocultadas. Nenhum prazo foi elevado;
+o comparador usa load seguido das verificações estritas de prontidão visual.
+
+Rodadas finais de navegador, ambas exit code 0:
+`node validation/vision_session_smoke.cjs failure fallback` e
+`node validation/vision_session_smoke.cjs recognized rejected`.
+Quatro cenários, onze verificações funcionais e **nove comparações visuais**:
+estrutura/CSS/geometria/assets iguais, imagens binariamente iguais, zero pixels
+ou canais diferentes, zero máscaras e tolerância zero. Rejeição/falha não emitem
+hatch; os dois percursos aceitos chegam a COMPLETED com quatro comandos
+SIMULATED/COMPLETED/SUCCEEDED, receipt=null e refresh sem novo POST/câmera/IA.
+Todos os quatro relatórios comprovam temporary_removed=true e errors=[].
+Consolidado auditável das duas rodadas em
+frontend/.validation/vision-session-focused.json; capturas approved-vision-*.
+Após a última alteração transacional de RAM/SQLite, test_vision_photo_flow.py
+foi reexecutado separadamente: três aprovados. A formatação final foi aplicada.
+
 3C.3.1: INTEGRATION reutiliza test_vision.py e inclui test_session_vision.py e
 test_vision_lab.py; FULL inclui
 vision_session_smoke.cjs, usando o mesmo harness/browser/comparador da referência B.

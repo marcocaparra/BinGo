@@ -155,10 +155,16 @@ async function openApprovedVisual(context, output, data) {
     return {
       results, revision, referencePath,
       async compare(actualPage, screen, options = {}) {
-        await page.goto(origin + '/' + referencePath + '/?screen=' + screen, { waitUntil: 'networkidle' });
+        // Visual readiness is checked below (fonts, decoded images and stable
+        // frames). A network-idle heuristic adds no visual guarantee.
+        await page.goto(origin + '/' + referencePath + '/?screen=' + screen + (options.visionRemote ? '&vision=remote' : ''), { waitUntil: 'load' });
         // Equal synthetic content, using the reference's own data and renderers.
         // These assignments change labels/records only; no layout or CSS patching.
-        await page.evaluate(({ screen, data, options }) => {
+        await page.evaluate(async ({ screen, data, options }) => {
+          // Hold only the reference's provider boundary. Its original renderers,
+          // animations and styles stay intact while the real local fixture drives
+          // the actual page. No provider HTTP is allowed from the reference.
+          if (options.visionRemote) visionProvider.analyze = () => new Promise(() => {});
           for (const key of Object.keys(schoolTree)) delete schoolTree[key];
           for (const segment of [...new Set(data.classes.map(c => c.segment).filter(Boolean))]) {
             schoolTree[segment] = { label: segment, speech: 'Agora escolha o seu ano.', years: [...new Set(data.classes.filter(c => c.segment === segment).map(c => c.grade).filter(Boolean))] };
@@ -169,6 +175,7 @@ async function openApprovedVisual(context, output, data) {
           students.splice(0, students.length, ...data.students.map(s => s.name));
           currentIndex = screens.findIndex(s => s.id === screen);
           selectedStudent = data.students[0].name;
+          if (options.origin) classificationOrigin = options.origin;
           if (options.itemId) recognizedItem = itemOptions.find(item => item.id === options.itemId);
           if (options.candidateIds) {
             visionCandidateIds = options.candidateIds.filter(id => id !== 'unknown');
@@ -183,6 +190,14 @@ async function openApprovedVisual(context, output, data) {
           pinWarning = Boolean(options.warning);
           pinErrorMessage = options.warning || '';
           render();
+          if (options.cameraPhoto) {
+            updateCameraView('captured', 'Imagem capturada nesta sessão. Selecione Analisar item para continuar.');
+            document.querySelector('[data-camera-retake]').disabled = true;
+            document.querySelector('[data-return-start]').disabled = true;
+            const image = new Image(); image.src = options.cameraPhoto; await image.decode();
+            const canvas = document.querySelector('[data-camera-canvas]'); canvas.width = image.width; canvas.height = image.height; canvas.getContext('2d').drawImage(image, 0, 0);
+          }
+          if (options.disableReturn) document.querySelectorAll('[data-adjust-retry], [data-return-start]').forEach(button => { button.disabled = true; });
           if (options.notice) document.querySelector('.guide-bubble').textContent = options.notice;
           if (options.disableCorrection) document.querySelector('[data-correction-open]').disabled = true;
           if (options.disableCancel) document.querySelector('[data-cancel-discard]').disabled = true;

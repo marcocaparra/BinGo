@@ -1,6 +1,6 @@
-"""Explicit isolated vision lab: synthetic identity/mechanics, optional real AI.
+"""Explicit vision profiles: synthetic lab or existing read-only identity broker.
 
-No Supabase transport or registration capability exists in this composition.
+Both use simulated mechanics and have no economic registration capability.
 """
 
 from dataclasses import dataclass, field
@@ -12,6 +12,7 @@ from uuid import UUID
 import httpx2 as httpx
 
 from app.dev_integration import DevSettings, DevPolicy, DevConfigurationError, read_file
+from app.dev_integration import FunctionTransport, load_policy, POLICY_FILE
 from app.services.controller import DEFAULT_PLANS
 from app.services.vision import (
     VisionSettings,
@@ -89,6 +90,7 @@ def synthetic_central(request):
 class VisionLabSettings(DevSettings):
     vision_settings: VisionSettings = field(repr=False)
     vision_override: object = field(default=None, repr=False)
+    deferred_analysis: bool = True
     vision_enabled = True
     marker_name = ".bingo-vision-lab-only"
     marker_content = "BinGo isolated vision lab synthetic mechanics v1\n"
@@ -123,7 +125,11 @@ class VisionLabSettings(DevSettings):
 
 
 def create_vision_lab_app(
-    *, data_directory=DIRECTORY, camera_transport=None, vision=None
+    *,
+    data_directory=DIRECTORY,
+    camera_transport=None,
+    vision=None,
+    deferred_analysis=True,
 ):
     from app.main import create_app
 
@@ -142,6 +148,7 @@ def create_vision_lab_app(
             ),
             settings,
             vision,
+            deferred_analysis,
         )
         lab.validate_environment()
     except Exception:
@@ -149,5 +156,50 @@ def create_vision_lab_app(
     return create_app(
         _simulation=lab,
         controller_factory=lab.build_controller,
+        camera_transport=camera_transport,
+    )
+
+
+@dataclass(frozen=True)
+class VisionDevSettings(VisionLabSettings):
+    marker_name = ".bingo-vision-dev-only"
+    marker_content = "BinGo vision DEV read-only identity simulated mechanics v1\n"
+
+    def build_transport(self, transport=None):
+        return FunctionTransport(inner=transport)
+
+
+def create_vision_dev_app(
+    *,
+    data_directory=Path("/var/lib/bingo-vision-dev"),
+    policy_path=POLICY_FILE,
+    transport=None,
+    camera_transport=None,
+    vision=None,
+):
+    """Reuse the existing read-only broker; no synthetic identity fallback."""
+    from app.main import create_app
+
+    try:
+        path = os.getenv("BINGO_VISION_CREDENTIALS_FILE")
+        settings = (
+            VisionSettings(**json.loads(read_file(Path(path))))
+            if path
+            else VisionSettings()
+        )
+        profile = VisionDevSettings(
+            data_directory.resolve(),
+            dict(DEFAULT_PLANS),
+            load_policy(policy_path),
+            settings,
+            vision,
+        )
+        profile.validate_environment()
+    except Exception:
+        raise DevConfigurationError() from None
+    return create_app(
+        _simulation=profile,
+        controller_factory=profile.build_controller,
+        transport=transport,
         camera_transport=camera_transport,
     )

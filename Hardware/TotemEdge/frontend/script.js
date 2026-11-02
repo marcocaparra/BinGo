@@ -343,7 +343,7 @@ const screens = [
   {
     id: "camera",
     label: "Câmera",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--camera screen--auto" data-auto-next="classification" data-auto-delay="2800">
         ${topbar("Câmera", { back: false })}
         <div class="content-zone content-zone--camera">
@@ -358,12 +358,27 @@ const screens = [
           <span class="simulation-badge">Câmera simulada</span>
         </div>
       </section>
+    ` : `
+      <section class="screen screen--camera ${cameraMode === "simulated" ? "screen--auto" : "screen--real-camera"}" ${cameraMode === "simulated" ? 'data-auto-next="classification" data-auto-delay="2800"' : ""}>
+        ${topbar("Câmera", { back: false })}
+        <div class="content-zone content-zone--camera">
+          ${talk(assets.b1nAnalyze, cameraMode === "simulated" ? "Vou conferir o item por dentro." : "Ative a câmera para conferir o enquadramento.", "big camera-talk character-analyze")}
+          <div class="camera-preview" aria-label="Preview da câmera">
+            <div class="camera-bar"><span>${cameraMode === "simulated" ? "Câmera simulada" : "Webcam do notebook"}</span><strong data-camera-badge>DESLIGADA</strong></div>
+            <div class="camera-frame">
+              ${cameraMode === "simulated" ? '<div class="scan-line"></div><span class="camera-label">Captura simulada</span>' : '<video data-camera-video autoplay muted playsinline hidden aria-label="Preview ao vivo da webcam"></video><canvas data-camera-canvas hidden aria-label="Imagem capturada"></canvas><span class="camera-placeholder" data-camera-placeholder>Câmera desligada</span>'}
+            </div>
+          </div>
+          ${cameraMode === "simulated" ? '<span class="simulation-badge">Câmera simulada</span>' : `<p class="camera-status" data-camera-status role="status" aria-live="polite">A imagem fica nesta sessão e não é armazenada. Microfone desligado.</p><span class="simulation-badge">Porta simulada fechada · ${visionMode === "remote" ? "AWS Rekognition" : "IA simulada"}</span>`}
+        </div>
+        ${cameraMode === "simulated" ? "" : '<div class="action-zone camera-actions"><button class="primary-action" data-camera-action="start">Ativar câmera</button><button class="secondary-action" data-camera-retake hidden>Refazer captura</button><button class="secondary-action" data-return-start>Devolver item</button></div>'}
+      </section>
     `,
   },
   {
     id: "classification",
     label: "Classificação",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--big screen--analysis screen--auto" data-process="classification">
         ${topbar("Análise", { back: false })}
         <div class="content-zone content-zone--big content-zone--analysis">
@@ -372,12 +387,21 @@ const screens = [
           <span class="simulation-badge">Classificador simulado</span>
         </div>
       </section>
+    ` : `
+      <section class="screen screen--big screen--analysis screen--auto" data-process="classification">
+        ${topbar("Análise", { back: false })}
+        <div class="content-zone content-zone--big content-zone--analysis">
+          ${talk(assets.b1nAnalyze, "Estou identificando o eletrônico.", "big character-analyze")}
+          <div class="analysis-progress"><span></span></div>
+          <span class="simulation-badge">${visionMode === "remote" ? "AWS Rekognition" : "Classificador simulado"}</span>
+        </div>
+      </section>
     `,
   },
   {
     id: "secondary-analysis",
     label: "Análise complementar",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--big screen--analysis screen--auto" data-process="secondary">
         ${topbar("Nova análise", { back: false })}
         <div class="content-zone content-zone--big content-zone--analysis">
@@ -386,17 +410,39 @@ const screens = [
           <span class="simulation-badge">Gemini simulado</span>
         </div>
       </section>
+    ` : `
+      <section class="screen screen--big screen--analysis screen--auto" data-process="secondary">
+        ${topbar("Nova análise", { back: false })}
+        <div class="content-zone content-zone--big content-zone--analysis">
+          ${talk(assets.b1nAnalyze, "Vou conferir mais um detalhe antes de continuar.", "big character-analyze")}
+          <div class="analysis-progress analysis-progress--secondary"><span></span></div>
+          <span class="simulation-badge">${visionMode === "remote" ? "Gemini fallback" : "Gemini simulado"}</span>
+        </div>
+      </section>
     `,
   },
   {
     id: "recognized",
     label: "Item reconhecido",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--corner screen--stack-action screen--item-focus screen--recognized">
         ${topbar("Reconhecimento")}
         <div class="content-zone content-zone--item-focus">
           ${talk(assets.b1nCorner, "Encontrei este item. Confira comigo.", "corner")}
           ${itemSummary("Item reconhecido")}
+        </div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-recognition-confirm>Sim, está certo</button>
+          <button class="secondary-action correction-action" data-correction-open>Corrigir</button>
+        </div>
+      </section>
+    ` : `
+      <section class="screen screen--corner screen--stack-action screen--item-focus screen--recognized">
+        ${topbar("Reconhecimento")}
+        <div class="content-zone content-zone--item-focus">
+          ${talk(assets.b1nCorner, "Encontrei este item. Confira comigo.", "corner")}
+          ${itemSummary("Item reconhecido")}
+          <span class="simulation-badge" data-classification-origin>${classificationSourceLabel()}</span>
         </div>
         <div class="action-zone action-zone--stack">
           <button class="primary-action" data-recognition-confirm>Sim, está certo</button>
@@ -517,7 +563,7 @@ const screens = [
   {
     id: "rejected",
     label: "Item recusado",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--corner screen--stack-action screen--critical">
         ${topbar("Item não aceito", { back: false })}
         <div class="content-zone content-zone--corner content-zone--critical">
@@ -525,6 +571,18 @@ const screens = [
           ${statusPanel("Vamos devolver o item", "Nenhum descarte será registrado e nenhum resultado será gerado.", "IA simulada")}
         </div>
         <div class="action-zone"><button class="primary-action" data-return-start>Abrir para retirar</button></div>
+      </section>
+    ` : `
+      <section class="screen screen--corner screen--stack-action screen--critical">
+        ${topbar("Item não aceito", { back: false })}
+        <div class="content-zone content-zone--corner content-zone--critical">
+          ${talk(assets.b1nDoubtCorner, "Não consegui confirmar este eletrônico.", "corner character-doubt")}
+          ${statusPanel("Vamos devolver o item", "Nenhum descarte será registrado e nenhum resultado será gerado.", classificationSourceLabel())}
+        </div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-adjust-retry>Ajustar item e tentar de novo</button>
+          <button class="secondary-action" data-return-start>Devolver item</button>
+        </div>
       </section>
     `,
   },
@@ -627,6 +685,8 @@ let draftRecognizedItem = recognizedItem;
 let visionItem = recognizedItem;
 let visionCandidateIds = ["cable", "small", "phone"];
 let classificationOrigin = "VISION_PRIMARY";
+let cameraMode = "legacy";
+let visionMode = "legacy";
 let demoScenario = "success";
 let demoPanelOpen = false;
 let demoPressTimer = null;
@@ -1411,6 +1471,38 @@ function approvedLoginPin() {
   `;
 }
 
+const visionErrorScreen = {
+    id: "vision-error",
+    label: "Análise indisponível",
+    render: () => `
+      <section class="screen screen--corner screen--stack-action screen--critical">
+        ${topbar("Análise indisponível", { back: false })}
+        <div class="content-zone content-zone--corner content-zone--critical">
+          ${talk(assets.b1nIdeaCorner, "Não consegui consultar os serviços de análise agora.", "corner character-idea")}
+          ${statusPanel("Vamos devolver o item", "Nada foi registrado. Retire o eletrônico e tente novamente mais tarde.", classificationSourceLabel())}
+        </div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-adjust-retry>Ajustar item e tentar de novo</button>
+          <button class="secondary-action" data-return-start>Devolver item</button>
+        </div>
+      </section>
+    `,
+  };
+
+function classificationSourceLabel() {
+  const labels = {
+    AWS_REKOGNITION: "AWS Rekognition",
+    GEMINI_FALLBACK: "Gemini fallback",
+    MANUAL_REVIEW: "Revisão manual",
+    VISION_CASCADE_ERROR: "Serviços de análise indisponíveis",
+    GEMINI_FALLBACK_ERROR: "Gemini indisponível",
+    USER_CORRECTED: "Corrigido pelo usuário",
+    UNIDENTIFIED: "Não identificado",
+  };
+  return labels[classificationOrigin] ?? (visionMode === "remote" ? "Análise remota" : "IA simulada");
+}
+
+
 function renderDevIdentity(view) {
   currentIndex = screens.findIndex(screen => screen.id === view.screen);
   if (currentIndex < 0) throw new Error("Unknown presentation");
@@ -1425,9 +1517,13 @@ function renderDevIdentity(view) {
   keyboardClosing = view.keyboardClosing;
   pinDigits = view.pinLength;
   pinWarning = false;
+  cameraMode = view.vision ? "real" : "legacy";
+  visionMode = view.vision ? "remote" : "legacy";
+  classificationOrigin = view.vision?.decision?.source || view.vision?.observation?.origin || "AWS_REKOGNITION";
+  if (view.screen === 'vision-error') classificationOrigin = view.vision?.error_code?.startsWith('SECONDARY') ? 'GEMINI_FALLBACK_ERROR' : 'VISION_CASCADE_ERROR';
   // Absence of camera/classification uses the existing unknown-item component,
   // never the prototype's default cable or a fabricated classifier result.
-  if (['review', 'correct-item'].includes(view.screen)) {
+  if (['review', 'recognized', 'correct-item'].includes(view.screen)) {
     recognizedItem = itemOptions.find(item => item.id === (view.vision?.decision?.item_id || view.vision?.observation?.itemId || 'unknown'));
     visionCandidateIds = view.vision?.allowed_candidates || [];
     // UNKNOWN is not inferred from an old visual label or browser decision.
@@ -1476,6 +1572,21 @@ function renderDevIdentity(view) {
   bind('[data-item-inserted]', 'inserted');
   bind('[data-hand-confirmed]', 'hand');
   bind('[data-discard-confirm]', 'discard');
+  bind('[data-recognition-confirm]', 'recognition-confirm');
+  fragment.querySelectorAll('[data-recognition-confirm]').forEach(button => { button.disabled = !view.correctionAllowed; });
+  if (view.vision && ['rejected', 'vision-error'].includes(view.screen)) fragment.querySelectorAll('[data-adjust-retry], [data-return-start]').forEach(button => { button.disabled = true; });
+  bind('[data-camera-action]', 'vision-analyze');
+  if (view.screen === 'camera') {
+    fragment.querySelectorAll('[data-camera-retake], [data-return-start]').forEach(button => { button.disabled = true; });
+    const button = fragment.querySelector('[data-camera-action]');
+    button.textContent = view.vision?.image_available ? 'Analisar item' : 'Capturando…';
+    button.disabled = !view.analyzeAllowed;
+    fragment.querySelector('[data-camera-badge]').textContent = view.vision?.image_available ? 'CAPTURADA' : 'DESLIGADA';
+    fragment.querySelector('[data-camera-status]').textContent = view.vision?.image_available ? 'Imagem capturada nesta sessão. Selecione Analisar item para continuar.' : 'Capturando a imagem nesta sessão…';
+    fragment.querySelector('[data-camera-retake]').hidden = !view.vision?.image_available;
+    fragment.querySelector('[data-camera-canvas]').hidden = !view.vision?.image_available;
+    fragment.querySelector('[data-camera-placeholder]').hidden = !!view.vision?.image_available;
+  }
   bind('[data-correction-open]', 'correction');
   bind('[data-apply-correction]', 'apply-correction');
   fragment.querySelectorAll('[data-correct-item]').forEach(node => { node.dataset.devOp = 'correct-item'; node.dataset.value = node.dataset.correctItem; });
@@ -1592,6 +1703,7 @@ if (new URLSearchParams(window.location.search).get("runtime") === "demo") {
   render();
 } else {
   // Parâmetros de revisão e timers do protótipo não participam do modo operacional.
+  screens.push(visionErrorScreen);
   window.BinGoOperational.start(kiosk, { assets, talk, topbar, keyboardRows, normalize, renderIdentity: renderDevIdentity });
 }
 document.addEventListener("dragstart", (event) => {

@@ -55,6 +55,36 @@ class VisionReview(StrictRequest):
     action: str = Field(pattern=r"^(confirm|correct)$")
 
 
+class VisionAnalyze(StrictRequest):
+    capture_id: UUID
+
+
+@router.post("/sessions/{event_id}/vision-analyze", response_model=SimulationSnapshot)
+async def vision_analyze(event_id: UUID, body: VisionAnalyze, flow: Service):
+    if flow.vision is None:
+        raise CycleError("VISION_NOT_INTEGRATED", 503)
+    flow.vision.request_analysis(event_id, body.capture_id)
+    return flow.get(event_id)
+
+
+@router.get("/sessions/{event_id}/vision-image/{capture_id}")
+def vision_image(event_id: UUID, capture_id: UUID, request: Request, flow: Service):
+    if request.headers.get("X-Totem-Request") != "1":
+        raise CycleError("LOCAL_ORIGIN_REQUIRED", 403)
+    if flow.vision is None:
+        raise CycleError("VISION_NOT_INTEGRATED", 503)
+    frame = flow.vision.image(event_id, capture_id)
+    return Response(
+        frame.content,
+        media_type=frame.media_type,
+        headers={
+            "Cache-Control": "no-store",
+            "X-Capture-Id": str(capture_id),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.post("/sessions/{event_id}/vision-review", response_model=SimulationSnapshot)
 def vision_review(event_id: UUID, body: VisionReview, flow: Service):
     if flow.vision is None:

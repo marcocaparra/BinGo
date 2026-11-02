@@ -9,6 +9,9 @@ from pathlib import Path
 import threading
 from unittest.mock import Mock
 
+import boto3
+from botocore.client import BaseClient
+from botocore.stub import Stubber
 from fastapi.testclient import TestClient
 import httpx2 as httpx
 from PIL import Image
@@ -271,8 +274,6 @@ async def test_empty_labels_are_inconclusive(frame, monkeypatch):
 
 def test_aws_call_preserves_limits_and_explicit_credentials(frame, monkeypatch):
     client = Mock()
-    client.__enter__ = Mock(return_value=client)
-    client.__exit__ = Mock(return_value=False)
     factory = Mock(return_value=client)
     monkeypatch.setattr("app.services.vision.boto3.client", factory)
     provider = RekognitionProvider(
@@ -287,6 +288,72 @@ def test_aws_call_preserves_limits_and_explicit_credentials(frame, monkeypatch):
     client.detect_labels.assert_called_once_with(
         Image={"Bytes": frame.content}, MaxLabels=20, MinConfidence=55
     )
+    client.close.assert_called_once_with()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("provider_error", [False, True], ids=["success", "error"])
+async def test_real_sdk_client_is_closed_without_network(
+    frame, monkeypatch, tmp_path, provider_error
+):
+    # Explicit synthetic credentials and absent config paths prevent access to
+    # personal AWS profiles/credentials. The suite also denies external sockets.
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "absent-config"))
+    monkeypatch.setenv(
+        "AWS_SHARED_CREDENTIALS_FILE", str(tmp_path / "absent-credentials")
+    )
+    session = boto3.session.Session()
+    created = []
+
+    def factory(*args, **kwargs):
+        client = session.client(*args, **kwargs)  # Real SDK construction, not Mock.
+        assert isinstance(client, BaseClient)
+        assert not hasattr(client, "__enter__")
+        stubber = Stubber(client)
+        parameters = dict(
+            Image={"Bytes": frame.content}, MaxLabels=20, MinConfidence=55
+        )
+        if provider_error:
+            stubber.add_client_error(
+                "detect_labels",
+                service_error_code="AccessDeniedException",
+                service_message="private provider diagnostic",
+                http_status_code=400,
+                expected_params=parameters,
+            )
+        else:
+            stubber.add_response(
+                "detect_labels",
+                {"Labels": [{"Name": "Cable", "Confidence": 95.0}]},
+                parameters,
+            )
+        stubber.activate()
+        close = Mock(wraps=client.close)
+        monkeypatch.setattr(client, "close", close)
+        created.append((client, stubber, close))
+        return client
+
+    monkeypatch.setattr("app.services.vision.boto3.client", factory)
+    provider = RekognitionProvider(
+        VisionSettings(aws_key="synthetic-test-key", aws_secret="synthetic-test-secret")
+    )
+    try:
+        if provider_error:
+            with pytest.raises(VisionError, match="^PRIMARY_UNAVAILABLE$") as error:
+                await provider.analyze(frame, [])
+            assert "private provider diagnostic" not in str(error.value)
+        else:
+            response = await provider.analyze(frame, [])
+            assert response["status"] == "recognized" and response["itemId"] == "cable"
+        assert len(created) == 1
+        client, stubber, close = created[0]
+        close.assert_called_once_with()
+        stubber.assert_no_pending_responses()
+    finally:
+        for client, stubber, close in created:
+            stubber.deactivate()
+            if not close.called:
+                client.close()
 
 
 @pytest.mark.anyio

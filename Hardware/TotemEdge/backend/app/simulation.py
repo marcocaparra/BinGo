@@ -51,7 +51,12 @@ def reject_simulation_in_operational(sqlite_path: Path):
     if any(
         (parent / marker).exists()
         for parent in sqlite_path.resolve().parents
-        for marker in (MARKER, ".bingo-dev-integration-only", ".bingo-vision-lab-only")
+        for marker in (
+            MARKER,
+            ".bingo-dev-integration-only",
+            ".bingo-vision-lab-only",
+            ".bingo-vision-dev-only",
+        )
     ):
         raise SimulationConfigurationError()
 

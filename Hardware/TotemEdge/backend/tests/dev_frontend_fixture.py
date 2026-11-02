@@ -131,7 +131,7 @@ def main():
             transport=httpx.ASGITransport(app=broker),
         )
     if args.vision:
-        from app.vision_lab import create_vision_lab_app
+        from app.vision_lab import create_vision_dev_app
         from app.services.vision import InternalVision, VisionError
         from app.services.vision_policy import classify_labels
         from app.services.camera import device
@@ -222,6 +222,8 @@ def main():
             async def analyze(self, frame, candidates):
                 stats["secondary"] += 1
                 save()
+                while controls().get("hold_secondary"):
+                    await asyncio.sleep(0.05)
                 return dict(
                     status="recognized",
                     itemId="battery",
@@ -231,8 +233,10 @@ def main():
                 )
 
         save()
-        app = create_vision_lab_app(
+        app = create_vision_dev_app(
             data_directory=data,
+            policy_path=policy,
+            transport=httpx.MockTransport(remote),
             camera_transport=httpx.MockTransport(camera),
             vision=InternalVision(Primary(), Secondary()),
         )

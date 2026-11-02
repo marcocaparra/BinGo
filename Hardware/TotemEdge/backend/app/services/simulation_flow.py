@@ -105,6 +105,16 @@ class SimulationFlow:
         vision = self.vision.snapshot(conn, event_id) if self.vision else None
         if self.vision:
             actions = [a for a in actions if a != "review-fixture"]
+            if (
+                row["state"] == "CAPTURING"
+                and vision
+                and vision["image_available"]
+                and all(
+                    entry.phase == "COMPLETED" and entry.result == "SUCCEEDED"
+                    for entry in entries
+                )
+            ):
+                actions = ["vision-analyze"]
             if row["state"] == "REVIEW":
                 actions = [a for a in actions if a != "hatch"]
                 if (

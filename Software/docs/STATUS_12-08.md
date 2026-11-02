@@ -1,5 +1,19 @@
 STATUS técnico — BinGo
 
+Ajuste funcional 3C.3.1 — 02/11/2026: restauradas as composições originais da
+equipe para foto, análise principal/secundária, reconhecimento, correção e falhas.
+Não há vídeo: fechamento durável captura uma foto; Analisar item envia os mesmos
+pixels à IA, uma única vez. A confirmação/correção persistida permite continuar
+pelo hatch/retorno simulado até COMPLETED, sem recibo ou pontos. O novo perfil
+vision-dev reutiliza o broker somente leitura 3C.2.1 para os cadastros DEV reais
+autorizados pelo operador, sem fallback sintético, em projeto/volume separados.
+Roteiro em Hardware/TotemEdge/deploy/VISION_LAB.md. Recaptura e devolução continuam
+indisponíveis, aguardando contratos seguros; não se apagam sessões bloqueadas.
+O operador relatou câmera/AWS reais funcionais no vision-lab anterior; a composição
+com identidade hospedada, Gemini real e Orange Pi não foram homologados aqui.
+Os resultados FULL abaixo pertencem à rodada anterior; esta correção usa testes
+focados e comparação visual, discriminados em deploy/TESTING.md.
+
 Nota TotemEdge 3C.3.1 — 01/11/2026: integração de CaptureService/CameraManager
 com InternalVision e revisão persistida em laboratório Windows/Docker separado,
 com mecânica/identidade sintéticas e provedores reais somente mediante opt-in.

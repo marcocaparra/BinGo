@@ -40,6 +40,7 @@ def lab(monkeypatch, tmp_path):
         data_directory=data,
         camera_transport=httpx.ASGITransport(app=host),
         vision=InternalVision(primary, None),
+        deferred_analysis=False,
     )
     with TestClient(app, base_url="http://127.0.0.1") as client:
         client.app.state.controller._plans = {

@@ -1,5 +1,38 @@
 # Visão por sessão — 3C.3.1
 
+## Ajuste funcional — foto confirmada e identidade DEV
+
+Decisão posterior do operador: foto única, sem vídeo. Após fechamento confirmado,
+o backend captura e libera a câmera; a foto permanece somente em RAM, no máximo
+5 MiB. O canvas original mostra essa mesma imagem. Analisar item solicita a IA
+explicitamente; GET/refresh nunca capturam ou classificam. O modo automático
+anterior permanece somente como compatibilidade interna de testes.
+
+Extensões locais necessárias para ligar os controles existentes:
+- GET S/{event_id}/vision-image/{capture_id}: JPEG privado em memória, sem cache;
+  exige X-Totem-Request: 1 e as guardas locais de origem. Não abre câmera.
+- POST S/{event_id}/vision-analyze: {capture_id: UUID}; reserva CLASSIFYING antes
+  de despachar. Replay recupera o resultado/intenção, sem outra IA ou foto.
+S é /local/simulation/sessions. CAPTURING com provenance.capture_ready=true
+permite vision-analyze em allowed_actions; não cria outro estado mecânico.
+Reinício sem a foto em RAM permanece falha técnica segura, sem recaptura.
+
+O perfil separado vision-dev reutiliza DevPolicy, FunctionTransport e
+DevCentralClient do 3C.2.1, com somente health/context/student-pin pelo broker
+existente. Não possui fallback para alunos sintéticos. A simulação mecânica,
+physical_confirmed=0, receipt=null e a proibição de registro econômico continuam.
+As credenciais IA continuam em arquivo privado; a chave Supabase só fica no broker.
+
+Os templates camera/recognized/classification/secondary-analysis são restaurados
+da referência da equipe. A foto capturada usa o canvas existente, nunca vídeo ao
+vivo. Confirmar reconhecimento/correção persiste a decisão e libera revisão final.
+Refazer captura, ajustar/tentar novamente e devolver item ficam desabilitados:
+faltam contratos seguros de nova intenção e devolução. Não se reutilizam esses
+controles para apagar sessão, reabrir porta ou executar alçapão.
+Pontos/recibo continuam pendentes da integração econômica, sem tela de recompensa.
+
+As seções seguintes registram a entrega anterior; esta seção atualiza a ligação UX.
+
 Extensão local do contrato VISION_INTERNAL_V1, sem contrato econômico novo.
 Somente a fábrica opt-in `app.vision_lab:create_vision_lab_app` compõe câmera,
 InternalVision e controlador SIMULATED. O runtime operacional e o DEV hospedado

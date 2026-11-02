@@ -16,7 +16,7 @@ async function main(scenario = 'recognized') {
   assert.equal(path.dirname(root), path.resolve(os.tmpdir()));
   const output = path.join(frontend, '.validation'); fs.mkdirSync(output, { recursive: true });
   const control = data => fs.writeFileSync(path.join(root, 'control.json'), JSON.stringify(data));
-  const outcome = scenario === 'rejected' ? { reject: true } : scenario === 'failure' ? { vision_failure: true } : {};
+  const outcome = scenario === 'rejected' ? { reject: true } : scenario === 'failure' ? { vision_failure: true } : scenario === 'fallback' ? { fallback: true } : {};
   control({ hold_capture: true, ...outcome });
   const reserve = http.createServer(); await new Promise(resolve => reserve.listen(0, '127.0.0.1', resolve));
   const port = reserve.address().port; await new Promise(resolve => reserve.close(resolve));
@@ -36,12 +36,16 @@ async function main(scenario = 'recognized') {
     server = spawn(python, ['-B', 'tests/dev_frontend_fixture.py', '--root', root, '--port', String(port), '--vision'], { cwd: backend, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     closed = new Promise(resolve => server.once('close', () => { stopped = true; resolve(); }));
     server.stdout.on('data', b => { logs += b; }); server.stderr.on('data', b => { logs += b; });
-    let ready = false;
+    let ready = false, lastProbe;
     for (let i = 0; i < 80; i++) {
-      try { ready = (await fetch(origin + '/health')).ok; } catch {}
+      try {
+        const response = await fetch(origin + '/health', { headers: { Connection: 'close' }, cache: 'no-store' });
+        lastProbe = { status: response.status, body: await response.json() };
+        ready = response.ok && lastProbe.body.status === 'ok';
+      } catch (error) { lastProbe = { error: error.cause?.code || error.name }; }
       if (ready || stopped) break; await pause(100);
     }
-    assert.ok(ready, 'Owned synthetic fixture ready');
+    assert.ok(ready, 'Owned synthetic fixture ready: ' + JSON.stringify(lastProbe));
     browser = await chromium.launch({ ...launchOptions, args: [...(launchOptions.args || []), '--disable-gpu', '--force-color-profile=srgb', '--force-device-scale-factor=1', '--run-all-compositor-stages-before-draw', '--disable-threaded-animation', '--disable-partial-raster'] });
     const context = await browser.newContext({ viewport: { width: 600, height: 1024 }, deviceScaleFactor: 1 });
     const page = await context.newPage();
@@ -68,22 +72,37 @@ async function main(scenario = 'recognized') {
     await click('inserted');
     await page.evaluate(() => { document.querySelector('[data-dev-op="hand"]').click(); document.querySelector('[data-dev-op="hand"]')?.click(); });
     await waitState('CAPTURING');
-    await visual.compare(page, 'door-progress', { name: scenario === 'recognized' ? 'vision-capturing' : `vision-${scenario}-capturing` });
+    assert.equal(stats().primary, 0);
     const beforeReload = requests.filter(r => r.method === 'POST').length;
     await page.reload(); await waitState('CAPTURING');
     assert.equal(requests.filter(r => r.method === 'POST').length, beforeReload);
     assert.equal(stats().camera.length, 1);
     pass('Fechamento durável, clique duplo e refresh durante captura: uma única intenção');
-    if (scenario !== 'recognized') {
+    control({ ...outcome, hold_classification: true, hold_secondary: scenario === 'fallback' });
+    await page.reload(); await waitState('CAPTURING');
+    for (let i = 0; i < 100 && !await page.locator('[data-camera-canvas][data-loaded="true"]').count(); i++) { await page.clock.runFor(550); await pause(50); }
+    await page.locator('[data-camera-canvas][data-loaded="true"]').waitFor();
+    const pending = await active();
+    const photoUrl = `${origin}/local/simulation/sessions/${pending.session.event_id}/vision-image/${pending.vision.capture_id}`;
+    const jpeg = await fetch(photoUrl, { headers: { 'X-Totem-Request': '1' } });
+    assert.ok(jpeg.ok);
+    const cameraPhoto = 'data:image/jpeg;base64,' + Buffer.from(await jpeg.arrayBuffer()).toString('base64');
+    if (scenario === 'recognized') await visual.compare(page, 'camera', { name: 'vision-photo', visionRemote: true, cameraPhoto });
+    assert.equal(stats().primary, 0, 'Rendering/refresh/photo GET never classify');
+    assert.equal(stats().camera.length, 1);
+    assert.equal(await page.locator('[data-camera-video]').evaluate(video => video.srcObject), null);
+    assert.ok(await page.locator('[data-camera-retake]').isDisabled());
+    await page.evaluate(() => { document.querySelector('[data-dev-op="vision-analyze"]').click(); document.querySelector('[data-dev-op="vision-analyze"]')?.click(); });
+    if (!['recognized', 'fallback'].includes(scenario)) {
       control(outcome);
       const state = scenario === 'rejected' ? 'RETURN_REQUIRED' : 'TECHNICAL_FAILURE';
       await waitState(state);
-      await visual.compare(page, 'teacher', { name: `vision-${scenario}` });
+      await visual.compare(page, scenario === 'rejected' ? 'rejected' : 'vision-error', { name: `vision-${scenario}`, visionRemote: true, origin: scenario === 'rejected' ? 'AWS_REKOGNITION' : 'VISION_CASCADE_ERROR', disableReturn: true });
       const snap = await active();
       assert.deepEqual(snap.allowed_actions, []); assert.equal(snap.session.receipt, null);
       assert.equal(stats().primary, 1); assert.equal(stats().secondary, 0);
       const posts = requests.filter(r => r.method === 'POST').length;
-      await page.reload(); await waitState(state); await click('refresh'); await waitState(state);
+      await page.reload(); await waitState(state);
       assert.equal(requests.filter(r => r.method === 'POST').length, posts);
       assert.equal(stats().camera.length, 1); assert.equal(stats().primary, 1);
       assert.ok(requests.every(r => !/hatch|vision-review|register|deposit/.test(r.path)));
@@ -91,15 +110,23 @@ async function main(scenario = 'recognized') {
       assert.ok(visual.results.every(r => r.passed), 'Negative flow approved UI regression');
       pass(`${state}: orientação existente, GET sem efeitos e nenhum alçapão/fallback operacional`);
     } else {
-    control({ hold_classification: true }); await waitState('CLASSIFYING');
+    await waitState('CLASSIFYING');
     // The UI clock is paused: keep its genuine CLASSIFYING snapshot for the
     // comparison, but release the provider before its unchanged 10s deadline.
-    control({});
-    await visual.compare(page, 'door-progress', { name: 'vision-classifying' });
-    control({}); await waitState('REVIEW');
+    control({ ...outcome, hold_secondary: scenario === 'fallback' });
+    if (scenario === 'fallback') {
+      for (let i = 0; i < 30 && !await page.locator('.analysis-progress--secondary').count(); i++) { await page.clock.runFor(550); await pause(50); }
+      control(outcome);
+      await visual.compare(page, 'secondary-analysis', { name: 'vision-secondary', visionRemote: true });
+    } else await visual.compare(page, 'classification', { name: 'vision-classifying', visionRemote: true });
+    control(outcome); await waitState('REVIEW');
     const event = (await active()).session.event_id;
-    await visual.compare(page, 'review', { name: 'vision-suggestion', itemId: 'cable' });
-    assert.equal(stats().jpeg_delivered, true); assert.equal(stats().primary, 1); assert.equal(stats().secondary, 0);
+    await visual.compare(page, 'recognized', { name: scenario === 'fallback' ? 'vision-fallback-result' : 'vision-suggestion', visionRemote: true, origin: scenario === 'fallback' ? 'GEMINI_FALLBACK' : 'AWS_REKOGNITION', itemId: scenario === 'fallback' ? 'battery' : 'cable' });
+    assert.equal(stats().jpeg_delivered, true); assert.equal(stats().primary, 1); assert.equal(stats().secondary, scenario === 'fallback' ? 1 : 0);
+    if (scenario === 'fallback') {
+      await click('recognition-confirm'); await page.locator('.screen--review').waitFor();
+      assert.equal((await active()).vision.decision.source, 'AI_CONFIRMED');
+    } else {
     await click('correction');
     await visual.compare(page, 'correct-item', { name: 'vision-candidates', itemId: 'cable', candidateIds: ['cable', 'battery', 'unknown'], draftItemId: 'cable' });
     assert.equal(await page.locator('[data-dev-op="correct-item"]').count(), 3);
@@ -112,6 +139,7 @@ async function main(scenario = 'recognized') {
     await visual.compare(page, 'review', { name: 'vision-corrected', itemId: 'battery', disableCorrection: true });
     assert.equal(stats().camera.length, 1); assert.equal(stats().primary, 1);
     pass('Candidatos contratados, correção persistida, resposta perdida e refresh sem reclassificação');
+    }
     // A decision cannot be changed by a replay, and no economic route is mounted.
     const bad = await fetch(`${origin}/local/simulation/sessions/${event}/vision-review`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Totem-Request': '1' }, body: JSON.stringify({ capture_id: (await active()).vision.capture_id, item_id: 'cable', action: 'confirm' }) });
     assert.equal(bad.status, 409);
@@ -121,9 +149,22 @@ async function main(scenario = 'recognized') {
     assert.ok(storage.every(([k, v]) => /^[a-f0-9-]{36}$/i.test(v)));
     assert.ok(requests.every(r => !/register|deposit|hatch|confirm-initial/.test(r.path)));
     assert.deepEqual(errors, []);
-    assert.equal(visual.results.length, 5);
+    assert.equal(visual.results.length, scenario === 'fallback' ? 2 : 5);
     assert.ok(visual.results.every(r => r.passed), 'Strict approved UI regression');
     pass('Sem descarte econômico, alçapão, segredos ou alteração da referência visual');
+    await click('discard'); await pin(); await waitState('COMPLETED');
+    const completed = await active();
+    assert.equal(completed, null, 'Completed session releases only the active slot');
+    const saved = await request(`/local/simulation/sessions/${event}`);
+    assert.equal(saved.session.state, 'COMPLETED'); assert.equal(saved.session.receipt, null);
+    assert.equal(saved.commands.length, 4);
+    assert.ok(saved.commands.every(c => c.phase === 'COMPLETED' && c.result === 'SUCCEEDED' && c.source === 'SIMULATED'));
+    const completedPosts = requests.filter(r => r.method === 'POST').length;
+    await page.reload(); await waitState('COMPLETED');
+    assert.equal(requests.filter(r => r.method === 'POST').length, completedPosts);
+    assert.equal(stats().camera.length, 1); assert.equal(stats().primary, 1);
+    assert.ok(requests.every(r => !/register|deposit/.test(r.path)));
+    pass('Item aceito: hatch e retorno simulados no journal, COMPLETED recuperável, sem prêmio');
     }
   } finally {
     if (visual) { visualChecks.push(...visual.results); await visual.close(); }
@@ -137,6 +178,7 @@ async function main(scenario = 'recognized') {
     if (stopped) fs.rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
     report = { source: 'SYNTHETIC_VISION', scenario, hosted: false, results, visual_checks: visualChecks, errors, requests, temporary_removed: !fs.existsSync(root) };
     fs.writeFileSync(path.join(output, 'vision-session-browser.json'), JSON.stringify(report, null, 2));
+    fs.writeFileSync(path.join(output, `vision-session-browser-${scenario}.json`), JSON.stringify(report, null, 2));
     assert.ok(report.temporary_removed, 'Owned fixture cleanup');
     console.log(JSON.stringify({ checks: results.length, visual_checks: visualChecks.length, temporary_removed: report.temporary_removed }));
   }
@@ -144,7 +186,10 @@ async function main(scenario = 'recognized') {
 }
 (async () => {
   const reports = [];
-  for (const scenario of ['recognized', 'rejected', 'failure']) reports.push(await main(scenario));
+  const supported = ['recognized', 'rejected', 'failure', 'fallback'];
+  const selected = process.argv.slice(2);
+  assert.ok(selected.every(scenario => supported.includes(scenario)), 'Unknown vision scenario');
+  for (const scenario of selected.length ? selected : supported) reports.push(await main(scenario));
   const report = { source: 'SYNTHETIC_VISION', hosted: false, results: reports.flatMap(r => r.results), visual_checks: reports.flatMap(r => r.visual_checks), errors: reports.flatMap(r => r.errors), requests: reports.flatMap(r => r.requests), temporary_removed: reports.every(r => r.temporary_removed) };
   fs.writeFileSync(path.join(frontend, '.validation/vision-session-browser.json'), JSON.stringify(report, null, 2));
 })().catch(error => { console.error(error); process.exitCode = 1; });

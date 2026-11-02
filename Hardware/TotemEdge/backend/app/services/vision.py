@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+from contextlib import closing
 from dataclasses import dataclass, field
 from io import BytesIO
 import json
@@ -151,7 +152,7 @@ class RekognitionProvider:
 
     def _detect(self, content):
         # Credenciais explícitas: sem descoberta IMDS/perfil/rede no startup.
-        with boto3.client(
+        client = boto3.client(
             "rekognition",
             region_name=self.settings.region,
             aws_access_key_id=self.settings.aws_key,
@@ -165,7 +166,8 @@ class RekognitionProvider:
                 ignore_configured_endpoint_urls=True,
                 max_pool_connections=1,
             ),
-        ) as client:
+        )
+        with closing(client):
             return client.detect_labels(
                 Image={"Bytes": content}, MaxLabels=20, MinConfidence=55
             )

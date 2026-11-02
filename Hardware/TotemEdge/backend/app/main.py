@@ -123,6 +123,9 @@ def create_app(
                                 application.state.capture,
                                 mechanical,
                                 model=_simulation.vision_settings.model,
+                                deferred_analysis=bool(
+                                    getattr(_simulation, "deferred_analysis", False)
+                                ),
                             )
                             application.state.simulation_flow.vision = session_vision
                             session_vision.recover_unstarted()

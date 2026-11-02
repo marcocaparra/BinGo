@@ -3,6 +3,37 @@ const assert = require('node:assert/strict');
 const { DevApi } = require('../local_api.js');
 const { schoolLabels } = require('../local_api.js');
 
+test('Foto local privada exige JPEG correlacionado e não dispara análise', async () => {
+  const id = '00000000-0000-4000-8000-000000000090';
+  const headers = { 'Content-Type': 'image/jpeg', 'X-Capture-Id': id };
+  const api = new DevApi(async (url, options) => {
+    assert.equal(url, `/local/simulation/sessions/${event}/vision-image/${id}`);
+    assert.equal(options.body, undefined); assert.equal(options.cache, 'no-store');
+    assert.equal(options.credentials, 'same-origin'); assert.equal(options.headers['X-Totem-Request'], '1');
+    assert.ok(options.signal instanceof AbortSignal);
+    return new Response(new Uint8Array([255, 216, 255, 217]), { headers });
+  });
+  assert.equal((await api.photo(event, id)).size, 4);
+  for (const bad of [{ ...headers, 'Content-Type': 'text/plain' }, { ...headers, 'X-Capture-Id': machine }]) {
+    await assert.rejects(() => new DevApi(async () => new Response('x', { headers: bad })).photo(event, id), e => e.code === 'INVALID_RESPONSE');
+  }
+  await assert.rejects(() => new DevApi(async () => new Response('', { headers })).photo(event, id), e => e.code === 'INVALID_RESPONSE');
+  await assert.rejects(() => new DevApi(async () => { throw Object.assign(new Error(), { name: 'AbortError' }); }).photo(event, id), e => e.code === 'LOCAL_TIMEOUT');
+});
+
+test('Análise explícita preserva os identificadores da sessão e da foto', async () => {
+  const id = '00000000-0000-4000-8000-000000000090';
+  const entry = { source: 'SIMULATED', phase: 'COMPLETED', result: 'SUCCEEDED', command: { event_id: event, mechanical_command_id: id, operation: 'CLOSE_INSERTION_DOOR' } };
+  const value = { ...bound, commands: [entry], session: { ...bound.session, state: 'CLASSIFYING' }, allowed_actions: [], vision: { event_id: event, capture_id: id, close_command_id: id, phase: 'CLASSIFYING', observation: null, decision: null, allowed_candidates: [], image_available: false } };
+  const api = new DevApi(async (url, options) => {
+    assert.equal(url, `/local/simulation/sessions/${event}/vision-analyze`);
+    assert.deepEqual(JSON.parse(options.body), { capture_id: id });
+    return response(value);
+  });
+  assert.deepEqual(await api.visionAnalyze(event, id), value);
+  await assert.rejects(() => api.visionAnalyze('invalid', id), e => e.code === 'INVALID_ID');
+});
+
 test('Revisão de visão usa somente API local, IDs correlacionados e decisão durável', async () => {
   const id = '00000000-0000-4000-8000-000000000090';
   const entry = { source: 'SIMULATED', phase: 'COMPLETED', result: 'SUCCEEDED', command: { event_id: event, mechanical_command_id: id, operation: 'CLOSE_INSERTION_DOOR' } };
