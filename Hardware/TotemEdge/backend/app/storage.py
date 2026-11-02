@@ -18,7 +18,12 @@ from app.cycles import (
     TRANSITIONS,
 )
 from app.mechanical_journal import MechanicalJournal, SCHEMA as MECHANICAL_SCHEMA
-from app.vision_journal import SCHEMA as VISION_SCHEMA, RETRY_SCHEMA, RECAPTURE_SCHEMA, prepare_capture_history
+from app.vision_journal import (
+    SCHEMA as VISION_SCHEMA,
+    RETRY_SCHEMA,
+    RECAPTURE_SCHEMA,
+    prepare_capture_history,
+)
 
 
 def now() -> str:
@@ -292,7 +297,10 @@ class CycleStore:
                         code="RESTART_BEFORE_PHYSICAL",
                         updates={"active_slot": None},
                     )
-                elif state == "HATCH_IN_PROGRESS" and self._ready_payload(row) is not None:
+                elif (
+                    state == "HATCH_IN_PROGRESS"
+                    and self._ready_payload(row) is not None
+                ):
                     # Queda já confirmada duravelmente pelo futuro adaptador físico.
                     # Não reenviar movimento; recuperar somente o registro central.
                     self._record(
@@ -536,7 +544,10 @@ class CycleStore:
             ):
                 raise CycleError("MISSING_PHYSICAL_EVIDENCE", 503)
             if row["state"] in {
-                "REGISTRATION_PENDING", "REGISTERING", "REGISTERED", "COMPLETED"
+                "REGISTRATION_PENDING",
+                "REGISTERING",
+                "REGISTERED",
+                "COMPLETED",
             }:
                 return self._snapshot(row)
             if row["state"] != "HATCH_IN_PROGRESS" or row["active_slot"] != 1:
@@ -666,7 +677,7 @@ class CycleStore:
                     code="SIMULATED_MECHANICAL_COMPLETION",
                     updates={"active_slot": None} if after == "COMPLETED" else None,
                 )
-                if after == 'COMPLETED' and getattr(self, 'dev_economy', None):
+                if after == "COMPLETED" and getattr(self, "dev_economy", None):
                     self.dev_economy.queue(conn, entry.command.event_id)
         elif entry.phase == "REJECTED":
             if before != moving:
@@ -696,7 +707,15 @@ class CycleStore:
         if self.mechanical.has_risk(conn, event_id):
             self.mechanical._block_cycle(conn, event_id)
             return
-        if row['state'] == 'COMPLETED' and conn.execute("SELECT 1 FROM sqlite_master WHERE name='dev_economic_outbox'").fetchone() and conn.execute("SELECT 1 FROM dev_economic_outbox WHERE event_id=?",(event_id,)).fetchone():
+        if (
+            row["state"] == "COMPLETED"
+            and conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='dev_economic_outbox'"
+            ).fetchone()
+            and conn.execute(
+                "SELECT 1 FROM dev_economic_outbox WHERE event_id=?", (event_id,)
+            ).fetchone()
+        ):
             return
         if (
             row["state"] in {"TECHNICAL_FAILURE", "RETURN_REQUIRED"}

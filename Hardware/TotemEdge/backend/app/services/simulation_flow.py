@@ -156,10 +156,17 @@ class SimulationFlow:
             # Ações de recaptura são autorizadas pelo mesmo journal da sessão.
             session=self.store._snapshot(row),
             commands=entries,
-            allowed_actions=actions + (['vision-recapture'] if self.vision and self.vision.can_recapture(conn,row,vision) else []),
+            allowed_actions=actions
+            + (
+                ["vision-recapture"]
+                if self.vision and self.vision.can_recapture(conn, row, vision)
+                else []
+            ),
             identity=identity,
             vision=vision,
-            economy=self.store.dev_economy.snapshot(conn,event_id) if getattr(self.store,'dev_economy',None) else None,
+            economy=self.store.dev_economy.snapshot(conn, event_id)
+            if getattr(self.store, "dev_economy", None)
+            else None,
         )
 
     def get(self, event_id) -> SimulationSnapshot:

@@ -42,7 +42,10 @@ async def available(request):
 @router.get("/health")
 async def health(request: Request):
     await available(request)
-    enabled = getattr(request.app.state.simulation_flow.store, 'dev_economy', None) is not None
+    enabled = (
+        getattr(request.app.state.simulation_flow.store, "dev_economy", None)
+        is not None
+    )
     return {
         "central": "AVAILABLE",
         "scope": "SUPABASE_DEV_ECONOMIC" if enabled else "SUPABASE_DEV_READ_ONLY",

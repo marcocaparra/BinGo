@@ -57,7 +57,10 @@ async def test_jpeg_to_existing_cascade_and_immutable_review_restart(tmp_path):
         assert observed["provenance"]["camera"] == "DEVICE"
         assert observed["provenance"]["mechanical"] == "SIMULATED"
         assert observed["provenance"]["inference"] == "SIMULATED"
-        assert rig.flow.get(event).allowed_actions == ["vision-review", "vision-recapture"]
+        assert rig.flow.get(event).allowed_actions == [
+            "vision-review",
+            "vision-recapture",
+        ]
         for _ in range(3):
             assert await workflow.analyze(event, command) == observed
         assert driver.calls == driver.released == len(primary.calls) == 1

@@ -167,7 +167,9 @@ class VisionDevSettings(VisionLabSettings):
     marker_content = "BinGo vision DEV read-only identity simulated mechanics v1\n"
 
     def build_transport(self, transport=None):
-        return FunctionTransport(inner=transport, economic_registration=self.policy.economic_registration)
+        return FunctionTransport(
+            inner=transport, economic_registration=self.policy.economic_registration
+        )
 
 
 def create_vision_dev_app(

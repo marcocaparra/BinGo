@@ -65,11 +65,11 @@ class VisionRecapture(StrictRequest):
     recapture_id: UUID
 
 
-@router.post('/sessions/{event_id}/vision-recapture', response_model=SimulationSnapshot)
+@router.post("/sessions/{event_id}/vision-recapture", response_model=SimulationSnapshot)
 async def vision_recapture(event_id: UUID, body: VisionRecapture, flow: Service):
     if flow.vision is None:
-        raise CycleError('VISION_NOT_INTEGRATED',503)
-    flow.vision.recapture(event_id,body.capture_id,body.recapture_id)
+        raise CycleError("VISION_NOT_INTEGRATED", 503)
+    flow.vision.recapture(event_id, body.capture_id, body.recapture_id)
     return flow.get(event_id)
 
 
