@@ -3995,3 +3995,87 @@ p {
   text-align: center;
   pointer-events: none;
 }
+
+/* Identification labels from the approved Software/apps/totem_ui design. */
+.student-button-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+.student-button-label strong {
+  overflow-wrap: anywhere;
+}
+
+.screen--real-camera {
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr) auto;
+}
+
+.screen--real-camera .content-zone--camera {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  padding: 8px 2px 12px;
+}
+
+.screen--real-camera .content-zone--camera > * {
+  flex-shrink: 0;
+}
+
+.screen--real-camera .camera-talk .guide-bubble {
+  height: auto;
+  transform: none;
+}
+
+.screen--real-camera .camera-frame {
+  height: auto;
+  aspect-ratio: 4 / 3;
+  background: #e9f9ff;
+}
+
+.screen--real-camera .camera-frame video,
+.screen--real-camera .camera-frame canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: absolute;
+  inset: 0;
+}
+
+.camera-placeholder {
+  padding: 16px;
+  color: var(--navy, #102346);
+  font: 600 14px "Sora", sans-serif;
+  text-align: center;
+}
+
+.camera-status {
+  margin: 0;
+  color: var(--navy, #102346);
+  font: 500 13px/1.5 "Sora", sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.camera-actions {
+  min-height: 0;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.camera-actions button {
+  min-height: 48px;
+  height: auto;
+  padding: 10px 12px;
+  font-size: 16px;
+  white-space: normal;
+}
+
+.screen--real-camera [hidden] {
+  display: none !important;
+}

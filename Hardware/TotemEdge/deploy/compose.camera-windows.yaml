@@ -1,0 +1,21 @@
+# Explicit operator overlay, separate project/SQLite from persistent DEV.
+# docker compose -p bingo-camera-lab -f compose.yaml -f compose.camera-windows.yaml ...
+services:
+  totem-edge:
+    image: bingo-camera-lab:3c30
+    environment:
+      BINGO_SUPABASE_URL: ""
+      BINGO_MACHINE_ID: ""
+      BINGO_MACHINE_API_KEY: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_SESSION_TOKEN: ""
+      GEMINI_API_KEY: ""
+      BINGO_CAMERA_MODE: remote
+      BINGO_CAMERA_URL: http://host.docker.internal:8766
+      BINGO_CAMERA_TOKEN_FILE: /run/secrets/camera-token
+    secrets:
+      - camera-token
+secrets:
+  camera-token:
+    file: ${BINGO_CAMERA_TOKEN_FILE:?Set the absolute camera.token path}

@@ -9,6 +9,9 @@ from pathlib import Path
 import threading
 from unittest.mock import Mock
 
+import boto3
+from botocore.client import BaseClient
+from botocore.stub import Stubber
 from fastapi.testclient import TestClient
 import httpx2 as httpx
 from PIL import Image
@@ -63,6 +66,19 @@ class ControlledProvider:
         if isinstance(self.answer, Exception):
             raise self.answer
         return self.answer
+
+
+@pytest.mark.anyio
+async def test_audit_failure_prevents_secondary_network_call(frame):
+    primary = ControlledProvider(result("needs-secondary"))
+    secondary = ControlledProvider(result(origin="GEMINI_FALLBACK"))
+
+    def failed_audit(observation):
+        raise VisionError("VISION_AUDIT_FAILED")
+
+    with pytest.raises(VisionError, match="VISION_AUDIT_FAILED"):
+        await InternalVision(primary, secondary).classify(frame, observe=failed_audit)
+    assert len(primary.calls) == 1 and not secondary.calls
 
 
 def gemini_body(decision="cable", confidence=0.96):
@@ -258,8 +274,6 @@ async def test_empty_labels_are_inconclusive(frame, monkeypatch):
 
 def test_aws_call_preserves_limits_and_explicit_credentials(frame, monkeypatch):
     client = Mock()
-    client.__enter__ = Mock(return_value=client)
-    client.__exit__ = Mock(return_value=False)
     factory = Mock(return_value=client)
     monkeypatch.setattr("app.services.vision.boto3.client", factory)
     provider = RekognitionProvider(
@@ -274,6 +288,72 @@ def test_aws_call_preserves_limits_and_explicit_credentials(frame, monkeypatch):
     client.detect_labels.assert_called_once_with(
         Image={"Bytes": frame.content}, MaxLabels=20, MinConfidence=55
     )
+    client.close.assert_called_once_with()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("provider_error", [False, True], ids=["success", "error"])
+async def test_real_sdk_client_is_closed_without_network(
+    frame, monkeypatch, tmp_path, provider_error
+):
+    # Explicit synthetic credentials and absent config paths prevent access to
+    # personal AWS profiles/credentials. The suite also denies external sockets.
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "absent-config"))
+    monkeypatch.setenv(
+        "AWS_SHARED_CREDENTIALS_FILE", str(tmp_path / "absent-credentials")
+    )
+    session = boto3.session.Session()
+    created = []
+
+    def factory(*args, **kwargs):
+        client = session.client(*args, **kwargs)  # Real SDK construction, not Mock.
+        assert isinstance(client, BaseClient)
+        assert not hasattr(client, "__enter__")
+        stubber = Stubber(client)
+        parameters = dict(
+            Image={"Bytes": frame.content}, MaxLabels=20, MinConfidence=55
+        )
+        if provider_error:
+            stubber.add_client_error(
+                "detect_labels",
+                service_error_code="AccessDeniedException",
+                service_message="private provider diagnostic",
+                http_status_code=400,
+                expected_params=parameters,
+            )
+        else:
+            stubber.add_response(
+                "detect_labels",
+                {"Labels": [{"Name": "Cable", "Confidence": 95.0}]},
+                parameters,
+            )
+        stubber.activate()
+        close = Mock(wraps=client.close)
+        monkeypatch.setattr(client, "close", close)
+        created.append((client, stubber, close))
+        return client
+
+    monkeypatch.setattr("app.services.vision.boto3.client", factory)
+    provider = RekognitionProvider(
+        VisionSettings(aws_key="synthetic-test-key", aws_secret="synthetic-test-secret")
+    )
+    try:
+        if provider_error:
+            with pytest.raises(VisionError, match="^PRIMARY_UNAVAILABLE$") as error:
+                await provider.analyze(frame, [])
+            assert "private provider diagnostic" not in str(error.value)
+        else:
+            response = await provider.analyze(frame, [])
+            assert response["status"] == "recognized" and response["itemId"] == "cable"
+        assert len(created) == 1
+        client, stubber, close = created[0]
+        close.assert_called_once_with()
+        stubber.assert_no_pending_responses()
+    finally:
+        for client, stubber, close in created:
+            stubber.deactivate()
+            if not close.called:
+                client.close()
 
 
 @pytest.mark.anyio
@@ -695,3 +775,38 @@ def test_invalid_environment_disables_internal_service_without_affecting_livenes
         assert client.app.state.vision.primary is None
         assert client.get("/health").json() == {"status": "ok"}
         assert client.get("/local/status").json()["can_start_deposit"] is False
+
+
+@pytest.mark.anyio
+async def test_rekognition_preserves_specific_observed_type(frame, monkeypatch):
+    provider = RekognitionProvider(VisionSettings(aws_key="test", aws_secret="test"))
+    monkeypatch.setattr(
+        provider,
+        "_detect",
+        lambda content: {"Labels": [{"Name": "Headphones", "Confidence": 99}]},
+    )
+    value = await provider.analyze(frame, [])
+    assert value["detected_types"] == {"small": "Headphones"}
+    assert validate_result(value, "AWS_REKOGNITION").origin == "AWS_REKOGNITION"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("specific", ["Fone de ouvido", None, "SMALL"])
+async def test_gemini_specific_type_is_separate_from_legacy_group(frame, specific):
+    def upstream(request):
+        body = json.loads(request.content)
+        assert "detected_type" in body["generationConfig"]["responseSchema"]["required"]
+        payload = gemini_body("small")
+        payload["candidates"][0]["content"]["parts"][0]["text"] = json.dumps(
+            {"decision": "small", "confidence": 0.98, "detected_type": specific}
+        )
+        return httpx.Response(200, json=payload)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
+        value = await GeminiProvider(client, VisionSettings(gemini_key="fake")).analyze(
+            frame, []
+        )
+    assert value["detected_types"] == (
+        {"small": specific} if specific == "Fone de ouvido" else {}
+    )
+    assert value["origin"] == "GEMINI_FALLBACK"

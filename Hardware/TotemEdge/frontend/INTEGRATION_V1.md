@@ -1,5 +1,90 @@
 # Totem Edge V1 — integração local e limites atuais
 
+Erro de reconhecimento (02/11): tela de rejeição/falha passa a oferecer “Tirar
+outra foto” conforme vision-recapture. Em falha temporária com pixels recuperáveis,
+oferece separadamente “Tentar análise novamente” e “Tirar outra foto”. Texto não
+atribui falha à câmera/provedor sem evidência. Sem autorização mecânica, bloqueia.
+
+Refotografia (02/11): botão abaixo das opções existentes de Corrigir usa somente
+vision-recapture autorizado pelo backend; novo UUID de intenção persistido no
+browser, sem novo PIN/abertura. Feedback de captura/análise e nova foto retornam
+à confirmação. Falha técnica conserva classificação anterior com aviso. Ver
+[contrato/testes/comando](../backend/RECAPTURE_V1.md). Sem deploy nesta entrega.
+
+Decisão posterior: no perfil econômico DEV autorizado, a conclusão simulada
+aguarda recibo real, mostra BinCoins/XP retornados e encerra pela API DEV.
+Modo demo permanece sem créditos. Containers ainda não atualizados; detalhes em
+[homologação econômica DEV](../../../Software/docs/totemedge-economic-dev.md).
+
+Pontuação (02/11): somente REGISTERED com recibo central válido usa a composição
+prototipada de sucesso, preenchendo BinCoins totais/XP com os valores retornados,
+sem cálculo JavaScript. Pending/falha não mostram recompensa; Concluir encerra
+via API, sem timer. O perfil DEV simulado continua sem recibo/crédito. Evidências,
+comandos e pendências em [relatório econômico](../../../Software/docs/totemedge-scoring-integration-v1.md).
+
+Atualização de confirmação/retry (02/11): após vision-review confirmar/corrigir,
+a decisão persistida leva diretamente ao PIN de hatch existente, sem a segunda
+tela review/ilustração. Refresh recupera essa autorização sem movimento automático.
+“Tentar novamente” usa vision-analyze com capture_id original e analysis_attempt_id
+estável por intenção explícita. “Cancelar tentativa” usa cancel e só volta ao início
+após CANCELLED confirmado. Sem foto em RAM, rejeição de negócio ou mecânica insegura,
+o retry fica bloqueado. Ver ../backend/VISION_SESSION_V1.md para guardas e auditoria.
+
+
+Recuperação DEV (02/11): POST /local/simulation/sessions/{event_id}/cancel também
+encerra testes em TECHNICAL_FAILURE/RETURN_REQUIRED, somente com simulated=1,
+controller/journal SIMULATED, todos os comandos COMPLETED/SUCCEEDED, nenhuma
+análise pendente e nenhuma evidência/payload/recibo físico/econômico. A mesma guarda
+expõe cancel em allowed_actions. Não altera os cancelamentos operacionais físicos.
+O encerramento é CANCELLED, idempotente, libera apenas o slot ativo e acrescenta
+SIMULATION_TEST_ENDED ao histórico, preservando erro original, identidade, comandos
+e observações. Não significa devolução nem retorno físico à posição inicial.
+A UI separa “Tentar novamente” (nova análise da mesma foto, quando autorizada)
+de “Cancelar tentativa” (encerra pela API antes de voltar ao início). Nenhum desses
+controles solicita devolução física. Uma sessão seguinte recebe IDs próprios.
+Movimento pendente/indeterminado ou evidência física mantém bloqueio e orientação
+para chamar responsável. A última foto validada fica só em RAM para diagnóstico
+pela rota privada vision-image (inclusive após falha/encerramento), até a próxima
+captura válida ou reinício. Não é salva em disco nem pode ser reconstruída por GET.
+
+
+Atualização de 02/11/2026 — decisão posterior: no perfil integrado DEV, CLOSE
+confirmado no journal dispara uma única captura e análise automaticamente. Não há
+tela manual nem botão Analisar item. O reconhecimento reutiliza o componente
+original com a fotografia real em lugar da ilustração. A imagem permanece somente
+em RAM durante análise/revisão e é liberada ao iniciar hatch. Reinício perde essa
+foto; resultados/decisões persistidos continuam recuperáveis, sem recaptura.
+A implantação Windows utiliza o projeto principal bingo-totem-edge com os overlays
+DEV existentes; ver deploy/MAIN_DEV.md. As descrições manuais abaixo são históricas.
+
+
+3C.3.1, ajuste funcional: o perfil de visão apresenta a foto única no canvas do
+template original da equipe. Não há vídeo ou getUserMedia. O fechamento durável
+autoriza a captura; o botão existente **Analisar item** autoriza a IA sobre os
+mesmos bytes, sem nova fotografia. CAPTURING aguarda essa ação; CLASSIFYING mostra
+a análise original, inclusive análise secundária somente quando o journal a
+comprova. REVIEW apresenta primeiro o reconhecimento, depois a confirmação ou
+correção pelos candidatos permitidos e a revisão final. Confirmar descarte pede
+novo PIN para hatch simulado; o retorno inicial permanece no backend.
+
+Os templates condicionais de câmera/análise/reconhecimento e o CSS específico
+da câmera foram recuperados da referência da equipe, sem redesenho, alterações de
+textos ou assets. Os ramos demo/legado continuam preservados. Refazer captura,
+devolver e tentar novamente ficam indisponíveis enquanto faltarem contratos
+seguros. A foto só vive na RAM do backend e no canvas, com acesso local no-store;
+refresh a recupera, reinício do backend antes da análise produz falha durável
+sem recaptura silenciosa. Não há tela de pontos nem recibo fictício.
+
+O novo perfil vision-dev reutiliza contexto/PIN do broker 3C.2.1, sem fallback
+de alunos fictícios. O vision-lab sintético permanece separado. Contrato vigente em
+[VISION_SESSION_V1.md](../backend/VISION_SESSION_V1.md); ensaio explicitamente
+opt-in em [VISION_LAB.md](../deploy/VISION_LAB.md). Os testes usam apenas fakes;
+a homologação dessa composição com o cadastro hospedado depende do operador.
+
+Atualização 3C.2.1: a identificação DEV está descrita ao final. O relato da
+fundação de 08/10 abaixo permanece histórico; seu modo operacional e a
+demonstração comparada ao commit da migração continuam preservados.
+
 Entrega de 2026-10-08, posterior ao [diagnóstico de migração](MIGRATION_DIAGNOSTIC.md).
 O frontend oficial continua sendo derivado de `Software/apps/totem_ui/`.
 As mudanças estão somente no frontend/backend do Totem Edge, na branch atual
@@ -253,3 +338,122 @@ preexistentes foram preservados. Evidências ficam ignoradas em `.validation/`.
 `git diff --check` e formatação Python aprovados; não houve commit, merge,
 push, deploy ou Docker. Hashes agregados confirmam preservação da UI original,
 Simulator, BinGoVision, controller, docs centrais, Supabase e migrations.
+
+## Identificação DEV — 3C.2.1
+
+O mesmo frontend servido pelo FastAPI/Docker ganhou um ramo DEV em operational.js,
+selecionado exclusivamente pelo cabeçalho X-Totem-Runtime da liveness local. O
+cliente DevApi compartilha o transporte de mesma origem, mas recusa ações
+genéricas operacionais/econômicas. Só expõe contexto/health, criação, GET,
+identificação vinculada, declaração de segurança e cancelamento seguro. O cabeçalho não autoriza um aluno
+nem muda prontidão física: o vínculo e allowed_actions vêm do backend.
+
+Revisão visual posterior: reutilizar assets/CSS no primeiro 3C.2.1 não preservou
+a composição aprovada. O renderizador DEV que criava painéis próprios foi
+substituído pelo adaptador renderDevIdentity em script.js. Ele usa os templates
+existentes de descanso, início, participação, segmento, ano, turma, aluno, PIN e
+segurança; clona seus controles e atualiza dados/eventos. Não chama render/jump
+do demo nem seus timers. A apresentação não promove estado do backend.
+
+O desenvolvedor aprovou explicitamente como referência o design mais recente
+de Software/apps/totem_ui no HEAD a9310a6eba3a979cc1349319d64656c0c7898064.
+Foram aproveitados somente a composição visual de aluno/PIN login e o estilo
+student-button-label dessa versão. Câmera, visão e criação de PIN não foram
+copiados. O comparativo histórico do 3C.2.0 continua separado e intacto.
+
+O marcador de estado fica no host #kiosk, para não ativar o redimensionamento
+legado .screen--pin[data-operational-state]. Não há cartões, avisos ou formulários
+DEV novos no fluxo normal. Erros usam o pin-hint ou o balão/status existentes;
+contexto vazio usa o empty-state existente. Os controles ficam desabilitados
+durante requisições, preservando seus estilos e sua disposição.
+
+Decisão explícita do desenvolvedor: Voltar em SAFETY cancela a preparação pela
+API, se allowed_actions permitir, e exibe o início existente. Não retrocede uma
+identidade validada a IDENTIFYING. Os botões originais de triagem enviam somente
+POST /local/simulation/sessions/{event_id}/safety com has_risk=false/true, quando
+safety consta em allowed_actions. Não solicitam movimento. A declaração segura
+leva ao PHYSICAL_BLOCKED devolvido pelo backend, apresentado na consulta existente.
+O risco cancela pela própria rota safety, sem um segundo POST cancel. O código
+persistido SAFETY_RISK recupera a orientação original de procurar um responsável,
+inclusive após refresh. Entendi usa o controle original para voltar ao início.
+Contribuir só com a turma mantém seu elemento visual, mas não cria uma sessão
+DEV class_only: esse fluxo continua sem homologação neste perfil.
+
+O fluxo não avança por timer, estado de navegador ou sucesso HTTP isolado.
+DevApi valida source=SIMULATED, identidade/IDs coerentes e receipt=null. Após
+erro ou perda de resposta, a UI lê o snapshot persistido. HTTP 401 limpa PIN e
+permite tentativa manual; 422 indica contrato inválido; 409 mostra conflito e
+o vínculo real recuperado; 403/503 e falhas de transporte bloqueiam nova
+submissão até reconsulta. Resposta inesperada não confirma autenticação. Enquanto
+busy, os controles ficam desabilitados; novos eventos são ignorados.
+
+Em refresh, GET active tem prioridade. O event_id público permite consultar um
+terminal por GET; command_id preserva retry de início, inclusive após reload.
+Somente esses UUIDs são armazenados em sessionStorage. A turma/aluno escolhidos
+antes do vínculo são transitórios e não sobrescrevem os campos persistidos. O PIN
+é apagado das referências da UI antes do await e do corpo transitório no finally;
+strings e buffers internos de fetch não podem ser zerados garantidamente pelo
+JavaScript. Não há PIN em cookies, storage, URL, mensagem de erro ou relatório.
+
+Primeiro acesso exige decisão separada: o contexto não fornece contrato de
+ativação nem existe endpoint DEV para criar/resetar PIN. A UI usa exclusivamente
+PIN já cadastrado. Para 3C.2.2, integrar as ações posteriores à declaração de
+segurança conforme allowed_actions, preservando IDs, autenticação atual e journal;
+esta entrega termina em PHYSICAL_BLOCKED ou CANCELLED, sem movimento, visão ou
+economia. Nenhum controle de abertura foi habilitado.
+
+## 3C.2.2 — ciclo DEV simulado, retorno inicial coordenado pelo backend
+
+Base: 2d34b45, feature/orange-pi-integration. Nenhum template, texto, imagem,
+animação, CSS ou fluxo demo/operacional foi substituído. O adaptador DEV reutiliza:
+
+| Snapshot | Template/controle | Efeito explícito |
+| --- | --- | --- |
+| PHYSICAL_BLOCKED | PIN existente, OK | Health atual e POST open com novo PIN |
+| OPENING | opening | Somente GET de sessão/journal |
+| DOOR_OPEN | insert, Coloquei um item; hand-confirm, Retirei a mão | Apresentar declaração; POST close com hand_removed=true |
+| CLOSING | door-progress | Somente GET de sessão/journal |
+| DOOR_CLOSED | review, Confirmar descarte | POST review-fixture vazio |
+| REVIEW | review, Confirmar descarte; PIN, OK | Pedir PIN novo e POST hatch |
+| HATCH_IN_PROGRESS pendente | computing | Somente GET de sessão/journal |
+| HATCH_IN_PROGRESS após alçapão | computing | Backend solicita retorno inicial e aguarda journal |
+| COMPLETED | idle terminal já existente | Encerramento sem recibo ou pontuação; snapshot recuperável |
+| Falha/indeterminação | mechanical-error, Chamar responsável; teacher, Entendi | Orientação e reconsulta; nenhum novo comando |
+
+O placeholder unknown (Eletrônico não identificado, marcador ?) já pertence ao
+template aprovado. É ausência de identificação, não resultado de câmera/IA nem
+categoria persistida. Os textos originais das etapas permanecem, conforme decisão
+do desenvolvedor; as telas camera/classification não são executadas. Corrigir fica
+desabilitado porque não há contrato de classificação/correção neste incremento.
+Cancelar descarte no PIN só funciona quando cancel consta em allowed_actions.
+
+Além dos ponteiros de sessão existentes, sessionStorage guarda somente UUIDs de
+intenção em bingo.dev.motion.{event_id}.{open|close|hatch}. A gravação/verificação
+precede o POST. Retentativa explícita reaproveita o ID; não guarda PIN ou declaração
+de mão. Antes de submeter, consulta snapshot e journal; pendência, recusa ou
+indeterminação bloqueiam novo despacho. Retentativas de intenções recusadas ou
+abortadas ficam conservadoramente bloqueadas nesta UI; não se cria outro ID para
+contornar a recusa. PIN é solicitado novamente em cada tentativa open/hatch.
+
+O temporizador de 500ms agenda apenas GETs enquanto houver intenção/despacho/
+aceitação pendentes ou HATCH_IN_PROGRESS sem falha, inclusive na lacuna anterior
+à publicação do comando inicial. Não mede duração nem decide resultado mecânico. HTTP 200/202
+não basta: as telas dependem de estado persistido e COMPLETED/SUCCEEDED/SIMULATED
+no journal. Falha de consulta interrompe o acompanhamento e exige reconsulta pelo
+controle existente. Refresh não envia POST e não apaga sessão/journal.
+
+Decisão oficial de 31/10: não haverá controle de retorno inicial pelo aluno.
+Retirei o item e Concluir não foram reinterpretados. O backend solicita a operação
+existente após hatch durável, usando UUID determinístico e o journal. O frontend
+não envia confirm-initial; continua consultando os snapshots. Nenhuma animação,
+renderização ou GET dispara movimento ou grava COMPLETED. O encerramento exige
+confirmação do controlador SIMULATED persistida; receipt=null e physical_confirmed=0
+não representam evidência de hardware real ou elegibilidade econômica.
+
+Homologação manual: carregar a imagem DEV pelos comandos já documentados em
+deploy/DEV_INTEGRATION.md, preservando volumes/configuração; identificar aluno
+fictício, declarar segurança, fornecer novo PIN, Coloquei um item, Retirei a mão,
+Confirmar descarte e novo PIN. Conferir quatro comandos simulados no journal e
+COMPLETED sem confirmação adicional pelo aluno, inclusive após refresh. Em falha
+ou indeterminação, manter o bloqueio; não apagar journal ou gerar outro ID.
+Nenhum rebuild/recreate do DEV persistente é executado automaticamente pela suíte.

@@ -1,12 +1,181 @@
 STATUS técnico — BinGo
 
-Atualizado em: `2026-10-23`
+Recuperação de visão (02/11): sessão obstruída comprovada como RETURN_REQUIRED,
+JPEG válido e AWS rejected/confiança zero, sem erro de câmera/Gemini. Corrigida
+a política que só permitia recaptura em REVIEW: rejeição/falha segura passam a
+oferecer Tirar outra foto, separada de Tentar análise novamente com os mesmos
+pixels. Guardas mecânicas/econômicas preservadas. Corrigida também FK histórica
+que impedia refotografar após retry, com identidades de captura imutáveis e
+migração SQLite transacional. Sem deploy. Evidência, testes e comando em
+Hardware/TotemEdge/backend/VISION_RECOVERY_2026-11-02.md.
+
+Câmera real, diagnóstico dirigido (02/11): CAMERA_CAPTURE_FAILED reproduzido
+com DirectShow I/O sem frames e navegador Device in use. Responsável fechou site
+que usava webcam; comando original voltou a produzir JPEG. Container principal
+recebeu JPEG real 29.879 bytes; nova sessão chegou a REVIEW com IA real, e
+refotografia/replay na mesma sessão produziu só uma nova captura (29.551 bytes),
+com histórico preservado e nenhum hatch/recibo/crédito. Não houve deploy.
+Diagnóstico privado por capture_id acrescentado no código, ainda não carregado
+no bridge atual. Causa/evidências/testes/limites em
+Hardware/TotemEdge/backend/CAMERA_FAILURE_2026-11-02.md.
+
+Refotografar item (02/11): implementado em Corrigir, antes de decisão/hatch,
+mantendo event_id e câmera/cascata existentes. Nova intenção/captura idempotente,
+arquivo integral das tentativas, refresh sem I/O e restauração explícita da
+classificação anterior em falha técnica. Backend 760 aprovados; browser oito
+verificações com serviços controlados. Sem deploy/commit/push ou mudanças de
+autenticação/economia/Supabase. Contrato e comando: Hardware/TotemEdge/backend/
+RECAPTURE_V1.md. O responsável relatou homologação anterior da pontuação real
+DEV e saldo no app; o registro de pendência abaixo é histórico dessa homologação.
+
+Homologação econômica DEV liberada para teste (02/11): responsável autorizou
+build/recriação controlada de dev-central/totem-edge-dev no bingo-totem-edge.
+Principal :8000 saudável, SUPABASE_DEV_ECONOMIC e economic_registration=true;
+política exclusiva bingo-dev. Volume/cinco sessões/histórico/saldos anteriores
+preservados e backup realizado. Webcam presente/livre e UI sem erros/pontos
+antecipados. Descarte do aluno, crédito/recibo/UI final e replay hospedado ainda
+aguardam execução. Sem produção, deploy remoto, commit ou push. Evidências em
+`totemedge-economic-dev.md`.
+
+Decisão posterior de 02/11: homologação econômica DEV deve conceder crédito real
+após mecânica simulada concluída, câmera/IA reais e decisão autorizada. Código
+opt-in restrito a bingo-dev implementado; demonstração continua sem créditos.
+Não houve atualização de containers nem homologação econômica hospedada nesta
+rodada. A prova de crédito/saldos/UI no principal segue pendente. Referência
+vigente: `totemedge-economic-dev.md`, que substitui a interpretação anterior.
+
+Pontuação TotemEdge principal (02/11): RPC/Edge Function existentes reutilizadas;
+handoff interno completa confirmação física já persistida → fila econômica →
+HTTP, com recuperação do mesmo event_id/payload e sem conceder pontos antes do
+recibo. Não produz evidência física nem habilita economia na simulação Windows.
+A tela REGISTERED reutiliza o layout prototipado com BinCoins/XP retornados pelo
+servidor. Backend: 750 aprovados; HTTP Deno oficial/Supabase local: 2 testes;
+pgTAP pontuação: 40; JS: 27; browser operacional: 7 verificações. Preflight read-only
+do bingo-dev confirmou register-deposit-v1/health-v1 ACTIVE e migrations até 029;
+030/031 de Admin seguem locais. Sem deploy ou crédito hospedado. Habilitação
+física e ligação da decisão canônica ao payload continuam pendentes, detalhadas
+em `totemedge-scoring-integration-v1.md`, incluindo evidências e limites.
+
+Correção de homologação (02/11): confirmação/correção com foto real elimina a segunda
+tela review no caminho de visão e segue ao PIN obrigatório do alçapão. Falha técnica
+recuperável oferece retry explícito da mesma foto/evento por analysis_attempt_id,
+com unicidade SQLite e arquivo integral das tentativas anteriores. Falta de foto
+em RAM, rejeição ou mecânica insegura não autorizam retry; cancel só encerra simulação
+com journal seguro. A UI usa “Tentar novamente” e “Cancelar tentativa”. Não modifica
+câmera, classificação por tipo, Supabase ou economia. Detalhes: VISION_SESSION_V1.md
+no backend; comandos existentes e impacto de reinício em deploy/MAIN_DEV.md.
+
+
+Recuperação DEV (02/11): POST /local/simulation/sessions/{event_id}/cancel também
+encerra testes em TECHNICAL_FAILURE/RETURN_REQUIRED, somente com simulated=1,
+controller/journal SIMULATED, todos os comandos COMPLETED/SUCCEEDED, nenhuma
+análise pendente e nenhuma evidência/payload/recibo físico/econômico. A mesma guarda
+expõe cancel em allowed_actions. Não altera os cancelamentos operacionais físicos.
+O encerramento é CANCELLED, idempotente, libera apenas o slot ativo e acrescenta
+SIMULATION_TEST_ENDED ao histórico, preservando erro original, identidade, comandos
+e observações. Não significa devolução nem retorno físico à posição inicial.
+A UI separa “Tentar novamente” (nova análise da mesma foto, quando autorizada)
+de “Cancelar tentativa” (encerra pela API antes de voltar ao início). Nenhum desses
+controles solicita devolução física. Uma sessão seguinte recebe IDs próprios.
+Movimento pendente/indeterminado ou evidência física mantém bloqueio e orientação
+para chamar responsável. A última foto validada fica só em RAM para diagnóstico
+pela rota privada vision-image (inclusive após falha/encerramento), até a próxima
+captura válida ou reinício. Não é salva em disco nem pode ser reconstruída por GET.
+
+
+Correção localizada de 02/11 — classe específica e apresentação ao aluno:
+`detected_types` preserva os tipos específicos observados pelos provedores, indexados
+pelos IDs de adaptação legados. Esses IDs internos (inclusive small) não são classes
+para exibição, tamanho ou novo catálogo canônico. Nenhuma regra econômica mudou.
+AWS conserva a label específica; Gemini informa detected_type em português, separado
+do agrupamento legado. A decisão local preserva detected_type e a observação original
+continua em provenance.observations. Agrupamento small reconhecido sem tipo específico
+projeta UNKNOWN/UNIDENTIFIED; inconclusão/rejeição/falha não ganham essa autorização.
+A UI usa nomes compreensíveis, sem provedor/modelo/fallback/diagnósticos. A orientação
+“Um item por ciclo” não representa contagem detectada. Captura, fotografia, mecânica,
+broker e política de fallback permanecem preservados.
+
+
+Atualização de 02/11/2026 — decisão posterior: no perfil integrado DEV, CLOSE
+confirmado no journal dispara uma única captura e análise automaticamente. Não há
+tela manual nem botão Analisar item. O reconhecimento reutiliza o componente
+original com a fotografia real em lugar da ilustração. A imagem permanece somente
+em RAM durante análise/revisão e é liberada ao iniciar hatch. Reinício perde essa
+foto; resultados/decisões persistidos continuam recuperáveis, sem recaptura.
+A implantação Windows utiliza o projeto principal bingo-totem-edge com os overlays
+DEV existentes; ver deploy/MAIN_DEV.md. As descrições manuais abaixo são históricas.
+
+
+Ajuste funcional 3C.3.1 — 02/11/2026: restauradas as composições originais da
+equipe para foto, análise principal/secundária, reconhecimento, correção e falhas.
+Não há vídeo: fechamento durável captura uma foto; Analisar item envia os mesmos
+pixels à IA, uma única vez. A confirmação/correção persistida permite continuar
+pelo hatch/retorno simulado até COMPLETED, sem recibo ou pontos. O novo perfil
+vision-dev reutiliza o broker somente leitura 3C.2.1 para os cadastros DEV reais
+autorizados pelo operador, sem fallback sintético, em projeto/volume separados.
+Roteiro em Hardware/TotemEdge/deploy/VISION_LAB.md. Recaptura e devolução continuam
+indisponíveis, aguardando contratos seguros; não se apagam sessões bloqueadas.
+O operador relatou câmera/AWS reais funcionais no vision-lab anterior; a composição
+com identidade hospedada, Gemini real e Orange Pi não foram homologados aqui.
+Os resultados FULL abaixo pertencem à rodada anterior; esta correção usa testes
+focados e comparação visual, discriminados em deploy/TESTING.md.
+
+Nota TotemEdge 3C.3.1 — 01/11/2026: integração de CaptureService/CameraManager
+com InternalVision e revisão persistida em laboratório Windows/Docker separado,
+com mecânica/identidade sintéticas e provedores reais somente mediante opt-in.
+Contratos em Hardware/TotemEdge/backend/VISION_SESSION_V1.md; roteiro em
+Hardware/TotemEdge/deploy/VISION_LAB.md. O operador confirmou reaproveitar o
+mapeamento atual do Simulator, inclusive small→PERIPHERAL, sem bônus por tamanho.
+Não há registro econômico, GPIO ou alteração dos templates/estilos aprovados.
+Devolução física de recusados ainda carece de contrato; permanece bloqueada.
+Homologação AWS/Gemini reais deste incremento ainda não executada.
+Rodada final sequencial: FAST 105, INTEGRATION 574, FULL 756 aprovados,
+zero falhas/ignorados, exit code 0. Inclui 15 grupos Docker e 30 comparações B
+estritamente iguais, sem alterar referência, máscaras ou tolerâncias. Os SQLite
+persistentes operacional/DEV/camera-lab e os containers BinGo foram preservados.
+Relatórios, tentativas anteriores e auditoria em Hardware/TotemEdge/deploy/TESTING.md.
+
+Evidência manual 3C.3.0 fornecida pelo operador em 01/11: Integrated Camera via
+FFmpeg DirectShow, identidade estável persistida, bridge Windows 127.0.0.1:8766,
+Docker bingo-camera-lab:8016 saudável, JPEG real 20.744 bytes, simulated=false,
+journal COMPLETED e replay CAPTURE_ALREADY_ATTEMPTED sem alteração do registro.
+Não é execução do Codex; reinicialização/reconexão reais e Orange Pi permanecem
+pendentes de homologação específica. Essa evidência atualiza somente a pendência
+de captura real Windows/Docker da nota histórica abaixo.
+
+Nota TotemEdge 3C.3.0 de 31/10/2026: gerenciamento operacional de câmera
+validado localmente, com DirectShow no host Windows, V4L2 Linux, seleção estável
+persistida e captura sob demanda autenticada. Não modifica o UX, não conecta
+classificação/economia nem habilita GPIO/prontidão física. Contrato e homologação
+opt-in em Hardware/TotemEdge/backend/CAMERA_V1.md. Câmera real e Orange Pi ainda
+dependem de homologação específica; testes comuns usam dispositivos fictícios.
+FAST: 104 aprovados; INTEGRATION: 427; FULL: 720, mais 15 grupos Docker e os
+três smokes browser (21 capturas DEV iguais). A proteção de morte do processo
+pai foi comprovada em Windows e Linux, sem câmera física. Evidências e limites
+em Hardware/TotemEdge/deploy/TESTING.md.
+
+Nota TotemEdge de 31/10/2026: foi definida a responsabilidade do backend local,
+não do aluno, por solicitar a verificação de retorno inicial dos mecanismos.
+No DEV simulado, hatch concluído duravelmente permite coordenar a operação
+CONFIRM_INITIAL_STATE; somente sua resposta SIMULATED/COMPLETED/SUCCEEDED e o
+commit do journal/sessão permitem COMPLETED, com receipt=null e sem pontuação.
+A implementação validada localmente na feature/orange-pi-integration preserva o UX e
+os contratos HTTP existentes, sem acesso hospedado ou atualização automática
+do DEV persistente. Isso não homologa hardware: geometria, sensores e protocolo
+físicos continuam pendentes. Detalhes vigentes em
+Hardware/TotemEdge/backend/LOCAL_API_V1.md e MECHANICAL_INTERNAL_V1.md.
+FAST: 82 aprovados; INTEGRATION: 382; FULL: 675, mais 15 grupos Docker,
+30 verificações DEV de navegador e 21 capturas estritamente iguais à referência
+aprovada. Relatórios e limites em Hardware/TotemEdge/deploy/TESTING.md.
+
+Atualizado em: `2026-11-01` — atualização localizada da captura/visão TotemEdge
+e evidência manual de câmera; as demais seções conservam suas datas de evidência.
 
 Este arquivo é a fonte rápida de verdade técnica do projeto. Ele consolida as decisões vigentes de `database-model.md`, `data-contracts-totem-app-backend.md`, `supabase-edge-functions-mvp.md`, `FLUXO_ECOSSISTEMA_DESCARTE_V1.md`, `operacao-offline.md`, `missions-contract-v1.md` e `class-journey-v1.md`, além dos relatórios recentes da fundação de autenticação técnica de máquinas e do inventário do FastAPI. Para descartes, permanecem vigentes as decisões revisadas a partir de `2026-08-12`; para missões, prevalece o contrato conceitual revisado em `2026-09-15`; para Jornada/BinGópolis, prevalece o contrato de `2026-09-22`. Código ou banco só devem prevalecer quando houver evidência de uma decisão posterior ainda não documentada.
 
 ## Decisões oficiais vigentes
 
-O backend de nuvem do BinGo V1 tem como stack oficial **Supabase, PostgreSQL e Supabase Edge Functions em Deno/TypeScript**. O PostgreSQL concentra persistência, integridade, transações e regras que precisam de garantia atômica; as Edge Functions formam a camada HTTP server-side para autenticação técnica, validação do contrato, autorização e orquestração. O FastAPI não é o destino arquitetural: permanece temporariamente no repositório como legado e referência executável durante uma migração controlada, até que todas as suas responsabilidades tenham equivalência comprovada no Supabase.
+O backend de nuvem do BinGo V1 tem como stack oficial **Supabase, PostgreSQL e Supabase Edge Functions em Deno/TypeScript**. O PostgreSQL concentra persistência, integridade, transações e regras que precisam de garantia atômica; as Edge Functions formam a camada HTTP server-side para autenticação técnica, validação do contrato, autorização e orquestração central. Essa decisão refere-se ao backend de nuvem e ao FastAPI legado em Software: conforme a consolidação posterior do TotemEdge, seu FastAPI é o orquestrador local de sessão, câmera e mecânica. Não substitui a autoridade econômica do Supabase.
 
 Em `2026-09-13`, foi aprovada a redenominação oficial por fator `100`: a regra-alvo passa de **8 para 800 BinCoins** por descarte válido com aluno identificado, de **19 para 1900 XP** para a turma e de **100 para 10000 XP** na meta semanal configurável. Isso altera a unidade oficial compartilhada por domínio, banco, backend, APIs, Admin e Mobile; não é mera formatação do frontend nem aumento econômico real. A categoria ambiental continua acrescentando somente um bônus percentual de BinCoins, calculado server-side e preservado como fotografia histórica; `bonus_rate` não é multiplicado por `100`, e a categoria nunca altera o XP. Na unidade-alvo, por exemplo, base `800` com taxa `0,50` produz bônus `400` e total `1200`. Sem aluno identificado, um descarte válido concede `0` BinCoins e o XP-base da turma; um evento inválido concede `0` BinCoins e `0` XP. As categorias canônicas V1 continuam `BATTERY`, `MOBILE_DEVICE`, `CABLE_WIRE`, `PERIPHERAL`, `OTHER_EWASTE` e `UNKNOWN`. As taxas provisórias de `100%`, `50%` e `25%` presentes somente em seeds de desenvolvimento não constituem política aprovada de produção.
 

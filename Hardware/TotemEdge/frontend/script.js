@@ -343,7 +343,7 @@ const screens = [
   {
     id: "camera",
     label: "Câmera",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--camera screen--auto" data-auto-next="classification" data-auto-delay="2800">
         ${topbar("Câmera", { back: false })}
         <div class="content-zone content-zone--camera">
@@ -358,12 +358,27 @@ const screens = [
           <span class="simulation-badge">Câmera simulada</span>
         </div>
       </section>
+    ` : `
+      <section class="screen screen--camera ${cameraMode === "simulated" ? "screen--auto" : "screen--real-camera"}" ${cameraMode === "simulated" ? 'data-auto-next="classification" data-auto-delay="2800"' : ""}>
+        ${topbar("Câmera", { back: false })}
+        <div class="content-zone content-zone--camera">
+          ${talk(assets.b1nAnalyze, cameraMode === "simulated" ? "Vou conferir o item por dentro." : "Ative a câmera para conferir o enquadramento.", "big camera-talk character-analyze")}
+          <div class="camera-preview" aria-label="Preview da câmera">
+            <div class="camera-bar"><span>${cameraMode === "simulated" ? "Câmera simulada" : "Webcam do notebook"}</span><strong data-camera-badge>DESLIGADA</strong></div>
+            <div class="camera-frame">
+              ${cameraMode === "simulated" ? '<div class="scan-line"></div><span class="camera-label">Captura simulada</span>' : '<video data-camera-video autoplay muted playsinline hidden aria-label="Preview ao vivo da webcam"></video><canvas data-camera-canvas hidden aria-label="Imagem capturada"></canvas><span class="camera-placeholder" data-camera-placeholder>Câmera desligada</span>'}
+            </div>
+          </div>
+          ${cameraMode === "simulated" ? '<span class="simulation-badge">Câmera simulada</span>' : `<p class="camera-status" data-camera-status role="status" aria-live="polite">A imagem fica nesta sessão e não é armazenada. Microfone desligado.</p><span class="simulation-badge">Porta simulada fechada · ${visionMode === "remote" ? "AWS Rekognition" : "IA simulada"}</span>`}
+        </div>
+        ${cameraMode === "simulated" ? "" : '<div class="action-zone camera-actions"><button class="primary-action" data-camera-action="start">Ativar câmera</button><button class="secondary-action" data-camera-retake hidden>Refazer captura</button><button class="secondary-action" data-return-start>Devolver item</button></div>'}
+      </section>
     `,
   },
   {
     id: "classification",
     label: "Classificação",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--big screen--analysis screen--auto" data-process="classification">
         ${topbar("Análise", { back: false })}
         <div class="content-zone content-zone--big content-zone--analysis">
@@ -372,12 +387,21 @@ const screens = [
           <span class="simulation-badge">Classificador simulado</span>
         </div>
       </section>
+    ` : `
+      <section class="screen screen--big screen--analysis screen--auto" data-process="classification">
+        ${topbar("Análise", { back: false })}
+        <div class="content-zone content-zone--big content-zone--analysis">
+          ${talk(assets.b1nAnalyze, "Estou identificando o eletrônico.", "big character-analyze")}
+          <div class="analysis-progress"><span></span></div>
+          <span class="simulation-badge">${visionMode === "remote" ? "AWS Rekognition" : "Classificador simulado"}</span>
+        </div>
+      </section>
     `,
   },
   {
     id: "secondary-analysis",
     label: "Análise complementar",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--big screen--analysis screen--auto" data-process="secondary">
         ${topbar("Nova análise", { back: false })}
         <div class="content-zone content-zone--big content-zone--analysis">
@@ -386,17 +410,39 @@ const screens = [
           <span class="simulation-badge">Gemini simulado</span>
         </div>
       </section>
+    ` : `
+      <section class="screen screen--big screen--analysis screen--auto" data-process="secondary">
+        ${topbar("Nova análise", { back: false })}
+        <div class="content-zone content-zone--big content-zone--analysis">
+          ${talk(assets.b1nAnalyze, "Vou conferir mais um detalhe antes de continuar.", "big character-analyze")}
+          <div class="analysis-progress analysis-progress--secondary"><span></span></div>
+          <span class="simulation-badge">${visionMode === "remote" ? "Gemini fallback" : "Gemini simulado"}</span>
+        </div>
+      </section>
     `,
   },
   {
     id: "recognized",
     label: "Item reconhecido",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--corner screen--stack-action screen--item-focus screen--recognized">
         ${topbar("Reconhecimento")}
         <div class="content-zone content-zone--item-focus">
           ${talk(assets.b1nCorner, "Encontrei este item. Confira comigo.", "corner")}
           ${itemSummary("Item reconhecido")}
+        </div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-recognition-confirm>Sim, está certo</button>
+          <button class="secondary-action correction-action" data-correction-open>Corrigir</button>
+        </div>
+      </section>
+    ` : `
+      <section class="screen screen--corner screen--stack-action screen--item-focus screen--recognized">
+        ${topbar("Reconhecimento")}
+        <div class="content-zone content-zone--item-focus">
+          ${talk(assets.b1nCorner, "Encontrei este item. Confira comigo.", "corner")}
+          ${itemSummary("Item reconhecido")}
+          <span class="simulation-badge" data-classification-origin>${classificationSourceLabel()}</span>
         </div>
         <div class="action-zone action-zone--stack">
           <button class="primary-action" data-recognition-confirm>Sim, está certo</button>
@@ -517,7 +563,7 @@ const screens = [
   {
     id: "rejected",
     label: "Item recusado",
-    render: () => `
+    render: () => visionMode === "legacy" ? `
       <section class="screen screen--corner screen--stack-action screen--critical">
         ${topbar("Item não aceito", { back: false })}
         <div class="content-zone content-zone--corner content-zone--critical">
@@ -525,6 +571,18 @@ const screens = [
           ${statusPanel("Vamos devolver o item", "Nenhum descarte será registrado e nenhum resultado será gerado.", "IA simulada")}
         </div>
         <div class="action-zone"><button class="primary-action" data-return-start>Abrir para retirar</button></div>
+      </section>
+    ` : `
+      <section class="screen screen--corner screen--stack-action screen--critical">
+        ${topbar("Item não aceito", { back: false })}
+        <div class="content-zone content-zone--corner content-zone--critical">
+          ${talk(assets.b1nDoubtCorner, "Não consegui confirmar este eletrônico.", "corner character-doubt")}
+          ${statusPanel("Vamos devolver o item", "Nenhum descarte será registrado e nenhum resultado será gerado.", classificationSourceLabel())}
+        </div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-adjust-retry>Ajustar item e tentar de novo</button>
+          <button class="secondary-action" data-return-start>Devolver item</button>
+        </div>
       </section>
     `,
   },
@@ -627,6 +685,8 @@ let draftRecognizedItem = recognizedItem;
 let visionItem = recognizedItem;
 let visionCandidateIds = ["cable", "small", "phone"];
 let classificationOrigin = "VISION_PRIMARY";
+let cameraMode = "legacy";
+let visionMode = "legacy";
 let demoScenario = "success";
 let demoPanelOpen = false;
 let demoPressTimer = null;
@@ -1381,6 +1441,332 @@ function closeSearchKeyboard() {
   }, 260);
 }
 
+// Presentation adapter only: reuse the team's identification templates. Never call
+// render()/jump() here: their demo timers are not authorities for a DEV session.
+// Login-only component from Software/apps/totem_ui's approved renderPinScreen /
+// pinPadMarkup. The historical demo renderer remains unchanged; no setup logic.
+function approvedLoginPin() {
+  const keypad = `
+    <div class="pin-pad">
+      ${["1", "2", "3", "4", "5", "6", "7", "8", "9", "Apagar", "0", "OK"].map((key) => `
+        <button class="key ${["Apagar", "OK"].includes(key) ? "key-action" : ""} ${key === "OK" && pinDigits < 4 ? "key-disabled" : ""}" data-pin="${key}" ${key === "OK" && pinDigits < 4 ? "disabled" : ""}>${key}</button>
+      `).join("")}
+    </div>
+  `;
+  return `
+    <section class="screen screen--corner screen--pin screen--with-cancel" data-pin-step="login">
+      ${topbar("PIN", { back: false })}
+      <div class="content-zone content-zone--corner content-zone--pin">
+        ${talk(assets.b1nPrivacyCorner, "Digite seu PIN. Eu fecho os olhos.", "corner privacy-guide character-privacy")}
+        <div class="pin-display" role="img" aria-label="${pinDigits} de 4 números preenchidos">
+          ${[0, 1, 2, 3].map((index) => `<span class="pin-dot ${index < pinDigits ? "filled" : ""}" aria-hidden="true"></span>`).join("")}
+        </div>
+        ${keypad}
+        <div class="pin-hint" role="alert">Digite 4 números.</div>
+      </div>
+      <div class="action-zone action-zone--cancel">
+        <button class="cancel-action" data-cancel-discard>Cancelar descarte</button>
+      </div>
+    </section>
+  `;
+}
+
+const visionErrorScreen = {
+    id: "vision-error",
+    label: "Análise indisponível",
+    render: () => `
+      <section class="screen screen--corner screen--stack-action screen--critical">
+        ${topbar("Análise indisponível", { back: false })}
+        <div class="content-zone content-zone--corner content-zone--critical">
+          ${talk(assets.b1nIdeaCorner, "Não consegui consultar os serviços de análise agora.", "corner character-idea")}
+          ${statusPanel("Vamos devolver o item", "Nada foi registrado. Retire o eletrônico e tente novamente mais tarde.", classificationSourceLabel())}
+        </div>
+        <div class="action-zone action-zone--stack">
+          <button class="primary-action" data-adjust-retry>Ajustar item e tentar de novo</button>
+          <button class="secondary-action" data-return-start>Devolver item</button>
+        </div>
+      </section>
+    `,
+  };
+
+function classificationSourceLabel() {
+  const labels = {
+    AWS_REKOGNITION: "AWS Rekognition",
+    GEMINI_FALLBACK: "Gemini fallback",
+    MANUAL_REVIEW: "Revisão manual",
+    VISION_CASCADE_ERROR: "Serviços de análise indisponíveis",
+    GEMINI_FALLBACK_ERROR: "Gemini indisponível",
+    USER_CORRECTED: "Corrigido pelo usuário",
+    UNIDENTIFIED: "Não identificado",
+  };
+  return labels[classificationOrigin] ?? (visionMode === "remote" ? "Análise remota" : "IA simulada");
+}
+
+
+function renderDevIdentity(view) {
+  currentIndex = screens.findIndex(screen => screen.id === view.screen);
+  if (currentIndex < 0) throw new Error("Unknown presentation");
+  // Backend labels enter only through textContent/dataset below. Keep the
+  // original template's placeholder inert, even when a grade contains markup.
+  selectedYear = null;
+  searchQuery = "";
+  searchActive = view.searchActive;
+  keyboardShift = view.keyboardShift;
+  lastPressedKey = view.keyFeedback;
+  keyboardOpening = false;
+  keyboardClosing = view.keyboardClosing;
+  pinDigits = view.pinLength;
+  pinWarning = false;
+  cameraMode = view.vision ? "real" : "legacy";
+  visionMode = view.vision ? "remote" : "legacy";
+  classificationOrigin = view.vision?.decision?.source || view.vision?.observation?.origin || "AWS_REKOGNITION";
+  if (view.screen === 'vision-error') classificationOrigin = view.vision?.error_code?.startsWith('SECONDARY') ? 'GEMINI_FALLBACK_ERROR' : 'VISION_CASCADE_ERROR';
+  // Absence of camera/classification uses the existing unknown-item component,
+  // never the prototype's default cable or a fabricated classifier result.
+  if (['review', 'recognized', 'correct-item'].includes(view.screen)) {
+    recognizedItem = itemOptions.find(item => item.id === (view.vision?.decision?.item_id || view.vision?.observation?.itemId || 'unknown'));
+    visionCandidateIds = view.vision?.allowed_candidates || [];
+    // UNKNOWN is not inferred from an old visual label or browser decision.
+    recognitionOutcome = 'contracted-review';
+    draftRecognizedItem = itemOptions.find(item => item.id === view.correctionItem) || recognizedItem;
+  }
+  const template = document.createElement("template");
+  template.innerHTML = view.screen === "pin" ? approvedLoginPin() : screens[currentIndex].render();
+  const fragment = template.content;
+  if (view.screen === 'recognized' && view.vision) {
+    const media = fragment.querySelector('.item-focus-media');
+    const image = document.createElement('img');
+    image.dataset.sessionPhoto = ''; image.alt = ''; image.hidden = true;
+    media.classList.remove('item-media--unknown'); media.replaceChildren(image);
+  }
+  // Only student-facing copy changes; provenance remains in the snapshot/journal.
+  fragment.querySelectorAll('.simulation-badge').forEach(node => { node.textContent = ['classification', 'secondary-analysis', 'door-progress', 'computing'].includes(view.screen) ? 'Por favor, aguarde.' : 'Confira as orientações.'; });
+  fragment.querySelectorAll('.status-panel small').forEach(node => { node.textContent = 'Peça ajuda a um responsável.'; });
+  if (['classification', 'secondary-analysis'].includes(view.screen)) {
+    fragment.querySelector('.guide-bubble').textContent = 'Analisando seu eletrônico...';
+    const title = fragment.querySelector('.step'); if (title) title.textContent = 'Análise';
+  }
+  if (view.vision) {
+    const label = fragment.querySelector('.item-focus-footer strong');
+    if (label) label.textContent = window.BinGoLocalApi.studentType(view.vision, recognizedItem.id);
+    fragment.querySelectorAll('[data-correct-item]').forEach(button => {
+      button.querySelector('strong').textContent = window.BinGoLocalApi.studentType(view.vision, button.dataset.correctItem);
+      const subtitle = button.querySelector('small'); if (subtitle && button.dataset.correctItem === 'small') subtitle.textContent = '';
+    });
+    const quantity = fragment.querySelector('.single-item-pill');
+    if (quantity) quantity.textContent = '1 item';
+  }
+  const bind = (selector, action, value = "") => fragment.querySelectorAll(selector).forEach(node => {
+    node.dataset.devOp = action;
+    node.dataset.value = value;
+  });
+  // Clone existing controls; replace only server data, never their composition.
+  function fillList(selector, rows, action, studentList = false) {
+    const list = fragment.querySelector(selector);
+    const prototype = list.querySelector("button").cloneNode(true);
+    list.replaceChildren(...rows.map(row => {
+      const button = prototype.cloneNode(true);
+      const label = button.querySelector("span");
+      if (studentList) {
+        label.className = "student-button-label";
+        const strong = document.createElement("strong");
+        strong.textContent = row.name;
+        label.replaceChildren(strong);
+        button.dataset.student = row.id;
+      } else label.textContent = row.name;
+      button.dataset.devOp = action;
+      button.dataset.value = row.id;
+      return button;
+    }));
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = studentList ? "Nenhum aluno disponível nesta turma." : "Nenhuma turma disponível no contexto DEV.";
+      list.append(empty);
+    }
+  }
+  bind(".screen--sleep[data-next]", "wake");
+  bind(".wake-action", view.terminal ? "new" : view.command ? "resume" : view.screen === "sleep" ? "wake" : "begin");
+  bind('[data-mode="student"]', "mode", "student");
+  bind('[data-mode="classOnly"]', "mode", "class_only");
+  bind("[data-back]", "back");
+  bind("[data-cancel-discard]", "cancel");
+  if (view.mechanicalPin) fragment.querySelectorAll('[data-cancel-discard]').forEach(button => { button.disabled = !view.cancelAllowed; });
+  bind('[data-item-inserted]', 'inserted');
+  bind('[data-hand-confirmed]', 'hand');
+  bind('[data-discard-confirm]', 'discard');
+  bind('[data-recognition-confirm]', 'recognition-confirm');
+  fragment.querySelectorAll('[data-recognition-confirm]').forEach(button => { button.disabled = !view.correctionAllowed; });
+  if (view.vision && ['rejected', 'vision-error'].includes(view.screen)) fragment.querySelectorAll('[data-adjust-retry], [data-return-start]').forEach(button => { button.disabled = true; });
+  if (view.vision && ['rejected', 'vision-error'].includes(view.screen) && view.cancelAllowed) {
+    const exit = fragment.querySelector('[data-return-start]');
+    exit.textContent = 'Cancelar tentativa'; exit.disabled = false; bind('[data-return-start]', 'end-test');
+    const retry = fragment.querySelector('[data-adjust-retry]');
+    const panel = fragment.querySelector('.status-panel');
+    if (panel) {
+      panel.querySelector('strong').textContent = 'Reconhecimento não confirmado';
+      panel.querySelector('span:not(.status-mark)').textContent = 'Nenhum descarte foi registrado. Use as opções abaixo para tentar novamente ou cancelar.';
+    }
+    retry.textContent = view.retryAllowed ? 'Tentar análise novamente' : 'Tirar outra foto';
+    retry.disabled = !(view.retryAllowed || view.recaptureAllowed);
+    bind('[data-adjust-retry]', view.retryAllowed ? 'retry-analysis' : 'recapture');
+    if (view.retryAllowed && view.recaptureAllowed) {
+      const photo = retry.cloneNode(true); photo.textContent = 'Tirar outra foto'; photo.dataset.devOp = 'recapture';
+      retry.after(photo);
+    }
+    fragment.querySelector('.guide-bubble').textContent = view.retryAllowed ? 'A análise está indisponível. Tente analisar a mesma foto ou tire outra foto.' : view.recaptureAllowed ? 'Não consegui confirmar o item nesta foto. Tire outra foto ou cancele a tentativa.' : 'Não é seguro tentar novamente. Chame um responsável.';
+  }
+  if (view.vision && ['rejected', 'vision-error'].includes(view.screen) && !view.cancelAllowed) fragment.querySelector('.guide-bubble').textContent = 'Chame um responsável para verificar o item antes de continuar.';
+  bind('[data-camera-action]', 'vision-analyze');
+  if (view.screen === 'camera') {
+    fragment.querySelectorAll('[data-camera-retake], [data-return-start]').forEach(button => { button.disabled = true; });
+    const button = fragment.querySelector('[data-camera-action]');
+    button.textContent = view.vision?.image_available ? 'Analisar item' : 'Capturando…';
+    button.disabled = !view.analyzeAllowed;
+    fragment.querySelector('[data-camera-badge]').textContent = view.vision?.image_available ? 'CAPTURADA' : 'DESLIGADA';
+    fragment.querySelector('[data-camera-status]').textContent = view.vision?.image_available ? 'Imagem capturada nesta sessão. Selecione Analisar item para continuar.' : 'Capturando a imagem nesta sessão…';
+    fragment.querySelector('[data-camera-retake]').hidden = !view.vision?.image_available;
+    fragment.querySelector('[data-camera-canvas]').hidden = !view.vision?.image_available;
+    fragment.querySelector('[data-camera-placeholder]').hidden = !!view.vision?.image_available;
+  }
+  bind('[data-correction-open]', 'correction');
+  if (view.state === 'CAPTURING' && view.vision?.capture_history?.length) fragment.querySelector('.guide-bubble').textContent = 'Fotografando seu eletrônico...';
+  if (view.screen === 'correct-item') {
+    const recapture = document.createElement('button');
+    recapture.className = 'secondary-action'; recapture.textContent = 'Refotografar item';
+    recapture.dataset.devOp = 'recapture'; recapture.disabled = !view.recaptureAllowed;
+    fragment.querySelector('.correction-item-list').after(recapture);
+  }
+  bind('[data-apply-correction]', 'apply-correction');
+  fragment.querySelectorAll('[data-correct-item]').forEach(node => { node.dataset.devOp = 'correct-item'; node.dataset.value = node.dataset.correctItem; });
+  fragment.querySelectorAll('[data-correction-open]').forEach(button => { button.disabled = !(view.correctionAllowed || view.recaptureAllowed); });
+  if (view.screen === 'review') {
+    fragment.querySelector('[data-discard-confirm]').disabled = !view.reviewAllowed;
+    // Correction has no backend classification contract in this increment.
+    fragment.querySelector('[data-correction-open]').disabled = !view.correctionAllowed;
+  }
+  if (view.screen === 'mechanical-error') bind('[data-jump]', 'help');
+  if (view.screen === "segment") fillList(".option-stack", view.segments, "segment");
+  if (view.screen === "year") fillList(".year-list", view.grades, "grade");
+  if (view.screen === "class") fillList(".class-list", view.classes, "class");
+  if (view.screen === "student") {
+    fillList(".student-list", view.students, "student", true);
+    const search = fragment.querySelector("[data-search-toggle]");
+    search.dataset.devOp = "search-toggle";
+    search.classList.toggle("has-value", Boolean(view.filter));
+    const label = search.querySelector(":scope > span");
+    label.textContent = view.filter || "Digite seu nome...";
+    label.classList.toggle("search-placeholder", !view.filter);
+    fragment.querySelectorAll("[data-key]").forEach(node => {
+      node.dataset.devOp = "search-key";
+      node.dataset.value = node.dataset.key;
+    });
+  }
+  if (view.screen === "pin") {
+    const screen = fragment.querySelector(".screen");
+    screen.dataset.pinStep = "login";
+    const display = fragment.querySelector(".pin-display");
+    display.setAttribute("role", "img");
+    display.setAttribute("aria-label", `${view.pinLength} de 4 números preenchidos`);
+    display.querySelectorAll(".pin-dot").forEach(dot => dot.setAttribute("aria-hidden", "true"));
+    fragment.querySelectorAll("[data-pin]").forEach(node => {
+      node.dataset.devOp = "pin";
+      node.dataset.value = node.dataset.pin;
+    });
+    const hint = fragment.querySelector(".pin-hint");
+    hint.setAttribute("role", "alert");
+    hint.textContent = view.warning || "Digite 4 números.";
+    hint.classList.toggle("show", Boolean(view.warning));
+  } else if (view.warning) {
+    const speech = fragment.querySelector(".guide-bubble");
+    speech.textContent = view.warning;
+    speech.setAttribute("role", "alert");
+  }
+  if (view.screen === "safety") {
+    bind("[data-safety-safe]", "safety", "safe");
+    bind("[data-safety-risk]", "safety", "risk");
+    fragment.querySelectorAll("[data-safety-safe], [data-safety-risk]").forEach(button => { button.disabled = !view.safetyAllowed; });
+  }
+  if (["unavailable", "teacher"].includes(view.screen)) {
+    bind("[data-jump]", "refresh");
+    if (view.riskReported) bind("[data-jump]", "new", "idle");
+    const panel = fragment.querySelector(".status-panel");
+    if (panel) {
+      panel.querySelector("strong").textContent = view.uncertain ? "Resposta não confirmada" : "Identificação indisponível";
+      panel.querySelector("span:not(.status-mark)").textContent = "Consulte a sessão persistida antes de continuar.";
+      panel.querySelector("small").textContent = "Peça ajuda a um responsável.";
+    }
+  }
+  fragment.querySelectorAll("button").forEach(button => { if (view.busy) button.disabled = true; });
+  // Attributes stay on the host: legacy operational PIN CSS must not resize
+  // the approved screen. Browser data contains no identity/authentication state.
+  const sameEvent = kiosk.dataset.eventId === (view.eventId || "");
+  const existing = kiosk.querySelector(".screen");
+  kiosk.dataset.operationalState = view.state;
+  kiosk.dataset.devStage = view.stage;
+  kiosk.dataset.eventId = view.eventId || "";
+  if (sameEvent && view.screen === "pin" && existing?.matches('.screen--pin[data-pin-step="login"]')) {
+    const display = existing.querySelector(".pin-display"), next = fragment.querySelector(".pin-display");
+    display.setAttribute("aria-label", next.getAttribute("aria-label"));
+    display.querySelectorAll(".pin-dot").forEach((dot, index) => dot.classList.toggle("filled", index < view.pinLength));
+    const keys = fragment.querySelectorAll("[data-pin]");
+    existing.querySelectorAll("[data-pin]").forEach((key, index) => { key.className = keys[index].className; key.disabled = keys[index].disabled; });
+    const hint = existing.querySelector(".pin-hint"), nextHint = fragment.querySelector(".pin-hint");
+    hint.textContent = nextHint.textContent; hint.className = nextHint.className;
+    existing.querySelector("[data-cancel-discard]").disabled = view.busy || view.mechanicalPin && !view.cancelAllowed;
+    return;
+  }
+  if (sameEvent && view.screen === "student" && existing?.matches(".screen--student") && existing.classList.contains("is-searching") === Boolean(view.searchActive || view.keyboardClosing)) {
+    existing.className = fragment.querySelector(".screen").className;
+    const search = existing.querySelector(".search-box"), nextSearch = fragment.querySelector(".search-box");
+    search.className = nextSearch.className;
+    search.querySelector("span").textContent = nextSearch.querySelector("span").textContent;
+    search.querySelector("span").className = nextSearch.querySelector("span").className;
+    existing.querySelector(".student-list").replaceChildren(...fragment.querySelector(".student-list").childNodes);
+    const keys = fragment.querySelectorAll("[data-key]");
+    existing.querySelectorAll("[data-key]").forEach((key, index) => { key.className = keys[index].className; key.dataset.label = keys[index].dataset.label; if (key.querySelector("span")) key.querySelector("span").textContent = keys[index].querySelector("span").textContent; });
+    const speech = existing.querySelector(".guide-bubble"), nextSpeech = fragment.querySelector(".guide-bubble");
+    speech.textContent = nextSpeech.textContent;
+    if (nextSpeech.hasAttribute("role")) speech.setAttribute("role", "alert"); else speech.removeAttribute("role");
+    existing.querySelectorAll("button").forEach(button => { button.disabled = view.busy; });
+    return;
+  }
+  kiosk.innerHTML = template.innerHTML;
+  kiosk.querySelectorAll("img").forEach(image => {
+    image.decoding = "async";
+    image.draggable = false;
+  });
+}
+
+// Reutiliza a composição aprovada. O template fica desconectado do DOM até
+// substituir todos os valores demonstrativos pela fotografia central validada.
+function renderRegisteredReceipt(session, busy) {
+  const receipt = session.receipt;
+  if (session.state !== 'REGISTERED' || receipt?.event_id !== session.event_id) throw new Error('Receipt required');
+  flowMode = session.mode === 'student' ? 'student' : 'classOnly';
+  const template = document.createElement('template');
+  template.innerHTML = screens.find(screen => screen.id === 'success').render();
+  const fragment = template.content;
+  const screen = fragment.querySelector('.screen');
+  screen.dataset.operationalState = 'REGISTERED';
+  screen.classList.remove('screen--auto');
+  screen.removeAttribute('data-auto-next');
+  screen.removeAttribute('data-auto-delay');
+  fragment.querySelector('.guide-bubble').textContent = 'Boa escolha! Descarte registrado com sucesso.';
+  const classMetric = fragment.querySelector('.metric--class');
+  classMetric.querySelector(':scope > span').textContent = 'XP da turma';
+  classMetric.querySelector('.reward-number').textContent = `+${receipt.points_awarded_class}`;
+  classMetric.querySelector('.reward-unit').textContent = ' XP';
+  const studentMetric = fragment.querySelector('.metric--student');
+  if (studentMetric) studentMetric.querySelector('.reward-number').textContent = `+${receipt.points_awarded_student}`;
+  fragment.querySelector('.simulation-badge').textContent = 'Registro confirmado';
+  const finish = fragment.querySelector('[data-jump]');
+  finish.removeAttribute('data-jump');
+  finish.dataset.op = 'finish';
+  finish.disabled = busy;
+  kiosk.replaceChildren(fragment);
+}
+
 if (new URLSearchParams(window.location.search).get("runtime") === "demo") {
   const notice = document.createElement("div");
   notice.className = "demo-notice";
@@ -1395,7 +1781,8 @@ if (new URLSearchParams(window.location.search).get("runtime") === "demo") {
   render();
 } else {
   // Parâmetros de revisão e timers do protótipo não participam do modo operacional.
-  window.BinGoOperational.start(kiosk, { assets, talk, topbar, keyboardRows, normalize });
+  screens.push(visionErrorScreen);
+  window.BinGoOperational.start(kiosk, { assets, talk, topbar, keyboardRows, normalize, renderIdentity: renderDevIdentity, renderReceipt: renderRegisteredReceipt });
 }
 document.addEventListener("dragstart", (event) => {
   if (event.target instanceof HTMLImageElement) {

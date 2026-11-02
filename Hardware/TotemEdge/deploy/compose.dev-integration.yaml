@@ -1,0 +1,86 @@
+name: bingo-totem-edge-dev-integration
+
+x-runtime: &runtime
+  image: bingo-totem-edge:dev-integration
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  stop_grace_period: 30s
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+x-environment: &environment
+  BINGO_DEV_CONTEXT: development
+  BINGO_SUPABASE_URL: ""
+  BINGO_MACHINE_ID: ""
+  BINGO_MACHINE_API_KEY: ""
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+  GEMINI_API_KEY: ""
+  HTTP_PROXY: ""
+  HTTPS_PROXY: ""
+  ALL_PROXY: ""
+  http_proxy: ""
+  https_proxy: ""
+  all_proxy: ""
+
+services:
+  totem-edge-dev:
+    <<: *runtime
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: dev_integration
+    environment:
+      <<: *environment
+      BINGO_DEV_PLANS: '{}'
+      BINGO_SQLITE_PATH: /var/lib/bingo-dev-integration/simulation.sqlite3
+    configs:
+      - source: dev-policy
+        target: /run/configs/dev-policy.json
+    volumes:
+      - dev-integration-data:/var/lib/bingo-dev-integration
+    networks: [dev-private, central-private]
+    dns: [127.0.0.1]
+    depends_on:
+      dev-central: {condition: service_healthy}
+
+  dev-central:
+    <<: *runtime
+    command: [python, -m, uvicorn, "app.dev_broker:create_broker_app", --factory, --host, 0.0.0.0, --port, "8000", --workers, "1", --no-access-log, --no-proxy-headers]
+    environment: *environment
+    configs:
+      - source: dev-policy
+        target: /run/configs/dev-policy.json
+    secrets:
+      - source: dev-machine-key
+        target: dev-machine-key
+    networks: [central-private, dev-egress]
+
+  dev-http:
+    <<: *runtime
+    command: [python, -m, app.simulation_proxy]
+    environment: *environment
+    ports: ["127.0.0.1:8002:8000"]
+    networks: [dev-private, dev-ingress]
+    depends_on:
+      totem-edge-dev: {condition: service_healthy}
+
+configs:
+  dev-policy:
+    file: ${BINGO_DEV_POLICY_FILE:?Configure o caminho absoluto da política DEV externa}
+secrets:
+  dev-machine-key:
+    file: ${BINGO_DEV_MACHINE_KEY_FILE:?Configure o caminho absoluto do segredo de máquina DEV externo}
+
+volumes:
+  dev-integration-data:
+    labels: {org.bingo.purpose: totem-edge-dev-integration}
+
+networks:
+  dev-private: {internal: true}
+  central-private: {internal: true}
+  dev-egress: {driver: bridge}
+  dev-ingress: {driver: bridge}

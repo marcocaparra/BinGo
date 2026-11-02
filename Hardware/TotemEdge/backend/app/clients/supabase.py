@@ -1,12 +1,12 @@
 import asyncio
-from hashlib import sha256
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
 from typing import Literal
+from uuid import UUID
 
 import httpx2 as httpx
 from pydantic import ValidationError
-from uuid import UUID
 
 from app.central_contracts import (
     DepositPayload,
@@ -68,12 +68,21 @@ def _matches_health_contract(body: object, available: bool) -> bool:
 
 
 class SupabaseEdgeClient:
-    def __init__(self, http_client: httpx.AsyncClient):
+    def __init__(
+        self,
+        http_client: httpx.AsyncClient,
+        *,
+        settings: SupabaseSettings | None = None,
+    ):
         self._http = http_client
         self._settings: SupabaseSettings | None = None
         self._configuration_outcome: ReadinessOutcome = "NOT_CONFIGURED"
         try:
-            self._settings = SupabaseSettings.from_environment()
+            self._settings = (
+                settings
+                if settings is not None
+                else SupabaseSettings.from_environment()
+            )
         except SupabaseConfigurationError as error:
             self._configuration_outcome = error.outcome
 
@@ -234,6 +243,21 @@ class SupabaseEdgeClient:
                 receipt.event_id != payload.event_id
                 or receipt.waste_category_code != payload.waste_category_code
                 or receipt.category_source != payload.category_source
+                or (
+                    payload.student_id is None
+                    and (
+                        receipt.points_awarded_student != 0
+                        or receipt.bonus_bincoins_awarded != 0
+                    )
+                )
+                or (
+                    not payload.is_valid
+                    and (
+                        receipt.points_awarded_student != 0
+                        or receipt.points_awarded_class != 0
+                        or receipt.bonus_bincoins_awarded != 0
+                    )
+                )
             ):
                 raise ValueError()
             return receipt

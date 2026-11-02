@@ -1,0 +1,32 @@
+# Native Linux V4L2 only. Select the real by-id/by-path link explicitly.
+services:
+  totem-edge:
+    image: bingo-camera-linux:3c30
+    build:
+      target: camera_runtime
+    environment:
+      BINGO_SUPABASE_URL: ""
+      BINGO_MACHINE_ID: ""
+      BINGO_MACHINE_API_KEY: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      AWS_SESSION_TOKEN: ""
+      GEMINI_API_KEY: ""
+      BINGO_CAMERA_MODE: local
+      BINGO_CAMERA_DB: /var/lib/bingo-camera/camera.sqlite3
+      BINGO_CAMERA_TOKEN_FILE: /run/secrets/camera-token
+    volumes:
+      - camera-data:/var/lib/bingo-camera
+    devices:
+      - source: ${BINGO_CAMERA_DEVICE:?Set the stable absolute /dev/v4l/by-id or by-path link}
+        target: ${BINGO_CAMERA_DEVICE}
+        permissions: rwm
+    group_add:
+      - ${BINGO_CAMERA_VIDEO_GID:?Set the numeric group owning the camera}
+    secrets:
+      - camera-token
+secrets:
+  camera-token:
+    file: ${BINGO_CAMERA_TOKEN_FILE:?Set the absolute camera.token path}
+volumes:
+  camera-data:

@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+from contextlib import closing
 from dataclasses import dataclass, field
 from io import BytesIO
 import json
@@ -17,7 +18,7 @@ import httpx2 as httpx
 from PIL import Image
 
 from app.services.capture import Frame, Observation, VisionResult
-from app.services.vision_policy import classify_labels
+from app.services.vision_policy import classify_labels, CATEGORY_LABELS
 
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_IMAGE_PIXELS = 16_000_000
@@ -27,8 +28,9 @@ DECISIONS = ["battery", "cable", "phone", "small", "rejected", "inconclusive"]
 
 
 class VisionError(Exception):
-    def __init__(self, code: str):
+    def __init__(self, code: str, *, observations=()):
         self.code = code
+        self.observations = observations
         super().__init__(code)
 
 
@@ -67,10 +69,52 @@ def validate_frame(frame: Frame) -> None:
         raise VisionError("INVALID_IMAGE_CONTENT") from None
 
 
+def specific_type(value):
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if (
+        not value
+        or len(value) > 120
+        or any(ord(c) < 32 for c in value)
+        or re.search(
+            r"\b(small|medium|large|pequeno|médio|medio|grande|aws|rekognition|gemini|fallback)\b",
+            value,
+            re.I,
+        )
+    ):
+        return None
+    if value.casefold() in {
+        "small",
+        "medium",
+        "large",
+        "item pequeno",
+        "eletronico pequeno",
+        "eletrônico pequeno",
+        "computer hardware",
+        "electronics",
+        "hardware",
+        "unknown",
+        "eletrônico",
+        "lixo eletrônico",
+        "eletrônico não identificado",
+        "lixo eletrônico não identificado",
+        "electronic device",
+        "electrical device",
+        "pequeno",
+        "médio",
+        "grande",
+        "inconclusive",
+    }:
+        return None
+    return value
+
+
 def validate_result(raw, origin: str) -> VisionResult:
     if (
         type(raw) is not dict
-        or set(raw) != {"status", "itemId", "candidateIds", "confidence", "origin"}
+        or set(raw) - {"detected_types"}
+        != {"status", "itemId", "candidateIds", "confidence", "origin"}
         or raw["origin"] != origin
         or not number(raw["confidence"], 0, 1)
         or type(raw["candidateIds"]) is not list
@@ -92,6 +136,14 @@ def validate_result(raw, origin: str) -> VisionResult:
         ):
             raise VisionError("INVALID_PROVIDER_RESPONSE")
     elif raw["itemId"] is not None:
+        raise VisionError("INVALID_PROVIDER_RESPONSE")
+    types = raw.get("detected_types", {})
+    if type(types) is not dict or any(
+        k not in raw["candidateIds"]
+        or specific_type(v) is None
+        or specific_type(v) != v
+        for k, v in types.items()
+    ):
         raise VisionError("INVALID_PROVIDER_RESPONSE")
     return VisionResult.model_validate(raw)
 
@@ -150,7 +202,7 @@ class RekognitionProvider:
 
     def _detect(self, content):
         # Credenciais explícitas: sem descoberta IMDS/perfil/rede no startup.
-        with boto3.client(
+        client = boto3.client(
             "rekognition",
             region_name=self.settings.region,
             aws_access_key_id=self.settings.aws_key,
@@ -164,7 +216,8 @@ class RekognitionProvider:
                 ignore_configured_endpoint_urls=True,
                 max_pool_connections=1,
             ),
-        ) as client:
+        )
+        with closing(client):
             return client.detect_labels(
                 Image={"Bytes": content}, MaxLabels=20, MinConfidence=55
             )
@@ -210,7 +263,20 @@ class RekognitionProvider:
                 confidence=0.0,
                 origin="AWS_REKOGNITION",
             )
-        return classify_labels(labels)
+        result = classify_labels(labels)
+        result["detected_types"] = {}
+        for item in result["candidateIds"]:
+            matched = [
+                label
+                for label in labels
+                if label["Name"].strip().lower() in CATEGORY_LABELS.get(item, set())
+                and specific_type(label["Name"])
+            ]
+            if matched:
+                result["detected_types"][item] = max(
+                    matched, key=lambda label: label["Confidence"]
+                )["Name"].strip()
+        return result
 
 
 class GeminiProvider:
@@ -251,8 +317,10 @@ class GeminiProvider:
             "Classifique o unico objeto apresentado ao Totem BinGo. "
             "Nao trate mao, pessoa ou ambiente como objeto principal. "
             "Use battery para pilha/bateria; cable para cabo, fio, carregador ou "
-            "adaptador; phone para celular; small para outro eletronico pequeno "
-            "como mouse, fone, teclado, controle, calculadora, placa ou lampada. "
+            "adaptador; phone para celular; small e apenas um agrupamento legado interno "
+            "para mouse, fone, teclado, controle, calculadora, placa ou lampada. "
+            "Informe detected_type com o tipo especifico em portugues (por exemplo fone de ouvido), nunca tamanho. "
+            "Se o dominio eletronico estiver confirmado mas o tipo for desconhecido, detected_type deve ser null. "
             "Use rejected somente para objeto claramente nao eletronico. "
             "Use inconclusive para duvida, imagem vazia, risco, item grande ou "
             "quando nao for possivel confirmar. Nao presuma seguranca fisica. "
@@ -282,8 +350,9 @@ class GeminiProvider:
                     "properties": {
                         "decision": {"type": "string", "enum": DECISIONS},
                         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                        "detected_type": {"type": "string", "nullable": True},
                     },
-                    "required": ["decision", "confidence"],
+                    "required": ["decision", "confidence", "detected_type"],
                 },
             },
         }
@@ -309,7 +378,11 @@ class GeminiProvider:
             decision = json.loads(part["text"])
             if (
                 type(decision) is not dict
-                or set(decision) != {"decision", "confidence"}
+                or set(decision) - {"detected_type"} != {"decision", "confidence"}
+                or (
+                    decision.get("detected_type") is not None
+                    and type(decision["detected_type"]) is not str
+                )
                 or decision["decision"] not in DECISIONS
                 or not number(decision["confidence"], 0, 1)
             ):
@@ -332,6 +405,9 @@ class GeminiProvider:
             else candidates,
             confidence=decision["confidence"],
             origin="GEMINI_FALLBACK",
+            detected_types={item: specific_type(decision.get("detected_type"))}
+            if status == "recognized" and specific_type(decision.get("detected_type"))
+            else {},
         )
 
 
@@ -343,10 +419,11 @@ class InternalVision:
         self.secondary = secondary
         self._busy = False
 
-    async def classify(self, frame: Frame) -> Observation:
+    async def classify(self, frame: Frame, *, observe=None) -> Observation:
         if self._busy:
             raise VisionError("VISION_BUSY")
         self._busy = True
+        observations = []
         try:
             validate_frame(frame)
             if self.primary is None:
@@ -354,6 +431,9 @@ class InternalVision:
             async with asyncio.timeout(10):
                 raw = await self.primary.analyze(frame, [])
             result = validate_result(raw, "AWS_REKOGNITION")
+            observations = [result]
+            if observe is not None:
+                observe(result)
             # Mesmo limiar 0,75 do provider JS; não acrescenta critério secundário.
             if result.status == "recognized" and result.confidence < 0.75:
                 result = result.model_copy(
@@ -364,14 +444,24 @@ class InternalVision:
                 async with asyncio.timeout(21):
                     raw = await self.secondary.analyze(frame, list(result.candidateIds))
                 result = validate_result(raw, "GEMINI_FALLBACK")
+                observations.append(result)
+                if observe is not None:
+                    observe(result)
                 simulated = simulated or getattr(self.secondary, "simulated", True)
-            return Observation(result, simulated=simulated)
-        except VisionError:
+            return Observation(
+                result, simulated=simulated, observations=tuple(observations)
+            )
+        except VisionError as error:
+            error.observations = tuple(observations)
             raise
         except TimeoutError:
-            raise VisionError("VISION_TIMEOUT") from None
+            raise VisionError(
+                "VISION_TIMEOUT", observations=tuple(observations)
+            ) from None
         except Exception:
-            raise VisionError("VISION_PROVIDER_FAILED") from None
+            raise VisionError(
+                "VISION_PROVIDER_FAILED", observations=tuple(observations)
+            ) from None
         finally:
             self._busy = False
 

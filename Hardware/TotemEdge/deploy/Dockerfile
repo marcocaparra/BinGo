@@ -10,7 +10,7 @@ COPY backend/pyproject.toml backend/uv.lock ./
 # Fail if the lock is stale or a platform lacks a prebuilt wheel.
 RUN uv sync --locked --no-dev --no-install-project --no-editable --no-build --compile-bytecode --python /usr/local/bin/python
 
-FROM base AS runtime
+FROM base AS runtime_base
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     BINGO_SQLITE_PATH=/var/lib/bingo/totem.sqlite3
@@ -29,3 +29,49 @@ STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
     CMD ["/opt/venv/bin/python", "/opt/totem/deploy/healthcheck.py"]
 CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start.py"]
+
+# Explicit development target; the final/default target below stays operational.
+FROM runtime_base AS simulation
+USER root
+RUN install -d -o bingo -g bingo -m 0700 /var/lib/bingo-simulation
+COPY deploy/start_simulation.py /opt/totem/deploy/
+ENV BINGO_SQLITE_PATH=/var/lib/bingo-simulation/simulation.sqlite3 \
+    BINGO_SIMULATION_CONTEXT=development
+USER 10001:10001
+CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start_simulation.py"]
+
+FROM runtime_base AS dev_integration
+USER root
+RUN install -d -o bingo -g bingo -m 0700 /var/lib/bingo-dev-integration
+COPY deploy/start_dev_integration.py /opt/totem/deploy/
+ENV BINGO_SQLITE_PATH=/var/lib/bingo-dev-integration/simulation.sqlite3 \
+    BINGO_DEV_CONTEXT=development
+USER 10001:10001
+CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start_dev_integration.py"]
+
+FROM runtime_base AS vision_lab
+USER root
+RUN install -d -o bingo -g bingo -m 0700 /var/lib/bingo-vision-lab
+COPY deploy/start_vision_lab.py /opt/totem/deploy/
+ENV BINGO_SQLITE_PATH=/var/lib/bingo-vision-lab/simulation.sqlite3 \
+    BINGO_VISION_LAB_CONTEXT=development
+USER 10001:10001
+CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start_vision_lab.py"]
+
+FROM runtime_base AS vision_dev
+USER root
+RUN install -d -o bingo -g bingo -m 0700 /var/lib/bingo-vision-dev
+COPY deploy/start_vision_dev.py /opt/totem/deploy/
+ENV BINGO_SQLITE_PATH=/var/lib/bingo-vision-dev/simulation.sqlite3 \
+    BINGO_VISION_LAB_CONTEXT=development
+USER 10001:10001
+CMD ["/opt/venv/bin/python", "/opt/totem/deploy/start_vision_dev.py"]
+
+FROM runtime_base AS camera_runtime
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && install -d -o bingo -g bingo -m 0700 /var/lib/bingo-camera
+USER 10001:10001
+
+FROM runtime_base AS runtime

@@ -1,0 +1,83 @@
+name: bingo-totem-edge-simulation
+
+services:
+  totem-edge-simulation:
+    image: bingo-totem-edge:simulation-dev
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: simulation
+    restart: "no"
+    # Backend permanece exclusivamente na rede interna, sem porta no host.
+    environment:
+      BINGO_SIMULATION_CONTEXT: development
+      BINGO_SIMULATION_PLANS: '{}'
+      BINGO_SQLITE_PATH: /var/lib/bingo-simulation/simulation.sqlite3
+      # Literais: não interpolar nem encaminhar credenciais do shell/.env.
+      BINGO_SUPABASE_URL: ""
+      BINGO_MACHINE_ID: ""
+      BINGO_MACHINE_API_KEY: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      GEMINI_API_KEY: ""
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+    volumes:
+      - simulation-data:/var/lib/bingo-simulation
+    networks:
+      - simulation-private
+    dns:
+      - 127.0.0.1
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  simulation-http:
+    image: bingo-totem-edge:simulation-dev
+    command: ["python", "-m", "app.simulation_proxy"]
+    restart: "no"
+    depends_on:
+      totem-edge-simulation:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      BINGO_SIMULATION_CONTEXT: development
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+    networks:
+      - simulation-private
+      - simulation-ingress
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+volumes:
+  simulation-data:
+    labels:
+      org.bingo.purpose: totem-edge-simulation
+
+networks:
+  simulation-private:
+    internal: true
+  simulation-ingress:
+    driver: bridge

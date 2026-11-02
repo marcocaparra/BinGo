@@ -1,0 +1,40 @@
+# Overlay on compose.dev-integration.yaml. Main Windows DEV: -p bingo-totem-edge.
+# Real identity through the existing read-only broker; no economic capability.
+name: bingo-totem-edge
+services:
+  totem-edge-dev:
+    image: bingo-totem-edge:vision-dev
+    build:
+      target: vision_dev
+    environment:
+      BINGO_DEV_CONTEXT: ""
+      BINGO_DEV_PLANS: ""
+      BINGO_VISION_LAB_CONTEXT: development
+      BINGO_SQLITE_PATH: /var/lib/bingo-vision-dev/simulation.sqlite3
+      BINGO_CAMERA_MODE: remote
+      BINGO_CAMERA_URL: http://host.docker.internal:8766
+      BINGO_CAMERA_TOKEN_FILE: /run/secrets/camera-token
+      BINGO_VISION_CREDENTIALS_FILE: /run/secrets/vision-credentials
+    dns: !reset []
+    networks: [dev-private, central-private, vision-egress]
+    volumes: !override
+      - vision-dev-data:/var/lib/bingo-vision-dev
+      - type: bind
+        source: ${BINGO_CAMERA_TOKEN_FILE:?Set private camera token file path}
+        target: /run/secrets/camera-token
+        read_only: true
+      - type: bind
+        source: ${BINGO_VISION_CREDENTIALS_FILE:?Set private vision credentials file path}
+        target: /run/secrets/vision-credentials
+        read_only: true
+  dev-central:
+    image: bingo-totem-edge:vision-dev
+  dev-http:
+    image: bingo-totem-edge:vision-dev
+    ports: !override
+      - "127.0.0.1:${BINGO_VISION_DEV_PORT:-8000}:8000"
+volumes: !override
+  vision-dev-data:
+    labels: {org.bingo.purpose: vision-dev-read-only-identity}
+networks:
+  vision-egress: {driver: bridge}

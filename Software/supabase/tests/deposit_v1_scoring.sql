@@ -132,7 +132,9 @@ select extensions.is(
     'retry nao duplica XP'
 );
 select extensions.is(
-    (select count(*)::integer from public.audit_logs where action = 'DEPOSIT_REGISTERED'),
+    (select count(*)::integer from public.audit_logs
+     where action = 'DEPOSIT_REGISTERED'
+       and metadata ->> 'event_id' = '95000000-0000-4000-8000-000000000001'),
     1,
     'retry nao duplica auditoria'
 );

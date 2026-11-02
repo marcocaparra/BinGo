@@ -5,12 +5,29 @@ SQLite ocupa um volume Docker persistente. O navegador permanece no Linux do
 equipamento, acessando loopback. Não há Node, Nginx, Chromium, IA local, serviços
 auxiliares ou acesso a dispositivos nesta imagem.
 
+Os [perfis automatizados de regressão](TESTING.md) documentam FAST, INTEGRATION,
+FULL e HOSTED DEV, comandos PowerShell, isolamento, resultados agregados e os
+E2E pendentes do 3C.2.
+
 **O Totem continua indisponível para descartes reais.** Um healthcheck saudável
 confirma somente o processo. `/local/status` permanece `OFFLINE` e
 `can_start_deposit=false`, inclusive com o backend central disponível. A
 demonstração em `/?runtime=demo` mantém seu aviso e isolamento existentes.
 
 ## Fontes, compatibilidade e diretórios
+
+Para desenvolvimento sem hardware, o [perfil isolado dos Incrementos 3A/3B](SIMULATION.md)
+reutiliza o Dockerfile com target explícito `simulation`, Compose independente,
+volume próprio e central bloqueada. Não usa o `.env.example` operacional e não
+publica portas do backend no host. Um ingresso TCP separado expõe somente
+127.0.0.1:8001, preservando a rede interna do backend e as guardas HTTP. A API
+simulada permite acompanhar a mesma máquina/journal; o frontend segue inalterado.
+O target final/default deste Dockerfile continua sendo o runtime operacional.
+
+O terceiro [perfil de integração DEV 3C.1](DEV_INTEGRATION.md) usa target explícito
+dev_integration, Compose/volume próprios e ingresso 127.0.0.1:8002. Um broker
+separado limita a chave de máquina a health/contexto/PIN; o processo com simulador
+não tem chave ou rota externa. Não combinar os arquivos Compose dos três perfis.
 
 Foram consultados STATUS atual, operação offline, README do Totem Edge/backend,
 LOCAL_API_V1, INTEGRATION_V1 e MIGRATION_DIAGNOSTIC. O diagnóstico descreve uma

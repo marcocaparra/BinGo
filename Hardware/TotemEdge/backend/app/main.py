@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from collections.abc import Callable
 import os
 from pathlib import Path
 
@@ -10,15 +11,31 @@ from fastapi.staticfiles import StaticFiles
 
 from app.clients.supabase import CentralError, SupabaseEdgeClient
 from app.cycles import CycleError
+from app.mechanical import ControllerError, MechanicalController
 from app.routes import health, local, sessions
 from app.services.capture import CaptureService
+from app.services.controller import UnavailableController
+from app.services.mechanical import MechanicalService
+from app.services.simulation_flow import SimulationFlow
 from app.services.sessions import SessionService
 from app.services.status import LocalStatusService
 from app.services.vision import build_internal_vision
+from app.simulation import (
+    SimulationSettings,
+    reject_simulation_in_operational,
+)
 from app.storage import CycleStore
+from app.camera_api import configured_camera, router as camera_router, camera_error
+from app.services.camera import CameraError
 
 
-def create_app(*, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
+def create_app(
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
+    camera_transport: httpx.AsyncBaseTransport | None = None,
+    controller_factory: Callable[[], MechanicalController] | None = None,
+    _simulation: SimulationSettings | None = None,
+) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         sqlite_path = Path(
@@ -27,32 +44,153 @@ def create_app(*, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
                 str(Path(__file__).resolve().parents[1] / ".data/totem.sqlite3"),
             )
         )
-        store = CycleStore(sqlite_path)
+        if _simulation is not None:
+            _simulation.prepare_storage()
+            sqlite_path = _simulation.sqlite_path
+        else:
+            reject_simulation_in_operational(sqlite_path)
+        policy = getattr(_simulation, "policy", None)
+        store = CycleStore(
+            sqlite_path,
+            simulation_enabled=_simulation is not None,
+            identity_scope=(policy.project_ref, policy.machine_id, policy.school_id)
+            if policy is not None
+            else None,
+        )
         try:
-            async with httpx.AsyncClient(
-                transport=transport, follow_redirects=False, trust_env=False
-            ) as http_client:
-                central = SupabaseEdgeClient(http_client)
-                status = LocalStatusService(central)
-                application.state.status_service = status
-                application.state.sessions = SessionService(store, central, status)
-                # Serviço interno disponível no mesmo processo. A ligação à sessão
-                # aguarda contratos de classificação/revisão; nenhuma rota o expõe.
-                application.state.vision = build_internal_vision(http_client)
-                application.state.capture = CaptureService(store)
-                yield
+            controller = (
+                controller_factory() if controller_factory else UnavailableController()
+            )
+            mechanical = MechanicalService(
+                store,
+                controller,
+                source="UNAVAILABLE"
+                if isinstance(controller, UnavailableController)
+                else "SIMULATED",
+                auto_initial=bool(getattr(_simulation, "dev_integration", False)),
+            )
+            try:
+                application.state.controller = controller
+                application.state.mechanical = mechanical
+                async with httpx.AsyncClient(
+                    transport=_simulation.build_transport(transport)
+                    if _simulation
+                    else transport,
+                    follow_redirects=False,
+                    trust_env=False,
+                ) as http_client:
+                    central = (
+                        _simulation.build_central(http_client)
+                        if _simulation
+                        else SupabaseEdgeClient(http_client)
+                    )
+                    status = LocalStatusService(central)
+                    application.state.status_service = status
+                    application.state.sessions = SessionService(store, central, status)
+                    application.state.dev_central = central
+                    if _simulation:
+                        application.state.simulation_flow = SimulationFlow(
+                            store,
+                            mechanical,
+                            central=central
+                            if store.identity_scope is not None
+                            else None,
+                        )
+                    # Serviços privados, desconectados da autorização física.
+                    application.state.vision = (
+                        None if _simulation else build_internal_vision(http_client)
+                    )
+                    # Camera traffic has its own bounded local capability; it
+                    # never shares/relaxes the central DEV broker's transport.
+                    async with httpx.AsyncClient(
+                        transport=camera_transport,
+                        follow_redirects=False,
+                        trust_env=False,
+                    ) as camera_http:
+                        camera, token = configured_camera(camera_http)
+                        application.state.camera = camera
+                        application.state.camera_token = token
+                        application.state.capture = CaptureService(store, camera=camera)
+                        session_vision = None
+                        if getattr(_simulation, "vision_enabled", False):
+                            from app.services.session_vision import SessionVision
+
+                            # Separate client: AI traffic never relaxes the central
+                            # broker transport, and carries no machine credentials.
+                            vision = _simulation.build_vision(camera_http)
+                            application.state.capture.vision = vision
+                            session_vision = SessionVision(
+                                application.state.capture,
+                                mechanical,
+                                model=_simulation.vision_settings.model,
+                                deferred_analysis=bool(
+                                    getattr(_simulation, "deferred_analysis", False)
+                                ),
+                            )
+                            application.state.simulation_flow.vision = session_vision
+                            session_vision.recover_unstarted()
+                        try:
+                            economy = None
+                            if getattr(
+                                _simulation, "vision_enabled", False
+                            ) and getattr(policy, "economic_registration", False):
+                                import asyncio
+                                from app.services.dev_economy import DevEconomy
+
+                                economy = DevEconomy(store, central)
+                                store.dev_economy = economy
+                                economy.task = asyncio.create_task(economy.run())
+                            await mechanical.resume_initial()
+                            yield
+                        finally:
+                            if economy is not None:
+                                economy.task.cancel()
+                                import contextlib
+
+                                with contextlib.suppress(asyncio.CancelledError):
+                                    await economy.task
+                            if session_vision is not None:
+                                await session_vision.aclose()
+                            if camera is not None:
+                                await camera.aclose()
+            finally:
+                await mechanical.aclose()
         finally:
             store.close()
 
     application = FastAPI(title="BinGo Totem Edge", lifespan=lifespan)
     application.include_router(health.router)
     application.include_router(local.router)
-    application.include_router(sessions.router)
+    if os.getenv("BINGO_CAMERA_MODE", "disabled") != "disabled":
+        application.include_router(camera_router("/local/camera"))
+    application.add_exception_handler(CameraError, camera_error)
+    if _simulation is None:
+        application.include_router(sessions.router)
+    if _simulation:
+        from app.routes.simulation import router as simulation_router
+
+        application.include_router(simulation_router)
+        if getattr(_simulation, "dev_integration", False):
+            from app.routes.dev import router as dev_router
+
+            application.include_router(dev_router)
 
     @application.exception_handler(CycleError)
     @application.exception_handler(CentralError)
+    @application.exception_handler(ControllerError)
     async def safe_error(request: Request, error):
-        status = error.status if isinstance(error, CycleError) else error.http_status
+        if isinstance(error, ControllerError):
+            status = (
+                404
+                if error.code == "MECHANICAL_COMMAND_NOT_FOUND"
+                else 503
+                if error.code in {"CONTROLLER_CLOSED", "COMMAND_CAPACITY_REACHED"}
+                else 409
+            )
+        else:
+            status = (
+                error.status if isinstance(error, CycleError) else error.http_status
+            )
         return JSONResponse(
             {"error": {"code": error.code, "message": str(error)}},
             status_code=status,
@@ -77,7 +215,14 @@ def create_app(*, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
     async def local_boundary(request: Request, call_next):
         path = request.url.path
         protected = path.startswith(
-            ("/local/sessions", "/local/context", "/assets/")
+            (
+                "/local/sessions",
+                "/local/context",
+                "/local/simulation",
+                "/local/dev",
+                "/local/camera",
+                "/assets/",
+            )
         ) or path in {
             "/",
             "/styles.css",
@@ -124,6 +269,9 @@ def create_app(*, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
                 status_code=422,
             )
         response = await call_next(request)
+        if path == "/health" and getattr(_simulation, "dev_integration", False):
+            # Profile discovery is local liveness, independent of central readiness.
+            response.headers["X-Totem-Runtime"] = "dev-integration"
         if request.url.path.startswith("/local/"):
             response.headers["Cache-Control"] = "no-store"
         return response

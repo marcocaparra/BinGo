@@ -1,0 +1,37 @@
+# Standalone, explicit lab. Never combine with the persistent DEV compose files.
+name: bingo-vision-lab
+services:
+  totem-edge:
+    image: bingo-totem-edge:vision-lab
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: vision_lab
+    ports:
+      - "127.0.0.1:${BINGO_VISION_LAB_PORT:-8017}:8000"
+    environment:
+      BINGO_VISION_LAB_CONTEXT: development
+      BINGO_SQLITE_PATH: /var/lib/bingo-vision-lab/simulation.sqlite3
+      BINGO_CAMERA_MODE: remote
+      BINGO_CAMERA_URL: http://host.docker.internal:8766
+      BINGO_CAMERA_TOKEN_FILE: /run/secrets/camera-token
+      BINGO_VISION_CREDENTIALS_FILE: /run/secrets/vision-credentials
+    volumes:
+      - vision-data:/var/lib/bingo-vision-lab
+      - type: bind
+        source: ${BINGO_CAMERA_TOKEN_FILE:?Set camera token file path}
+        target: /run/secrets/camera-token
+        read_only: true
+      - type: bind
+        source: ${BINGO_VISION_CREDENTIALS_FILE:?Set private vision credentials file path}
+        target: /run/secrets/vision-credentials
+        read_only: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+volumes:
+  vision-data:
