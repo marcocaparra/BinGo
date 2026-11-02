@@ -1602,8 +1602,19 @@ function renderDevIdentity(view) {
     const exit = fragment.querySelector('[data-return-start]');
     exit.textContent = 'Cancelar tentativa'; exit.disabled = false; bind('[data-return-start]', 'end-test');
     const retry = fragment.querySelector('[data-adjust-retry]');
-    retry.textContent = 'Tentar novamente'; retry.disabled = !view.retryAllowed; bind('[data-adjust-retry]', 'retry-analysis');
-    fragment.querySelector('.guide-bubble').textContent = /CAMERA_|INVALID_IMAGE|UNSUPPORTED_IMAGE/.test(view.vision.error_code || '') ? 'Não foi possível fotografar. Cancele esta tentativa para voltar ao início.' : view.retryAllowed ? 'Não foi possível analisar. Tente novamente com a mesma foto ou cancele esta tentativa.' : 'Não é possível analisar novamente esta foto. Cancele esta tentativa para voltar ao início.';
+    const panel = fragment.querySelector('.status-panel');
+    if (panel) {
+      panel.querySelector('strong').textContent = 'Reconhecimento não confirmado';
+      panel.querySelector('span:not(.status-mark)').textContent = 'Nenhum descarte foi registrado. Use as opções abaixo para tentar novamente ou cancelar.';
+    }
+    retry.textContent = view.retryAllowed ? 'Tentar análise novamente' : 'Tirar outra foto';
+    retry.disabled = !(view.retryAllowed || view.recaptureAllowed);
+    bind('[data-adjust-retry]', view.retryAllowed ? 'retry-analysis' : 'recapture');
+    if (view.retryAllowed && view.recaptureAllowed) {
+      const photo = retry.cloneNode(true); photo.textContent = 'Tirar outra foto'; photo.dataset.devOp = 'recapture';
+      retry.after(photo);
+    }
+    fragment.querySelector('.guide-bubble').textContent = view.retryAllowed ? 'A análise está indisponível. Tente analisar a mesma foto ou tire outra foto.' : view.recaptureAllowed ? 'Não consegui confirmar o item nesta foto. Tire outra foto ou cancele a tentativa.' : 'Não é seguro tentar novamente. Chame um responsável.';
   }
   if (view.vision && ['rejected', 'vision-error'].includes(view.screen) && !view.cancelAllowed) fragment.querySelector('.guide-bubble').textContent = 'Chame um responsável para verificar o item antes de continuar.';
   bind('[data-camera-action]', 'vision-analyze');
@@ -1619,9 +1630,16 @@ function renderDevIdentity(view) {
     fragment.querySelector('[data-camera-placeholder]').hidden = !!view.vision?.image_available;
   }
   bind('[data-correction-open]', 'correction');
+  if (view.state === 'CAPTURING' && view.vision?.capture_history?.length) fragment.querySelector('.guide-bubble').textContent = 'Fotografando seu eletrônico...';
+  if (view.screen === 'correct-item') {
+    const recapture = document.createElement('button');
+    recapture.className = 'secondary-action'; recapture.textContent = 'Refotografar item';
+    recapture.dataset.devOp = 'recapture'; recapture.disabled = !view.recaptureAllowed;
+    fragment.querySelector('.correction-item-list').after(recapture);
+  }
   bind('[data-apply-correction]', 'apply-correction');
   fragment.querySelectorAll('[data-correct-item]').forEach(node => { node.dataset.devOp = 'correct-item'; node.dataset.value = node.dataset.correctItem; });
-  fragment.querySelectorAll('[data-correction-open]').forEach(button => { button.disabled = !view.correctionAllowed; });
+  fragment.querySelectorAll('[data-correction-open]').forEach(button => { button.disabled = !(view.correctionAllowed || view.recaptureAllowed); });
   if (view.screen === 'review') {
     fragment.querySelector('[data-discard-confirm]').disabled = !view.reviewAllowed;
     // Correction has no backend classification contract in this increment.

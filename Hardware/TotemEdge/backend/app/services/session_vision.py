@@ -49,6 +49,15 @@ class SessionVision:
     def recover_unstarted(self):
         """Startup may record a lost intent, never silently acquire new pixels."""
         with self.store.transaction() as conn:
+            for intent in conn.execute(
+                "SELECT * FROM vision_recaptures WHERE result_attempt IS NULL"
+            ).fetchall():
+                current = conn.execute(
+                    "SELECT phase FROM vision_attempts WHERE event_id=?",
+                    (intent["event_id"],),
+                ).fetchone()
+                if current and current["phase"] in {"FAILED", "COMPLETED"}:
+                    self._finish_recapture(conn, intent, None)
             rows = conn.execute(
                 "SELECT * FROM cycles WHERE active_slot=1 AND simulated=1 AND state='DOOR_CLOSED' AND NOT EXISTS (SELECT 1 FROM vision_attempts WHERE vision_attempts.event_id=cycles.event_id)"
             ).fetchall()
@@ -147,6 +156,26 @@ class SessionVision:
                 }
                 for r in history
             ]
+        captures = conn.execute(
+            "SELECT * FROM vision_recaptures WHERE event_id=? ORDER BY created_at, rowid",
+            (str(event),),
+        ).fetchall()
+        if captures:
+            value["capture_history"] = [
+                {
+                    **dict(r),
+                    "previous_attempt": json.loads(r["previous_attempt"]),
+                    "result_attempt": json.loads(r["result_attempt"])
+                    if r["result_attempt"]
+                    else None,
+                }
+                for r in captures
+            ]
+            last = captures[-1]
+            if last["result_attempt"] and last["capture_id"] != value["capture_id"]:
+                value["recapture_error"] = json.loads(last["result_attempt"]).get(
+                    "error_code"
+                )
         return value
 
     def after_close(self, entry):
@@ -168,7 +197,7 @@ class SessionVision:
             row = self.store.simulation_row(conn, event)
             previous = self.snapshot(conn, event)
             if previous:
-                if previous["capture_id"] != str(identifier):
+                if previous["close_command_id"] != str(close_id):
                     raise CycleError("CAPTURE_ID_CONFLICT")
                 return previous
             if self.store.identity_scope:
@@ -186,6 +215,9 @@ class SessionVision:
                 (str(identifier), str(event), str(close_id), now(), now()),
             )
             self.store._record(conn, row, "CAPTURING", code="VISION_CAPTURE_REQUESTED")
+        return await self._acquire_and_classify(event, identifier)
+
+    async def _acquire_and_classify(self, event, identifier):
         try:
             # Pixels remain separate from the simulated mechanical provenance.
             frame = await self.capture.acquire(identifier)
@@ -431,7 +463,174 @@ class SessionVision:
             "SELECT 1 FROM mechanical_commands WHERE event_id=? AND (source!='SIMULATED' OR phase!='COMPLETED' OR result!='SUCCEEDED')",
             (row["event_id"],),
         ).fetchone()
+        return bool(closed and not unsafe) and self.can_recapture(conn, row, attempt)
+
+    def can_recapture(self, conn, row, attempt):
+        if not (
+            attempt
+            and row["state"] in {"REVIEW", "RETURN_REQUIRED", "TECHNICAL_FAILURE"}
+            and row["active_slot"] == 1
+            and row["simulated"] == 1
+            and self.mechanical.source == "SIMULATED"
+            and not row["physical_confirmed"]
+            and attempt["phase"] in {"COMPLETED", "FAILED"}
+            and not attempt["decision"]
+            and (
+                (row["state"] == "TECHNICAL_FAILURE" and attempt["phase"] == "FAILED")
+                or (
+                    row["state"] == "RETURN_REQUIRED"
+                    and attempt["phase"] == "COMPLETED"
+                    and (attempt["observation"] or {}).get("status") == "rejected"
+                )
+                or (
+                    row["state"] == "REVIEW"
+                    and attempt["phase"] == "COMPLETED"
+                    and (attempt["observation"] or {}).get("status") == "recognized"
+                )
+            )
+            and all(row[k] is None for k in ("payload", "receipt", "central_scope"))
+        ):
+            return False
+        if self.store.identity_scope:
+            self.store.require_simulation_identity(conn, row["event_id"])
+        if (
+            conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='dev_economic_outbox'"
+            ).fetchone()
+            and conn.execute(
+                "SELECT 1 FROM dev_economic_outbox WHERE event_id=?", (row["event_id"],)
+            ).fetchone()
+        ):
+            return False
+        closed = conn.execute(
+            "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation='CLOSE_INSERTION_DOOR' AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
+            (attempt["close_command_id"], row["event_id"]),
+        ).fetchone()
+        unsafe = conn.execute(
+            "SELECT 1 FROM mechanical_commands WHERE event_id=? AND (operation NOT IN ('OPEN_INSERTION_DOOR','CLOSE_INSERTION_DOOR') OR source!='SIMULATED' OR phase!='COMPLETED' OR result!='SUCCEEDED')",
+            (row["event_id"],),
+        ).fetchone()
         return bool(closed and not unsafe)
+
+    def recapture(self, event, previous_capture, intent_id):
+        identifier = uuid5(NAMESPACE_URL, f"bingo:recapture:v1:{event}:{intent_id}")
+        with self.store.transaction() as conn:
+            replay = conn.execute(
+                "SELECT * FROM vision_recaptures WHERE recapture_id=?",
+                (str(intent_id),),
+            ).fetchone()
+            if replay:
+                if replay["event_id"] != str(event) or replay[
+                    "previous_capture_id"
+                ] != str(previous_capture):
+                    raise CycleError("RECAPTURE_ID_CONFLICT")
+                return
+            row = self.store.simulation_row(conn, event)
+            attempt = self.snapshot(conn, event)
+            if not attempt or attempt["capture_id"] != str(previous_capture):
+                raise CycleError("CAPTURE_ID_CONFLICT")
+            if not self.can_recapture(conn, row, attempt):
+                raise CycleError("VISION_RECAPTURE_NOT_ALLOWED")
+            previous = dict(
+                conn.execute(
+                    "SELECT * FROM vision_attempts WHERE event_id=?", (str(event),)
+                ).fetchone()
+            )
+            conn.execute(
+                "INSERT INTO vision_recaptures VALUES(?,?,?,?,?,NULL,?)",
+                (
+                    str(intent_id),
+                    str(event),
+                    str(previous_capture),
+                    str(identifier),
+                    json.dumps(previous),
+                    now(),
+                ),
+            )
+            conn.execute(
+                "UPDATE vision_attempts SET capture_id=?,phase='CAPTURING',observation=NULL,decision=NULL,provenance=NULL,error_code=NULL,created_at=?,updated_at=? WHERE event_id=?",
+                (str(identifier), now(), now(), str(event)),
+            )
+            self.store._record(
+                conn, row, "CAPTURING", code="VISION_RECAPTURE_REQUESTED"
+            )
+        old_frame = self.frames.pop(str(event), None)
+        self.tasks["recapture:" + str(intent_id)] = asyncio.create_task(
+            self._run_recapture(event, identifier, intent_id, old_frame)
+        )
+
+    def _finish_recapture(self, conn, intent, old_frame):
+        current = dict(
+            conn.execute(
+                "SELECT * FROM vision_attempts WHERE event_id=?", (intent["event_id"],)
+            ).fetchone()
+        )
+        if intent["result_attempt"] is not None:
+            return
+        conn.execute(
+            "UPDATE vision_recaptures SET result_attempt=? WHERE recapture_id=?",
+            (json.dumps(current), intent["recapture_id"]),
+        )
+        row = self.store._row(conn, intent["event_id"])
+        if current["phase"] == "FAILED" and row["state"] == "TECHNICAL_FAILURE":
+            previous = json.loads(intent["previous_attempt"])
+            columns = [
+                "capture_id",
+                "phase",
+                "observation",
+                "decision",
+                "provenance",
+                "error_code",
+                "created_at",
+                "updated_at",
+            ]
+            conn.execute(
+                "UPDATE vision_attempts SET "
+                + ",".join(k + "=?" for k in columns)
+                + " WHERE event_id=?",
+                [*[previous[k] for k in columns], intent["event_id"]],
+            )
+            self.frames.pop(intent["event_id"], None)
+            if old_frame is not None:
+                self.frames[intent["event_id"]] = old_frame
+            self.store._record(
+                conn,
+                row,
+                "REVIEW"
+                if (json.loads(previous["observation"] or "{}")).get("status")
+                == "recognized"
+                else "RETURN_REQUIRED"
+                if (json.loads(previous["observation"] or "{}")).get("status")
+                == "rejected"
+                else "TECHNICAL_FAILURE",
+                code="VISION_RECAPTURE_FAILED_PREVIOUS_RETAINED",
+                updates={"vision_result": previous["observation"]},
+            )
+
+    async def _run_recapture(self, event, identifier, intent_id, old_frame):
+        try:
+            # Refotografia sempre analisa automaticamente; não usa o modo manual histórico.
+            await self._acquire_and_classify(event, identifier)
+            with self.store.transaction() as conn:
+                attempt = self.snapshot(conn, event)
+            if attempt["phase"] == "CAPTURING" and attempt["provenance"].get(
+                "capture_ready"
+            ):
+                await self._classify(
+                    event,
+                    identifier,
+                    self.frames[str(event)],
+                    {**attempt["provenance"], "capture_ready": False},
+                )
+        except CycleError:
+            pass
+        finally:
+            with self.store.transaction() as conn:
+                intent = conn.execute(
+                    "SELECT * FROM vision_recaptures WHERE recapture_id=?",
+                    (str(intent_id),),
+                ).fetchone()
+                self._finish_recapture(conn, intent, old_frame)
 
     def retry_analysis(self, event, capture_id, analysis_id):
         with self.store.transaction() as conn:

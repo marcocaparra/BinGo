@@ -99,7 +99,7 @@ async function main(scenario = 'recognized') {
       await visual.compare(page, scenario === 'rejected' ? 'rejected' : 'vision-error', { name: `vision-${scenario}`, visionRemote: true, origin: scenario === 'rejected' ? 'AWS_REKOGNITION' : 'VISION_CASCADE_ERROR', simulationRecovery: true, cameraFailure: scenario === 'camera-failure', retryAllowed: scenario === 'failure' });
       await studentCopy(page);
       const snap = await active();
-      assert.deepEqual(snap.allowed_actions, scenario === 'failure' ? ['cancel', 'vision-analyze'] : ['cancel']); assert.equal(snap.session.receipt, null);
+      assert.deepEqual(snap.allowed_actions, scenario === 'failure' ? ['cancel', 'vision-analyze', 'vision-recapture'] : ['cancel', 'vision-recapture']); assert.equal(snap.session.receipt, null);
       assert.equal(stats().primary, scenario === 'camera-failure' ? 0 : 1); assert.equal(stats().secondary, 0);
       const posts = requests.filter(r => r.method === 'POST').length;
       await page.reload(); await waitState(state);
@@ -177,7 +177,7 @@ async function main(scenario = 'recognized') {
       assert.equal((await active()).vision.decision.source, 'AI_CONFIRMED');
     } else {
     await click('correction');
-    await visual.compare(page, 'correct-item', { visionRemote: true, name: 'vision-candidates', itemId: 'cable', candidateIds: ['cable', 'battery', 'unknown'], draftItemId: 'cable' });
+    await visual.compare(page, 'correct-item', { visionRemote: true, recaptureAllowed: true, name: 'vision-candidates', itemId: 'cable', candidateIds: ['cable', 'battery', 'unknown'], draftItemId: 'cable' });
     await studentCopy(page);
     assert.equal(await page.locator('[data-dev-op="correct-item"]').count(), 3);
     await click('correct-item', 'battery');

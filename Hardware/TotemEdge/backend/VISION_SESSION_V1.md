@@ -1,5 +1,17 @@
 # Visão por sessão — 3C.3.1
 
+Recuperação após imagem inadequada (02/11): nova fotografia também é permitida
+em RETURN_REQUIRED com observação rejected e em TECHNICAL_FAILURE/FAILED quando
+o journal continua seguro. Não reutiliza a foto rejeitada como aceita. A UI
+separa “Tirar outra foto” de “Tentar análise novamente” (falha temporária e pixels
+em RAM). Ambas as operações bloqueiam após qualquer intenção de hatch/economia.
+Mantidos os endpoints/UUIDs/históricos de recaptura e retry existentes.
+
+Decisão posterior (02/11): múltiplas capturas explícitas autorizadas por evento
+na tela Corrigir, com recapture_id/capture_id próprios, histórico aditivo e
+recuperação da classificação anterior após falha técnica. Contrato vigente em
+[RECAPTURE_V1.md](RECAPTURE_V1.md); substitui a restrição histórica de foto única.
+
 ## Retry de análise e confirmação única — decisão de 02/11/2026
 
 A confirmação/correção em recognized/correct-item persiste vision.decision.

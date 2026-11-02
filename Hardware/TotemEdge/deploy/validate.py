@@ -27,6 +27,7 @@ INTEGRATION = (
     "test_vision_photo_flow.py",
     "test_simulation_recovery.py",
     "test_vision_retry.py",
+    "test_vision_recapture.py",
     "test_camera_process.py",
     "test_camera_api.py",
     "test_camera_capture.py",

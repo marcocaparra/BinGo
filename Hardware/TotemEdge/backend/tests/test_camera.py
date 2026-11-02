@@ -243,6 +243,43 @@ async def test_directshow_uses_alternative_names_not_numeric_indices():
     assert "-video_device_number" not in calls[-1]
 
 
+async def test_empty_ffmpeg_success_is_diagnosed_privately(tmp_path):
+    async def runner(executable, args):
+        return 0, b"", b"Error during demuxing: I/O error secret-device-path"
+
+    manager, fixture = await prepared(tmp_path)
+
+    class FailingDriver:
+        async def discover(self):
+            return fixture.devices
+
+        async def capture(self, selected):
+            return await FFmpegDriver(platform="win32", runner=runner).capture(selected)
+
+    manager.driver = FailingDriver()
+    identifier = uuid4()
+    try:
+        with pytest.raises(CameraError) as error:
+            await manager.capture(identifier)
+        assert error.value.code == "CAMERA_CAPTURE_FAILED"
+        assert not (await manager.status())["busy"]
+        assert "diagnostic" not in await manager.capture_status(identifier)
+        with manager.transaction() as conn:
+            diagnostic = conn.execute(
+                "SELECT diagnostic FROM capture_diagnostics WHERE capture_id=?",
+                (str(identifier),),
+            ).fetchone()[0]
+        assert (
+            "secret-device-path" not in diagnostic
+            and '"dshow_io_error": true' in diagnostic
+        )
+        with pytest.raises(CameraError) as replay:
+            await manager.capture(identifier)
+        assert replay.value.code == "CAPTURE_ALREADY_ATTEMPTED"
+    finally:
+        await manager.aclose()
+
+
 async def test_v4l2_discovers_stable_links_and_deduplicates_nodes(
     tmp_path, monkeypatch
 ):

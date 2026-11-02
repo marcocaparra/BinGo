@@ -203,6 +203,11 @@ async function openApprovedVisual(context, output, data) {
             document.querySelector('.step').textContent = 'Análise';
           }
           const unknownOption = document.querySelector('[data-correct-item="unknown"] strong'); if (unknownOption && options.visionRemote) unknownOption.textContent = 'Lixo eletrônico não identificado';
+          // Explicit requested addition; no baseline files, masks or tolerance changed.
+          if (screen === 'correct-item' && options.recaptureAllowed) {
+            const button = document.createElement('button'); button.className = 'secondary-action'; button.textContent = 'Refotografar item';
+            document.querySelector('.correction-item-list').after(button);
+          }
           if (options.itemId === 'unknown' && options.visionRemote) document.querySelector('.item-focus-footer strong').textContent = 'Lixo eletrônico não identificado';
           if (options.specificName) document.querySelector('.item-focus-footer strong').textContent = options.specificName;
           const quantity = document.querySelector('.single-item-pill'); if (quantity) quantity.textContent = '1 item';
@@ -214,9 +219,13 @@ async function openApprovedVisual(context, output, data) {
             const canvas = document.querySelector('[data-camera-canvas]'); canvas.width = image.width; canvas.height = image.height; canvas.getContext('2d').drawImage(image, 0, 0);
           }
           if (options.simulationRecovery) {
-            document.querySelector('.guide-bubble').textContent = options.cameraFailure ? 'Não foi possível fotografar. Cancele esta tentativa para voltar ao início.' : options.retryAllowed ? 'Não foi possível analisar. Tente novamente com a mesma foto ou cancele esta tentativa.' : 'Não é possível analisar novamente esta foto. Cancele esta tentativa para voltar ao início.';
+            const panel=document.querySelector('.status-panel');
+            panel.querySelector('strong').textContent='Reconhecimento não confirmado';
+            panel.querySelector('span:not(.status-mark)').textContent='Nenhum descarte foi registrado. Use as opções abaixo para tentar novamente ou cancelar.';
+            document.querySelector('.guide-bubble').textContent = options.retryAllowed ? 'A análise está indisponível. Tente analisar a mesma foto ou tire outra foto.' : 'Não consegui confirmar o item nesta foto. Tire outra foto ou cancele a tentativa.';
             const exit = document.querySelector('[data-return-start]'); exit.textContent = 'Cancelar tentativa'; exit.disabled = false;
-            const retry = document.querySelector('[data-adjust-retry]'); retry.textContent = 'Tentar novamente'; retry.disabled = !options.retryAllowed;
+            const retry = document.querySelector('[data-adjust-retry]'); retry.textContent = options.retryAllowed ? 'Tentar análise novamente' : 'Tirar outra foto'; retry.disabled = false;
+            if (options.retryAllowed) {const photo=retry.cloneNode(true); photo.textContent='Tirar outra foto';retry.after(photo);}
           }
           if (options.disableReturn) document.querySelectorAll('[data-adjust-retry], [data-return-start]').forEach(button => { button.disabled = true; });
           if (options.notice) document.querySelector('.guide-bubble').textContent = options.notice;

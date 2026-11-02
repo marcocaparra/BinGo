@@ -67,7 +67,7 @@
       if (e.status === 'CONFIRMED') snapshot({...s,state:'REGISTERED',receipt:e.receipt});
       if (e.status !== 'AWAITING_COMPLETION' && s?.state !== 'COMPLETED') throw new LocalApiError('INVALID_RESPONSE');
     }
-    const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture", "vision-review", "vision-analyze"]);
+    const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture", "vision-review", "vision-analyze", "vision-recapture"]);
     if (value?.source !== "SIMULATED" || !s || !uuid.test(s.event_id) || !states.has(s.state) || !uuid.test(s.class_id) || !["student", "class_only"].includes(s.mode) || s.receipt !== null ||
         !Array.isArray(value.commands) || value.commands.some(c => !c || c.source !== "SIMULATED") ||
         !Array.isArray(value.allowed_actions) || value.allowed_actions.some(a => !actions.has(a)) || new Set(value.allowed_actions).size !== value.allowed_actions.length ||
@@ -94,6 +94,12 @@
     return value;
   }
   class DevApi extends LocalApi {
+    async visionRecapture(id, captureId, recaptureId) {
+      if (![id,captureId,recaptureId].every(value => uuid.test(value))) throw new LocalApiError('INVALID_ID');
+      const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/vision-recapture`, {capture_id:captureId,recapture_id:recaptureId}));
+      if (value.session.event_id !== id) throw new LocalApiError('INVALID_RESPONSE');
+      return value;
+    }
     async visionAnalyze(id, captureId, analysisAttemptId) {
       if (!uuid.test(id) || !uuid.test(captureId) || analysisAttemptId !== undefined && !uuid.test(analysisAttemptId)) throw new LocalApiError('INVALID_ID');
       const body = { capture_id: captureId };

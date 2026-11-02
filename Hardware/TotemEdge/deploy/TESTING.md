@@ -1,5 +1,10 @@
 # Validação automatizada do TotemEdge — 3C.2.0
 
+Refotografia (02/11): backend completo 760 aprovados, oito novos casos HTTP;
+browser dedicado com oito verificações, zero erros, usando câmera/IA controladas.
+Evidências/limites em [RECAPTURE_V1.md](../backend/RECAPTURE_V1.md). Nenhum deploy,
+serviço/container ou dado hospedado alterado por esses testes.
+
 ## Confirmação única e retry da mesma fotografia — 02/11/2026
 
 Validação desta correção: FAST 108 aprovados; INTEGRATION final 604 aprovados

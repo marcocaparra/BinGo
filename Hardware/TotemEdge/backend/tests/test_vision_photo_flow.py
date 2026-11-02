@@ -171,7 +171,7 @@ def test_startup_recovery_of_unanalyzed_photo_blocks_without_recapture(lab):
     assert recovered["session"]["state"] == "TECHNICAL_FAILURE"
     assert recovered["vision"]["error_code"] == "PROCESS_INTERRUPTED"
     assert not recovered["vision"]["image_available"]
-    assert recovered["allowed_actions"] == ["cancel"]
+    assert recovered["allowed_actions"] == ["cancel", "vision-recapture"]
     assert (
         client.get(
             f"{BASE}/{event}/vision-image/{capture_id}", headers=HEADERS

@@ -1,5 +1,9 @@
 # Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
+Refotografia (02/11) não envia comandos mecânicos. Exige CLOSE confirmado e
+nenhuma intenção de hatch/retorno, inclusive rejeitada/abortada. Preserva porta
+fechada/evento e PIN posterior do hatch. Ver [RECAPTURE_V1.md](RECAPTURE_V1.md).
+
 Atualização 3B: máquina única de `cycles.py` conectada ao journal apenas para
 sessões com procedência simulada persistida. Contratos em
 [LOCAL_API_V1.md](LOCAL_API_V1.md), execução em [SIMULATION.md](../deploy/SIMULATION.md).

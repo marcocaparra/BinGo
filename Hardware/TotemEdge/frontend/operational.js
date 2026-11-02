@@ -174,6 +174,7 @@ window.BinGoOperational = {
       }
       let screen = ({ loading: "sleep", idle: command ? "idle" : "sleep", welcome: "idle", identity: "identity", segment: "segment", year: "year", classes: "class", students: "student", pin: "pin" })[stage];
       let notice = warning;
+      if (snapshot?.vision?.recapture_error && !notice) notice = 'Não foi possível refotografar ou analisar. A tentativa anterior foi preservada. Confira o item ou tente tirar outra foto.';
       if (snapshot?.economy?.status === 'PENDING') notice = 'Registro pendente. Aguarde a confirmação. Não faça outro descarte.';
       const riskReported = snapshot?.session.state === "CANCELLED" && snapshot.session.failure_code === "SAFETY_RISK";
       if (snapshot?.economy?.status === 'PENDING') screen = 'computing';
@@ -203,6 +204,7 @@ window.BinGoOperational = {
         riskReported, safetyAllowed: allowed("safety"), cancelAllowed: allowed('cancel'), mechanicalPin: openPin() || hatchPin(),
         reviewAllowed: allowed('review-fixture') || allowed('hatch') || allowed('vision-review'),
         vision: snapshot?.vision, correctionItem, correctionAllowed: allowed('vision-review') && (screen !== 'recognized' || photo?.id === snapshot?.vision?.capture_id),
+        recaptureAllowed: allowed('vision-recapture'),
         retryAllowed: allowed('vision-analyze') && snapshot?.vision?.phase === 'FAILED',
         analyzeAllowed: allowed('vision-analyze') && photo?.id === snapshot?.vision?.capture_id,
         ...window.BinGoLocalApi.schoolLabels(context?.classes || [], segment),
@@ -219,7 +221,7 @@ window.BinGoOperational = {
         } else if (photoLoading !== id) {
           photoLoading = id;
           api.photo(event, id).then(async blob => ({ bitmap: await createImageBitmap(blob), url: URL.createObjectURL(blob) })).then(({ bitmap, url }) => {
-            if (snapshot?.session.event_id === event && ['CAPTURING', 'REVIEW'].includes(snapshot?.session.state)) { photo?.bitmap.close(); if (photo) URL.revokeObjectURL(photo.url); photo = { id, bitmap, url }; render(); }
+            if (snapshot?.session.event_id === event && snapshot?.vision?.capture_id === id && ['CAPTURING', 'REVIEW'].includes(snapshot?.session.state)) { photo?.bitmap.close(); if (photo) URL.revokeObjectURL(photo.url); photo = { id, bitmap, url }; render(); }
             else { bitmap.close(); URL.revokeObjectURL(url); }
           }).catch(async error => { warning = message(error); try { await inspectMotion(); } catch { uncertain = true; } render(); });
         }
@@ -316,6 +318,16 @@ window.BinGoOperational = {
       if (action === "wake") { stage = "welcome"; return; }
       if (action === 'help') { stage = 'help'; return; }
       if (action === 'correction' && allowed('vision-review')) { correctionItem = snapshot.vision.observation.itemId; stage = 'correct-item'; return; }
+      if (action === 'recapture' && allowed('vision-recapture')) {
+        const event = snapshot.session.event_id, v = snapshot.vision;
+        const last = v.capture_history?.at(-1)?.recapture_id || 'initial';
+        const key = `bingo.dev.recapture.${event}.${v.capture_id}.${last}`;
+        let intent = sessionStorage.getItem(key);
+        if (!intent) { intent = crypto.randomUUID(); sessionStorage.setItem(key,intent); }
+        if (sessionStorage.getItem(key) !== intent) throw new LocalApiError('SESSION_STORAGE_UNAVAILABLE');
+        accept(await api.visionRecapture(event,v.capture_id,intent));
+        return;
+      }
       if (action === 'correct-item' && allowed('vision-review') && snapshot.vision.allowed_candidates.includes(value)) { correctionItem = value; return; }
       if (action === 'retry-analysis' && allowed('vision-analyze') && snapshot.vision?.phase === 'FAILED') {
         const event = snapshot.session.event_id, v = snapshot.vision;

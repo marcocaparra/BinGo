@@ -1,5 +1,33 @@
 STATUS técnico — BinGo
 
+Recuperação de visão (02/11): sessão obstruída comprovada como RETURN_REQUIRED,
+JPEG válido e AWS rejected/confiança zero, sem erro de câmera/Gemini. Corrigida
+a política que só permitia recaptura em REVIEW: rejeição/falha segura passam a
+oferecer Tirar outra foto, separada de Tentar análise novamente com os mesmos
+pixels. Guardas mecânicas/econômicas preservadas. Corrigida também FK histórica
+que impedia refotografar após retry, com identidades de captura imutáveis e
+migração SQLite transacional. Sem deploy. Evidência, testes e comando em
+Hardware/TotemEdge/backend/VISION_RECOVERY_2026-11-02.md.
+
+Câmera real, diagnóstico dirigido (02/11): CAMERA_CAPTURE_FAILED reproduzido
+com DirectShow I/O sem frames e navegador Device in use. Responsável fechou site
+que usava webcam; comando original voltou a produzir JPEG. Container principal
+recebeu JPEG real 29.879 bytes; nova sessão chegou a REVIEW com IA real, e
+refotografia/replay na mesma sessão produziu só uma nova captura (29.551 bytes),
+com histórico preservado e nenhum hatch/recibo/crédito. Não houve deploy.
+Diagnóstico privado por capture_id acrescentado no código, ainda não carregado
+no bridge atual. Causa/evidências/testes/limites em
+Hardware/TotemEdge/backend/CAMERA_FAILURE_2026-11-02.md.
+
+Refotografar item (02/11): implementado em Corrigir, antes de decisão/hatch,
+mantendo event_id e câmera/cascata existentes. Nova intenção/captura idempotente,
+arquivo integral das tentativas, refresh sem I/O e restauração explícita da
+classificação anterior em falha técnica. Backend 760 aprovados; browser oito
+verificações com serviços controlados. Sem deploy/commit/push ou mudanças de
+autenticação/economia/Supabase. Contrato e comando: Hardware/TotemEdge/backend/
+RECAPTURE_V1.md. O responsável relatou homologação anterior da pontuação real
+DEV e saldo no app; o registro de pendência abaixo é histórico dessa homologação.
+
 Homologação econômica DEV liberada para teste (02/11): responsável autorizou
 build/recriação controlada de dev-central/totem-edge-dev no bingo-totem-edge.
 Principal :8000 saudável, SUPABASE_DEV_ECONOMIC e economic_registration=true;

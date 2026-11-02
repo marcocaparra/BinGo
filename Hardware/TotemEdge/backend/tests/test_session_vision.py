@@ -57,7 +57,7 @@ async def test_jpeg_to_existing_cascade_and_immutable_review_restart(tmp_path):
         assert observed["provenance"]["camera"] == "DEVICE"
         assert observed["provenance"]["mechanical"] == "SIMULATED"
         assert observed["provenance"]["inference"] == "SIMULATED"
-        assert rig.flow.get(event).allowed_actions == ["vision-review"]
+        assert rig.flow.get(event).allowed_actions == ["vision-review", "vision-recapture"]
         for _ in range(3):
             assert await workflow.analyze(event, command) == observed
         assert driver.calls == driver.released == len(primary.calls) == 1
@@ -141,9 +141,9 @@ async def test_provider_policy_and_rejection_block_hatch(
         assert len(secondary.calls) == secondary_calls
         if state != "REVIEW":
             assert rig.flow.get(event).allowed_actions == (
-                ["cancel", "vision-analyze"]
+                ["cancel", "vision-analyze", "vision-recapture"]
                 if isinstance(answer, VisionError)
-                else ["cancel"]
+                else ["cancel", "vision-recapture"]
             )
             with pytest.raises(CycleError):
                 workflow.review(
@@ -183,9 +183,9 @@ async def test_inconclusive_never_becomes_unknown_success(tmp_path, secondary):
         assert (
             snap.allowed_actions
             == (
-                ["cancel", "vision-analyze"]
+                ["cancel", "vision-analyze", "vision-recapture"]
                 if snap.vision["error_code"] == "SECONDARY_UNAVAILABLE"
-                else ["cancel"]
+                else ["cancel", "vision-recapture"]
             )
             and not snap.vision["allowed_candidates"]
         )
@@ -416,7 +416,7 @@ async def test_failed_fallback_preserves_normalized_primary_observation(tmp_path
         ]
         assert snapshot.vision["error_code"] == "SECONDARY_UNAVAILABLE"
         assert (
-            snapshot.allowed_actions == ["cancel", "vision-analyze"]
+            snapshot.allowed_actions == ["cancel", "vision-analyze", "vision-recapture"]
             and snapshot.session.receipt is None
         )
     finally:

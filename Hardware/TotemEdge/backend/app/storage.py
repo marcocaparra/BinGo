@@ -18,7 +18,7 @@ from app.cycles import (
     TRANSITIONS,
 )
 from app.mechanical_journal import MechanicalJournal, SCHEMA as MECHANICAL_SCHEMA
-from app.vision_journal import SCHEMA as VISION_SCHEMA, RETRY_SCHEMA
+from app.vision_journal import SCHEMA as VISION_SCHEMA, RETRY_SCHEMA, RECAPTURE_SCHEMA, prepare_capture_history
 
 
 def now() -> str:
@@ -234,6 +234,8 @@ class CycleStore:
             # Additive local audit extension; no change to economic payload/schema.
             conn.execute(VISION_SCHEMA)
             conn.execute(RETRY_SCHEMA)
+            conn.execute(RECAPTURE_SCHEMA)
+            prepare_capture_history(conn)
             conn.execute("PRAGMA user_version=4")
 
     @staticmethod

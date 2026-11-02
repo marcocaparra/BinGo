@@ -1,5 +1,14 @@
 # Contratos locais — fundação de sessão V1
 
+Decisão de recuperação (02/11): vision-recapture agora autoriza também rejeição
+ou falha de visão após fechamento seguro, sem nova autenticação/mecânica. Ação
+vision-analyze segue reservada à falha temporária com pixels válidos em RAM.
+Mesmos endpoints e garantias de [RECAPTURE_V1.md](RECAPTURE_V1.md).
+
+Refotografia (02/11): POST S/{event_id}/vision-recapture recebe capture_id da
+foto corrente e recapture_id da intenção. Sem novo PIN/movimento; guardas,
+replay, histórico e recuperação em [RECAPTURE_V1.md](RECAPTURE_V1.md).
+
 Decisão posterior: homologação econômica DEV autoriza créditos reais com
 mecânica simulada, exclusivamente mediante opt-in restrito ao bingo-dev.
 Não usa physical_confirmed=1; a outbox DEV mantém prova e recibo separados.

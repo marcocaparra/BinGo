@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import contextmanager
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -20,8 +21,9 @@ from app.services.vision import MAX_IMAGE_BYTES, VisionError, validate_frame
 
 
 class CameraError(Exception):
-    def __init__(self, code: str, status: int = 503):
+    def __init__(self, code: str, status: int = 503, *, diagnostic=None):
         self.code, self.status = code, status
+        self.diagnostic = diagnostic
         super().__init__("Operação de câmera não concluída.")
 
 
@@ -256,7 +258,16 @@ class FFmpegDriver:
                 "pipe:1",
             ],
         )
-        if code:
+        if code or not out:
+            diagnostic = {
+                "stage": "FFMPEG",
+                "exit_code": code,
+                "output_bytes": len(out),
+                "stderr_sha256": hashlib.sha256(err).hexdigest(),
+                "dshow_io_error": b"Error during demuxing: I/O error" in err,
+                "mjpeg_range_error": b"Non full-range YUV" in err,
+                "encoder_open_error": b"Error while opening encoder" in err,
+            }
             message = err.lower()
             code = (
                 "CAMERA_PERMISSION_DENIED"
@@ -274,7 +285,7 @@ class FFmpegDriver:
                 )
                 else "CAMERA_CAPTURE_FAILED"
             )
-            raise CameraError(code)
+            raise CameraError(code, diagnostic=diagnostic)
         return Frame(out, "image/jpeg", simulated=False)
 
 
@@ -315,6 +326,9 @@ class CameraManager:
                 )
                 conn.execute(
                     "CREATE TABLE IF NOT EXISTS captures (capture_id TEXT PRIMARY KEY, device_id TEXT NOT NULL, phase TEXT NOT NULL, error_code TEXT, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+                )
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS capture_diagnostics (capture_id TEXT PRIMARY KEY REFERENCES captures(capture_id), diagnostic TEXT NOT NULL)"
                 )
                 conn.execute(
                     "UPDATE captures SET phase='INDETERMINATE', error_code='CAMERA_PROCESS_INTERRUPTED', updated_at=CURRENT_TIMESTAMP WHERE phase='STARTED'"
@@ -421,6 +435,7 @@ class CameraManager:
             )
         self._running = asyncio.current_task()
         phase, error = "FAILED", "CAMERA_CAPTURE_FAILED"
+        diagnostic = None
         try:
             devices = await self.driver.discover()
             if selected not in devices:
@@ -438,8 +453,17 @@ class CameraManager:
             raise
         except CameraError as exc:
             error = exc.code
+            diagnostic = exc.diagnostic or {
+                "stage": "CAMERA_MANAGER",
+                "exception_type": "CameraError",
+                "code": exc.code,
+            }
             raise
-        except Exception:
+        except Exception as exc:
+            diagnostic = {
+                "stage": "CAMERA_MANAGER",
+                "exception_type": type(exc).__name__,
+            }
             raise CameraError("CAMERA_CAPTURE_FAILED") from None
         finally:
             try:
@@ -451,6 +475,11 @@ class CameraManager:
                             "UPDATE captures SET phase=?,error_code=?,updated_at=CURRENT_TIMESTAMP WHERE capture_id=?",
                             (phase, error, str(capture_id)),
                         )
+                        if diagnostic is not None:
+                            conn.execute(
+                                "INSERT INTO capture_diagnostics VALUES(?,?)",
+                                (str(capture_id), json.dumps(diagnostic)),
+                            )
                 finally:
                     self._running = None
 

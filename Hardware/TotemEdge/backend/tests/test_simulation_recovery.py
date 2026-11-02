@@ -33,7 +33,9 @@ def test_consecutive_failed_tests_end_without_moves_or_reusing_intents(lab, fail
         assert event not in previous and capture not in previous
         previous.update([event, capture])
         assert failed["allowed_actions"] == (
-            ["cancel", "vision-analyze"] if failure == "vision" else ["cancel"]
+            ["cancel", "vision-analyze", "vision-recapture"]
+            if failure == "vision"
+            else ["cancel", "vision-recapture"]
         )
         if failure == "vision":
             assert failed["vision"]["error_code"] == "VISION_TIMEOUT"

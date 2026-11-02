@@ -104,6 +104,17 @@ const [event, machine, school, classId, student] = ids;
 const response = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...headers } });
 const context = { school: { id: school, name: 'Escola' }, machine: { id: machine, name: 'Totem' }, classes: [{ id: classId, name: 'Turma', segment: null, grade: null }], students: [{ id: student, name: 'Aluno', class_id: classId, status: 'ACTIVE' }] };
 const base = { source: 'SIMULATED', session: { event_id: event, state: 'IDENTIFYING', mode: 'student', class_id: classId, student_id: null, receipt: null }, identity: null, commands: [], allowed_actions: ['identify', 'cancel'] };
+
+test('Refotografia reutiliza intenção e evento, envia só IDs à API local', async () => {
+  const calls=[];
+  const api=new DevApi(async (path,options)=>{calls.push({path,options});return response(base);});
+  await api.visionRecapture(event,machine,school); await api.visionRecapture(event,machine,school);
+  assert.equal(calls[0].path,`/local/simulation/sessions/${event}/vision-recapture`);
+  assert.deepEqual(JSON.parse(calls[0].options.body),{capture_id:machine,recapture_id:school});
+  assert.equal(calls[0].options.body,calls[1].options.body);
+  await assert.rejects(()=>api.visionRecapture(event,machine,'bad-id'));
+  assert.equal(calls.length,2);
+});
 const bound = { ...base, session: { ...base.session, state: 'SAFETY', student_id: student, student_name: 'Aluno', class_name: 'Turma' }, identity: { event_id: event, machine_id: machine, school_id: school, class_id: classId, student_id: student, project_ref: 'synthetic', source: 'SUPABASE_DEV_PIN_V1', validated_at: '2026-10-30T12:00:00Z' }, allowed_actions: ['safety', 'cancel'] };
 
 test('Perfil DEV depende do marcador local, não de query ou readiness físico', async () => {

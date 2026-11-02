@@ -1,5 +1,16 @@
 # Totem Edge V1 — integração local e limites atuais
 
+Erro de reconhecimento (02/11): tela de rejeição/falha passa a oferecer “Tirar
+outra foto” conforme vision-recapture. Em falha temporária com pixels recuperáveis,
+oferece separadamente “Tentar análise novamente” e “Tirar outra foto”. Texto não
+atribui falha à câmera/provedor sem evidência. Sem autorização mecânica, bloqueia.
+
+Refotografia (02/11): botão abaixo das opções existentes de Corrigir usa somente
+vision-recapture autorizado pelo backend; novo UUID de intenção persistido no
+browser, sem novo PIN/abertura. Feedback de captura/análise e nova foto retornam
+à confirmação. Falha técnica conserva classificação anterior com aviso. Ver
+[contrato/testes/comando](../backend/RECAPTURE_V1.md). Sem deploy nesta entrega.
+
 Decisão posterior: no perfil econômico DEV autorizado, a conclusão simulada
 aguarda recibo real, mostra BinCoins/XP retornados e encerra pela API DEV.
 Modo demo permanece sem créditos. Containers ainda não atualizados; detalhes em

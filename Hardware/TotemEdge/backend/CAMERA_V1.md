@@ -1,5 +1,15 @@
 # Gerenciamento operacional de câmeras — 3C.3.0
 
+Diagnóstico real de 02/11: uso concorrente por site impediu frames DirectShow;
+liberar a webcam restabeleceu captura/classificação/refotografia no principal.
+`present` não prova exclusividade global; `busy` só cobre o próprio gerenciador.
+Evidências e diagnóstico privado aditivo em
+[CAMERA_FAILURE_2026-11-02.md](CAMERA_FAILURE_2026-11-02.md).
+
+Extensão de sessão (02/11): [Refotografia autorizada](RECAPTURE_V1.md) permite
+novos capture_id dentro do mesmo evento fechado. Reutiliza CameraManager sem
+alterar seus tombstones/driver/transporte; mesmo ID nunca recaptura.
+
 Contrato local definido antes dos endpoints. Não altera o UX do aluno, visão,
 economia, GPIO ou prontidão física. CameraManager implementa o protocolo Camera
 do CaptureService; abrir/capturar/liberar não decide estados mecânicos.
