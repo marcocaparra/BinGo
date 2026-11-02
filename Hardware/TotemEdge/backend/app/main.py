@@ -130,9 +130,21 @@ def create_app(
                             application.state.simulation_flow.vision = session_vision
                             session_vision.recover_unstarted()
                         try:
+                            economy = None
+                            if getattr(_simulation, 'vision_enabled', False) and getattr(policy, 'economic_registration', False):
+                                import asyncio
+                                from app.services.dev_economy import DevEconomy
+                                economy = DevEconomy(store, central)
+                                store.dev_economy = economy
+                                economy.task = asyncio.create_task(economy.run())
                             await mechanical.resume_initial()
                             yield
                         finally:
+                            if economy is not None:
+                                economy.task.cancel()
+                                import contextlib
+                                with contextlib.suppress(asyncio.CancelledError):
+                                    await economy.task
                             if session_vision is not None:
                                 await session_vision.aclose()
                             if camera is not None:

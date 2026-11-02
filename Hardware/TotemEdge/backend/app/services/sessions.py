@@ -2,7 +2,7 @@ import asyncio
 from uuid import UUID
 
 from app.clients.supabase import CentralError, SupabaseEdgeClient
-from app.cycles import CycleError, PRE_PHYSICAL, Session
+from app.cycles import PRE_PHYSICAL, CycleError, Session
 from app.services.status import LocalStatusService
 from app.storage import CycleStore
 
@@ -98,6 +98,12 @@ class SessionService:
             active_slot=None,
         )
 
+    async def register_completed(self, event_id: UUID) -> Session:
+        # Chamado somente pelo orquestrador interno após confirmação durável.
+        # O commit da fila precede qualquer I/O; não autoriza ou repete mecânica.
+        self.store.queue_registration(event_id, self.central.configuration_scope)
+        return await self.retry_registration(event_id)
+
     async def retry_registration(self, event_id: UUID) -> Session:
         async with self._lock:
             session = self.store.get(event_id)
@@ -108,9 +114,14 @@ class SessionService:
             )
             try:
                 receipt = await self.central.register(payload)
-            except CentralError as error:
+            except (CentralError, asyncio.CancelledError) as error:
                 self.store.change(
-                    event_id, "REGISTERING", "REGISTRATION_PENDING", code=error.code
+                    event_id,
+                    "REGISTERING",
+                    "REGISTRATION_PENDING",
+                    code=error.code
+                    if isinstance(error, CentralError)
+                    else "REGISTRATION_RESULT_UNKNOWN",
                 )
                 raise
             return self.store.change(

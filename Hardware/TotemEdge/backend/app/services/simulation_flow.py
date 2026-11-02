@@ -23,6 +23,7 @@ class SimulationSnapshot(BaseModel):
     allowed_actions: list[str]
     identity: SimulationIdentity | None = None
     vision: dict | None = None
+    economy: dict | None = None
 
 
 class SimulationCommandSnapshot(BaseModel):
@@ -45,6 +46,26 @@ class SimulationFlow:
         self.mechanical = mechanical
         self.central = central  # Injetado somente pela composição DEV.
         self.vision = None
+
+    def _can_end_failed_simulation(self, conn, row):
+        if (
+            row["state"] not in {"TECHNICAL_FAILURE", "RETURN_REQUIRED"}
+            or row["active_slot"] != 1
+            or row["simulated"] != 1
+            or self.mechanical.source != "SIMULATED"
+            or row["physical_confirmed"]
+            or any(row[k] is not None for k in ("payload", "receipt", "central_scope"))
+        ):
+            return False
+        unsafe = conn.execute(
+            "SELECT 1 FROM mechanical_commands WHERE event_id=? AND (source!='SIMULATED' OR phase!='COMPLETED' OR result!='SUCCEEDED') LIMIT 1",
+            (row["event_id"],),
+        ).fetchone()
+        pending = conn.execute(
+            "SELECT 1 FROM vision_attempts WHERE event_id=? AND phase IN ('CAPTURING','CLASSIFYING')",
+            (row["event_id"],),
+        ).fetchone()
+        return not unsafe and not pending
 
     def _snapshot(self, conn, event_id) -> SimulationSnapshot:
         row = self.store.simulation_row(conn, event_id)
@@ -127,12 +148,17 @@ class SimulationFlow:
                     )
                 ):
                     actions.append("hatch" if vision["decision"] else "vision-review")
+        if self._can_end_failed_simulation(conn, row):
+            actions = ["cancel"]
+            if self.vision and self.vision.can_retry(conn, row, vision):
+                actions.append("vision-analyze")
         return SimulationSnapshot(
             session=self.store._snapshot(row),
             commands=entries,
             allowed_actions=actions,
             identity=identity,
             vision=vision,
+            economy=self.store.dev_economy.snapshot(conn,event_id) if getattr(self.store,'dev_economy',None) else None,
         )
 
     def get(self, event_id) -> SimulationSnapshot:
@@ -211,6 +237,16 @@ class SimulationFlow:
             row = self.store.simulation_row(conn, event_id)
             if row["state"] == "CANCELLED":
                 return self._snapshot(conn, event_id)
+            if self._can_end_failed_simulation(conn, row):
+                # Abandon only a settled logical test; no physical return/reset.
+                self.store._record(
+                    conn,
+                    row,
+                    "CANCELLED",
+                    code="SIMULATION_TEST_ENDED",
+                    updates={"active_slot": None, "failure_code": row["failure_code"]},
+                )
+                return self._snapshot(conn, event_id)
             if row["state"] not in {
                 "IDENTIFYING",
                 "SAFETY",
@@ -280,6 +316,8 @@ class SimulationFlow:
         )
         if self.vision and operation == "CLOSE_INSERTION_DOOR":
             self.vision.after_close(entry)
+        if self.vision and operation == "CYCLE_LOWER_HATCH":
+            self.vision.frames.pop(str(event_id), None)
         return entry, self.get(event_id)
 
     async def _available_context(self) -> TotemContext:

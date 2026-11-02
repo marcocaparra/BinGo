@@ -25,6 +25,8 @@ INTEGRATION = (
     "test_session_vision.py",
     "test_vision_lab.py",
     "test_vision_photo_flow.py",
+    "test_simulation_recovery.py",
+    "test_vision_retry.py",
     "test_camera_process.py",
     "test_camera_api.py",
     "test_camera_capture.py",
@@ -35,6 +37,7 @@ INTEGRATION = (
     "test_simulation_flow.py",
     "test_http_smoke.py",
     "test_sessions.py",
+    "test_economic_handoff.py",
 )
 FAST = (
     "test_test_isolation.py",

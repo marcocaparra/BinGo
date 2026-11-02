@@ -32,6 +32,7 @@ class VisionResult(BaseModel):
     candidateIds: list[str]
     confidence: float = Field(ge=0, le=1, allow_inf_nan=False)
     origin: str
+    detected_types: dict[str, str] = Field(default_factory=dict)
 
 
 @dataclass(frozen=True)

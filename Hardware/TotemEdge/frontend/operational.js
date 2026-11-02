@@ -34,8 +34,12 @@ window.BinGoOperational = {
       else if (session?.state === "DOOR_OPEN") html = panel("Posicione um único item", "Depois de posicionar o objeto, retire a mão do compartimento.", button("Retirei a mão", "hand-removed"));
       else if (session?.state === "REGISTRATION_PENDING") html = panel("Registro pendente", "O ciclo confirmado está preservado. Não faça outro descarte. A recompensa aguarda confirmação central.", button("Tentar registrar novamente", "retry-registration"));
       else if (session?.state === "REGISTERED") {
-        const receipt = session.receipt; // Validado pelo cliente: sucesso depende do recibo central.
-        html = `<section class="screen screen--success" data-operational-state="REGISTERED">${topbar("Concluído", { back: false })}<div class="content-zone content-zone--success">${talk(assets.b1nReward, "Descarte registrado pelo backend central.", "big character-reward")}<div class="reward-list"><div class="metric"><span>XP da turma</span><strong>+${receipt.points_awarded_class}</strong></div>${session.mode === "student" ? `<div class="metric"><span>Seus BinCoins</span><strong>+${receipt.points_awarded_student}</strong></div>` : ""}</div></div><div class="action-zone">${button("Concluir", "finish")}</div></section>`;
+        visuals.renderReceipt(session, busy);
+        if (warning) {
+          const message = kiosk.querySelector('.simulation-badge');
+          message.textContent = warning; message.setAttribute('role', 'alert');
+        }
+        return;
       } else if (["INDETERMINATE", "TECHNICAL_FAILURE", "RETURN_REQUIRED"].includes(session?.state)) html = panel("Chame um responsável", session.state === "RETURN_REQUIRED" ? "O objeto foi recusado. A devolução depende da integração física; nenhum descarte válido foi registrado." : "O estado do ciclo exige recuperação. Novos descartes estão bloqueados.", button("Atualizar estado", "refresh"));
       else if (["CANCELLED", "COMPLETED"].includes(session?.state)) html = panel("Sessão encerrada", session.state === "CANCELLED" ? "A preparação foi cancelada sem descarte." : "O registro está confirmado.", button("Voltar ao início", "status"));
       else html = panel("Aguardando confirmação", "Esta etapa depende de uma confirmação efetiva do serviço local.", button("Atualizar estado", "refresh"));
@@ -136,20 +140,20 @@ window.BinGoOperational = {
     const completedMotion = operation => snapshot?.commands.some(c => c.command.operation === operation && c.phase === 'COMPLETED' && c.result === 'SUCCEEDED');
     const failedMotion = () => snapshot?.commands.some(c => !pendingPhases.includes(c.phase) && !(c.phase === 'COMPLETED' && c.result === 'SUCCEEDED'));
     const openPin = () => snapshot?.session.state === 'PHYSICAL_BLOCKED' && allowed('open') && !failedMotion();
-    const hatchPin = () => snapshot?.session.state === 'REVIEW' && stage === 'hatch-pin' && allowed('hatch') && !failedMotion();
+    const hatchPin = () => snapshot?.session.state === 'REVIEW' && (stage === 'hatch-pin' || !!snapshot.vision?.decision) && allowed('hatch') && !failedMotion();
     const saved = name => { try { const id = sessionStorage.getItem(keys[name]); return uuid.test(id || "") ? id : null; } catch { return null; } };
     const remember = (name, id) => { try { sessionStorage.setItem(keys[name], id); return sessionStorage.getItem(keys[name]) === id; } catch { return false; } };
     const forget = name => { try { sessionStorage.removeItem(keys[name]); } catch { /* GET active remains authoritative. */ } };
     const allowed = action => snapshot?.allowed_actions.includes(action) === true;
     const identifying = () => snapshot?.session.state === "IDENTIFYING" && snapshot.session.mode === "student" && allowed("identify");
-    const terminal = () => ["CANCELLED", "COMPLETED"].includes(snapshot?.session.state);
+    const terminal = () => ["CANCELLED", "COMPLETED"].includes(snapshot?.session.state) && !['PENDING'].includes(snapshot?.economy?.status);
     function message(error) {
       if (error.code === "INVALID_RESPONSE") return "O serviço retornou uma resposta inconsistente. Consulte a sessão novamente.";
       if (error.status === 401) return "PIN não confirmado. Tente novamente.";
       if (error.status === 422) return "Dados inválidos. Selecione a turma e o aluno e informe quatro números.";
       if (error.status === 409) return "Há um conflito com a sessão ou identidade persistida. Confira o vínculo recuperado ou chame um responsável.";
-      if (error.status === 403) return "Não foi possível autorizar a identificação neste contexto DEV.";
-      if (error.status === 503) return "A central DEV está indisponível. Vínculos persistidos permanecem preservados.";
+      if (error.status === 403) return "Não foi possível confirmar sua identificação. Peça ajuda a um responsável.";
+      if (error.status === 503) return "O serviço está indisponível no momento. Peça ajuda a um responsável.";
       if (error.code === "SESSION_STORAGE_UNAVAILABLE") return "O navegador não permite preservar o identificador da tentativa. Nenhuma nova sessão foi solicitada.";
       return "Não foi possível confirmar a resposta do serviço local. Consulte a sessão antes de tentar novamente.";
     }
@@ -162,10 +166,18 @@ window.BinGoOperational = {
       return classes.every(c => c.grade) ? [...new Set(classes.map(c => c.grade))] : [];
     };
     function render() {
+      if (snapshot?.economy?.status === 'CONFIRMED') {
+        visuals.renderReceipt({...snapshot.session,state:'REGISTERED',receipt:snapshot.economy.receipt},busy);
+        const finish = kiosk.querySelector('[data-op="finish"]');
+        finish.removeAttribute('data-op'); finish.dataset.devOp = 'economic-finish';
+        return;
+      }
       let screen = ({ loading: "sleep", idle: command ? "idle" : "sleep", welcome: "idle", identity: "identity", segment: "segment", year: "year", classes: "class", students: "student", pin: "pin" })[stage];
       let notice = warning;
+      if (snapshot?.economy?.status === 'PENDING') notice = 'Registro pendente. Aguarde a confirmação. Não faça outro descarte.';
       const riskReported = snapshot?.session.state === "CANCELLED" && snapshot.session.failure_code === "SAFETY_RISK";
-      if (uncertain) screen = "unavailable";
+      if (snapshot?.economy?.status === 'PENDING') screen = 'computing';
+      else if (uncertain) screen = "unavailable";
       else if (snapshot?.session.state === "SAFETY" && snapshot.identity) screen = "safety";
       else if (riskReported) screen = "teacher";
       else if (failedMotion() || snapshot?.session.state === 'INDETERMINATE') screen = stage === 'help' ? 'teacher' : 'mechanical-error';
@@ -173,44 +185,45 @@ window.BinGoOperational = {
       else if (snapshot?.session.state === 'OPENING') screen = 'opening';
       else if (snapshot?.session.state === 'DOOR_OPEN' && completedMotion('OPEN_INSERTION_DOOR')) screen = stage === 'hand' ? 'hand-confirm' : 'insert';
       else if (snapshot?.session.state === 'CLOSING') screen = 'door-progress';
-      else if (snapshot?.session.state === 'CAPTURING') screen = 'camera';
+      else if (snapshot?.session.state === 'CAPTURING') screen = 'classification';
       else if (snapshot?.session.state === 'CLASSIFYING') screen = snapshot.vision?.provenance?.observations.some(r => r.origin === 'AWS_REKOGNITION' && (r.status === 'needs-secondary' || r.confidence < 0.75)) ? 'secondary-analysis' : 'classification';
       else if (snapshot?.session.state === 'RETURN_REQUIRED') screen = 'rejected';
       else if (snapshot?.session.state === 'TECHNICAL_FAILURE') screen = snapshot.vision?.error_code === 'CLASSIFICATION_INCONCLUSIVE' ? 'rejected' : 'vision-error';
-      else if (snapshot?.session.state === 'REVIEW' && snapshot.vision) screen = stage === 'correct-item' && allowed('vision-review') ? 'correct-item' : snapshot.vision.decision ? 'review' : 'recognized';
+      else if (snapshot?.session.state === 'REVIEW' && snapshot.vision) screen = stage === 'correct-item' && allowed('vision-review') ? 'correct-item' : snapshot.vision.decision ? 'computing' : 'recognized';
       else if (snapshot?.session.state === 'DOOR_CLOSED' && !allowed('review-fixture')) screen = 'door-progress';
       else if (['DOOR_CLOSED', 'REVIEW'].includes(snapshot?.session.state) && completedMotion('CLOSE_INSERTION_DOOR')) screen = 'review';
       else if (snapshot?.session.state === 'HATCH_IN_PROGRESS') screen = 'computing';
       else if (terminal()) { screen = "idle"; notice = notice || "A sessão foi encerrada. Nenhum recibo econômico ou pontuação foi gerado."; }
       else if (snapshot && !identifying()) { screen = "teacher"; if (!snapshot.commands.length) notice = notice || "Sessão já avançou. Consulte o estado persistido; nenhum movimento foi solicitado por esta tela."; }
-      else if (stage !== "loading" && !online) { screen = "unavailable"; notice = notice || "Novas autenticações exigem a central DEV disponível."; }
+      else if (stage !== "loading" && !online) { screen = "unavailable"; notice = notice || "Não foi possível confirmar sua identificação agora. Peça ajuda a um responsável."; }
       renderIdentity({
         screen, stage: screen === "unavailable" ? "unavailable" : stage, state: snapshot?.session.state || stage,
         eventId: snapshot?.session.event_id, busy, uncertain, terminal: terminal(), command,
         warning: notice, pinLength: pin.length, grade, filter, searchActive, keyboardShift, keyFeedback, keyboardClosing,
         riskReported, safetyAllowed: allowed("safety"), cancelAllowed: allowed('cancel'), mechanicalPin: openPin() || hatchPin(),
         reviewAllowed: allowed('review-fixture') || allowed('hatch') || allowed('vision-review'),
-        vision: snapshot?.vision, correctionItem, correctionAllowed: allowed('vision-review'),
+        vision: snapshot?.vision, correctionItem, correctionAllowed: allowed('vision-review') && (screen !== 'recognized' || photo?.id === snapshot?.vision?.capture_id),
+        retryAllowed: allowed('vision-analyze') && snapshot?.vision?.phase === 'FAILED',
         analyzeAllowed: allowed('vision-analyze') && photo?.id === snapshot?.vision?.capture_id,
         ...window.BinGoLocalApi.schoolLabels(context?.classes || [], segment),
         classes: (context?.classes || []).filter(c => (!segment || c.segment === segment) && (!grade || c.grade === grade)),
         students: (context?.students || []).filter(s => s.class_id === selectedClass && normalize(s.name).includes(normalize(filter))).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
       });
-      if (screen === 'camera' && snapshot?.vision?.image_available) {
+      if (['camera', 'recognized'].includes(screen) && snapshot?.vision?.image_available) {
         const id = snapshot.vision.capture_id, event = snapshot.session.event_id;
         if (photo?.id === id) {
           const canvas = kiosk.querySelector('[data-camera-canvas]');
-          canvas.width = photo.bitmap.width; canvas.height = photo.bitmap.height;
-          canvas.getContext('2d').drawImage(photo.bitmap, 0, 0);
-          canvas.dataset.loaded = 'true';
+          if (canvas) { canvas.width = photo.bitmap.width; canvas.height = photo.bitmap.height; canvas.getContext('2d').drawImage(photo.bitmap, 0, 0); canvas.dataset.loaded = 'true'; }
+          const image = kiosk.querySelector('[data-session-photo]');
+          if (image) { image.src = photo.url; image.hidden = false; }
         } else if (photoLoading !== id) {
           photoLoading = id;
-          api.photo(event, id).then(blob => createImageBitmap(blob)).then(bitmap => {
-            if (snapshot?.session.event_id === event && snapshot?.session.state === 'CAPTURING') { photo?.bitmap.close(); photo = { id, bitmap }; render(); }
-            else bitmap.close();
+          api.photo(event, id).then(async blob => ({ bitmap: await createImageBitmap(blob), url: URL.createObjectURL(blob) })).then(({ bitmap, url }) => {
+            if (snapshot?.session.event_id === event && ['CAPTURING', 'REVIEW'].includes(snapshot?.session.state)) { photo?.bitmap.close(); if (photo) URL.revokeObjectURL(photo.url); photo = { id, bitmap, url }; render(); }
+            else { bitmap.close(); URL.revokeObjectURL(url); }
           }).catch(async error => { warning = message(error); try { await inspectMotion(); } catch { uncertain = true; } render(); });
         }
-      } else if (photo) { photo.bitmap.close(); photo = null; }
+      } else if (photo) { photo.bitmap.close(); URL.revokeObjectURL(photo.url); photo = null; photoLoading = null; }
     }
 
     function accept(value) {
@@ -219,7 +232,7 @@ window.BinGoOperational = {
       remember("event", snapshot.session.event_id);
       stage = identifying() ? student ? "pin" : selectedClass ? "students" : "classes" : value.session.state === 'REVIEW' && stage === 'hatch-pin' ? 'hatch-pin' : "session";
       clearTimeout(pollTimer);
-      if (!departed && (snapshot.commands.some(c => pendingPhases.includes(c.phase)) || (['HATCH_IN_PROGRESS', 'CLASSIFYING'].includes(snapshot.session.state) || snapshot.session.state === 'CAPTURING' && !snapshot.vision?.image_available) && !failedMotion() || snapshot.session.state === 'DOOR_CLOSED' && !allowed('review-fixture'))) {
+      if (!departed && (snapshot.economy?.status === 'PENDING' || snapshot.commands.some(c => pendingPhases.includes(c.phase)) || (['HATCH_IN_PROGRESS', 'CLASSIFYING'].includes(snapshot.session.state) || snapshot.session.state === 'CAPTURING') && !failedMotion() || snapshot.session.state === 'DOOR_CLOSED' && !allowed('review-fixture'))) {
         // This timer only schedules durable GETs. It never decides a movement's
         // duration/result and never retries a POST.
         pollTimer = setTimeout(async () => {
@@ -287,12 +300,32 @@ window.BinGoOperational = {
       warning = "";
       if (!["search-key", "search-toggle"].includes(action)) { keyboardClosing = false; clearTimeout(closeTimer); }
       if (action === "refresh") { photoLoading = null; await recover(); if (snapshot?.commands.length) await inspectMotion(); return; }
+      if (action === 'economic-finish') {
+        await api.request(`/local/dev/sessions/${snapshot.session.event_id}/economic-finish`,{});
+        snapshot=null; forget('event'); forget('command'); await recover(); return;
+      }
       if (action === "new" && terminal()) { snapshot = null; command = null; selectedClass = null; student = null; forget("event"); forget("command"); await recover(); if (online && !snapshot) stage = value === "idle" ? "idle" : "identity"; return; }
+      if (action === 'end-test') {
+        if (!['TECHNICAL_FAILURE', 'RETURN_REQUIRED'].includes(snapshot?.session.state) || !allowed('cancel')) return recover();
+        const ended = await api.cancel(snapshot.session.event_id);
+        if (ended.session.state !== 'CANCELLED') throw new LocalApiError('INVALID_RESPONSE');
+        accept(ended);
+        return;
+      }
       if (action === "cancel" && allowed("cancel")) return accept(await api.cancel(snapshot.session.event_id));
       if (action === "wake") { stage = "welcome"; return; }
       if (action === 'help') { stage = 'help'; return; }
       if (action === 'correction' && allowed('vision-review')) { correctionItem = snapshot.vision.observation.itemId; stage = 'correct-item'; return; }
       if (action === 'correct-item' && allowed('vision-review') && snapshot.vision.allowed_candidates.includes(value)) { correctionItem = value; return; }
+      if (action === 'retry-analysis' && allowed('vision-analyze') && snapshot.vision?.phase === 'FAILED') {
+        const event = snapshot.session.event_id, v = snapshot.vision;
+        // Reuse this intent if its HTTP response is lost. Only UUIDs enter storage.
+        const key = `bingo.dev.analysis.${event}.${v.provenance?.analysis_id || v.capture_id}`;
+        let intent = sessionStorage.getItem(key);
+        if (!intent) { intent = crypto.randomUUID(); sessionStorage.setItem(key, intent); }
+        accept(await api.visionAnalyze(event, v.capture_id, intent));
+        return;
+      }
       if (action === 'vision-analyze' && allowed('vision-analyze') && photo?.id === snapshot.vision.capture_id) { accept(await api.visionAnalyze(snapshot.session.event_id, snapshot.vision.capture_id)); return; }
       if (action === 'recognition-confirm' && allowed('vision-review')) { const v = snapshot.vision; accept(await api.visionReview(snapshot.session.event_id, v.capture_id, v.observation.itemId, 'confirm')); return; }
       if (action === 'apply-correction') {

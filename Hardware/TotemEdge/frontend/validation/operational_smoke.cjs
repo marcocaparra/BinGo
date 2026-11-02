@@ -38,7 +38,7 @@ async function main() {
   const errors = [], results = [], calls = [];
   try {
     let ready = false;
-    for (let attempt = 0; attempt < 80; attempt++) {
+    for (let attempt = 0; attempt < 300; attempt++) {
       try { ready = (await (await fetch(origin + '/health')).json()).status === 'ok'; } catch {}
       if (ready) break;
       if (server.exitCode !== null) throw new Error('Uvicorn encerrou: ' + logs);
@@ -79,6 +79,7 @@ async function main() {
         else { stored = { ...stored, state: 'SAFETY', student_id: studentId }; data = stored; }
       } else if (pathname.endsWith('/safety')) { stored = { ...stored, state: 'PHYSICAL_BLOCKED' }; data = stored; }
       else if (pathname.endsWith('/retry-registration')) { status = 503; data = { error: { code: 'CENTRAL_TIMEOUT' } }; }
+      else if (pathname.endsWith('/finish')) { stored = { ...stored, state: 'COMPLETED' }; data = stored; }
       else if (pathname === '/local/sessions/' + uuid) data = stored;
       else { status = 404; data = { error: { code: 'NOT_FOUND' } }; }
       await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
@@ -99,6 +100,7 @@ async function main() {
 
     online = false; stored = { ...sessionBase, mode: 'class_only', state: 'REGISTRATION_PENDING' };
     await page.reload({ waitUntil: 'networkidle' }); await state('REGISTRATION_PENDING');
+    assert.equal(await page.locator('.reward-number, .screen--success').count(), 0);
     await click('retry-registration');
     await page.getByText('Não foi possível confirmar a operação. Nenhum sucesso foi presumido.').waitFor();
     await state('REGISTRATION_PENDING');
@@ -113,7 +115,23 @@ async function main() {
     stored.receipt = { id: uuid, event_id: uuid, points_awarded_student: 0, points_awarded_class: 1900, bonus_bincoins_awarded: 0 };
     await page.reload({ waitUntil: 'networkidle' }); await state('REGISTERED');
     assert.ok((await page.locator('#kiosk').innerText()).includes('+1900'));
+    assert.equal(await page.locator('.metric--student').count(), 0);
+    assert.equal(await page.locator('.screen--big.screen--success--classOnly').count(), 1);
+    assert.equal(await page.locator('[data-auto-next]').count(), 0);
+    await page.clock.fastForward(30000); await state('REGISTERED');
+    await page.screenshot({ path: path.join(output, 'economic-confirmed-class.png') });
     results.push('Sucesso controlado somente com recibo vinculado; unidade retornada exibida sem cálculo');
+    stored = { ...stored, mode: 'student', student_id: studentId, receipt: { ...stored.receipt, points_awarded_student: 1377, bonus_bincoins_awarded: 577, points_awarded_class: 2345 } };
+    await page.reload({ waitUntil: 'networkidle' }); await state('REGISTERED');
+    assert.equal(await page.locator('.metric--student .reward-number').innerText(), '+1377');
+    assert.equal(await page.locator('.metric--class .reward-number').innerText(), '+2345');
+    assert.equal(await page.locator('.metric--class .reward-unit').innerText(), 'XP');
+    assert.equal(await page.locator('.screen--big.screen--success--student').count(), 1);
+    assert.equal(await page.locator('.simulation-badge').innerText(), 'Registro confirmado');
+    await page.screenshot({ path: path.join(output, 'economic-confirmed-student.png') });
+    await click('finish'); await state('COMPLETED');
+    assert.equal(calls.filter(c => c.pathname.endsWith('/finish')).length, 1);
+    results.push('Layout prototipado: valores variáveis do recibo, total do aluno sem somar bônus, XP da turma e conclusão explícita sem timer');
     calls.length = 0;
     await page.goto(origin + '/?runtime=demo&screen=camera', { waitUntil: 'networkidle' });
     await page.getByText('Câmera simulada', { exact: true }).waitFor();

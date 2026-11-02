@@ -83,16 +83,70 @@ class SessionVision:
         for name in ("observation", "decision", "provenance"):
             value[name] = json.loads(value[name]) if value[name] else None
         result = value["observation"]
+        # Read-only projection of pre-upgrade, unreviewed grouped observations.
+        if (
+            result
+            and not value["decision"]
+            and result["status"] == "recognized"
+            and result["itemId"] == "small"
+            and not result.get("detected_types", {}).get("small")
+        ):
+            result = {
+                **result,
+                "itemId": "unknown",
+                "candidateIds": list(
+                    dict.fromkeys(
+                        [
+                            "unknown",
+                            *[i for i in result["candidateIds"] if i != "small"],
+                        ]
+                    )
+                ),
+            }
+            value["observation"] = result
         value["allowed_candidates"] = (
-            list(dict.fromkeys([*result["candidateIds"], "unknown"]))
+            list(
+                dict.fromkeys(
+                    [
+                        *[
+                            i
+                            for i in result["candidateIds"]
+                            if i != "small" or result.get("detected_types", {}).get(i)
+                        ],
+                        "unknown",
+                    ]
+                )
+            )
             if result
             and result["status"] == "recognized"
             and value["phase"] == "COMPLETED"
             else []
         )
-        value["image_available"] = (
-            str(event) in self.frames and value["phase"] == "CAPTURING"
-        )
+        # Preserve immutable historical decisions made before specific types existed.
+        if (
+            value["decision"]
+            and value["decision"]["item_id"] not in value["allowed_candidates"]
+        ):
+            value["allowed_candidates"].append(value["decision"]["item_id"])
+        value["image_available"] = str(event) in self.frames and value["phase"] in {
+            "CAPTURING",
+            "CLASSIFYING",
+            "COMPLETED",
+            "FAILED",
+        }
+        history = conn.execute(
+            "SELECT analysis_id,previous_attempt,created_at FROM vision_analysis_retries WHERE event_id=? ORDER BY created_at",
+            (str(event),),
+        ).fetchall()
+        if history:
+            value["analysis_history"] = [
+                {
+                    "analysis_id": r["analysis_id"],
+                    "previous_attempt": json.loads(r["previous_attempt"]),
+                    "created_at": r["created_at"],
+                }
+                for r in history
+            ]
         return value
 
     def after_close(self, entry):
@@ -152,11 +206,14 @@ class SessionVision:
                         "UPDATE vision_attempts SET provenance=?,updated_at=? WHERE capture_id=? AND phase='CAPTURING'",
                         (json.dumps(audit), now(), str(identifier)),
                     )
+                    self.frames.clear()
                     self.frames[str(event)] = frame
                     return self.snapshot(conn, event)
+            self.frames.clear()  # Bound retention: the next valid photo replaces the last.
+            self.frames[str(event)] = frame
             return await self._classify(event, identifier, frame, audit)
         except BaseException as error:
-            self.frames.pop(str(event), None)
+            # Keep the last validated photo in RAM for private diagnostics.
             # Never persist repr/message from a device, HTTP client or provider.
             code = (
                 error.code
@@ -206,7 +263,7 @@ class SessionVision:
 
             def observe(result):
                 # The primary observation is durable before secondary network I/O.
-                audit["observations"].append(result.model_dump())
+                audit["observations"].append(result.model_dump(exclude_defaults=True))
                 try:
                     with self.store.transaction() as conn:
                         updated = conn.execute(
@@ -222,6 +279,26 @@ class SessionVision:
             result = validate_result(
                 observation.result.model_dump(), observation.result.origin
             )
+            # A legacy grouping without a specific observed type is not a class.
+            # The provider observation remains intact in provenance.observations.
+            if (
+                result.status == "recognized"
+                and result.itemId == "small"
+                and not result.detected_types.get("small")
+            ):
+                result = result.model_copy(
+                    update={
+                        "itemId": "unknown",
+                        "candidateIds": list(
+                            dict.fromkeys(
+                                [
+                                    "unknown",
+                                    *[i for i in result.candidateIds if i != "small"],
+                                ]
+                            )
+                        ),
+                    }
+                )
             provenance = dict(
                 **audit,
                 inference="SIMULATED" if observation.simulated else "PROVIDER",
@@ -261,7 +338,7 @@ class SessionVision:
                     updates={"vision_result": result.model_dump_json()},
                 )
         except BaseException as error:
-            self.frames.pop(str(event), None)
+            # Keep the last validated photo in RAM for private diagnostics.
             # Never persist repr/message from a device, HTTP client or provider.
             code = (
                 error.code
@@ -300,15 +377,112 @@ class SessionVision:
         with self.store.transaction() as conn:
             row = self.store.simulation_row(conn, event)
             attempt = self.snapshot(conn, event)
+            frame = self.frames.get(str(event))
             if (
                 not attempt
                 or attempt["capture_id"] != str(identifier)
-                or row["active_slot"] != 1
-                or row["state"] != "CAPTURING"
-                or str(event) not in self.frames
+                or (row["active_slot"] != 1 and row["state"] != "CANCELLED")
+                or row["state"]
+                not in {
+                    "CAPTURING",
+                    "CLASSIFYING",
+                    "REVIEW",
+                    "TECHNICAL_FAILURE",
+                    "RETURN_REQUIRED",
+                    "CANCELLED",
+                }
+                or frame is None
             ):
                 raise CycleError("VISION_IMAGE_UNAVAILABLE", 410)
-            return self.frames[str(event)]
+            return frame
+
+    def can_retry(self, conn, row, attempt):
+        """Explicit analysis retry only: retained pixels and durable simulated closure."""
+        if not (
+            attempt
+            and attempt["phase"] == "FAILED"
+            and attempt["error_code"]
+            in {
+                "PRIMARY_UNAVAILABLE",
+                "PRIMARY_TIMEOUT",
+                "SECONDARY_UNAVAILABLE",
+                "SECONDARY_TIMEOUT",
+                "VISION_TIMEOUT",
+                "INVALID_PRIMARY_RESPONSE",
+                "INVALID_SECONDARY_RESPONSE",
+                "INVALID_PROVIDER_RESPONSE",
+                "VISION_PROVIDER_FAILED",
+                "VISION_BUSY",
+            }
+            and str(row["event_id"]) in self.frames
+            and row["state"] == "TECHNICAL_FAILURE"
+            and row["active_slot"] == 1
+            and row["simulated"] == 1
+            and self.mechanical.source == "SIMULATED"
+            and not row["physical_confirmed"]
+            and all(row[k] is None for k in ("payload", "receipt", "central_scope"))
+        ):
+            return False
+        closed = conn.execute(
+            "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation='CLOSE_INSERTION_DOOR' AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
+            (attempt["close_command_id"], row["event_id"]),
+        ).fetchone()
+        unsafe = conn.execute(
+            "SELECT 1 FROM mechanical_commands WHERE event_id=? AND (source!='SIMULATED' OR phase!='COMPLETED' OR result!='SUCCEEDED')",
+            (row["event_id"],),
+        ).fetchone()
+        return bool(closed and not unsafe)
+
+    def retry_analysis(self, event, capture_id, analysis_id):
+        with self.store.transaction() as conn:
+            row = self.store.simulation_row(conn, event)
+            attempt = self.snapshot(conn, event)
+            if not attempt or attempt["capture_id"] != str(capture_id):
+                raise CycleError("CAPTURE_ID_CONFLICT")
+            replay = conn.execute(
+                "SELECT event_id,capture_id FROM vision_analysis_retries WHERE analysis_id=?",
+                (str(analysis_id),),
+            ).fetchone()
+            if replay:
+                if replay["event_id"] != str(event) or replay["capture_id"] != str(
+                    capture_id
+                ):
+                    raise CycleError("ANALYSIS_ID_CONFLICT")
+                return
+            if not self.can_retry(conn, row, attempt):
+                raise CycleError("VISION_RETRY_NOT_ALLOWED")
+            previous = dict(
+                conn.execute(
+                    "SELECT * FROM vision_attempts WHERE event_id=?", (str(event),)
+                ).fetchone()
+            )
+            conn.execute(
+                "INSERT INTO vision_analysis_retries VALUES(?,?,?,?,?)",
+                (
+                    str(analysis_id),
+                    str(event),
+                    str(capture_id),
+                    json.dumps(previous),
+                    now(),
+                ),
+            )
+            audit = {
+                k: v
+                for k, v in (attempt["provenance"] or {}).items()
+                if k in {"camera", "mechanical", "policy", "capture"}
+            }
+            audit.update(observations=[], analysis_id=str(analysis_id))
+            conn.execute(
+                "UPDATE vision_attempts SET phase='CLASSIFYING',observation=NULL,decision=NULL,error_code=NULL,provenance=?,updated_at=? WHERE event_id=?",
+                (json.dumps(audit), now(), str(event)),
+            )
+            self.store._record(
+                conn, row, "CLASSIFYING", code="VISION_ANALYSIS_RETRY_REQUESTED"
+            )
+            frame = self.frames[str(event)]
+        self.tasks["retry:" + str(analysis_id)] = asyncio.create_task(
+            self._run_classification(event, capture_id, frame, audit)
+        )
 
     def request_analysis(self, event, identifier):
         with self.store.transaction() as conn:
@@ -372,6 +546,7 @@ class SessionVision:
                 or action not in {"confirm", "correct"}
             ):
                 raise CycleError("VISION_CANDIDATE_NOT_ALLOWED", 422)
+            decision["detected_type"] = original.get("detected_types", {}).get(item_id)
             decision.update(
                 at=now(),
                 category=CATEGORIES[item_id],

@@ -174,6 +174,10 @@ def main():
             while controls().get("hold_capture"):
                 await asyncio.sleep(0.05)
             await asyncio.sleep(0.25)
+            if controls().get("camera_failure"):
+                return httpx.Response(
+                    503, json={"error": {"code": "CAMERA_DISCONNECTED"}}
+                )
             return httpx.Response(
                 200,
                 content=pixels,
@@ -226,8 +230,9 @@ def main():
                     await asyncio.sleep(0.05)
                 return dict(
                     status="recognized",
-                    itemId="battery",
-                    candidateIds=["battery", "cable"],
+                    itemId="small",
+                    candidateIds=["small", "cable"],
+                    detected_types={"small": "Fone de ouvido"},
                     confidence=0.95,
                     origin="GEMINI_FALLBACK",
                 )

@@ -1,5 +1,9 @@
 # 3C.3.1 — homologação opt-in Windows/Docker
 
+Decisão vigente de 02/11: utilizar o projeto principal conforme [MAIN_DEV.md](MAIN_DEV.md),
+com captura/análise automáticas e fotografia na confirmação. As receitas de
+laboratórios abaixo são históricas e não são o caminho recomendado para continuar.
+
 ## Cadastro Supabase DEV existente + câmera/IA reais
 
 Para homologar com os cadastros existentes autorizados pelo operador, há agora

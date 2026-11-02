@@ -1,5 +1,124 @@
 # Validação automatizada do TotemEdge — 3C.2.0
 
+## Confirmação única e retry da mesma fotografia — 02/11/2026
+
+Validação desta correção: FAST 108 aprovados; INTEGRATION final 604 aprovados
+(559 backend, 18 runtime, 27 contratos JS), zero falhos/ignorados e exit code 0.
+Os nove casos de test_vision_retry.py também passaram isoladamente, sem somar essa
+repetição. Antes da ampliação final, a seleção focada de sessão/foto/fluxo/recovery
+teve 99 aprovados. A primeira execução apontou expectativas antigas de cancel como
+única ação e fixtures que precisavam respeitar CHECK/identidade imutável do journal;
+foram corrigidas sem relaxar as garantias do backend. Um PIN ausente é 401 pelo
+contrato DEV existente, preservado. A versão final respeita essas condições.
+
+Navegador (fallback/fone, failure/retry, camera-failure, recognized/correção,
+rejected): 16 verificações funcionais e nove comparações visuais estritas aprovadas,
+zero erros de página e temporary_removed=true nos cinco cenários. Ref B imutável,
+sem novas máscaras, tolerâncias ou snapshots aceitos. O harness aplica somente os
+novos rótulos solicitados aos controles de erro e remove do roteiro a segunda tela
+que deixou de fazer parte do fluxo; recognized e correct-item continuam comparados.
+
+Cobertura: decisão com fotografia -> PIN obrigatório (sem review redundante),
+PIN ausente/incorreto sem hatch; retry com UUID estável, mesmo JPEG/event/capture,
+resposta perdida, clique duplo, histórico de erros/observações, conflito de ID,
+concorrência e recuperação de reserva interrompida; falta de foto ou journal
+inseguro impede retry; cancel seguro permite outra sessão sem recaptura/movimento
+na recuperação. STARTUP testado por reconciliação SQLite com perda deliberada da
+RAM e testes existentes de subprocesso interrompido; não é homologação de restart
+físico de webcam/Orange Pi. Nenhuma chamada real de câmera/AWS/Gemini/Supabase.
+
+Evidências reproduzíveis (diretórios ignorados pelo Git):
+- deploy/.validation/profiles-6df50bb3728f/report.json (FAST).
+- deploy/.validation/profiles-4f2c79053e41/report.json (INTEGRATION final).
+- frontend/.validation/vision-session-browser.json e relatórios por cenário.
+Ambos os perfis registram temporary_sqlite_removed=true. Os smokes encerram e
+removem apenas suas fixtures temporárias. FULL/Docker não executado nesta correção,
+respeitando a restrição de não criar containers; nenhum recurso DEV foi alterado.
+Comandos executados a partir da raiz:
+
+```powershell
+python -B Hardware/TotemEdge/deploy/validate.py fast
+python -B Hardware/TotemEdge/deploy/validate.py integration
+# A partir de Hardware/TotemEdge/frontend:
+node validation/vision_session_smoke.cjs fallback failure camera-failure recognized rejected
+```
+
+Arquivos tocados nesta correção (outras alterações locais preexistentes preservadas):
+- `Hardware/TotemEdge/frontend/operational.js`
+- `Hardware/TotemEdge/frontend/local_api.js`
+- `Hardware/TotemEdge/frontend/script.js`
+- `Hardware/TotemEdge/backend/app/services/session_vision.py`
+- `Hardware/TotemEdge/backend/app/services/simulation_flow.py`
+- `Hardware/TotemEdge/backend/app/routes/simulation.py`
+- `Hardware/TotemEdge/backend/app/storage.py`
+- `Hardware/TotemEdge/backend/app/vision_journal.py`
+- `Hardware/TotemEdge/backend/tests/test_vision_retry.py`
+- `Hardware/TotemEdge/backend/tests/test_session_vision.py`
+- `Hardware/TotemEdge/backend/tests/test_simulation_recovery.py`
+- `Hardware/TotemEdge/frontend/validation/dev_api.test.cjs`
+- `Hardware/TotemEdge/frontend/validation/vision_session_smoke.cjs`
+- `Hardware/TotemEdge/frontend/validation/approved_visual.cjs`
+- `Hardware/TotemEdge/deploy/validate.py`
+- `Hardware/TotemEdge/backend/LOCAL_API_V1.md`
+- `Hardware/TotemEdge/backend/VISION_SESSION_V1.md`
+- `Hardware/TotemEdge/frontend/INTEGRATION_V1.md`
+- `Hardware/TotemEdge/deploy/MAIN_DEV.md`
+- `Hardware/TotemEdge/deploy/TESTING.md`
+- `Software/docs/STATUS_12-08.md`
+
+
+Revisão final: dez testes de recuperação/foto repetidos e aprovados, incluindo
+uma primária inconclusiva seguida de VISION_TIMEOUT no secundário, preservação da
+foto após cancelamento e expiração apenas na próxima captura válida. Não somar
+repetições ao total abaixo.
+
+Recuperação de simulações (02/11): 93 testes backend aprovados (recovery, sessão,
+foto, fluxo simulado e laboratório), 20 contratos JS aprovados. Os seis testes de
+recuperação foram repetidos após acrescentar a verificação de retenção limitada
+da foto: seis aprovados, sem somar essa repetição ao total. Browser camera-failure,
+failure e rejected: nove verificações funcionais e três comparações visuais
+aprovadas; encerramento, início seguinte e clique duplo não causam outro movimento
+ou captura. temporary_removed=true nos três cenários; sem serviço hospedado real.
+Consolidado: frontend/.validation/simulation-recovery-focused.json. As expectativas
+antigas de nenhuma ação em falha foram substituídas por cancel como única ação,
+mantendo o bloqueio de hatch. Uma primeira fixture de movimento pendente precisou
+incluir active_slot para respeitar o CHECK do journal; os controles não foram relaxados.
+Diagnóstico somente leitura do principal: JPEG DEVICE/42030 bytes, observação
+AWS needs-secondary e VISION_TIMEOUT; logs recentes sem traceback. Isso localiza
+o timeout após o principal, mas não comprova causa de rede/provedor. Nenhum prazo
+ou política de provider foi modificado; nenhum dado do principal foi alterado.
+
+
+Correção de classes/apresentação (02/11): tipos específicos ficam separados dos
+agrupamentos legados e da categoria canônica. Backend: 158 testes focados aprovados
+(test_vision, test_session_vision, test_vision_photo_flow, test_vision_lab); JS:
+20 contratos aprovados. Mais dez testes de test_capture.py passaram; quarenta
+ testes de sessão/foto/laboratório foram repetidos após a compatibilidade de
+ journals antigos, sem reescrever observações históricas. Não somar essa repetição.
+ Navegador: fallback (fone de ouvido), recognized/correção, failure e rejected:
+ onze verificações funcionais e oito comparações visuais estritas aprovadas,
+ zero diferenças aceitas por tolerância, zero erros de página, limpeza confirmada.
+ A referência imutável recebeu somente os novos textos aprovados e o JPEG sintético
+ esperado no mesmo componente. As primeiras comparações apontaram subtítulos
+ removidos em excesso e o novo rótulo oficial ainda ausente no harness; corrigidos
+ preservando subtítulos úteis, sem máscaras ou alteração de limites.
+ Relatórios por cenário e consolidado em frontend/.validation/vision-session-focused.json.
+ O primeiro teste backend apontou apenas a inclusão de
+metadado vazio na observação histórica; a serialização passou a omitir defaults
+vazios, preservando os metadados específicos. Os ensaios são sintéticos, sem
+AWS/Gemini/webcam/Supabase reais. Sem alteração de Docker, câmera ou economia.
+
+
+Atualização principal 02/11: captura/análise automáticas e fotografia no componente
+de confirmação. Testes focados de visão/sessão: 38 aprovados; visão/fluxo mecânico: 161 aprovados; contratos JS: 19
+aprovados. Compose principal validado sem construir ou iniciar containers. O smoke de navegador recognized passou com quatro verificações funcionais, quatro
+comparações visuais estritas e temporary_removed=true. A referência usa o mesmo
+JPEG sintético no componente original; não há máscara ou relaxamento de tolerância.
+A primeira tentativa ainda aguardava CAPTURING após iniciar a análise automática;
+o teste foi alinhado à nova transição sem aumentar prazos. Os
+relatórios abaixo pertencem a rodadas anteriores, não à homologação física atual.
+
+
 ## Ajuste funcional 3C.3.1 — 02/11/2026
 
 INTEGRATION inclui agora `test_vision_photo_flow.py`: foto privada/GET puro,

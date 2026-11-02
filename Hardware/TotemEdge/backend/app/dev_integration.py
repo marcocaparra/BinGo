@@ -1,14 +1,14 @@
 """Perfil DEV: capacidades centrais estreitas, separadas da mecânica simulada."""
 
-from dataclasses import dataclass
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
 import httpx2 as httpx
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, StrictBool, model_validator
 
 from app.clients.supabase import CentralError, SupabaseEdgeClient
 from app.config import SupabaseSettings
@@ -49,6 +49,7 @@ class DevPolicy(BaseModel):
     # Formato legado: restrições adicionais opcionais, nunca ignoradas.
     class_ids: tuple[UUID, ...] | None = None
     student_ids: tuple[UUID, ...] | None = None
+    economic_registration: StrictBool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -130,7 +131,12 @@ def validate_environment():
 class FunctionTransport(httpx.AsyncBaseTransport):
     """Sem CONNECT, redirects, query, RPC ou encaminhamento de destino/headers livres."""
 
-    def __init__(self, *, native=False, inner=None):
+    def __init__(self, *, native=False, inner=None, economic_registration=False):
+        self.allowed = ALLOWED | (
+            {("POST", "/functions/v1/register-deposit-v1")}
+            if economic_registration
+            else set()
+        )
         self.native = native
         self.inner = (
             inner if inner is not None else httpx.AsyncHTTPTransport(trust_env=False)
@@ -142,7 +148,7 @@ class FunctionTransport(httpx.AsyncBaseTransport):
         if (
             str(request.url) != origin + path
             or request.url.raw_path != path.encode("ascii")
-            or (request.method, path) not in ALLOWED
+            or (request.method, path) not in self.allowed
         ):
             raise CentralError("DEV_CAPABILITY_DENIED", 403)
         headers = {"Accept": "application/json"}
@@ -187,7 +193,15 @@ class DevCentralClient(SupabaseEdgeClient):
         return None
 
     async def register(self, payload):
-        raise CentralError("DEV_CAPABILITY_DENIED", 403)
+        if not self.policy.economic_registration:
+            raise CentralError("DEV_CAPABILITY_DENIED", 403)
+        context = await self.context()
+        if not any(c.id == payload.class_id for c in context.classes) or not any(
+            s.id == payload.student_id and s.class_id == payload.class_id
+            for s in context.students
+        ):
+            raise CentralError("DEV_TEST_SCOPE_MISMATCH", 403)
+        return await super().register(payload)
 
     async def context(self):
         context = await super().context()
@@ -235,7 +249,9 @@ class DevSettings(SimulationSettings):
             raise DevConfigurationError()
 
     def build_transport(self, transport=None):
-        return FunctionTransport(inner=transport)
+        return FunctionTransport(
+            inner=transport, economic_registration=self.policy.economic_registration
+        )
 
     def build_central(self, http_client):
         return DevCentralClient(http_client, self.policy)

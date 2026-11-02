@@ -1,5 +1,40 @@
 # Contratos locais — fundação de sessão V1
 
+Decisão posterior: homologação econômica DEV autoriza créditos reais com
+mecânica simulada, exclusivamente mediante opt-in restrito ao bingo-dev.
+Não usa physical_confirmed=1; a outbox DEV mantém prova e recibo separados.
+Ver [contrato vigente e estado de homologação](../../../Software/docs/totemedge-economic-dev.md).
+
+Pontuação (02/11): `SessionService.register_completed` consome internamente
+confirmação física/payload já persistidos e grava a fila antes do HTTP central.
+Não existe nova rota para fornecer confirmação física; o runtime simulado não
+é elegível. Retry e recibos usam os contratos existentes. A evidência física real
+ainda depende de adaptador/contrato homologados; nenhum método novo marca a
+queda como confirmada. Ver [relatório econômico](../../../Software/docs/totemedge-scoring-integration-v1.md).
+
+Retry explícito de IA (02/11): a rota vision-analyze existente aceita opcionalmente
+analysis_attempt_id: UUID, mantendo capture_id. Reserva durável, arquivo de tentativas,
+replay sem nova análise e guardas estão em [VISION_SESSION_V1.md](VISION_SESSION_V1.md).
+Não abre câmera, não cria sessão e não autoriza movimento; allowed_actions decide.
+
+
+Recuperação DEV (02/11): POST /local/simulation/sessions/{event_id}/cancel também
+encerra testes em TECHNICAL_FAILURE/RETURN_REQUIRED, somente com simulated=1,
+controller/journal SIMULATED, todos os comandos COMPLETED/SUCCEEDED, nenhuma
+análise pendente e nenhuma evidência/payload/recibo físico/econômico. A mesma guarda
+expõe cancel em allowed_actions. Não altera os cancelamentos operacionais físicos.
+O encerramento é CANCELLED, idempotente, libera apenas o slot ativo e acrescenta
+SIMULATION_TEST_ENDED ao histórico, preservando erro original, identidade, comandos
+e observações. Não significa devolução nem retorno físico à posição inicial.
+A UI separa “Tentar novamente” (nova análise da mesma foto, quando autorizada)
+de “Cancelar tentativa” (encerra pela API antes de voltar ao início). Nenhum desses
+controles solicita devolução física. Uma sessão seguinte recebe IDs próprios.
+Movimento pendente/indeterminado ou evidência física mantém bloqueio e orientação
+para chamar responsável. A última foto validada fica só em RAM para diagnóstico
+pela rota privada vision-image (inclusive após falha/encerramento), até a próxima
+captura válida ou reinício. Não é salva em disco nem pode ser reconstruída por GET.
+
+
 3C.3.1: [visão por sessão](VISION_SESSION_V1.md) documenta composição opt-in,
 extensão vision do snapshot e POST vision-review, separados do DEV persistente.
 Close explícito coordena captura após journal concluído; GET nunca fotografa.

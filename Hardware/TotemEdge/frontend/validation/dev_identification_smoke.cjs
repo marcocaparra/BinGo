@@ -191,13 +191,13 @@ async function main() {
     pass('Reinício do backend conserva SQLite e identidade, com central indisponível');
     await click('back'); await state('CANCELLED'); await page.reload(); await state('CANCELLED');
     await click('new');
-    await page.getByRole('alert').filter({ hasText: 'central DEV está indisponível' }).waitFor();
+    await page.getByRole('alert').filter({ hasText: 'serviço está indisponível' }).waitFor();
     pass('Terminal recuperado por ID; nova autenticação bloqueada offline');
     control({ empty: true }); await click('refresh'); await stage('idle'); await begin();
     assert.ok((await page.locator('#kiosk').innerText()).includes('Nenhuma turma disponível'));
     pass('Contexto vazio sem fallback para dados inventados');
     const event = await fresh(); control({ offline: true }); await enter('0012'); await click('pin', 'OK');
-    await page.getByRole('alert').filter({ hasText: 'central DEV está indisponível' }).waitFor();
+    await page.getByRole('alert').filter({ hasText: 'serviço está indisponível' }).waitFor();
     assert.equal((await active()).identity, null); assert.equal((await active()).session.event_id, event);
     pass('503 preserva sessão não autenticada e bloqueia nova submissão');
     control({}); await click('refresh'); await stage('pin');

@@ -90,7 +90,7 @@ def synthetic_central(request):
 class VisionLabSettings(DevSettings):
     vision_settings: VisionSettings = field(repr=False)
     vision_override: object = field(default=None, repr=False)
-    deferred_analysis: bool = True
+    deferred_analysis: bool = False
     vision_enabled = True
     marker_name = ".bingo-vision-lab-only"
     marker_content = "BinGo isolated vision lab synthetic mechanics v1\n"
@@ -129,7 +129,7 @@ def create_vision_lab_app(
     data_directory=DIRECTORY,
     camera_transport=None,
     vision=None,
-    deferred_analysis=True,
+    deferred_analysis=False,
 ):
     from app.main import create_app
 
@@ -162,11 +162,12 @@ def create_vision_lab_app(
 
 @dataclass(frozen=True)
 class VisionDevSettings(VisionLabSettings):
+    deferred_analysis: bool = False
     marker_name = ".bingo-vision-dev-only"
     marker_content = "BinGo vision DEV read-only identity simulated mechanics v1\n"
 
     def build_transport(self, transport=None):
-        return FunctionTransport(inner=transport)
+        return FunctionTransport(inner=transport, economic_registration=self.policy.economic_registration)
 
 
 def create_vision_dev_app(

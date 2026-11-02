@@ -98,6 +98,7 @@ async def test_jpeg_to_existing_cascade_and_immutable_review_restart(tmp_path):
 async def test_candidate_correction_and_simulator_mapping(tmp_path, item):
     answer = result()
     answer["candidateIds"] = ["cable", "battery", "phone", "small"]
+    answer["detected_types"] = {"small": "Computer Mouse"}
     rig, manager, driver, primary, workflow, event, command = await setup(
         tmp_path, answer
     )
@@ -139,7 +140,11 @@ async def test_provider_policy_and_rejection_block_hatch(
         assert rig.flow.get(event).session.state == state
         assert len(secondary.calls) == secondary_calls
         if state != "REVIEW":
-            assert not rig.flow.get(event).allowed_actions
+            assert rig.flow.get(event).allowed_actions == (
+                ["cancel", "vision-analyze"]
+                if isinstance(answer, VisionError)
+                else ["cancel"]
+            )
             with pytest.raises(CycleError):
                 workflow.review(
                     event, workflow.identifier(command), "unknown", "correct"
@@ -175,7 +180,15 @@ async def test_inconclusive_never_becomes_unknown_success(tmp_path, secondary):
             snap.session.state == "TECHNICAL_FAILURE"
             and snap.vision["phase"] == "FAILED"
         )
-        assert snap.allowed_actions == [] and not snap.vision["allowed_candidates"]
+        assert (
+            snap.allowed_actions
+            == (
+                ["cancel", "vision-analyze"]
+                if snap.vision["error_code"] == "SECONDARY_UNAVAILABLE"
+                else ["cancel"]
+            )
+            and not snap.vision["allowed_candidates"]
+        )
     finally:
         await cleanup(rig, manager, workflow)
 
@@ -402,7 +415,10 @@ async def test_failed_fallback_preserves_normalized_primary_observation(tmp_path
             result("needs-secondary")
         ]
         assert snapshot.vision["error_code"] == "SECONDARY_UNAVAILABLE"
-        assert not snapshot.allowed_actions and snapshot.session.receipt is None
+        assert (
+            snapshot.allowed_actions == ["cancel", "vision-analyze"]
+            and snapshot.session.receipt is None
+        )
     finally:
         await cleanup(rig, manager, workflow)
 
@@ -442,5 +458,45 @@ async def test_restart_between_closure_and_capture_intent_blocks_without_camera(
         assert rig.flow.get(event) == first
         await workflow.analyze(event, command)
         assert driver.calls == 0 and not primary.calls
+    finally:
+        await cleanup(rig, manager, workflow)
+
+
+@pytest.mark.parametrize("specific", [None, "Fone de ouvido"])
+async def test_legacy_size_is_not_an_item_class_and_audit_is_preserved(
+    tmp_path, specific
+):
+    answer = result()
+    answer.update(
+        itemId="small",
+        candidateIds=["small"],
+        detected_types={"small": specific} if specific else {},
+    )
+    rig, manager, driver, primary, workflow, event, command = await setup(
+        tmp_path, answer
+    )
+    try:
+        observed = await workflow.analyze(event, command)
+        if not specific:
+            # An older pending journal stores only the coarse group. GET projects
+            # UNKNOWN without rewriting the historical provider observation.
+            with rig.store.transaction() as conn:
+                conn.execute(
+                    "UPDATE vision_attempts SET observation=? WHERE event_id=?",
+                    (json.dumps(answer), str(event)),
+                )
+            assert rig.flow.get(event).vision["observation"]["itemId"] == "unknown"
+        expected = "small" if specific else "unknown"
+        assert observed["observation"]["itemId"] == expected
+        assert observed["provenance"]["observations"][0]["itemId"] == "small"
+        assert observed["provenance"]["provider"] == "AWS_REKOGNITION"
+        workflow.review(event, UUID(observed["capture_id"]), expected, "confirm")
+        decision = rig.flow.get(event).vision["decision"]
+        assert decision["detected_type"] == specific
+        if not specific:
+            assert (
+                decision["category"] == "UNKNOWN"
+                and decision["source"] == "UNIDENTIFIED"
+            )
     finally:
         await cleanup(rig, manager, workflow)

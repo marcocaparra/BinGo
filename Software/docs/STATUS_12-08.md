@@ -1,5 +1,83 @@
 STATUS técnico — BinGo
 
+Homologação econômica DEV liberada para teste (02/11): responsável autorizou
+build/recriação controlada de dev-central/totem-edge-dev no bingo-totem-edge.
+Principal :8000 saudável, SUPABASE_DEV_ECONOMIC e economic_registration=true;
+política exclusiva bingo-dev. Volume/cinco sessões/histórico/saldos anteriores
+preservados e backup realizado. Webcam presente/livre e UI sem erros/pontos
+antecipados. Descarte do aluno, crédito/recibo/UI final e replay hospedado ainda
+aguardam execução. Sem produção, deploy remoto, commit ou push. Evidências em
+`totemedge-economic-dev.md`.
+
+Decisão posterior de 02/11: homologação econômica DEV deve conceder crédito real
+após mecânica simulada concluída, câmera/IA reais e decisão autorizada. Código
+opt-in restrito a bingo-dev implementado; demonstração continua sem créditos.
+Não houve atualização de containers nem homologação econômica hospedada nesta
+rodada. A prova de crédito/saldos/UI no principal segue pendente. Referência
+vigente: `totemedge-economic-dev.md`, que substitui a interpretação anterior.
+
+Pontuação TotemEdge principal (02/11): RPC/Edge Function existentes reutilizadas;
+handoff interno completa confirmação física já persistida → fila econômica →
+HTTP, com recuperação do mesmo event_id/payload e sem conceder pontos antes do
+recibo. Não produz evidência física nem habilita economia na simulação Windows.
+A tela REGISTERED reutiliza o layout prototipado com BinCoins/XP retornados pelo
+servidor. Backend: 750 aprovados; HTTP Deno oficial/Supabase local: 2 testes;
+pgTAP pontuação: 40; JS: 27; browser operacional: 7 verificações. Preflight read-only
+do bingo-dev confirmou register-deposit-v1/health-v1 ACTIVE e migrations até 029;
+030/031 de Admin seguem locais. Sem deploy ou crédito hospedado. Habilitação
+física e ligação da decisão canônica ao payload continuam pendentes, detalhadas
+em `totemedge-scoring-integration-v1.md`, incluindo evidências e limites.
+
+Correção de homologação (02/11): confirmação/correção com foto real elimina a segunda
+tela review no caminho de visão e segue ao PIN obrigatório do alçapão. Falha técnica
+recuperável oferece retry explícito da mesma foto/evento por analysis_attempt_id,
+com unicidade SQLite e arquivo integral das tentativas anteriores. Falta de foto
+em RAM, rejeição ou mecânica insegura não autorizam retry; cancel só encerra simulação
+com journal seguro. A UI usa “Tentar novamente” e “Cancelar tentativa”. Não modifica
+câmera, classificação por tipo, Supabase ou economia. Detalhes: VISION_SESSION_V1.md
+no backend; comandos existentes e impacto de reinício em deploy/MAIN_DEV.md.
+
+
+Recuperação DEV (02/11): POST /local/simulation/sessions/{event_id}/cancel também
+encerra testes em TECHNICAL_FAILURE/RETURN_REQUIRED, somente com simulated=1,
+controller/journal SIMULATED, todos os comandos COMPLETED/SUCCEEDED, nenhuma
+análise pendente e nenhuma evidência/payload/recibo físico/econômico. A mesma guarda
+expõe cancel em allowed_actions. Não altera os cancelamentos operacionais físicos.
+O encerramento é CANCELLED, idempotente, libera apenas o slot ativo e acrescenta
+SIMULATION_TEST_ENDED ao histórico, preservando erro original, identidade, comandos
+e observações. Não significa devolução nem retorno físico à posição inicial.
+A UI separa “Tentar novamente” (nova análise da mesma foto, quando autorizada)
+de “Cancelar tentativa” (encerra pela API antes de voltar ao início). Nenhum desses
+controles solicita devolução física. Uma sessão seguinte recebe IDs próprios.
+Movimento pendente/indeterminado ou evidência física mantém bloqueio e orientação
+para chamar responsável. A última foto validada fica só em RAM para diagnóstico
+pela rota privada vision-image (inclusive após falha/encerramento), até a próxima
+captura válida ou reinício. Não é salva em disco nem pode ser reconstruída por GET.
+
+
+Correção localizada de 02/11 — classe específica e apresentação ao aluno:
+`detected_types` preserva os tipos específicos observados pelos provedores, indexados
+pelos IDs de adaptação legados. Esses IDs internos (inclusive small) não são classes
+para exibição, tamanho ou novo catálogo canônico. Nenhuma regra econômica mudou.
+AWS conserva a label específica; Gemini informa detected_type em português, separado
+do agrupamento legado. A decisão local preserva detected_type e a observação original
+continua em provenance.observations. Agrupamento small reconhecido sem tipo específico
+projeta UNKNOWN/UNIDENTIFIED; inconclusão/rejeição/falha não ganham essa autorização.
+A UI usa nomes compreensíveis, sem provedor/modelo/fallback/diagnósticos. A orientação
+“Um item por ciclo” não representa contagem detectada. Captura, fotografia, mecânica,
+broker e política de fallback permanecem preservados.
+
+
+Atualização de 02/11/2026 — decisão posterior: no perfil integrado DEV, CLOSE
+confirmado no journal dispara uma única captura e análise automaticamente. Não há
+tela manual nem botão Analisar item. O reconhecimento reutiliza o componente
+original com a fotografia real em lugar da ilustração. A imagem permanece somente
+em RAM durante análise/revisão e é liberada ao iniciar hatch. Reinício perde essa
+foto; resultados/decisões persistidos continuam recuperáveis, sem recaptura.
+A implantação Windows utiliza o projeto principal bingo-totem-edge com os overlays
+DEV existentes; ver deploy/MAIN_DEV.md. As descrições manuais abaixo são históricas.
+
+
 Ajuste funcional 3C.3.1 — 02/11/2026: restauradas as composições originais da
 equipe para foto, análise principal/secundária, reconhecimento, correção e falhas.
 Não há vídeo: fechamento durável captura uma foto; Analisar item envia os mesmos

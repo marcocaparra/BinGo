@@ -1,12 +1,12 @@
 import asyncio
-from hashlib import sha256
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import sha256
 from typing import Literal
+from uuid import UUID
 
 import httpx2 as httpx
 from pydantic import ValidationError
-from uuid import UUID
 
 from app.central_contracts import (
     DepositPayload,
@@ -243,6 +243,21 @@ class SupabaseEdgeClient:
                 receipt.event_id != payload.event_id
                 or receipt.waste_category_code != payload.waste_category_code
                 or receipt.category_source != payload.category_source
+                or (
+                    payload.student_id is None
+                    and (
+                        receipt.points_awarded_student != 0
+                        or receipt.bonus_bincoins_awarded != 0
+                    )
+                )
+                or (
+                    not payload.is_valid
+                    and (
+                        receipt.points_awarded_student != 0
+                        or receipt.points_awarded_class != 0
+                        or receipt.bonus_bincoins_awarded != 0
+                    )
+                )
             ):
                 raise ValueError()
             return receipt

@@ -13,6 +13,15 @@ from app.services.simulation_flow import SimulationSnapshot
 router = APIRouter(prefix="/local/dev")
 
 
+@router.post("/sessions/{event_id}/economic-finish")
+def economic_finish(event_id: UUID, body: StrictRequest, request: Request):
+    economy = getattr(request.app.state.simulation_flow.store, "dev_economy", None)
+    if economy is None:
+        raise CentralError("DEV_CAPABILITY_DENIED", 403)
+    economy.finish(event_id)
+    return request.app.state.simulation_flow.get(event_id)
+
+
 class DevPin(StrictRequest):
     class_id: UUID
     student_id: UUID
@@ -33,11 +42,12 @@ async def available(request):
 @router.get("/health")
 async def health(request: Request):
     await available(request)
+    enabled = getattr(request.app.state.simulation_flow.store, 'dev_economy', None) is not None
     return {
         "central": "AVAILABLE",
-        "scope": "SUPABASE_DEV_READ_ONLY",
+        "scope": "SUPABASE_DEV_ECONOMIC" if enabled else "SUPABASE_DEV_READ_ONLY",
         "mechanical_source": "SIMULATED",
-        "economic_registration": False,
+        "economic_registration": enabled,
     }
 
 

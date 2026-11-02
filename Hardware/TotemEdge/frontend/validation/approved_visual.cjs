@@ -62,7 +62,7 @@ async function stableScreenshot(page) {
 async function designContract(page) {
   return page.evaluate(async () => {
     const urls = new Set();
-    const assetName = url => decodeURIComponent(new URL(url, location.href).pathname).split('/assets/').pop().replace(/^images\//, 'backgrounds/');
+    const assetName = url => url.startsWith('blob:') ? 'session-photo' : decodeURIComponent(new URL(url, location.href).pathname).split('/assets/').pop().replace(/^images\//, 'backgrounds/');
     const normalized = value => value.replace(/url\("([^"]+)"\)/g, (_, url) => {
       urls.add(new URL(url, location.href).href);
       return 'asset(' + assetName(url) + ')';
@@ -190,12 +190,33 @@ async function openApprovedVisual(context, output, data) {
           pinWarning = Boolean(options.warning);
           pinErrorMessage = options.warning || '';
           render();
+          if (options.itemPhoto) {
+            const media = document.querySelector('.item-focus-media');
+            const image = document.createElement('img'); image.alt = ''; image.decoding = 'async'; image.draggable = false;
+            image.src = URL.createObjectURL(await (await fetch(options.itemPhoto)).blob());
+            media.classList.remove('item-media--unknown'); media.replaceChildren(image);
+          }
+          document.querySelectorAll('.simulation-badge').forEach(node => { node.textContent = ['classification', 'secondary-analysis', 'door-progress', 'computing'].includes(screen) ? 'Por favor, aguarde.' : 'Confira as orientações.'; });
+          document.querySelectorAll('.status-panel small').forEach(node => { node.textContent = 'Peça ajuda a um responsável.'; });
+          if (['classification', 'secondary-analysis'].includes(screen)) {
+            document.querySelector('.guide-bubble').textContent = 'Analisando seu eletrônico...';
+            document.querySelector('.step').textContent = 'Análise';
+          }
+          const unknownOption = document.querySelector('[data-correct-item="unknown"] strong'); if (unknownOption && options.visionRemote) unknownOption.textContent = 'Lixo eletrônico não identificado';
+          if (options.itemId === 'unknown' && options.visionRemote) document.querySelector('.item-focus-footer strong').textContent = 'Lixo eletrônico não identificado';
+          if (options.specificName) document.querySelector('.item-focus-footer strong').textContent = options.specificName;
+          const quantity = document.querySelector('.single-item-pill'); if (quantity) quantity.textContent = '1 item';
           if (options.cameraPhoto) {
             updateCameraView('captured', 'Imagem capturada nesta sessão. Selecione Analisar item para continuar.');
             document.querySelector('[data-camera-retake]').disabled = true;
             document.querySelector('[data-return-start]').disabled = true;
             const image = new Image(); image.src = options.cameraPhoto; await image.decode();
             const canvas = document.querySelector('[data-camera-canvas]'); canvas.width = image.width; canvas.height = image.height; canvas.getContext('2d').drawImage(image, 0, 0);
+          }
+          if (options.simulationRecovery) {
+            document.querySelector('.guide-bubble').textContent = options.cameraFailure ? 'Não foi possível fotografar. Cancele esta tentativa para voltar ao início.' : options.retryAllowed ? 'Não foi possível analisar. Tente novamente com a mesma foto ou cancele esta tentativa.' : 'Não é possível analisar novamente esta foto. Cancele esta tentativa para voltar ao início.';
+            const exit = document.querySelector('[data-return-start]'); exit.textContent = 'Cancelar tentativa'; exit.disabled = false;
+            const retry = document.querySelector('[data-adjust-retry]'); retry.textContent = 'Tentar novamente'; retry.disabled = !options.retryAllowed;
           }
           if (options.disableReturn) document.querySelectorAll('[data-adjust-retry], [data-return-start]').forEach(button => { button.disabled = true; });
           if (options.notice) document.querySelector('.guide-bubble').textContent = options.notice;

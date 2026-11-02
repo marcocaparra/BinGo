@@ -1533,6 +1533,29 @@ function renderDevIdentity(view) {
   const template = document.createElement("template");
   template.innerHTML = view.screen === "pin" ? approvedLoginPin() : screens[currentIndex].render();
   const fragment = template.content;
+  if (view.screen === 'recognized' && view.vision) {
+    const media = fragment.querySelector('.item-focus-media');
+    const image = document.createElement('img');
+    image.dataset.sessionPhoto = ''; image.alt = ''; image.hidden = true;
+    media.classList.remove('item-media--unknown'); media.replaceChildren(image);
+  }
+  // Only student-facing copy changes; provenance remains in the snapshot/journal.
+  fragment.querySelectorAll('.simulation-badge').forEach(node => { node.textContent = ['classification', 'secondary-analysis', 'door-progress', 'computing'].includes(view.screen) ? 'Por favor, aguarde.' : 'Confira as orientações.'; });
+  fragment.querySelectorAll('.status-panel small').forEach(node => { node.textContent = 'Peça ajuda a um responsável.'; });
+  if (['classification', 'secondary-analysis'].includes(view.screen)) {
+    fragment.querySelector('.guide-bubble').textContent = 'Analisando seu eletrônico...';
+    const title = fragment.querySelector('.step'); if (title) title.textContent = 'Análise';
+  }
+  if (view.vision) {
+    const label = fragment.querySelector('.item-focus-footer strong');
+    if (label) label.textContent = window.BinGoLocalApi.studentType(view.vision, recognizedItem.id);
+    fragment.querySelectorAll('[data-correct-item]').forEach(button => {
+      button.querySelector('strong').textContent = window.BinGoLocalApi.studentType(view.vision, button.dataset.correctItem);
+      const subtitle = button.querySelector('small'); if (subtitle && button.dataset.correctItem === 'small') subtitle.textContent = '';
+    });
+    const quantity = fragment.querySelector('.single-item-pill');
+    if (quantity) quantity.textContent = '1 item';
+  }
   const bind = (selector, action, value = "") => fragment.querySelectorAll(selector).forEach(node => {
     node.dataset.devOp = action;
     node.dataset.value = value;
@@ -1575,6 +1598,14 @@ function renderDevIdentity(view) {
   bind('[data-recognition-confirm]', 'recognition-confirm');
   fragment.querySelectorAll('[data-recognition-confirm]').forEach(button => { button.disabled = !view.correctionAllowed; });
   if (view.vision && ['rejected', 'vision-error'].includes(view.screen)) fragment.querySelectorAll('[data-adjust-retry], [data-return-start]').forEach(button => { button.disabled = true; });
+  if (view.vision && ['rejected', 'vision-error'].includes(view.screen) && view.cancelAllowed) {
+    const exit = fragment.querySelector('[data-return-start]');
+    exit.textContent = 'Cancelar tentativa'; exit.disabled = false; bind('[data-return-start]', 'end-test');
+    const retry = fragment.querySelector('[data-adjust-retry]');
+    retry.textContent = 'Tentar novamente'; retry.disabled = !view.retryAllowed; bind('[data-adjust-retry]', 'retry-analysis');
+    fragment.querySelector('.guide-bubble').textContent = /CAMERA_|INVALID_IMAGE|UNSUPPORTED_IMAGE/.test(view.vision.error_code || '') ? 'Não foi possível fotografar. Cancele esta tentativa para voltar ao início.' : view.retryAllowed ? 'Não foi possível analisar. Tente novamente com a mesma foto ou cancele esta tentativa.' : 'Não é possível analisar novamente esta foto. Cancele esta tentativa para voltar ao início.';
+  }
+  if (view.vision && ['rejected', 'vision-error'].includes(view.screen) && !view.cancelAllowed) fragment.querySelector('.guide-bubble').textContent = 'Chame um responsável para verificar o item antes de continuar.';
   bind('[data-camera-action]', 'vision-analyze');
   if (view.screen === 'camera') {
     fragment.querySelectorAll('[data-camera-retake], [data-return-start]').forEach(button => { button.disabled = true; });
@@ -1645,7 +1676,7 @@ function renderDevIdentity(view) {
     if (panel) {
       panel.querySelector("strong").textContent = view.uncertain ? "Resposta não confirmada" : "Identificação indisponível";
       panel.querySelector("span:not(.status-mark)").textContent = "Consulte a sessão persistida antes de continuar.";
-      panel.querySelector("small").textContent = "Ambiente DEV · Sem movimentos ou pontuação";
+      panel.querySelector("small").textContent = "Peça ajuda a um responsável.";
     }
   }
   fragment.querySelectorAll("button").forEach(button => { if (view.busy) button.disabled = true; });
@@ -1689,6 +1720,35 @@ function renderDevIdentity(view) {
   });
 }
 
+// Reutiliza a composição aprovada. O template fica desconectado do DOM até
+// substituir todos os valores demonstrativos pela fotografia central validada.
+function renderRegisteredReceipt(session, busy) {
+  const receipt = session.receipt;
+  if (session.state !== 'REGISTERED' || receipt?.event_id !== session.event_id) throw new Error('Receipt required');
+  flowMode = session.mode === 'student' ? 'student' : 'classOnly';
+  const template = document.createElement('template');
+  template.innerHTML = screens.find(screen => screen.id === 'success').render();
+  const fragment = template.content;
+  const screen = fragment.querySelector('.screen');
+  screen.dataset.operationalState = 'REGISTERED';
+  screen.classList.remove('screen--auto');
+  screen.removeAttribute('data-auto-next');
+  screen.removeAttribute('data-auto-delay');
+  fragment.querySelector('.guide-bubble').textContent = 'Boa escolha! Descarte registrado com sucesso.';
+  const classMetric = fragment.querySelector('.metric--class');
+  classMetric.querySelector(':scope > span').textContent = 'XP da turma';
+  classMetric.querySelector('.reward-number').textContent = `+${receipt.points_awarded_class}`;
+  classMetric.querySelector('.reward-unit').textContent = ' XP';
+  const studentMetric = fragment.querySelector('.metric--student');
+  if (studentMetric) studentMetric.querySelector('.reward-number').textContent = `+${receipt.points_awarded_student}`;
+  fragment.querySelector('.simulation-badge').textContent = 'Registro confirmado';
+  const finish = fragment.querySelector('[data-jump]');
+  finish.removeAttribute('data-jump');
+  finish.dataset.op = 'finish';
+  finish.disabled = busy;
+  kiosk.replaceChildren(fragment);
+}
+
 if (new URLSearchParams(window.location.search).get("runtime") === "demo") {
   const notice = document.createElement("div");
   notice.className = "demo-notice";
@@ -1704,7 +1764,7 @@ if (new URLSearchParams(window.location.search).get("runtime") === "demo") {
 } else {
   // Parâmetros de revisão e timers do protótipo não participam do modo operacional.
   screens.push(visionErrorScreen);
-  window.BinGoOperational.start(kiosk, { assets, talk, topbar, keyboardRows, normalize, renderIdentity: renderDevIdentity });
+  window.BinGoOperational.start(kiosk, { assets, talk, topbar, keyboardRows, normalize, renderIdentity: renderDevIdentity, renderReceipt: renderRegisteredReceipt });
 }
 document.addEventListener("dragstart", (event) => {
   if (event.target instanceof HTMLImageElement) {

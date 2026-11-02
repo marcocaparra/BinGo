@@ -61,6 +61,12 @@
   }
   function devSnapshot(value) {
     const s = value?.session, identity = value?.identity;
+    if (value?.economy != null) {
+      const e = value.economy;
+      if (!['AWAITING_COMPLETION','PENDING','CONFIRMED'].includes(e.status) || e.status !== 'CONFIRMED' && e.receipt !== null) throw new LocalApiError('INVALID_RESPONSE');
+      if (e.status === 'CONFIRMED') snapshot({...s,state:'REGISTERED',receipt:e.receipt});
+      if (e.status !== 'AWAITING_COMPLETION' && s?.state !== 'COMPLETED') throw new LocalApiError('INVALID_RESPONSE');
+    }
     const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture", "vision-review", "vision-analyze"]);
     if (value?.source !== "SIMULATED" || !s || !uuid.test(s.event_id) || !states.has(s.state) || !uuid.test(s.class_id) || !["student", "class_only"].includes(s.mode) || s.receipt !== null ||
         !Array.isArray(value.commands) || value.commands.some(c => !c || c.source !== "SIMULATED") ||
@@ -75,6 +81,7 @@
     if (value.vision != null) {
       const v = value.vision, ids = ['battery', 'cable', 'phone', 'small', 'unknown'];
       const r = v.observation;
+      if (r?.detected_types != null && (typeof r.detected_types !== 'object' || Array.isArray(r.detected_types) || Object.entries(r.detected_types).some(([id, name]) => !r.candidateIds?.includes(id) || typeof name !== 'string' || !name.trim() || name.length > 120))) throw new LocalApiError('INVALID_RESPONSE');
       if (!Array.isArray(v.allowed_candidates) || v.allowed_candidates.some(id => !ids.includes(id)) || new Set(v.allowed_candidates).size !== v.allowed_candidates.length || v.allowed_candidates.some(id => id !== 'unknown' && !r?.candidateIds.includes(id)) || v.allowed_candidates.length && (v.phase !== 'COMPLETED' || r?.status !== 'recognized')) throw new LocalApiError('INVALID_RESPONSE');
       if (v.event_id !== s.event_id || !uuid.test(v.capture_id) || !uuid.test(v.close_command_id) ||
           !value.commands.some(c => c.command.mechanical_command_id === v.close_command_id && c.command.operation === 'CLOSE_INSERTION_DOOR' && c.phase === 'COMPLETED') ||
@@ -87,9 +94,11 @@
     return value;
   }
   class DevApi extends LocalApi {
-    async visionAnalyze(id, captureId) {
-      if (!uuid.test(id) || !uuid.test(captureId)) throw new LocalApiError('INVALID_ID');
-      const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/vision-analyze`, { capture_id: captureId }));
+    async visionAnalyze(id, captureId, analysisAttemptId) {
+      if (!uuid.test(id) || !uuid.test(captureId) || analysisAttemptId !== undefined && !uuid.test(analysisAttemptId)) throw new LocalApiError('INVALID_ID');
+      const body = { capture_id: captureId };
+      if (analysisAttemptId !== undefined) body.analysis_attempt_id = analysisAttemptId;
+      const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/vision-analyze`, body));
       if (value.session.event_id !== id || value.vision?.capture_id !== captureId) throw new LocalApiError('INVALID_RESPONSE');
       return value;
     }
@@ -124,7 +133,7 @@
     }
     async health() {
       const data = await this.request("/local/dev/health");
-      if (data?.central !== "AVAILABLE" || data.scope !== "SUPABASE_DEV_READ_ONLY" || data.mechanical_source !== "SIMULATED" || data.economic_registration !== false) throw new LocalApiError("INVALID_RESPONSE");
+      if (data?.central !== "AVAILABLE" || !((data.scope === "SUPABASE_DEV_READ_ONLY" && data.economic_registration === false) || (data.scope === "SUPABASE_DEV_ECONOMIC" && data.economic_registration === true)) || data.mechanical_source !== "SIMULATED") throw new LocalApiError("INVALID_RESPONSE");
       return data;
     }
     async context() {
@@ -209,6 +218,14 @@
       }) : [],
     };
   }
-  root.BinGoLocalApi = { LocalApi, LocalApiError, DevApi, schoolLabels };
+  function studentType(vision, id) {
+    const unknown = 'Lixo eletrônico não identificado';
+    if (id === 'unknown') return unknown;
+    const value = vision?.observation?.detected_types?.[id];
+    const names = { headphones: 'Fone de ouvido', headset: 'Fone de ouvido', earphones: 'Fone de ouvido', 'computer mouse': 'Mouse', mouse: 'Mouse', keyboard: 'Teclado', 'printed circuit board': 'Placa eletrônica', 'electronic component': 'Componente eletrônico', 'battery charger': 'Carregador de bateria', battery: 'Pilha ou bateria', 'alkaline battery': 'Pilha alcalina', 'lithium battery': 'Bateria de lítio', cable: 'Cabo', 'usb cable': 'Cabo USB', wire: 'Fio', wiring: 'Fiação', 'electrical wiring': 'Fiação elétrica', 'power cord': 'Cabo de alimentação', 'mobile phone': 'Celular', 'cell phone': 'Celular', smartphone: 'Celular', telephone: 'Telefone' };
+    if (typeof value === 'string' && value.trim() && value.length <= 120 && !/\b(small|medium|large|pequeno|médio|medio|grande|aws|rekognition|gemini|fallback)\b|item pequeno|eletr[oô]nico pequeno/i.test(value)) return names[value.toLowerCase()] || value;
+    return ({ battery: 'Pilha ou bateria', cable: 'Cabo', phone: 'Celular' })[id] || unknown;
+  }
+  root.BinGoLocalApi = { LocalApi, LocalApiError, DevApi, schoolLabels, studentType };
   if (typeof module !== "undefined") module.exports = root.BinGoLocalApi;
 })(typeof window === "undefined" ? globalThis : window);

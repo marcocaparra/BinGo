@@ -32,6 +32,13 @@ test('Análise explícita preserva os identificadores da sessão e da foto', asy
   });
   assert.deepEqual(await api.visionAnalyze(event, id), value);
   await assert.rejects(() => api.visionAnalyze('invalid', id), e => e.code === 'INVALID_ID');
+  const retryApi = new DevApi(async (url, options) => {
+    assert.deepEqual(JSON.parse(options.body), { capture_id: id, analysis_attempt_id: machine });
+    return response(value);
+  });
+  assert.deepEqual(await retryApi.visionAnalyze(event, id, machine), value);
+  await assert.rejects(() => retryApi.visionAnalyze(event, id, 'invalid'), e => e.code === 'INVALID_ID');
+
 });
 
 test('Revisão de visão usa somente API local, IDs correlacionados e decisão durável', async () => {
@@ -191,4 +198,13 @@ test('Segurança recusa formato inválido antes do HTTP e resposta inconsistente
 test('Segurança preserva HTTP 409/422/503 e erro de transporte, sem sucesso local', async () => {
   for (const status of [409, 422, 503]) await assert.rejects(() => new DevApi(async () => response({ error: { code: 'CONTROLLED' } }, status)).safety(event, false), e => e.status === status);
   await assert.rejects(() => new DevApi(async () => { throw Object.assign(new Error('private-input'), { name: 'AbortError' }); }).safety(event, true), e => e.code === 'LOCAL_TIMEOUT' && !e.message.includes('private-input'));
+});
+
+
+test('Tipo específico é dado observado; tamanho e origem técnica nunca viram classe exibida', () => {
+  const { studentType } = require('../local_api.js');
+  for (const [value, expected] of [['Headphones', 'Fone de ouvido'], ['Mouse', 'Mouse'], ['Teclado', 'Teclado'], ['SMALL', 'Lixo eletrônico não identificado'], ['MEDIUM', 'Lixo eletrônico não identificado'], ['LARGE', 'Lixo eletrônico não identificado'], ['Grande', 'Lixo eletrônico não identificado'], ['Item pequeno', 'Lixo eletrônico não identificado'], ['Gemini fallback', 'Lixo eletrônico não identificado']]) {
+    assert.equal(studentType({ observation: { detected_types: { small: value } } }, 'small'), expected);
+  }
+  assert.equal(studentType({ observation: { detected_types: {} } }, 'small'), 'Lixo eletrônico não identificado');
 });

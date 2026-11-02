@@ -16,7 +16,7 @@ async function main(scenario = 'recognized') {
   assert.equal(path.dirname(root), path.resolve(os.tmpdir()));
   const output = path.join(frontend, '.validation'); fs.mkdirSync(output, { recursive: true });
   const control = data => fs.writeFileSync(path.join(root, 'control.json'), JSON.stringify(data));
-  const outcome = scenario === 'rejected' ? { reject: true } : scenario === 'failure' ? { vision_failure: true } : scenario === 'fallback' ? { fallback: true } : {};
+  const outcome = scenario === 'camera-failure' ? { camera_failure: true } : scenario === 'rejected' ? { reject: true } : scenario === 'failure' ? { vision_failure: true } : scenario === 'fallback' ? { fallback: true } : {};
   control({ hold_capture: true, ...outcome });
   const reserve = http.createServer(); await new Promise(resolve => reserve.listen(0, '127.0.0.1', resolve));
   const port = reserve.address().port; await new Promise(resolve => reserve.close(resolve));
@@ -25,6 +25,7 @@ async function main(scenario = 'recognized') {
   for (const key of Object.keys(env)) if (/^(BINGO_|SUPABASE_|AWS_|GEMINI_|GOOGLE_)/i.test(key) || /^(https?_proxy|all_proxy|no_proxy)$/i.test(key)) delete env[key];
   const requests = [], errors = [], results = [], visualChecks = [];
   let server, closed, stopped = false, browser, visual, logs = '', report;
+  const studentCopy = async page => assert.doesNotMatch(await page.locator('#kiosk').innerText(), /AWS|Rekognition|Gemini|fallback|análise secundária|Item pequeno|\b(?:SMALL|MEDIUM|LARGE)\b/i);
   const pass = label => { results.push(label); console.log('PASS: ' + label); };
   const request = async (route, body) => {
     const r = await fetch(origin + route, { method: body === undefined ? 'GET' : 'POST', headers: { 'X-Totem-Request': '1', 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -79,36 +80,78 @@ async function main(scenario = 'recognized') {
     assert.equal(stats().camera.length, 1);
     pass('Fechamento durável, clique duplo e refresh durante captura: uma única intenção');
     control({ ...outcome, hold_classification: true, hold_secondary: scenario === 'fallback' });
-    await page.reload(); await waitState('CAPTURING');
-    for (let i = 0; i < 100 && !await page.locator('[data-camera-canvas][data-loaded="true"]').count(); i++) { await page.clock.runFor(550); await pause(50); }
-    await page.locator('[data-camera-canvas][data-loaded="true"]').waitFor();
+    await page.reload();
+    let cameraPhoto;
+    if (scenario !== 'camera-failure') {
+    for (let i = 0; i < 100 && stats().primary === 0; i++) { await page.clock.runFor(550); await pause(50); }
+    await waitState('CLASSIFYING');
     const pending = await active();
-    const photoUrl = `${origin}/local/simulation/sessions/${pending.session.event_id}/vision-image/${pending.vision.capture_id}`;
-    const jpeg = await fetch(photoUrl, { headers: { 'X-Totem-Request': '1' } });
+    const jpeg = await fetch(`${origin}/local/simulation/sessions/${pending.session.event_id}/vision-image/${pending.vision.capture_id}`, { headers: { 'X-Totem-Request': '1' } });
     assert.ok(jpeg.ok);
-    const cameraPhoto = 'data:image/jpeg;base64,' + Buffer.from(await jpeg.arrayBuffer()).toString('base64');
-    if (scenario === 'recognized') await visual.compare(page, 'camera', { name: 'vision-photo', visionRemote: true, cameraPhoto });
-    assert.equal(stats().primary, 0, 'Rendering/refresh/photo GET never classify');
+    cameraPhoto = 'data:image/jpeg;base64,' + Buffer.from(await jpeg.arrayBuffer()).toString('base64');
     assert.equal(stats().camera.length, 1);
-    assert.equal(await page.locator('[data-camera-video]').evaluate(video => video.srcObject), null);
-    assert.ok(await page.locator('[data-camera-retake]').isDisabled());
-    await page.evaluate(() => { document.querySelector('[data-dev-op="vision-analyze"]').click(); document.querySelector('[data-dev-op="vision-analyze"]')?.click(); });
+    assert.equal(await page.locator('[data-camera-action]').count(), 0);
+    } else control(outcome);
     if (!['recognized', 'fallback'].includes(scenario)) {
       control(outcome);
       const state = scenario === 'rejected' ? 'RETURN_REQUIRED' : 'TECHNICAL_FAILURE';
       await waitState(state);
-      await visual.compare(page, scenario === 'rejected' ? 'rejected' : 'vision-error', { name: `vision-${scenario}`, visionRemote: true, origin: scenario === 'rejected' ? 'AWS_REKOGNITION' : 'VISION_CASCADE_ERROR', disableReturn: true });
+      await visual.compare(page, scenario === 'rejected' ? 'rejected' : 'vision-error', { name: `vision-${scenario}`, visionRemote: true, origin: scenario === 'rejected' ? 'AWS_REKOGNITION' : 'VISION_CASCADE_ERROR', simulationRecovery: true, cameraFailure: scenario === 'camera-failure', retryAllowed: scenario === 'failure' });
+      await studentCopy(page);
       const snap = await active();
-      assert.deepEqual(snap.allowed_actions, []); assert.equal(snap.session.receipt, null);
-      assert.equal(stats().primary, 1); assert.equal(stats().secondary, 0);
+      assert.deepEqual(snap.allowed_actions, scenario === 'failure' ? ['cancel', 'vision-analyze'] : ['cancel']); assert.equal(snap.session.receipt, null);
+      assert.equal(stats().primary, scenario === 'camera-failure' ? 0 : 1); assert.equal(stats().secondary, 0);
       const posts = requests.filter(r => r.method === 'POST').length;
       await page.reload(); await waitState(state);
       assert.equal(requests.filter(r => r.method === 'POST').length, posts);
-      assert.equal(stats().camera.length, 1); assert.equal(stats().primary, 1);
+      assert.equal(stats().camera.length, 1); assert.equal(stats().primary, scenario === 'camera-failure' ? 0 : 1);
       assert.ok(requests.every(r => !/hatch|vision-review|register|deposit/.test(r.path)));
       assert.deepEqual(errors, []);
       assert.ok(visual.results.every(r => r.passed), 'Negative flow approved UI regression');
       pass(`${state}: orientação existente, GET sem efeitos e nenhum alçapão/fallback operacional`);
+      if (scenario === 'failure') {
+        control({ hold_classification: true });
+        await page.route('**/vision-analyze', async route => { await route.fetch(); await route.abort('timedout'); }, { times: 1 });
+        await page.evaluate(() => { document.querySelector('[data-dev-op="retry-analysis"]').click(); document.querySelector('[data-dev-op="retry-analysis"]')?.click(); });
+        await waitState('CLASSIFYING');
+        assert.equal(stats().camera.length, 1); assert.equal(stats().primary, 2);
+        const retrying = await active();
+        assert.equal(retrying.session.event_id, snap.session.event_id);
+        assert.equal(retrying.vision.capture_id, snap.vision.capture_id);
+        assert.deepEqual(retrying.commands, snap.commands);
+        assert.equal(retrying.vision.analysis_history.length, 1);
+        const retryPosts = requests.filter(r => r.method === 'POST').length;
+        await page.reload(); await waitState('CLASSIFYING');
+        assert.equal(requests.filter(r => r.method === 'POST').length, retryPosts);
+        control({}); await waitState('REVIEW');
+        await page.locator('[data-session-photo][src^="blob:"]').waitFor();
+        await visual.compare(page, 'recognized', { itemPhoto: cameraPhoto, name: 'vision-retried-photo', visionRemote: true, origin: 'AWS_REKOGNITION', itemId: 'cable' });
+        await click('recognition-confirm'); await page.locator('.screen--pin').waitFor();
+        assert.equal(await page.locator('.screen--review').count(), 0);
+        assert.equal(stats().camera.length, 1); assert.equal(stats().primary, 2);
+        assert.equal(requests.filter(r => r.method === 'POST' && r.path.endsWith('/vision-analyze')).length, 1);
+        await pin(); await waitState('COMPLETED');
+        assert.ok(visual.results.every(r => r.passed));
+        pass('Retry explícito da mesma foto/evento, resposta perdida, refresh e PIN obrigatório antes do alçapão');
+      } else {
+      const failedEvent = snap.session.event_id;
+      const recoveryAction = 'end-test';
+      await page.evaluate(action => { document.querySelector(`[data-dev-op="${action}"]`).click(); document.querySelector(`[data-dev-op="${action}"]`)?.click(); }, recoveryAction);
+      await waitState('CANCELLED');
+      assert.equal(await active(), null);
+      const ended = await request(`/local/simulation/sessions/${failedEvent}`);
+      assert.deepEqual(ended.commands, snap.commands);
+      assert.equal(ended.session.failure_code, snap.session.failure_code);
+      assert.equal(requests.filter(r => r.method === 'POST' && r.path.endsWith('/cancel')).length, 1);
+      await click('new');
+      await click('mode', 'student');
+      await click('segment', data.classes[0].segment); await click('grade', data.classes[0].grade);
+      await click('class', data.classes[0].id); await click('student', data.students[0].id); await pin(); await waitState('SAFETY');
+      assert.notEqual((await active()).session.event_id, failedEvent);
+      assert.equal(stats().camera.length, 1);
+      pass('Encerramento durável, volta ao início e nova sessão, sem novo movimento/captura durante recuperação');
+      }
+
     } else {
     await waitState('CLASSIFYING');
     // The UI clock is paused: keep its genuine CLASSIFYING snapshot for the
@@ -119,16 +162,23 @@ async function main(scenario = 'recognized') {
       control(outcome);
       await visual.compare(page, 'secondary-analysis', { name: 'vision-secondary', visionRemote: true });
     } else await visual.compare(page, 'classification', { name: 'vision-classifying', visionRemote: true });
+    await studentCopy(page);
     control(outcome); await waitState('REVIEW');
     const event = (await active()).session.event_id;
-    await visual.compare(page, 'recognized', { name: scenario === 'fallback' ? 'vision-fallback-result' : 'vision-suggestion', visionRemote: true, origin: scenario === 'fallback' ? 'GEMINI_FALLBACK' : 'AWS_REKOGNITION', itemId: scenario === 'fallback' ? 'battery' : 'cable' });
+    await page.locator('[data-session-photo][src^="blob:"]').waitFor();
+    await visual.compare(page, 'recognized', { itemPhoto: cameraPhoto, name: scenario === 'fallback' ? 'vision-fallback-result' : 'vision-suggestion', visionRemote: true, origin: scenario === 'fallback' ? 'GEMINI_FALLBACK' : 'AWS_REKOGNITION', itemId: scenario === 'fallback' ? 'small' : 'cable', specificName: scenario === 'fallback' ? 'Fone de ouvido' : null });
+    await studentCopy(page);
+    assert.equal(await page.locator('.single-item-pill').innerText(), '1 item');
+    if (scenario === 'fallback') assert.equal(await page.locator('.item-focus-footer strong').innerText(), 'Fone de ouvido');
     assert.equal(stats().jpeg_delivered, true); assert.equal(stats().primary, 1); assert.equal(stats().secondary, scenario === 'fallback' ? 1 : 0);
     if (scenario === 'fallback') {
-      await click('recognition-confirm'); await page.locator('.screen--review').waitFor();
+      await click('recognition-confirm'); await page.locator('.screen--pin').waitFor();
+      assert.equal(await page.locator('.screen--review').count(), 0);
       assert.equal((await active()).vision.decision.source, 'AI_CONFIRMED');
     } else {
     await click('correction');
-    await visual.compare(page, 'correct-item', { name: 'vision-candidates', itemId: 'cable', candidateIds: ['cable', 'battery', 'unknown'], draftItemId: 'cable' });
+    await visual.compare(page, 'correct-item', { visionRemote: true, name: 'vision-candidates', itemId: 'cable', candidateIds: ['cable', 'battery', 'unknown'], draftItemId: 'cable' });
+    await studentCopy(page);
     assert.equal(await page.locator('[data-dev-op="correct-item"]').count(), 3);
     await click('correct-item', 'battery');
     // Lost response must recover the durable decision, never resubmit or recapture.
@@ -136,7 +186,8 @@ async function main(scenario = 'recognized') {
     await click('apply-correction'); await waitState('REVIEW');
     assert.equal((await active()).vision.decision.item_id, 'battery');
     await page.reload(); await waitState('REVIEW');
-    await visual.compare(page, 'review', { name: 'vision-corrected', itemId: 'battery', disableCorrection: true });
+    await page.locator('.screen--pin').waitFor();
+    assert.equal(await page.locator('.screen--review').count(), 0);
     assert.equal(stats().camera.length, 1); assert.equal(stats().primary, 1);
     pass('Candidatos contratados, correção persistida, resposta perdida e refresh sem reclassificação');
     }
@@ -149,10 +200,10 @@ async function main(scenario = 'recognized') {
     assert.ok(storage.every(([k, v]) => /^[a-f0-9-]{36}$/i.test(v)));
     assert.ok(requests.every(r => !/register|deposit|hatch|confirm-initial/.test(r.path)));
     assert.deepEqual(errors, []);
-    assert.equal(visual.results.length, scenario === 'fallback' ? 2 : 5);
+    assert.equal(visual.results.length, scenario === 'fallback' ? 2 : 3);
     assert.ok(visual.results.every(r => r.passed), 'Strict approved UI regression');
     pass('Sem descarte econômico, alçapão, segredos ou alteração da referência visual');
-    await click('discard'); await pin(); await waitState('COMPLETED');
+    await pin(); await waitState('COMPLETED');
     const completed = await active();
     assert.equal(completed, null, 'Completed session releases only the active slot');
     const saved = await request(`/local/simulation/sessions/${event}`);
@@ -186,7 +237,7 @@ async function main(scenario = 'recognized') {
 }
 (async () => {
   const reports = [];
-  const supported = ['recognized', 'rejected', 'failure', 'fallback'];
+  const supported = ['recognized', 'rejected', 'failure', 'fallback', 'camera-failure'];
   const selected = process.argv.slice(2);
   assert.ok(selected.every(scenario => supported.includes(scenario)), 'Unknown vision scenario');
   for (const scenario of selected.length ? selected : supported) reports.push(await main(scenario));

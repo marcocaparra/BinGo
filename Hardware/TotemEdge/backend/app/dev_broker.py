@@ -1,12 +1,14 @@
 """Fronteira de capacidade: única portadora da chave de máquina, sem API econômica."""
 
 from contextlib import asynccontextmanager
+from datetime import UTC
 
+import httpx2 as httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-import httpx2 as httpx
 
+from app.central_contracts import DepositPayload
 from app.clients.supabase import CentralError
 from app.dev_integration import (
     ALLOWED,
@@ -25,12 +27,21 @@ def create_broker_app(*, policy_path=POLICY_FILE, key_path=KEY_FILE, transport=N
     validate_environment()
     policy = load_policy(policy_path)
     key = load_machine_key(key_path)
+    allowed = ALLOWED | (
+        {("POST", "/functions/v1/register-deposit-v1")}
+        if policy.economic_registration
+        else set()
+    )
 
     @asynccontextmanager
     async def lifespan(app):
         validate_environment()
         async with httpx.AsyncClient(
-            transport=FunctionTransport(native=True, inner=transport),
+            transport=FunctionTransport(
+                native=True,
+                inner=transport,
+                economic_registration=policy.economic_registration,
+            ),
             follow_redirects=False,
             trust_env=False,
         ) as http:
@@ -61,7 +72,7 @@ def create_broker_app(*, policy_path=POLICY_FILE, key_path=KEY_FILE, transport=N
         if path == "/health" and request.method == "GET" and not request.url.query:
             return await next_call(request)
         if (
-            (request.method, path) not in ALLOWED
+            (request.method, path) not in allowed
             or request.scope["raw_path"] != path.encode("ascii")
             or request.url.query
             or request.headers.get("X-Totem-Dev") != "1"
@@ -94,7 +105,7 @@ def create_broker_app(*, policy_path=POLICY_FILE, key_path=KEY_FILE, transport=N
     @app.get("/functions/v1/health-v1")
     async def health(request: Request):
         outcome = await request.app.state.central.check_health()
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         status = (
             200
@@ -108,7 +119,7 @@ def create_broker_app(*, policy_path=POLICY_FILE, key_path=KEY_FILE, transport=N
                 "status": "AVAILABLE" if outcome.available else "UNAVAILABLE",
                 "can_start_deposit": outcome.available,
                 "scope": "CENTRAL_BACKEND",
-                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "checked_at": datetime.now(UTC).isoformat(),
             },
             status_code=status,
         )
@@ -122,5 +133,9 @@ def create_broker_app(*, policy_path=POLICY_FILE, key_path=KEY_FILE, transport=N
         return await request.app.state.central.verify_pin(
             body.class_id, body.student_id, body.pin
         )
+
+    @app.post("/functions/v1/register-deposit-v1")
+    async def register(request: Request, body: DepositPayload):
+        return await request.app.state.central.register(body)
 
     return app

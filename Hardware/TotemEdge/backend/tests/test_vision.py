@@ -775,3 +775,38 @@ def test_invalid_environment_disables_internal_service_without_affecting_livenes
         assert client.app.state.vision.primary is None
         assert client.get("/health").json() == {"status": "ok"}
         assert client.get("/local/status").json()["can_start_deposit"] is False
+
+
+@pytest.mark.anyio
+async def test_rekognition_preserves_specific_observed_type(frame, monkeypatch):
+    provider = RekognitionProvider(VisionSettings(aws_key="test", aws_secret="test"))
+    monkeypatch.setattr(
+        provider,
+        "_detect",
+        lambda content: {"Labels": [{"Name": "Headphones", "Confidence": 99}]},
+    )
+    value = await provider.analyze(frame, [])
+    assert value["detected_types"] == {"small": "Headphones"}
+    assert validate_result(value, "AWS_REKOGNITION").origin == "AWS_REKOGNITION"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("specific", ["Fone de ouvido", None, "SMALL"])
+async def test_gemini_specific_type_is_separate_from_legacy_group(frame, specific):
+    def upstream(request):
+        body = json.loads(request.content)
+        assert "detected_type" in body["generationConfig"]["responseSchema"]["required"]
+        payload = gemini_body("small")
+        payload["candidates"][0]["content"]["parts"][0]["text"] = json.dumps(
+            {"decision": "small", "confidence": 0.98, "detected_type": specific}
+        )
+        return httpx.Response(200, json=payload)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(upstream)) as client:
+        value = await GeminiProvider(client, VisionSettings(gemini_key="fake")).analyze(
+            frame, []
+        )
+    assert value["detected_types"] == (
+        {"small": specific} if specific == "Fone de ouvido" else {}
+    )
+    assert value["origin"] == "GEMINI_FALLBACK"

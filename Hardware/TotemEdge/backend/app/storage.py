@@ -18,7 +18,7 @@ from app.cycles import (
     TRANSITIONS,
 )
 from app.mechanical_journal import MechanicalJournal, SCHEMA as MECHANICAL_SCHEMA
-from app.vision_journal import SCHEMA as VISION_SCHEMA
+from app.vision_journal import SCHEMA as VISION_SCHEMA, RETRY_SCHEMA
 
 
 def now() -> str:
@@ -233,6 +233,7 @@ class CycleStore:
                 raise RuntimeError("Referências SQLite inválidas; operação bloqueada.")
             # Additive local audit extension; no change to economic payload/schema.
             conn.execute(VISION_SCHEMA)
+            conn.execute(RETRY_SCHEMA)
             conn.execute("PRAGMA user_version=4")
 
     @staticmethod
@@ -288,6 +289,12 @@ class CycleStore:
                         "CANCELLED",
                         code="RESTART_BEFORE_PHYSICAL",
                         updates={"active_slot": None},
+                    )
+                elif state == "HATCH_IN_PROGRESS" and self._ready_payload(row) is not None:
+                    # Queda já confirmada duravelmente pelo futuro adaptador físico.
+                    # Não reenviar movimento; recuperar somente o registro central.
+                    self._record(
+                        conn, row, "REGISTRATION_PENDING", code="REGISTRATION_RECOVERED"
                     )
                 elif state in {"REGISTERING", "REGISTRATION_PENDING"}:
                     if self._ready_payload(row) is None:
@@ -508,6 +515,35 @@ class CycleStore:
             self._record(conn, row, "REGISTERING")
             return payload
 
+    def queue_registration(self, event_id: UUID, central_scope: str | None) -> Session:
+        """Handoff interno: consome evidência persistida, nunca cria prova física.
+
+        O runtime atual não produz physical_confirmed=1. Nenhuma rota HTTP pode
+        fornecer esse sinal; simulação continua inelegível mesmo com payload.
+        """
+        with self.transaction() as conn:
+            row = self._row(conn, event_id)
+            if row["simulated"]:
+                raise CycleError("SIMULATION_NOT_ECONOMICALLY_ELIGIBLE", 503)
+            if central_scope is None or row["central_scope"] != central_scope:
+                raise CycleError("CENTRAL_SCOPE_NOT_CONFIRMED", 503)
+            if (
+                self._ready_payload(row) is None
+                or self.mechanical.has_risk(conn, event_id)
+                or self.mechanical.has_simulated_completion(conn, event_id)
+            ):
+                raise CycleError("MISSING_PHYSICAL_EVIDENCE", 503)
+            if row["state"] in {
+                "REGISTRATION_PENDING", "REGISTERING", "REGISTERED", "COMPLETED"
+            }:
+                return self._snapshot(row)
+            if row["state"] != "HATCH_IN_PROGRESS" or row["active_slot"] != 1:
+                raise CycleError("COMMAND_OUT_OF_SEQUENCE")
+            self._record(
+                conn, row, "REGISTRATION_PENDING", code="ECONOMIC_REGISTRATION_QUEUED"
+            )
+            return self._snapshot(self._row(conn, event_id))
+
     def prepare_payload(self, event_id: UUID, payload: DepositPayload):
         # Fundação para o futuro orquestrador: só congela contrato, não move equipamento.
         with self.transaction() as conn:
@@ -628,6 +664,8 @@ class CycleStore:
                     code="SIMULATED_MECHANICAL_COMPLETION",
                     updates={"active_slot": None} if after == "COMPLETED" else None,
                 )
+                if after == 'COMPLETED' and getattr(self, 'dev_economy', None):
+                    self.dev_economy.queue(conn, entry.command.event_id)
         elif entry.phase == "REJECTED":
             if before != moving:
                 self._record(conn, row, before, code=entry.error_code)
@@ -655,6 +693,8 @@ class CycleStore:
         event_id = row["event_id"]
         if self.mechanical.has_risk(conn, event_id):
             self.mechanical._block_cycle(conn, event_id)
+            return
+        if row['state'] == 'COMPLETED' and conn.execute("SELECT 1 FROM sqlite_master WHERE name='dev_economic_outbox'").fetchone() and conn.execute("SELECT 1 FROM dev_economic_outbox WHERE event_id=?",(event_id,)).fetchone():
             return
         if (
             row["state"] in {"TECHNICAL_FAILURE", "RETURN_REQUIRED"}

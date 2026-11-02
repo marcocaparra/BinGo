@@ -57,13 +57,17 @@ class VisionReview(StrictRequest):
 
 class VisionAnalyze(StrictRequest):
     capture_id: UUID
+    analysis_attempt_id: UUID | None = None
 
 
 @router.post("/sessions/{event_id}/vision-analyze", response_model=SimulationSnapshot)
 async def vision_analyze(event_id: UUID, body: VisionAnalyze, flow: Service):
     if flow.vision is None:
         raise CycleError("VISION_NOT_INTEGRATED", 503)
-    flow.vision.request_analysis(event_id, body.capture_id)
+    if body.analysis_attempt_id is not None:
+        flow.vision.retry_analysis(event_id, body.capture_id, body.analysis_attempt_id)
+    else:
+        flow.vision.request_analysis(event_id, body.capture_id)
     return flow.get(event_id)
 
 

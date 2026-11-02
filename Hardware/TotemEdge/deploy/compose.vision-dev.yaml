@@ -1,5 +1,6 @@
-# Overlay on compose.dev-integration.yaml, only with a NEW project name.
+# Overlay on compose.dev-integration.yaml. Main Windows DEV: -p bingo-totem-edge.
 # Real identity through the existing read-only broker; no economic capability.
+name: bingo-totem-edge
 services:
   totem-edge-dev:
     image: bingo-totem-edge:vision-dev
@@ -31,7 +32,7 @@ services:
   dev-http:
     image: bingo-totem-edge:vision-dev
     ports: !override
-      - "127.0.0.1:${BINGO_VISION_DEV_PORT:-8018}:8000"
+      - "127.0.0.1:${BINGO_VISION_DEV_PORT:-8000}:8000"
 volumes: !override
   vision-dev-data:
     labels: {org.bingo.purpose: vision-dev-read-only-identity}

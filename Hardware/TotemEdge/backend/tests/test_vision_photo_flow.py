@@ -171,7 +171,7 @@ def test_startup_recovery_of_unanalyzed_photo_blocks_without_recapture(lab):
     assert recovered["session"]["state"] == "TECHNICAL_FAILURE"
     assert recovered["vision"]["error_code"] == "PROCESS_INTERRUPTED"
     assert not recovered["vision"]["image_available"]
-    assert recovered["allowed_actions"] == []
+    assert recovered["allowed_actions"] == ["cancel"]
     assert (
         client.get(
             f"{BASE}/{event}/vision-image/{capture_id}", headers=HEADERS
@@ -181,3 +181,37 @@ def test_startup_recovery_of_unanalyzed_photo_blocks_without_recapture(lab):
     post(client, f"{BASE}/{event}/vision-analyze", {"capture_id": capture_id})
     assert client.get(f"{BASE}/{event}").json() == recovered
     assert driver.calls == driver.released == 1 and not provider.calls
+
+
+def test_automatic_analysis_keeps_exact_photo_for_confirmation(lab):
+    client, driver, provider, data = lab
+    event = identified(client)
+    post(
+        client,
+        f"{BASE}/{event}/close",
+        {"mechanical_command_id": str(uuid4()), "hand_removed": True},
+    )
+    snap = poll(client, event, {"REVIEW"})
+    capture = snap["vision"]["capture_id"]
+    assert snap["vision"]["image_available"]
+    for _ in range(3):
+        photo = client.get(f"{BASE}/{event}/vision-image/{capture}", headers=HEADERS)
+        assert photo.status_code == 200 and photo.content == driver.content
+        assert client.get(f"{BASE}/{event}").json() == snap
+    assert driver.calls == driver.released == len(provider.calls) == 1
+    assert provider.calls[0][0].content == photo.content
+    post(client, f"{BASE}/{event}/vision-analyze", {"capture_id": capture})
+    assert len(provider.calls) == 1
+    post(
+        client,
+        f"{BASE}/{event}/vision-review",
+        {"capture_id": capture, "item_id": "cable", "action": "confirm"},
+    )
+    post(
+        client,
+        f"{BASE}/{event}/hatch",
+        {"mechanical_command_id": str(uuid4()), "pin": "0012"},
+    )
+    done = poll(client, event, {"COMPLETED"})
+    assert done["session"]["receipt"] is None
+    assert str(event) not in client.app.state.simulation_flow.vision.frames

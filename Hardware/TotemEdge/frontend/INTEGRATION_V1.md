@@ -1,5 +1,52 @@
 # Totem Edge V1 — integração local e limites atuais
 
+Decisão posterior: no perfil econômico DEV autorizado, a conclusão simulada
+aguarda recibo real, mostra BinCoins/XP retornados e encerra pela API DEV.
+Modo demo permanece sem créditos. Containers ainda não atualizados; detalhes em
+[homologação econômica DEV](../../../Software/docs/totemedge-economic-dev.md).
+
+Pontuação (02/11): somente REGISTERED com recibo central válido usa a composição
+prototipada de sucesso, preenchendo BinCoins totais/XP com os valores retornados,
+sem cálculo JavaScript. Pending/falha não mostram recompensa; Concluir encerra
+via API, sem timer. O perfil DEV simulado continua sem recibo/crédito. Evidências,
+comandos e pendências em [relatório econômico](../../../Software/docs/totemedge-scoring-integration-v1.md).
+
+Atualização de confirmação/retry (02/11): após vision-review confirmar/corrigir,
+a decisão persistida leva diretamente ao PIN de hatch existente, sem a segunda
+tela review/ilustração. Refresh recupera essa autorização sem movimento automático.
+“Tentar novamente” usa vision-analyze com capture_id original e analysis_attempt_id
+estável por intenção explícita. “Cancelar tentativa” usa cancel e só volta ao início
+após CANCELLED confirmado. Sem foto em RAM, rejeição de negócio ou mecânica insegura,
+o retry fica bloqueado. Ver ../backend/VISION_SESSION_V1.md para guardas e auditoria.
+
+
+Recuperação DEV (02/11): POST /local/simulation/sessions/{event_id}/cancel também
+encerra testes em TECHNICAL_FAILURE/RETURN_REQUIRED, somente com simulated=1,
+controller/journal SIMULATED, todos os comandos COMPLETED/SUCCEEDED, nenhuma
+análise pendente e nenhuma evidência/payload/recibo físico/econômico. A mesma guarda
+expõe cancel em allowed_actions. Não altera os cancelamentos operacionais físicos.
+O encerramento é CANCELLED, idempotente, libera apenas o slot ativo e acrescenta
+SIMULATION_TEST_ENDED ao histórico, preservando erro original, identidade, comandos
+e observações. Não significa devolução nem retorno físico à posição inicial.
+A UI separa “Tentar novamente” (nova análise da mesma foto, quando autorizada)
+de “Cancelar tentativa” (encerra pela API antes de voltar ao início). Nenhum desses
+controles solicita devolução física. Uma sessão seguinte recebe IDs próprios.
+Movimento pendente/indeterminado ou evidência física mantém bloqueio e orientação
+para chamar responsável. A última foto validada fica só em RAM para diagnóstico
+pela rota privada vision-image (inclusive após falha/encerramento), até a próxima
+captura válida ou reinício. Não é salva em disco nem pode ser reconstruída por GET.
+
+
+Atualização de 02/11/2026 — decisão posterior: no perfil integrado DEV, CLOSE
+confirmado no journal dispara uma única captura e análise automaticamente. Não há
+tela manual nem botão Analisar item. O reconhecimento reutiliza o componente
+original com a fotografia real em lugar da ilustração. A imagem permanece somente
+em RAM durante análise/revisão e é liberada ao iniciar hatch. Reinício perde essa
+foto; resultados/decisões persistidos continuam recuperáveis, sem recaptura.
+A implantação Windows utiliza o projeto principal bingo-totem-edge com os overlays
+DEV existentes; ver deploy/MAIN_DEV.md. As descrições manuais abaixo são históricas.
+
+
 3C.3.1, ajuste funcional: o perfil de visão apresenta a foto única no canvas do
 template original da equipe. Não há vídeo ou getUserMedia. O fechamento durável
 autoriza a captura; o botão existente **Analisar item** autoriza a IA sobre os

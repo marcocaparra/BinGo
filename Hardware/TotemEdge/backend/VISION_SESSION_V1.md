@@ -1,5 +1,83 @@
 # Visão por sessão — 3C.3.1
 
+## Retry de análise e confirmação única — decisão de 02/11/2026
+
+A confirmação/correção em recognized/correct-item persiste vision.decision.
+A UI segue diretamente ao componente PIN existente quando allowed_actions contém
+hatch. Não exibe a segunda tela review com ilustração. PIN novo e todas as guardas
+do alçapão permanecem obrigatórios; render/refresh não solicitam movimento.
+
+POST /local/simulation/sessions/{event_id}/vision-analyze aceita, opcionalmente,
+`analysis_attempt_id: UUID` junto de `capture_id: UUID`. O campo novo representa
+uma intenção explícita de retry da IA, não de captura. Sem esse campo, permanece
+inalterada a compatibilidade da análise inicial manual histórica.
+
+Retry exige TECHNICAL_FAILURE, foto validada ainda em RAM, captura FAILED por
+falha recuperável de provedor (indisponibilidade/timeout/resposta inválida), sessão
+simulada ativa, CLOSE correlacionado COMPLETED/SUCCEEDED/SIMULATED e todos os
+comandos seguros, sem evidência física ou econômica. Rejeição e inconclusão de
+negócio não autorizam retry. A guarda expõe vision-analyze em allowed_actions;
+qualquer POST que a viole retorna 409 VISION_RETRY_NOT_ALLOWED. Reinício perde o
+JPEG: não se recaptura, mantém-se cancel seguro quando permitido ou responsável.
+
+Uma transação SQLite insere vision_analysis_retries (analysis_id global único,
+event_id, capture_id, previous_attempt, created_at), arquiva a tentativa anterior
+integralmente e reserva CLASSIFYING antes da chamada externa. Snapshot.vision
+expõe analysis_history com esse arquivo, enquanto provenance.analysis_id identifica
+a tentativa atual. A câmera e o evento originais permanecem os mesmos. Replays do
+mesmo UUID retornam o snapshot sem nova IA; UUID reutilizado em outro vínculo
+retorna 409 ANALYSIS_ID_CONFLICT; intenção diferente durante processamento é
+bloqueada. O frontend persiste somente UUIDs para repetir a intenção em caso de
+resposta perdida; GET/refresh não executam análise. Nova tentativa explícita após
+outra falha recebe outro UUID. Recuperação de processo registra falha técnica das
+reservas pendentes; não reinicia provedores nem câmera. Uma chamada externa pode
+ter concluído antes da queda local: não há garantia exactly-once no provedor,
+mas o mesmo UUID consumido nunca é despachado novamente pelo TotemEdge.
+
+Não há escrita econômica, alteração do fluxo da câmera, política de fallback,
+credenciais ou recuperação física. A fotografia continua privada e apenas em RAM.
+
+
+Recuperação DEV (02/11): POST /local/simulation/sessions/{event_id}/cancel também
+encerra testes em TECHNICAL_FAILURE/RETURN_REQUIRED, somente com simulated=1,
+controller/journal SIMULATED, todos os comandos COMPLETED/SUCCEEDED, nenhuma
+análise pendente e nenhuma evidência/payload/recibo físico/econômico. A mesma guarda
+expõe cancel em allowed_actions. Não altera os cancelamentos operacionais físicos.
+O encerramento é CANCELLED, idempotente, libera apenas o slot ativo e acrescenta
+SIMULATION_TEST_ENDED ao histórico, preservando erro original, identidade, comandos
+e observações. Não significa devolução nem retorno físico à posição inicial.
+A UI separa “Tentar novamente” (nova análise da mesma foto, quando autorizada)
+de “Cancelar tentativa” (encerra pela API antes de voltar ao início). Nenhum desses
+controles solicita devolução física. Uma sessão seguinte recebe IDs próprios.
+Movimento pendente/indeterminado ou evidência física mantém bloqueio e orientação
+para chamar responsável. A última foto validada fica só em RAM para diagnóstico
+pela rota privada vision-image (inclusive após falha/encerramento), até a próxima
+captura válida ou reinício. Não é salva em disco nem pode ser reconstruída por GET.
+
+
+Correção localizada de 02/11 — classe específica e apresentação ao aluno:
+`detected_types` preserva os tipos específicos observados pelos provedores, indexados
+pelos IDs de adaptação legados. Esses IDs internos (inclusive small) não são classes
+para exibição, tamanho ou novo catálogo canônico. Nenhuma regra econômica mudou.
+AWS conserva a label específica; Gemini informa detected_type em português, separado
+do agrupamento legado. A decisão local preserva detected_type e a observação original
+continua em provenance.observations. Agrupamento small reconhecido sem tipo específico
+projeta UNKNOWN/UNIDENTIFIED; inconclusão/rejeição/falha não ganham essa autorização.
+A UI usa nomes compreensíveis, sem provedor/modelo/fallback/diagnósticos. A orientação
+“Um item por ciclo” não representa contagem detectada. Captura, fotografia, mecânica,
+broker e política de fallback permanecem preservados.
+
+
+Atualização de 02/11/2026 — decisão posterior: no perfil integrado DEV, CLOSE
+confirmado no journal dispara uma única captura e análise automaticamente. Não há
+tela manual nem botão Analisar item. O reconhecimento reutiliza o componente
+original com a fotografia real em lugar da ilustração. A imagem permanece somente
+em RAM durante análise/revisão e é liberada ao iniciar hatch. Reinício perde essa
+foto; resultados/decisões persistidos continuam recuperáveis, sem recaptura.
+A implantação Windows utiliza o projeto principal bingo-totem-edge com os overlays
+DEV existentes; ver deploy/MAIN_DEV.md. As descrições manuais abaixo são históricas.
+
+
 ## Ajuste funcional — foto confirmada e identidade DEV
 
 Decisão posterior do operador: foto única, sem vídeo. Após fechamento confirmado,
