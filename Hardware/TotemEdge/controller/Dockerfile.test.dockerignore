@@ -1,0 +1,13 @@
+**
+!backend/
+!backend/pyproject.toml
+!backend/uv.lock
+!backend/app/
+!backend/app/**
+!backend/tests/
+!backend/tests/**
+!controller/
+!controller/bingo_controller.c
+!controller/bingo_ipc.inc
+**/__pycache__/
+**/*.pyc

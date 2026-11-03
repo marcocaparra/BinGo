@@ -1,5 +1,20 @@
 # Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
+## Comunicação Python ↔ C com PWM simulado — segunda etapa de 02/11/2026
+
+Foi implementado `CProcessController` em `app/services/c_controller.py`, usando
+subprocesso local e protocolo privado V1 por stdin/stdout. O C ganhou receptor,
+consulta e retenção durável de IDs em SQLite separado; somente a compilação com
+PWM simulado aceita executar. A inicialização física e o antigo modo demonstrativo
+foram bloqueados antes de qualquer configuração/acionamento. A fábrica operacional,
+o simulador DEV, a recusa PHYSICAL e o journal Python continuam inalterados.
+
+Esta etapa substitui a pendência de escolher transporte para **o laboratório**
+nas notas históricas abaixo; não resolve evidência física ou homologação.
+Mapeamento dos sinais antigos, mudanças pontuais no C, mensagens, falhas,
+limites, testes e comandos Linux/Orange Pi estão em
+[controller/README.md](../controller/README.md).
+
 ## Preparação da integração física — etapa de 02/11/2026
 
 Branch de trabalho: `feature/totem-edge-mechanical-integration`. Esta etapa

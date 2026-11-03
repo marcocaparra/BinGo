@@ -9,6 +9,14 @@
 #include <time.h>
 #include <unistd.h>
 
+/* stdout is reserved for the local protocol; legacy diagnostics stay on stderr. */
+#define printf(...) fprintf(stderr, __VA_ARGS__)
+
+#ifdef BINGO_PWM_SIMULATED
+static int simulated_writes = 0;
+static int simulated_fail_after = -1;
+#endif
+
 #define PWM_CHIP 0
 #define PWM_PERIOD_NS 20000000L
 #define SERVO_0_GRAUS_NS 500000L
@@ -216,6 +224,14 @@ static int configurar_pwm(int canal)
 
 static int mover_servo(int canal, long pulso_ns)
 {
+#ifdef BINGO_PWM_SIMULATED
+    if (simulated_fail_after >= 0 && simulated_writes >= simulated_fail_after) {
+        return -1;
+    }
+    simulated_writes++;
+    fprintf(stderr, "SIMULATED_PWM %d %ld\n", canal, pulso_ns);
+    return 0;
+#else
     char caminho[160];
 
     caminho_pwm(
@@ -226,6 +242,7 @@ static int mover_servo(int canal, long pulso_ns)
     );
 
     return escrever_long(caminho, pulso_ns);
+#endif
 }
 
 static int abrir_porta_superior(void)
@@ -243,13 +260,9 @@ static int abrir_porta_superior(void)
     return 0;
 }
 
-static int fechar_porta_superior(void)
+/* Same PWM sequence; authorization is supplied by the backend command layer. */
+static int fechar_porta_superior_autorizada(void)
 {
-    if (camera_area_segura != RESPOSTA_SIM) {
-        printf("[SEGURANCA] Fechamento bloqueado.\n");
-        return 1;
-    }
-
     printf("[ELETRONICA] Fechando porta superior.\n");
 
     if (mover_servo(PWM_PORTA_ESQUERDA, PORTA_ESQ_FECHADA_NS) != 0) {
@@ -261,6 +274,15 @@ static int fechar_porta_superior(void)
     }
 
     return 0;
+}
+
+static int fechar_porta_superior(void)
+{
+    if (camera_area_segura != RESPOSTA_SIM) {
+        printf("[SEGURANCA] Fechamento bloqueado.\n");
+        return 1;
+    }
+    return fechar_porta_superior_autorizada();
 }
 
 static int abrir_escotilha(void)
@@ -480,6 +502,14 @@ int bingo_processar(void)
 
 int bingo_inicializar(void)
 {
+    /* Startup must never assume a safe position or energize a channel. */
+    fprintf(stderr, "Inicializacao fisica bloqueada: homologacao pendente.\n");
+    return -1;
+}
+
+/* Preserved for review/calibration; deliberately unreachable from the entrypoint. */
+static int inicializacao_pwm_legada_nao_homologada(void)
+{
     const int canais[] = {
         PWM_PORTA_ESQUERDA,
         PWM_PORTA_DIREITA,
@@ -557,7 +587,7 @@ static int executar_teste_automatico(void)
     return 0;
 }
 
-int main(int argc, char *argv[])
+static int demonstracao_legada_nao_homologada(int argc, char *argv[])
 {
     printf("BinGo - Modulo eletronico Orange Pi\n");
 
@@ -589,3 +619,6 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 }
+
+/* Local reception/result layer. It never invokes the legacy business loop. */
+#include "bingo_ipc.inc"
