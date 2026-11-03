@@ -1,5 +1,124 @@
 # Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
+## Preparação da integração física — etapa de 02/11/2026
+
+Branch de trabalho: `feature/totem-edge-mechanical-integration`. Esta etapa
+preserva `UnavailableController` como padrão e a recusa de `source="PHYSICAL"`
+por `MechanicalService`. Não acrescenta driver, transporte, endpoint, schema,
+configuração operacional ou acionamento físico. O C foi apenas inspecionado;
+nem seu executável nem `--teste` foram utilizados.
+
+O ponto de integração continua sendo `MechanicalController`, coordenado por
+`MechanicalService` e pelo journal SQLite existente. Foram explicitadas suas
+obrigações de I/O assíncrono limitado, cooperação com cancelamento, correlação
+integral e separação entre aceite e resultado terminal. Não se deve herdar
+`_MemoryController` para produzir um driver físico.
+
+Para controllers independentes do simulador, o coordenador agora aplica um único
+prazo monotônico de `timeout_seconds`, iniciado após o claim durável e antes de
+`submit`, compartilhado com `wait`. O aceite não renova o prazo. O
+`SimulatedController` existente conserva exclusivamente seu timeout por plano e
+seu relógio lógico, inclusive manual em testes: um watchdog de tempo real não
+pode competir com esse relógio ou converter planos instantâneos em timeouts
+por latência de SQLite/agendamento no Windows. A exceção é pelo tipo concreto
+do simulador, nunca pela origem declarada SIMULATED. Não existe opção operacional
+para desabilitar o prazo de um futuro driver independente. Um driver não pode
+deixar o acompanhamento
+pendente indefinidamente apenas por não implementar seu próprio timeout:
+
+- Expiração durante envio, sem aceite durável: `INDETERMINATE/UNKNOWN`, código
+  `DISPATCH_TIMEOUT`; não se inventa aceite nem recusa que implique ausência de
+  atuação. A mesma regra conservadora vale para `TimeoutError` do driver.
+- Expiração após aceite persistido: `TIMED_OUT/UNKNOWN/EXECUTION_TIMEOUT`, usando
+  os estados e a transação de observação já existentes.
+- Retorno de somente `ACCEPTED/PENDING` por `wait`: resposta inconsistente,
+  `INDETERMINATE/UNKNOWN`, em vez de abandonar o acompanhamento no aceite.
+- Resposta devolvida depois da expiração, inclusive se o driver suprimir o
+  cancelamento e retornar, não é promovida a sucesso. A reserva e o bloqueio
+  persistem; conclusão atrasada não é reconciliação homologada.
+
+Expirar cancela a coroutine de consulta/envio Python, não chama `cancel` do
+controller, não envia parada, não repete movimento e não informa posição física.
+O futuro driver deve isolar a consulta da atuação do dispositivo. Esta proteção
+depende de um event loop livre e de I/O cooperativo: não interrompe código C
+bloqueante nem uma coroutine que ignore cancelamento e nunca retorne. Shutdown
+e eventual parada segura também precisarão de contrato/homologação próprios.
+O journal permanece responsável pela recuperação sem despacho após restart.
+Nenhuma dessas mudanças escreve `physical_confirmed`, payload ou recibo.
+
+### Bloqueios encontrados no controlador C
+
+Não foi encontrada divergência entre os contratos Python vigentes que impeça
+esta proteção independente de transporte. Há incompatibilidades entre o C atual
+e as operações oficiais; o mapeamento afetado fica interrompido, sem adaptação
+implícita:
+
+1. O fluxo oficial usa declaração do aluno de retirada da mão, sem detecção
+   visual. O C condiciona fechamento a `camera_area_segura`. Não se pode ligar
+   esse sinal automaticamente à visão ou à declaração como se fossem equivalentes.
+2. `CONFIRM_INITIAL_STATE` é verificação lógica, sem homing/movimento corretivo.
+   `bingo_inicializar`/`estado_inicial_fisico` configuram PWM, abrem a porta e
+   fecham a escotilha. Essas funções não podem implementar a confirmação.
+3. O C encadeia seu próprio ciclo e anuncia conclusão após escrita PWM e tempo
+   decorrido, sem evidência confiável de execução física. Esse anúncio não pode
+   virar `COMPLETED/SUCCEEDED` físico nem confirmação de descarte no Python.
+
+### Pendências para conexão futura
+
+O responsável pelo controlador precisa acordar o transporte e o mapeamento das
+quatro operações existentes, sem alterar o fluxo oficial: envio de
+`mechanical_command_id`, `event_id`, operação e parâmetros imutáveis; aceite
+separado de conclusão; retenção durável de identidades e deduplicação no
+dispositivo; consulta pelo mesmo ID após perda de resposta/energia; tratamento
+de resposta duplicada/divergente/atrasada, falha parcial e posição desconhecida.
+É necessário resolver os bloqueios acima e especificar quais evidências
+comprovam cada operação, inclusive o ciclo completo inferior e o retorno inicial.
+Não foi escolhido socket, serial, subprocesso, HTTP ou outro protocolo nesta etapa.
+
+Depois de acordado esse contrato, um adaptador implementará o mesmo
+`MechanicalController` e devolverá `MechanicalResponse` correlacionada. Sua
+composição interna aproveitará a fábrica existente, mas só em etapa posterior
+autorizada: hoje a fábrica e a guarda PHYSICAL permanecem inalteradas. Não se
+deve rotular hardware como SIMULATED para contornar a guarda, nem chamar o C
+diretamente pelo frontend ou por fora do journal.
+
+No Orange Pi continuam pendentes homologações de geometria/posições, força,
+velocidade e proteções físicas, evidências de conclusão por operação, tempos,
+falhas parciais, perda de energia/conexão, retenção de IDs e intervenção segura.
+PWM, aceite e tempo isolados não comprovam conclusão. A elegibilidade econômica
+exige a confirmação física homologada e persistida no fluxo próprio, separada
+do resultado mecânico e do recibo central. A exceção DEV econômica documentada
+no STATUS continua restrita ao seu perfil opt-in existente; esta etapa não a altera.
+
+### Verificação sem hardware
+
+`tests/test_mechanical_boundary.py` utiliza um double controlado independente do
+simulador, sem transporte: quatro operações com aceite/resultado correlato,
+prazo único, replay/observação duplicada, envio travado, espera travada,
+cancelamento suprimido seguido de resposta atrasada, falha parcial, retorno
+inválido de aceite por `wait`, bloqueio de nova operação e recuperação em novo
+`CycleStore` sem segundo despacho. Os testes existentes de controller/journal,
+sessão e simulação permanecem parte da validação.
+
+Resultados locais no Windows, com rede externa bloqueada pelas fixtures:
+
+- Baseline de controller/journal antes das alterações: 121 aprovados.
+- Bateria final focada (`test_mechanical_boundary.py`, `test_simulation.py`,
+  `test_controller.py`, `test_mechanical_journal.py`): 177 aprovados.
+- Suíte completa final: `uv run --locked pytest -q`, 774 aprovados,
+  zero falhas/skips, em 116,47 s. Inclui os dez casos novos desta etapa.
+- `uv format --check -- app/mechanical.py app/services/mechanical.py
+  tests/test_mechanical_boundary.py`: três arquivos formatados.
+- `git diff --check`: aprovado.
+
+A primeira execução completa expôs regressão do watchdog real no harness de
+simulação com prazo de 10 ms (773 aprovados, uma falha); excluir somente tempo
+de commit não resolveu a competição de relógios. A versão final preserva o
+relógio do simulador e passou a bateria focada e a suíte completa acima, sem
+alterar os testes antigos ou suas expectativas. Não foram executados deploy,
+Docker/browser, ARM64 ou homologação física nesta etapa. Nenhum movimento,
+acesso ao PWM, alteração no C, commit, push ou merge foi realizado.
+
 Refotografia (02/11) não envia comandos mecânicos. Exige CLOSE confirmado e
 nenhuma intenção de hatch/retorno, inclusive rejeitada/abortada. Preserva porta
 fechada/evento e PIN posterior do hatch. Ver [RECAPTURE_V1.md](RECAPTURE_V1.md).

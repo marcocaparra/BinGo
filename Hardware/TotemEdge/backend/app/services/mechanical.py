@@ -6,10 +6,16 @@ from uuid import UUID, uuid5, NAMESPACE_URL
 
 from pydantic import ValidationError
 
-from app.mechanical import ControllerError, MechanicalCommand, MechanicalController
+from app.mechanical import (
+    ControllerError,
+    MechanicalCommand,
+    MechanicalController,
+    MechanicalResponse,
+)
 from app.cycles import CycleError
 from app.mechanical_journal import JournalEntry
 from app.storage import CycleStore
+from app.services.controller import SimulatedController
 
 
 class MechanicalService:
@@ -130,8 +136,27 @@ class MechanicalService:
 
     async def _dispatch(self, entry: JournalEntry) -> JournalEntry:
         command = entry.command
+        # O simulador existente usa planos/relógio lógico próprios, inclusive
+        # relógio manual em testes. Não competir com ele usando tempo de parede.
+        deadline = (
+            None
+            if isinstance(self.controller, SimulatedController)
+            else asyncio.get_running_loop().time() + command.timeout_seconds
+        )
         try:
-            response = await self.controller.submit(command)
+            async with asyncio.timeout_at(deadline) as timeout:
+                response = await self.controller.submit(command)
+            if timeout.expired() or (
+                deadline is not None and asyncio.get_running_loop().time() >= deadline
+            ):
+                raise TimeoutError
+        except TimeoutError:
+            # Sem aceite durável, não fabricar ACCEPTED nem rejeição sem efeito.
+            return self.store.mechanical.unknown(
+                command.mechanical_command_id,
+                version=entry.version,
+                code="DISPATCH_TIMEOUT",
+            )
         except asyncio.CancelledError:
             self.store.mechanical.unknown(
                 command.mechanical_command_id,
@@ -163,7 +188,7 @@ class MechanicalService:
             )
         if entry.phase == "ACCEPTED":
             task = asyncio.create_task(
-                self._finish(entry),
+                self._finish(entry, deadline),
                 name=f"mechanical-journal-{command.mechanical_command_id}",
             )
             self._tasks[command.mechanical_command_id] = task
@@ -182,10 +207,24 @@ class MechanicalService:
         if not task.cancelled() and task.exception() is None:
             self._tasks.pop(identifier, None)
 
-    async def _finish(self, entry: JournalEntry):
+    async def _finish(self, entry: JournalEntry, deadline: float | None):
         identifier = entry.command.mechanical_command_id
         try:
-            response = await self.controller.wait(identifier)
+            async with asyncio.timeout_at(deadline) as timeout:
+                response = await self.controller.wait(identifier)
+            if timeout.expired() or (
+                deadline is not None and asyncio.get_running_loop().time() >= deadline
+            ):
+                raise TimeoutError
+        except TimeoutError:
+            # Expirar a consulta não para o mecanismo nem comprova sua posição.
+            response = MechanicalResponse(
+                command=entry.command,
+                source=entry.source,
+                state="TIMED_OUT",
+                result="UNKNOWN",
+                error_code="EXECUTION_TIMEOUT",
+            )
         except asyncio.CancelledError:
             self.store.mechanical.unknown(
                 identifier, version=entry.version, code="COORDINATOR_CANCELLED"
@@ -197,6 +236,9 @@ class MechanicalService:
             )
             return
         try:
+            if response.state == "ACCEPTED":
+                # wait deve concluir a observação, não repetir somente o aceite.
+                raise ControllerError("MECHANICAL_STALE_RESPONSE")
             completed = self.store.mechanical.observe(
                 identifier, response, version=entry.version
             )

@@ -108,6 +108,17 @@ def checked_response(
 
 
 class MechanicalController(Protocol):
+    """Ponto de integração privado, sempre coordenado por MechanicalService.
+
+    submit retorna somente ACCEPTED/PENDING ou REJECTED/UNAVAILABLE.
+    wait consulta a mesma identidade e retorna um resultado terminal correlato.
+    I/O deve ser assíncrono, limitado e cooperar com cancelamento; cancelar uma
+    consulta não significa parar atuação física. Nenhum método pode inferir
+    COMPLETED de escrita PWM, aceite ou tempo decorrido em hardware real.
+    Durabilidade local, bloqueios e recuperação pertencem ao journal; execução
+    única e consulta após restart no dispositivo exigem contrato homologado.
+    """
+
     async def submit(self, command: MechanicalCommand) -> MechanicalResponse: ...
     def get(self, mechanical_command_id: UUID) -> MechanicalResponse: ...
     async def wait(self, mechanical_command_id: UUID) -> MechanicalResponse: ...
