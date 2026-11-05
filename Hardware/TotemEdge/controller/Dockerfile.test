@@ -14,4 +14,4 @@ COPY backend/tests ./tests
 COPY controller /work/controller
 RUN useradd --uid 10001 --no-create-home testuser
 USER 10001:10001
-CMD ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_c_controller.py", "--tb=short"]
+CMD ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_c_controller.py", "tests/test_c_controller_doorless.py", "--tb=short"]

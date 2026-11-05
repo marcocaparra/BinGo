@@ -15,6 +15,8 @@ class CProcessController:
     The child must announce SIMULATED. Physical builds refuse startup. This
     adapter must not be attached to an economic DEV profile or production.
     get() is a local snapshot; query(command) consults the retained device ID.
+    doorless-v1 is the default and requires an explicit capability handshake;
+    legacy-v1 is available only for historical laboratory sequences.
     """
 
     def __init__(self, process, *, io_timeout_seconds: float):
@@ -31,12 +33,15 @@ class CProcessController:
         journal: Path,
         *,
         context: Literal["test", "development"],
+        profile: Literal["doorless-v1", "legacy-v1"] = "doorless-v1",
         io_timeout_seconds: float = 2.0,
         delay_ms: int = 0,
         fail_after: int | None = None,
     ):
         if context not in {"test", "development"}:
             raise ValueError("C IPC requires an isolated test/development context.")
+        if profile not in {"doorless-v1", "legacy-v1"}:
+            raise ValueError("Invalid simulated controller profile.")
         if not math.isfinite(io_timeout_seconds) or io_timeout_seconds <= 0:
             raise ValueError("Invalid IPC timeout.")
         for value in (delay_ms, fail_after):
@@ -45,6 +50,7 @@ class CProcessController:
             ):
                 raise ValueError("Invalid simulated fault option.")
         args = [str(executable.resolve()), "--ipc-simulated", str(journal.resolve())]
+        args += ["--profile", profile]
         if delay_ms:
             args += ["--delay-ms", str(delay_ms)]
         if fail_after is not None:
@@ -59,7 +65,12 @@ class CProcessController:
         self = cls(process, io_timeout_seconds=io_timeout_seconds)
         try:
             async with asyncio.timeout(io_timeout_seconds):
-                if await process.stdout.readline() != b"V1 READY SIMULATED\n":
+                expected = (
+                    b"V1 READY SIMULATED DOORLESS_V1\n"
+                    if profile == "doorless-v1"
+                    else b"V1 READY SIMULATED\n"
+                )
+                if await process.stdout.readline() != expected:
                     raise ControllerError("CONTROLLER_HANDSHAKE_FAILED")
         except BaseException:
             await self.aclose()

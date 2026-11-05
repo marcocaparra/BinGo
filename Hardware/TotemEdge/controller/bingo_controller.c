@@ -39,6 +39,46 @@ static int simulated_fail_after = -1;
 #define ESCOTILHA_DIR_FECHADA_NS SERVO_90_GRAUS_NS
 #define ESCOTILHA_DIR_ABERTA_NS SERVO_180_GRAUS_NS
 
+#ifdef BINGO_PWM_SIMULATED
+/* Doorless laboratory v1: logical labels, NOT sysfs indices or SoC pins.
+ * Manual angle references only. No angle-to-pulse conversion is authorized.
+ * Keep the legacy routines above unchanged for historical laboratory commands.
+ */
+#define LAB_RIGHT_PWM_LABEL 3
+#define LAB_LEFT_PWM_LABEL 4
+#define LAB_RIGHT_CLOSED_DEG 70
+#define LAB_RIGHT_OPEN_DEG 175
+#define LAB_LEFT_CLOSED_DEG 113
+#define LAB_LEFT_OPEN_DEG 5
+#define LAB_DROP_INTERVAL_MS 6000UL
+
+static int simulated_hatch_pose(const char *side, int label, int angle,
+                                unsigned long tick_ms)
+{
+    if (simulated_fail_after >= 0 && simulated_writes >= simulated_fail_after)
+        return -1;
+    simulated_writes++;
+    fprintf(stderr, "SIMULATED_PWM %s PWM%d ANGLE_DEG %d TICK_MS %lu\n",
+            side, label, angle, tick_ms);
+    return 0;
+}
+
+static int simulated_doorless_hatch(void)
+{
+    if (simulated_hatch_pose("RIGHT", LAB_RIGHT_PWM_LABEL, LAB_RIGHT_OPEN_DEG, 0) ||
+        simulated_hatch_pose("LEFT", LAB_LEFT_PWM_LABEL, LAB_LEFT_OPEN_DEG, 0))
+        return -1;
+    /* Virtual time only: this is not a calibrated physical drop delay.
+     * --delay-ms remains a separate wall-clock fault injection hook.
+     */
+    fprintf(stderr, "SIMULATED_DROP_INTERVAL_MS %lu\n", LAB_DROP_INTERVAL_MS);
+    return simulated_hatch_pose("RIGHT", LAB_RIGHT_PWM_LABEL, LAB_RIGHT_CLOSED_DEG,
+                                LAB_DROP_INTERVAL_MS) ||
+           simulated_hatch_pose("LEFT", LAB_LEFT_PWM_LABEL, LAB_LEFT_CLOSED_DEG,
+                                LAB_DROP_INTERVAL_MS);
+}
+#endif
+
 typedef enum {
     RESPOSTA_PENDENTE = 0,
     RESPOSTA_NAO,

@@ -1,5 +1,88 @@
 # Comunicação local Python ↔ C — laboratório com PWM simulado
 
+## Perfil sem porta — 05/11/2026
+
+A decisão do fluxo sem porta de c2a9770 prevalece sobre as descrições de
+OPEN/CLOSE abaixo. O frontend/backend já implementados não são refeitos. O
+adaptador Python usa `profile="doorless-v1"` por padrão e exige o handshake
+`V1 READY SIMULATED DOORLESS_V1`. Binário antigo sem essa capacidade é recusado;
+não há fallback automático para a sequência com porta.
+
+O novo intertravamento do laboratório é:
+
+`CONFIRM_HAND_REMOVED → CYCLE_LOWER_HATCH → CONFIRM_INITIAL_STATE`
+
+- `CONFIRM_HAND_REMOVED` registra somente a declaração lógica. Não produz PWM,
+  não lê câmera e não representa sensor de mão ou autorização de segurança física.
+- `CYCLE_LOWER_HATCH` registra abertura direita e esquerda em tick virtual 0,
+  um intervalo lógico de 6000 ms, fechamento direita e esquerda em tick 6000.
+  Esse intervalo é uma fixture de laboratório, baseada na referência temporal
+  antiga; não espera seis segundos de parede e não homologa o tempo de queda real.
+  `--delay-ms` continua sendo latência de parede para injetar falhas de comunicação,
+  nunca um ajuste de tempo físico. Falha parcial interrompe a sequência, sem
+  fechamento corretivo ou avanço para confirmação.
+- `CONFIRM_INITIAL_STATE` apenas conclui o checkpoint **simulado** após hatch
+  concluído. Não executa PWM, homing ou teste de sensor. A confirmação física
+  depende de sensores/evidências ainda não definidos e permanece bloqueada.
+
+| Rótulo lógico do laboratório | Escotilha | Fechada | Aberta |
+| --- | --- | --- | --- |
+| PWM3 | Direita | 70° | 175° |
+| PWM4 | Esquerda | 113° | 5° |
+
+Ângulos experimentais fornecidos pelo operador, não homologados. As linhas
+`SIMULATED_PWM RIGHT/LEFT PWM3/PWM4 ANGLE_DEG ... TICK_MS ...` não contêm pulsos
+calibrados nem correspondência com `/sys/class/pwm`, pinos físicos ou SoC.
+As rotinas novas só existem sob `BINGO_PWM_SIMULATED` e não chamam `mover_servo`
+nem as rotinas de sysfs. Nenhum canal de porta é usado no novo caminho.
+
+`profile="legacy-v1"` preserva a sequência antiga e o handshake de três campos.
+No C direto, omitir `--profile` conserva esse comportamento histórico; para o
+novo caminho é obrigatório `--profile doorless-v1`. As seções de 02/11 abaixo
+descrevem esse legado quando mencionam quatro operações, porta ou pulsos antigos.
+O perfil novo recusa open/close; o legado recusa a nova declaração. Não é permitido
+trocar o perfil de um evento em andamento, mesmo que seus IDs sejam conhecidos.
+
+O journal C agora usa schema v2 e um `profile` imutável por ordem. A migração
+transacional conserva rowids/ordem, IDs, evento, operação, timeout textual e
+resultados v1; os registros antigos recebem `legacy-v1`. Pendências aceitas
+continuam sendo recuperadas como UNKNOWN, sem redisparo. A consulta de IDs
+históricos funciona em ambos os perfis. SUBMIT no mesmo perfil é deduplicado;
+perfil divergente é conflito, sem reinterpretar uma ordem antiga. Para replay
+de escrita legado, selecionar explicitamente `legacy-v1`.
+O perfil versiona também os ângulos e o intervalo fixos desta fixture: mudar
+essas semânticas futuramente exige outra versão, não alterar `doorless-v1`.
+
+Mensagens SUBMIT/GET/RESULT V1 permanecem iguais; somente o handshake do perfil
+novo acrescenta capacidade. Não há transporte, endpoint HTTP, configuração de
+produção ou driver físico novos. `MechanicalService` continua recusando PHYSICAL,
+e o entrypoint compilado sem simulação continua saindo com código 2 antes de
+abrir o banco ou atuar. Nenhum Docker operacional ou volume existente é atualizado.
+
+Testes Linux: executar os dois arquivos `tests/test_c_controller.py` (legado)
+e `tests/test_c_controller_doorless.py` (novo). O CMD de `Dockerfile.test` inclui
+ambos. Todas as imagens/containers citados aqui são ferramentas de laboratório;
+não conectar C ao perfil econômico DEV nem montar dispositivos ou volumes reais.
+
+Validação de 05/11: baseline legado 28 aprovados; suíte focada final 50 aprovados
+(28 legados + 22 novos); regressão completa do backend Linux 829 aprovados,
+zero falhas/skips, em 141,37 s. O C foi compilado com warnings como erros nas
+variantes simulada e física bloqueada. Inclui a sequência Python → C → visão
+controlada → revisão → hatch/confirm simulados, perdas de resposta/timeouts,
+falha em cada uma das quatro escritas, reabertura dos dois journals, migração v1,
+imutabilidade do perfil e recusa de handshake antigo. Nenhum teste usa sensor,
+GPIO, webcam real ou provedor hospedado; physical_confirmed continua 0, sem
+payload/recibo/crédito indevido.
+
+Execuções em containers efêmeros da imagem de ferramentas já existente
+`bingo-mechanical-ipc:test`, com checkout completo montado somente leitura,
+`--network none --read-only --tmpfs /tmp:rw,exec,nosuid,nodev --cap-drop ALL`
+e `no-new-privileges`, sem dispositivos ou volumes persistentes. Não foi feito
+build/deploy operacional. Formatação dos três arquivos Python e `git diff --check`
+aprovados. Orange Pi/ARM64 e homologação física não foram executados nesta rodada.
+
+## Histórico do laboratório de 02/11/2026
+
 Etapa de 02/11/2026, branch `feature/totem-edge-mechanical-integration`.
 O processo C real recebe ordens do adaptador Python. Somente PWM **simulado em
 compilação** é executável nesta entrega. Não conectar este laboratório ao perfil

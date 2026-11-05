@@ -9,6 +9,27 @@
 
 #ifdef BINGO_PWM_SIMULATED
 static sqlite3 *ipc_db;
+static const char *ipc_profile = "legacy-v1";
+
+/* profile binds the immutable simulated sequence/calibration to each order.
+ * V1 rows are retained as legacy-v1; neither migration nor GET performs PWM.
+ */
+#define IPC_ORDER_COLUMNS \
+    "id TEXT PRIMARY KEY NOT NULL CHECK(length(id)=36)," \
+    "event TEXT NOT NULL CHECK(length(event)=36)," \
+    "operation TEXT NOT NULL CHECK(operation IN ('OPEN_INSERTION_DOOR','CLOSE_INSERTION_DOOR','CYCLE_LOWER_HATCH','CONFIRM_INITIAL_STATE','CONFIRM_HAND_REMOVED'))," \
+    "timeout TEXT NOT NULL,state TEXT NOT NULL,result TEXT NOT NULL,error TEXT NOT NULL," \
+    "profile TEXT NOT NULL CHECK(profile IN ('legacy-v1','doorless-v1'))," \
+    "CHECK((state='ACCEPTED' AND result='PENDING' AND error='-') OR " \
+    "(state='COMPLETED' AND result='SUCCEEDED' AND error='-') OR " \
+    "(state='REJECTED' AND result='UNAVAILABLE' AND error='CONTROLLER_BUSY') OR " \
+    "(state='FAILED' AND ((result='FAILURE' AND error='OPERATION_FAILED') OR " \
+    "(result='UNKNOWN' AND error='EXECUTION_ERROR'))))"
+#define IPC_ORDER_PROTECTIONS \
+    "CREATE TRIGGER order_identity BEFORE UPDATE OF id,event,operation,timeout,profile ON orders " \
+    "BEGIN SELECT RAISE(ABORT,'Immutable order identity'); END;" \
+    "CREATE TRIGGER order_retention BEFORE DELETE ON orders " \
+    "BEGIN SELECT RAISE(ABORT,'Retained order identity'); END;"
 
 static void ipc_fatal(void)
 {
@@ -60,7 +81,8 @@ static int ipc_uuid(const char *value)
 static int ipc_operation(const char *op)
 {
     return !strcmp(op, "OPEN_INSERTION_DOOR") || !strcmp(op, "CLOSE_INSERTION_DOOR") ||
-           !strcmp(op, "CYCLE_LOWER_HATCH") || !strcmp(op, "CONFIRM_INITIAL_STATE");
+           !strcmp(op, "CYCLE_LOWER_HATCH") || !strcmp(op, "CONFIRM_INITIAL_STATE") ||
+           !strcmp(op, "CONFIRM_HAND_REMOVED");
 }
 
 static int ipc_emit(const char *id)
@@ -85,12 +107,16 @@ static int ipc_emit(const char *id)
 
 static int ipc_in_sequence(const char *event, const char *op)
 {
+    int doorless = !strcmp(ipc_profile, "doorless-v1");
+    const char *first_op = doorless ? "CONFIRM_HAND_REMOVED" : "OPEN_INSERTION_DOOR";
+    if (doorless ? (!strcmp(op, "OPEN_INSERTION_DOOR") || !strcmp(op, "CLOSE_INSERTION_DOOR"))
+                 : !strcmp(op, "CONFIRM_HAND_REMOVED")) return 0;
     sqlite3_stmt *s = ipc_prepare("SELECT count(*) FROM orders WHERE state IN ('ACCEPTED','FAILED','TIMED_OUT','CANCELLED')");
     if (sqlite3_step(s) != SQLITE_ROW) ipc_fatal();
     int blocked = sqlite3_column_int(s, 0);
     sqlite3_finalize(s);
     if (blocked) return 0;
-    if (!strcmp(op, "OPEN_INSERTION_DOOR")) {
+    if (!strcmp(op, first_op)) {
         s = ipc_prepare("SELECT count(*) FROM orders WHERE event=? AND state='COMPLETED'");
         ipc_bind(s, 1, event);
         if (sqlite3_step(s) != SQLITE_ROW) ipc_fatal();
@@ -98,17 +124,19 @@ static int ipc_in_sequence(const char *event, const char *op)
         sqlite3_finalize(s);
         if (reused_event) return 0;
     }
-    s = ipc_prepare("SELECT event,operation FROM orders WHERE state='COMPLETED' ORDER BY rowid DESC LIMIT 1");
+    s = ipc_prepare("SELECT event,operation,profile FROM orders WHERE state='COMPLETED' ORDER BY rowid DESC LIMIT 1");
     int status = sqlite3_step(s);
     int allowed = 0;
-    if (status == SQLITE_DONE) allowed = !strcmp(op, "OPEN_INSERTION_DOOR");
+    if (status == SQLITE_DONE) allowed = !strcmp(op, first_op);
     else if (status == SQLITE_ROW) {
         const char *previous_event = (const char *)sqlite3_column_text(s, 0);
         const char *previous_op = (const char *)sqlite3_column_text(s, 1);
-        if (!strcmp(op, "OPEN_INSERTION_DOOR"))
+        const char *previous_profile = (const char *)sqlite3_column_text(s, 2);
+        if (!strcmp(op, first_op))
             allowed = strcmp(event, previous_event) && !strcmp(previous_op, "CONFIRM_INITIAL_STATE");
-        else if (!strcmp(event, previous_event)) {
-            allowed = (!strcmp(op, "CLOSE_INSERTION_DOOR") && !strcmp(previous_op, "OPEN_INSERTION_DOOR")) ||
+        else if (!strcmp(event, previous_event) && !strcmp(ipc_profile, previous_profile)) {
+            allowed = (doorless && !strcmp(op, "CYCLE_LOWER_HATCH") && !strcmp(previous_op, "CONFIRM_HAND_REMOVED")) ||
+                      (!strcmp(op, "CLOSE_INSERTION_DOOR") && !strcmp(previous_op, "OPEN_INSERTION_DOOR")) ||
                       (!strcmp(op, "CYCLE_LOWER_HATCH") && !strcmp(previous_op, "CLOSE_INSERTION_DOOR")) ||
                       (!strcmp(op, "CONFIRM_INITIAL_STATE") && !strcmp(previous_op, "CYCLE_LOWER_HATCH"));
         }
@@ -129,13 +157,14 @@ static void ipc_submit(char **parts, long delay_ms)
         return;
     }
     ipc_sql("BEGIN IMMEDIATE");
-    sqlite3_stmt *s = ipc_prepare("SELECT event,operation,timeout FROM orders WHERE id=?");
+    sqlite3_stmt *s = ipc_prepare("SELECT event,operation,timeout,profile FROM orders WHERE id=?");
     ipc_bind(s, 1, id);
     int status = sqlite3_step(s);
     if (status == SQLITE_ROW) {
         int same = !strcmp(event, (const char *)sqlite3_column_text(s, 0)) &&
                    !strcmp(op, (const char *)sqlite3_column_text(s, 1)) &&
-                   !strcmp(timeout, (const char *)sqlite3_column_text(s, 2));
+                   !strcmp(timeout, (const char *)sqlite3_column_text(s, 2)) &&
+                   !strcmp(ipc_profile, (const char *)sqlite3_column_text(s, 3));
         sqlite3_finalize(s);
         ipc_sql("ROLLBACK");
         ipc_error(same ? "DUPLICATE" : "ID_CONFLICT");
@@ -153,11 +182,12 @@ static void ipc_submit(char **parts, long delay_ms)
         return;
     }
     int allowed = ipc_in_sequence(event, op);
-    s = ipc_prepare("INSERT INTO orders(id,event,operation,timeout,state,result,error) VALUES(?,?,?,?,?,?,?)");
+    s = ipc_prepare("INSERT INTO orders(id,event,operation,timeout,state,result,error,profile) VALUES(?,?,?,?,?,?,?,?)");
     ipc_bind(s, 1, id); ipc_bind(s, 2, event); ipc_bind(s, 3, op); ipc_bind(s, 4, timeout);
     ipc_bind(s, 5, allowed ? "ACCEPTED" : "REJECTED");
     ipc_bind(s, 6, allowed ? "PENDING" : "UNAVAILABLE");
     ipc_bind(s, 7, allowed ? "-" : "CONTROLLER_BUSY");
+    ipc_bind(s, 8, ipc_profile);
     ipc_done(s);
     ipc_sql("COMMIT");
     ipc_emit(id); /* durable acceptance before any possible effect */
@@ -170,8 +200,11 @@ static void ipc_submit(char **parts, long delay_ms)
     if (!strcmp(op, "OPEN_INSERTION_DOOR")) failed = abrir_porta_superior();
     else if (!strcmp(op, "CLOSE_INSERTION_DOOR")) failed = fechar_porta_superior_autorizada();
     else if (!strcmp(op, "CYCLE_LOWER_HATCH"))
-        failed = abrir_escotilha() || fechar_escotilha();
-    /* CONFIRM_INITIAL_STATE is only the explicit simulated fixture. No homing. */
+        failed = !strcmp(ipc_profile, "doorless-v1") ? simulated_doorless_hatch() :
+                 (abrir_escotilha() || fechar_escotilha());
+    /* CONFIRM_HAND_REMOVED is a logical declaration, not a sensor or PWM.
+     * CONFIRM_INITIAL_STATE is only the simulated checkpoint. No homing.
+     */
     s = ipc_prepare("UPDATE orders SET state=?,result=?,error=? WHERE id=? AND state='ACCEPTED'");
     ipc_bind(s, 1, failed ? "FAILED" : "COMPLETED");
     ipc_bind(s, 2, failed ? "FAILURE" : "SUCCEEDED");
@@ -206,31 +239,30 @@ static int ipc_start(const char *path, long delay_ms)
         s = ipc_prepare("SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'");
         if (sqlite3_step(s) != SQLITE_ROW || sqlite3_column_int(s, 0)) ipc_fatal();
         sqlite3_finalize(s);
-        ipc_sql("BEGIN IMMEDIATE; CREATE TABLE orders("
-                "id TEXT PRIMARY KEY NOT NULL CHECK(length(id)=36),"
-                "event TEXT NOT NULL CHECK(length(event)=36),"
-                "operation TEXT NOT NULL CHECK(operation IN ('OPEN_INSERTION_DOOR','CLOSE_INSERTION_DOOR','CYCLE_LOWER_HATCH','CONFIRM_INITIAL_STATE')),"
-                "timeout TEXT NOT NULL,state TEXT NOT NULL,result TEXT NOT NULL,error TEXT NOT NULL,"
-                "CHECK((state='ACCEPTED' AND result='PENDING' AND error='-') OR "
-                "(state='COMPLETED' AND result='SUCCEEDED' AND error='-') OR "
-                "(state='REJECTED' AND result='UNAVAILABLE' AND error='CONTROLLER_BUSY') OR "
-                "(state='FAILED' AND ((result='FAILURE' AND error='OPERATION_FAILED') OR "
-                "(result='UNKNOWN' AND error='EXECUTION_ERROR')))));"
-                "CREATE TRIGGER order_identity BEFORE UPDATE OF id,event,operation,timeout ON orders "
-                "BEGIN SELECT RAISE(ABORT,'Immutable order identity'); END;"
-                "CREATE TRIGGER order_retention BEFORE DELETE ON orders "
-                "BEGIN SELECT RAISE(ABORT,'Retained order identity'); END;"
-                "PRAGMA user_version=1; PRAGMA application_id=1112098627; COMMIT;");
-    } else if (version != 1) ipc_fatal();
+        ipc_sql("BEGIN IMMEDIATE; CREATE TABLE orders(" IPC_ORDER_COLUMNS ");"
+                IPC_ORDER_PROTECTIONS
+                "PRAGMA user_version=2; PRAGMA application_id=1112098627; COMMIT;");
+    } else if (version != 1 && version != 2) ipc_fatal();
     s = ipc_prepare("PRAGMA application_id");
     if (sqlite3_step(s) != SQLITE_ROW || sqlite3_column_int(s, 0) != 1112098627) ipc_fatal();
     sqlite3_finalize(s);
     s = ipc_prepare("SELECT count(*) FROM sqlite_master WHERE type='trigger' AND name IN ('order_identity','order_retention')");
     if (sqlite3_step(s) != SQLITE_ROW || sqlite3_column_int(s, 0) != 2) ipc_fatal();
     sqlite3_finalize(s);
+    if (version == 1) {
+        /* Preserve rowids (sequence), all identities and results. A legacy
+         * pending/unknown command stays unsafe; migration never authorizes replay.
+         */
+        ipc_sql("BEGIN IMMEDIATE; CREATE TABLE orders_upgrade(" IPC_ORDER_COLUMNS ");"
+                "INSERT INTO orders_upgrade(rowid,id,event,operation,timeout,state,result,error,profile) "
+                "SELECT rowid,id,event,operation,timeout,state,result,error,'legacy-v1' FROM orders;"
+                "DROP TABLE orders; ALTER TABLE orders_upgrade RENAME TO orders;"
+                IPC_ORDER_PROTECTIONS "PRAGMA user_version=2; COMMIT;");
+    }
     /* No automatic dispatch after crash, even if acceptance preceded all PWM. */
     ipc_sql("UPDATE orders SET state='FAILED',result='UNKNOWN',error='EXECUTION_ERROR' WHERE state='ACCEPTED'");
-    if (fprintf(stdout, "V1 READY SIMULATED\n") < 0 || fflush(stdout)) ipc_fatal();
+    if (fprintf(stdout, !strcmp(ipc_profile, "doorless-v1") ?
+                "V1 READY SIMULATED DOORLESS_V1\n" : "V1 READY SIMULATED\n") < 0 || fflush(stdout)) ipc_fatal();
     char line[512];
     while (fgets(line, sizeof(line), stdin)) {
         if (!strchr(line, '\n')) {
@@ -260,10 +292,15 @@ int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
 #ifdef BINGO_PWM_SIMULATED
-    if (argc != 3 && argc != 5 && argc != 7) return 2;
+    if (argc < 3 || argc > 9 || !(argc % 2)) return 2;
     if (strcmp(argv[1], "--ipc-simulated")) return 2;
     long delay_ms = 0;
     for (int i = 3; i < argc; i += 2) {
+        if (!strcmp(argv[i], "--profile")) {
+            if (strcmp(argv[i + 1], "doorless-v1") && strcmp(argv[i + 1], "legacy-v1")) return 2;
+            ipc_profile = argv[i + 1];
+            continue;
+        }
         char *end;
         errno = 0;
         long value = strtol(argv[i + 1], &end, 10);

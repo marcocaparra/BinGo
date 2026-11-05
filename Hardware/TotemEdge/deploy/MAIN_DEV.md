@@ -1,5 +1,13 @@
 # TotemEdge principal — Windows DEV integrado
 
+Laboratório C de 05/11/2026: o caminho sem porta foi adaptado somente no
+subprocesso simulado, com perfil doorless-v1 e compatibilidade legacy-v1.
+Não é atualização da imagem operacional nem instrução para conectar C ao DEV
+econômico. Nenhuma factory, Compose ou volume operacional é alterado por essa
+etapa. Ver [controller/README.md](../controller/README.md). A câmera Orange Pi
+produziu JPEG 640×480 por FFmpeg segundo evidência do operador; isso não homologa
+escotilhas, pinagem, sensores ou descarte físico.
+
 Atualização de 05/11/2026: o perfil principal `vision-dev` usa compartimento sem
 porta. Após segurança, `INSERTION_READY` permite posicionar o item; o botão
 **Retirei a mão** registra `CONFIRM_HAND_REMOVED` e inicia a captura, sem movimento,

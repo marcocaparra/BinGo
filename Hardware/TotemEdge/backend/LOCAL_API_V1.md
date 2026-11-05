@@ -1,5 +1,17 @@
 # Contratos locais — fundação de sessão V1
 
+Decisão vigente de 05/11/2026: o perfil vision-dev já implementa SAFETY →
+INSERTION_READY → CONFIRM_HAND_REMOVED → READY_TO_CAPTURE → captura/análise e
+revisão, sem porta. A rota simulada hand-removed exige a declaração estrita e
+o ID durável; open/close retornam 410 nesse perfil. Esta etapa não muda HTTP.
+O laboratório C agora aceita o mesmo checkpoint lógico no perfil doorless-v1,
+sem PWM, seguido de CYCLE_LOWER_HATCH e CONFIRM_INITIAL_STATE, exclusivamente
+SIMULATED. O perfil legacy-v1 e os campos/estados antigos continuam para
+compatibilidade. Referências a fechamento abaixo são históricas/legadas e não
+autorizam reintroduzir a porta. Protocolo/journal: [controller](../controller/README.md).
+Não há liberação física, sensores fictícios, novo endpoint de atuação ou mudança
+da exceção econômica DEV; o laboratório permanece isolado dela.
+
 Decisão de recuperação (02/11): vision-recapture agora autoriza também rejeição
 ou falha de visão após fechamento seguro, sem nova autenticação/mecânica. Ação
 vision-analyze segue reservada à falha temporária com pixels válidos em RAM.

@@ -1,5 +1,27 @@
 # Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
+## Laboratório sem porta — decisão de 05/11/2026
+
+Substitui a sequência OPEN/CLOSE no novo caminho, sem modificar o frontend ou
+backend DEV do commit c2a9770: CProcessController usa doorless-v1 por padrão e
+exige handshake de capacidade correspondente. CONFIRM_HAND_REMOVED é declaração
+lógica sem PWM; CYCLE_LOWER_HATCH registra abrir as duas escotilhas, avançar um
+intervalo virtual de 6000 ms e fechar ambas; CONFIRM_INITIAL_STATE não move nada.
+Toda resposta continua SIMULATED. Referências angulares são apenas dados manuais
+de laboratório, não calibração homologada nem mapeamento sysfs/SoC.
+
+legacy-v1 preserva os quatro comandos anteriores para compatibilidade. O SQLite
+do C migra v1→v2 transacionalmente, preservando rowids, IDs, parâmetros e resultados;
+acrescenta perfil imutável a cada ordem. Não se troca perfil no meio de um ciclo,
+não se reinterpretam comandos antigos e não se limpa falha para desbloquear.
+GET pode consultar qualquer histórico; migrar/reiniciar não repete atuação.
+
+As obrigações de aceite durável, UNKNOWN/INDETERMINATE, bloqueio e correlação
+abaixo permanecem. O protocolo e testes atualizados estão em
+[controller/README.md](../controller/README.md). A discussão de quatro operações
+e OPEN → CLOSE nos parágrafos antigos descreve o legado. A guarda PHYSICAL, a
+factory operacional e a ausência de homologação física continuam inalteradas.
+
 ## Comunicação Python ↔ C com PWM simulado — segunda etapa de 02/11/2026
 
 Foi implementado `CProcessController` em `app/services/c_controller.py`, usando

@@ -146,7 +146,10 @@ def test_c_rejects_incompatible_initial_sequence(binaries, tmp_path, operation):
 @pytest.mark.anyio
 async def test_full_flow_uses_existing_python_service_and_journal(binaries, tmp_path):
     controller = await CProcessController.connect(
-        binaries["simulated"], tmp_path / "c.sqlite3", context="test"
+        binaries["simulated"],
+        tmp_path / "c.sqlite3",
+        context="test",
+        profile="legacy-v1",
     )
     store = CycleStore(tmp_path / "python.sqlite3", simulation_enabled=True)
     service = MechanicalService(store, controller, source="SIMULATED")
@@ -202,6 +205,7 @@ async def test_uncertainty_blocks_replay_and_survives_both_restarts(
         binaries["simulated"],
         c_path,
         context="test",
+        profile="legacy-v1",
         io_timeout_seconds=0.05 if fault == "ipc_timeout" else 2.0,
         delay_ms=0 if fault == "partial_failure" else 1000,
         fail_after=1 if fault == "partial_failure" else None,
@@ -235,7 +239,7 @@ async def test_uncertainty_blocks_replay_and_survives_both_restarts(
         store.close()
 
     controller = await CProcessController.connect(
-        binaries["simulated"], c_path, context="test"
+        binaries["simulated"], c_path, context="test", profile="legacy-v1"
     )
     store = CycleStore(python_path, simulation_enabled=True)
     service = MechanicalService(store, controller, source="SIMULATED")
@@ -269,7 +273,7 @@ async def test_explicit_reconnect_queries_completed_order_without_resubmitting(
     path = tmp_path / "c.sqlite3"
     request = command()
     controller = await CProcessController.connect(
-        binaries["simulated"], path, context="test"
+        binaries["simulated"], path, context="test", profile="legacy-v1"
     )
     try:
         assert (await controller.submit(request)).state == "ACCEPTED"
@@ -279,7 +283,7 @@ async def test_explicit_reconnect_queries_completed_order_without_resubmitting(
     finally:
         await controller.aclose()
     controller = await CProcessController.connect(
-        binaries["simulated"], path, context="test"
+        binaries["simulated"], path, context="test", profile="legacy-v1"
     )
     try:
         assert (await controller.query(request)).state == "COMPLETED"
@@ -294,12 +298,12 @@ async def test_explicit_reconnect_queries_completed_order_without_resubmitting(
 async def test_device_journal_has_exclusive_process_owner(binaries, tmp_path):
     path = tmp_path / "c.sqlite3"
     controller = await CProcessController.connect(
-        binaries["simulated"], path, context="test"
+        binaries["simulated"], path, context="test", profile="legacy-v1"
     )
     try:
         with pytest.raises(ControllerError):
             await CProcessController.connect(
-                binaries["simulated"], path, context="test"
+                binaries["simulated"], path, context="test", profile="legacy-v1"
             )
     finally:
         await controller.aclose()
@@ -350,7 +354,9 @@ def test_missing_journal_protection_blocks_startup(binaries, tmp_path):
 async def test_physical_binary_cannot_be_labeled_simulated(binaries, tmp_path):
     path = tmp_path / "c.sqlite3"
     with pytest.raises(ControllerError):
-        await CProcessController.connect(binaries["physical"], path, context="test")
+        await CProcessController.connect(
+            binaries["physical"], path, context="test", profile="legacy-v1"
+        )
     assert not path.exists()
 
 

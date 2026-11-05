@@ -1,5 +1,22 @@
 STATUS técnico — BinGo
 
+TotemEdge sem porta, laboratório Python/C (05/11/2026): prevalecem o fluxo do
+commit c2a9770 e a decisão física de duas escotilhas, sem porta superior. O
+adaptador C tem perfil simulado doorless-v1: CONFIRM_HAND_REMOVED (zero PWM) →
+CYCLE_LOWER_HATCH → CONFIRM_INITIAL_STATE (checkpoint simulado, sem homing).
+O ciclo registra somente rótulos lógicos PWM3/direita (70°/175°) e PWM4/esquerda
+(113°/5°), referências manuais não homologadas e sem conversão para sysfs/pulsos.
+A queda avança 6000 ms de relógio virtual de laboratório; não calibra tempo real.
+O perfil legacy-v1 preserva a sequência antiga; o journal C migra v1→v2 mantendo
+IDs/resultados e vinculando perfil imutável. Descrições de CLOSE como exigência
+geral nas notas anteriores são históricas. Frontend/backend sem porta existentes,
+credenciais e regras econômicas permanecem inalterados. C não é conectado a
+Docker operacional; PHYSICAL, PWM real e confirmação física continuam bloqueados.
+Contrato e validação em Hardware/TotemEdge/controller/README.md.
+Validação Linux desta etapa: 50 testes mecânicos focados e 829 testes completos
+do backend aprovados, zero falhas/skips, em containers efêmeros sem rede ou
+dispositivos e com checkout readonly. Sem deploy, commit, push ou acionamento físico.
+
 Recuperação de visão (02/11): sessão obstruída comprovada como RETURN_REQUIRED,
 JPEG válido e AWS rejected/confiança zero, sem erro de câmera/Gemini. Corrigida
 a política que só permitia recaptura em REVIEW: rejeição/falha segura passam a
