@@ -3716,7 +3716,6 @@ p {
 }
 
 .screen--hand-confirm .content-zone--hand,
-.screen--door-process .content-zone--computing,
 .screen--computing .content-zone--computing {
   grid-template-columns: minmax(0, 1fr);
   width: 100%;
@@ -3849,8 +3848,7 @@ p {
   width: 100%;
 }
 
-/* Automatic door and registration steps share the same operational focus. */
-.screen--door-process .content-zone--computing,
+/* Registration step keeps the operational focus. */
 .screen--computing .content-zone--computing {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -3860,12 +3858,10 @@ p {
   background: radial-gradient(circle at 50% 58%, rgba(18, 200, 255, 0.11), transparent 40%);
 }
 
-.screen--door-process .content-zone--computing .b1n-talk--corner,
 .screen--computing .content-zone--computing .b1n-talk--corner {
   width: 100%;
 }
 
-.screen--door-process .computing-signal,
 .screen--computing .computing-signal {
   align-self: stretch;
   width: 100%;
@@ -3874,7 +3870,6 @@ p {
   gap: clamp(8px, 1.4vh, 12px);
 }
 
-.screen--door-process .computing-icon,
 .screen--computing .computing-icon {
   width: clamp(172px, 24vh, 246px);
   height: clamp(172px, 24vh, 246px);
@@ -3883,7 +3878,6 @@ p {
   box-shadow: 0 12px 26px rgba(0, 174, 239, 0.12);
 }
 
-.screen--door-process .computing-icon .control-icon,
 .screen--computing .computing-icon .control-icon {
   width: clamp(78px, 11vh, 118px);
   height: clamp(78px, 11vh, 118px);

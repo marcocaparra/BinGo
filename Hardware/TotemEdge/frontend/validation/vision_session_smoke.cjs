@@ -68,8 +68,8 @@ async function main(scenario = 'recognized') {
     await page.goto(origin); await click('wake'); await click('begin'); await click('mode', 'student');
     await click('segment', data.classes[0].segment); await click('grade', data.classes[0].grade);
     await click('class', data.classes[0].id); await click('student', data.students[0].id); await pin();
-    await waitState('SAFETY'); await click('safety', 'safe'); await pin(); await waitState('DOOR_OPEN');
-    assert.equal(stats().camera.length, 0, 'No capture before durable closure');
+    await waitState('SAFETY'); await click('safety', 'safe'); await waitState('INSERTION_READY');
+    assert.equal(stats().camera.length, 0, 'No capture before explicit hand removal');
     await click('inserted');
     await page.evaluate(() => { document.querySelector('[data-dev-op="hand"]').click(); document.querySelector('[data-dev-op="hand"]')?.click(); });
     await waitState('CAPTURING');
@@ -78,7 +78,7 @@ async function main(scenario = 'recognized') {
     await page.reload(); await waitState('CAPTURING');
     assert.equal(requests.filter(r => r.method === 'POST').length, beforeReload);
     assert.equal(stats().camera.length, 1);
-    pass('Fechamento durável, clique duplo e refresh durante captura: uma única intenção');
+    pass('Retirada da mão, clique duplo e refresh durante captura: uma única intenção');
     control({ ...outcome, hold_classification: true, hold_secondary: scenario === 'fallback' });
     await page.reload();
     let cameraPhoto;
@@ -195,7 +195,7 @@ async function main(scenario = 'recognized') {
     const bad = await fetch(`${origin}/local/simulation/sessions/${event}/vision-review`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Totem-Request': '1' }, body: JSON.stringify({ capture_id: (await active()).vision.capture_id, item_id: 'cable', action: 'confirm' }) });
     assert.equal(bad.status, 409);
     assert.equal((await active()).session.receipt, null);
-    assert.equal((await active()).commands.length, 2);
+    assert.equal((await active()).commands.length, 1);
     const storage = await page.evaluate(() => Object.entries(sessionStorage));
     assert.ok(storage.every(([k, v]) => /^[a-f0-9-]{36}$/i.test(v)));
     assert.ok(requests.every(r => !/register|deposit|hatch|confirm-initial/.test(r.path)));
@@ -208,7 +208,7 @@ async function main(scenario = 'recognized') {
     assert.equal(completed, null, 'Completed session releases only the active slot');
     const saved = await request(`/local/simulation/sessions/${event}`);
     assert.equal(saved.session.state, 'COMPLETED'); assert.equal(saved.session.receipt, null);
-    assert.equal(saved.commands.length, 4);
+    assert.equal(saved.commands.length, 3);
     assert.ok(saved.commands.every(c => c.phase === 'COMPLETED' && c.result === 'SUCCEEDED' && c.source === 'SIMULATED'));
     const completedPosts = requests.filter(r => r.method === 'POST').length;
     await page.reload(); await waitState('COMPLETED');

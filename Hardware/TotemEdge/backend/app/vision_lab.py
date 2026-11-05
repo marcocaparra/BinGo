@@ -162,6 +162,7 @@ def create_vision_lab_app(
 
 @dataclass(frozen=True)
 class VisionDevSettings(VisionLabSettings):
+    doorless = True
     deferred_analysis: bool = False
     marker_name = ".bingo-vision-dev-only"
     marker_content = "BinGo vision DEV read-only identity simulated mechanics v1\n"

@@ -266,7 +266,7 @@ const screens = [
       <section class="screen screen--corner screen--safety screen--stack-action">
         ${topbar("Segurança")}
         <div class="content-zone content-zone--corner content-zone--safety">
-          ${talk(assets.b1nIdeaCorner, "Antes de abrir, vamos conferir o item.", "corner safety-guide")}
+          ${talk(assets.b1nIdeaCorner, "Antes de começar, vamos conferir o item.", "corner safety-guide")}
           <div class="safety-card">
             <strong>O item está seguro?</strong>
             <div class="safety-row"><span>1</span><p>Não está vazando nem estufado.</p></div>
@@ -319,7 +319,7 @@ const screens = [
         <div class="content-zone content-zone--corner content-zone--hand">
           ${talk(assets.b1nIdeaCorner, "Retire a mão antes de continuar.", "corner character-idea")}
           <div class="hand-signal" aria-hidden="true"><span class="material-hand">back_hand</span></div>
-          <div class="instruction-note"><strong>Confira a abertura</strong><span>A porta só fecha depois da sua confirmação.</span></div>
+          <div class="instruction-note"><strong>Confira a abertura</strong><span>A câmera começa depois que você retirar a mão.</span></div>
         </div>
         <div class="action-zone">
           <button class="primary-action" data-hand-confirmed>Retirei a mão</button>

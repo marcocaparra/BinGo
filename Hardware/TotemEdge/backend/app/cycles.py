@@ -13,6 +13,8 @@ State = Literal[
     "AUTHENTICATING",
     "SAFETY",
     "PHYSICAL_BLOCKED",
+    "INSERTION_READY",
+    "READY_TO_CAPTURE",
     "OPENING",
     "DOOR_OPEN",
     "CLOSING",
@@ -50,12 +52,15 @@ PRE_PHYSICAL = {"IDENTIFYING", "AUTHENTICATING", "SAFETY", "PHYSICAL_BLOCKED"}
 # Pré-condição, movimento em andamento, resultado. Integração da mesma máquina,
 # sem estados alternativos. As arestas só são escritas pelo journal em simulação.
 MECHANICAL_STEPS = {
+    # Logical user declaration, with no motor movement or simulated door.
+    "CONFIRM_HAND_REMOVED": ("INSERTION_READY", "READY_TO_CAPTURE", "READY_TO_CAPTURE"),
     "OPEN_INSERTION_DOOR": ("PHYSICAL_BLOCKED", "OPENING", "DOOR_OPEN"),
     "CLOSE_INSERTION_DOOR": ("DOOR_OPEN", "CLOSING", "DOOR_CLOSED"),
     "CYCLE_LOWER_HATCH": ("REVIEW", "HATCH_IN_PROGRESS", "HATCH_IN_PROGRESS"),
     "CONFIRM_INITIAL_STATE": ("HATCH_IN_PROGRESS", "HATCH_IN_PROGRESS", "COMPLETED"),
 }
-SIMULATION_EDGES = {("DOOR_CLOSED", "REVIEW")}
+SIMULATION_EDGES = {("DOOR_CLOSED", "REVIEW"), ("READY_TO_CAPTURE", "REVIEW"), ("SAFETY", "INSERTION_READY")}
+TRANSITIONS["READY_TO_CAPTURE"] = {"CAPTURING", "TECHNICAL_FAILURE"}
 for before, moving, after in MECHANICAL_STEPS.values():
     SIMULATION_EDGES.update({(before, moving), (moving, after), (moving, before)})
 for before, after in SIMULATION_EDGES:

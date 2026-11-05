@@ -183,6 +183,8 @@ window.BinGoOperational = {
       else if (riskReported) screen = "teacher";
       else if (failedMotion() || snapshot?.session.state === 'INDETERMINATE') screen = stage === 'help' ? 'teacher' : 'mechanical-error';
       else if (openPin() || hatchPin()) screen = 'pin';
+      else if (snapshot?.session.state === 'INSERTION_READY') screen = stage === 'hand' ? 'hand-confirm' : 'insert';
+      else if (snapshot?.session.state === 'READY_TO_CAPTURE') screen = 'classification';
       else if (snapshot?.session.state === 'OPENING') screen = 'opening';
       else if (snapshot?.session.state === 'DOOR_OPEN' && completedMotion('OPEN_INSERTION_DOOR')) screen = stage === 'hand' ? 'hand-confirm' : 'insert';
       else if (snapshot?.session.state === 'CLOSING') screen = 'door-progress';
@@ -234,7 +236,7 @@ window.BinGoOperational = {
       remember("event", snapshot.session.event_id);
       stage = identifying() ? student ? "pin" : selectedClass ? "students" : "classes" : value.session.state === 'REVIEW' && stage === 'hatch-pin' ? 'hatch-pin' : "session";
       clearTimeout(pollTimer);
-      if (!departed && (snapshot.economy?.status === 'PENDING' || snapshot.commands.some(c => pendingPhases.includes(c.phase)) || (['HATCH_IN_PROGRESS', 'CLASSIFYING'].includes(snapshot.session.state) || snapshot.session.state === 'CAPTURING') && !failedMotion() || snapshot.session.state === 'DOOR_CLOSED' && !allowed('review-fixture'))) {
+      if (!departed && (snapshot.economy?.status === 'PENDING' || snapshot.commands.some(c => pendingPhases.includes(c.phase)) || (['HATCH_IN_PROGRESS', 'CLASSIFYING'].includes(snapshot.session.state) || snapshot.session.state === 'CAPTURING') && !failedMotion() || ['DOOR_CLOSED', 'READY_TO_CAPTURE'].includes(snapshot.session.state) && !allowed('review-fixture'))) {
         // This timer only schedules durable GETs. It never decides a movement's
         // duration/result and never retries a POST.
         pollTimer = setTimeout(async () => {
@@ -372,7 +374,17 @@ window.BinGoOperational = {
         accept(await api.safety(snapshot.session.event_id, value === "risk"));
         return;
       }
-      if (action === 'inserted' && snapshot?.session.state === 'DOOR_OPEN' && completedMotion('OPEN_INSERTION_DOOR')) { stage = 'hand'; return; }
+      if (action === 'inserted' && (snapshot?.session.state === 'INSERTION_READY' || snapshot?.session.state === 'DOOR_OPEN' && completedMotion('OPEN_INSERTION_DOOR'))) { stage = 'hand'; return; }
+      if (action === 'hand' && snapshot?.session.state === 'INSERTION_READY' && allowed('hand-removed')) {
+        await inspectMotion();
+        if (!allowed('hand-removed') || snapshot.session.state !== 'INSERTION_READY') return;
+        const key = `bingo.dev.hand.${snapshot.session.event_id}`;
+        let id = sessionStorage.getItem(key);
+        if (!id) { id = crypto.randomUUID(); sessionStorage.setItem(key, id); }
+        if (sessionStorage.getItem(key) !== id) throw new LocalApiError('SESSION_STORAGE_UNAVAILABLE');
+        accept(await api.handRemoved(snapshot.session.event_id, id));
+        return;
+      }
       if (action === 'hand' && snapshot?.session.state === 'DOOR_OPEN' && allowed('close')) return move('close', { hand_removed: true });
       if (action === 'discard') {
         await inspectMotion();

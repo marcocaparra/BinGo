@@ -122,7 +122,7 @@ test('permission denied stays on camera and offers retry/devolution', async () =
     assert.match(await page.locator('[data-camera-status]').innerText(), /Permissão negada/);
     assert.equal(await page.locator('[data-camera-action="continue"]').count(), 0);
     await page.locator('[data-return-start]').click();
-    await page.locator('[data-auto-next="return-confirm"]').waitFor();
+    await page.locator('[data-return-confirm]').waitFor();
   } finally {
     await browser.close();
   }

@@ -95,6 +95,7 @@ def create_app(
                             central=central
                             if store.identity_scope is not None
                             else None,
+                            doorless=bool(getattr(_simulation, "doorless", False)),
                         )
                     # Serviços privados, desconectados da autorização física.
                     application.state.vision = (

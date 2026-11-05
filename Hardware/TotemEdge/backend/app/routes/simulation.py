@@ -183,6 +183,13 @@ async def close_door(event_id: UUID, body: Close, response: Response, flow: Serv
     )
 
 
+@router.post("/sessions/{event_id}/hand-removed", response_model=SimulationSnapshot)
+async def hand_removed(event_id: UUID, body: Close, response: Response, flow: Service):
+    return await act(
+        flow, event_id, "CONFIRM_HAND_REMOVED", body, response, hand_removed=True
+    )
+
+
 @router.post("/sessions/{event_id}/hatch", response_model=SimulationSnapshot)
 async def hatch(event_id: UUID, body: Motion, response: Response, flow: Service):
     return await act(flow, event_id, "CYCLE_LOWER_HATCH", body, response)

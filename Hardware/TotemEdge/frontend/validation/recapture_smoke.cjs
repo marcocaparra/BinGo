@@ -29,9 +29,8 @@ async function main(){
   const start=await request(S,{command_id:crypto.randomUUID()}),event=start.session.event_id;
   await request(`/local/dev/sessions/${event}/identity`,{class_id:data.classes[0].id,student_id:data.students[0].id,pin:'0012'});
   await request(`${S}/${event}/safety`,{has_risk:false});
-  await request(`${S}/${event}/open`,{mechanical_command_id:crypto.randomUUID(),pin:'0012'});
-  await wait(async()=> (await request(`${S}/${event}`)).session.state==='DOOR_OPEN');
-  await request(`${S}/${event}/close`,{mechanical_command_id:crypto.randomUUID(),hand_removed:true});
+  assert.equal((await request(`${S}/${event}`)).session.state,'INSERTION_READY');
+  await request(`${S}/${event}/hand-removed`,{mechanical_command_id:crypto.randomUUID(),hand_removed:true});
   await wait(async()=> (await request(`${S}/${event}`)).session.state===(scenario==='rejected'?'RETURN_REQUIRED':scenario==='temporary'?'TECHNICAL_FAILURE':'REVIEW'));
   const first=await request(`${S}/${event}`);
   browser=await chromium.launch(launchOptions); const page=await browser.newPage({viewport:{width:600,height:1024}});

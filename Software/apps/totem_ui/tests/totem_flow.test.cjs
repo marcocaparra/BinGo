@@ -33,10 +33,11 @@ test('standard Totem flow reaches a validated result and resets cleanly', async 
 
     await page.locator('.screen--safety').waitFor();
     await page.locator('[data-safety-safe]').click();
-    await page.locator('[data-item-inserted]').waitFor();
+    assert.equal(await page.locator('.screen--insert').count(), 1);
+    assert.equal(await page.evaluate(() => screens.some(screen => ['opening', 'door-progress', 'return-progress', 'mechanical-error'].includes(screen.id))), false);
     await page.locator('[data-item-inserted]').click();
     await page.locator('[data-hand-confirmed]').click();
-    await page.locator('.screen--camera').waitFor();
+    assert.equal(await page.locator('.screen--camera').count(), 1);
     await page.locator('.screen--recognized').waitFor();
     await page.locator('[data-recognition-confirm]').click();
     await page.locator('[data-discard-confirm]').click();
@@ -47,6 +48,30 @@ test('standard Totem flow reaches a validated result and resets cleanly', async 
     assert.deepEqual(errors, []);
 
     await page.getByRole('button', { name: 'Concluir' }).click();
+    await page.locator('.screen--sleep').waitFor();
+  } finally {
+    await browser.close();
+  }
+});
+
+
+test('adjustment requires hand confirmation again and return is immediate', async () => {
+  const browser = await chromium.launch(browserOptions);
+  try {
+    const page = await browser.newPage({ viewport: { width: 420, height: 720 } });
+    await page.goto(`${url}?screen=rejected&camera=simulated`);
+    await page.locator('[data-adjust-retry]').click();
+    assert.equal(await page.locator('.screen--insert').count(), 1);
+    await page.evaluate(() => jump('camera'));
+    assert.equal(await page.locator('.screen--insert').count(), 1);
+    await page.locator('[data-item-inserted]').click();
+    await page.locator('[data-hand-confirmed]').click();
+    assert.equal(await page.locator('.screen--camera').count(), 1);
+
+    await page.goto(`${url}?screen=rejected&camera=simulated`);
+    await page.locator('[data-return-start]').click();
+    assert.equal(await page.locator('[data-return-confirm]').count(), 1);
+    await page.locator('[data-return-confirm]').click();
     await page.locator('.screen--sleep').waitFor();
   } finally {
     await browser.close();

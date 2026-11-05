@@ -60,12 +60,10 @@ class DevEconomy:
                 for c in commands
             )
             or {c["operation"] for c in commands}
-            != {
-                "OPEN_INSERTION_DOOR",
-                "CLOSE_INSERTION_DOOR",
-                "CYCLE_LOWER_HATCH",
-                "CONFIRM_INITIAL_STATE",
-            }
+            not in (
+                {"OPEN_INSERTION_DOOR", "CLOSE_INSERTION_DOOR", "CYCLE_LOWER_HATCH", "CONFIRM_INITIAL_STATE"},
+                {"CONFIRM_HAND_REMOVED", "CYCLE_LOWER_HATCH", "CONFIRM_INITIAL_STATE"},
+            )
         ):
             raise CycleError("DEV_ECONOMIC_COMPLETION_REQUIRED")
         decision = json.loads(vision["decision"])

@@ -39,6 +39,7 @@ class SimulationFlow:
         mechanical: MechanicalService,
         *,
         central: SupabaseEdgeClient | None = None,
+        doorless: bool = False,
     ):
         if not store.simulation_enabled or mechanical.source != "SIMULATED":
             raise ValueError("Fluxo simulado exige runtime isolado.")
@@ -46,6 +47,7 @@ class SimulationFlow:
         self.mechanical = mechanical
         self.central = central  # Injetado somente pela composição DEV.
         self.vision = None
+        self.doorless = doorless
 
     def _can_end_failed_simulation(self, conn, row):
         if (
@@ -76,9 +78,7 @@ class SimulationFlow:
                 (str(event_id),),
             )
         ]
-        names = dict(
-            zip(MECHANICAL_STEPS, ("open", "close", "hatch", "confirm-initial"))
-        )
+        names = {"CONFIRM_HAND_REMOVED": "hand-removed", "OPEN_INSERTION_DOOR": "open", "CLOSE_INSERTION_DOOR": "close", "CYCLE_LOWER_HATCH": "hatch", "CONFIRM_INITIAL_STATE": "confirm-initial"}
         actions = [
             names[operation]
             for operation, (before, _, _) in MECHANICAL_STEPS.items()
@@ -98,6 +98,8 @@ class SimulationFlow:
             actions.append("cancel")
         elif row["state"] == "DOOR_CLOSED":
             actions = ["review-fixture"]
+        if self.doorless:
+            actions = [a for a in actions if a not in {"open", "close"}]
         identity = self.store.simulation_identity(conn, event_id)
         if self.store.identity_scope and any(
             entry.command.operation == "CONFIRM_INITIAL_STATE" for entry in entries
@@ -203,7 +205,7 @@ class SimulationFlow:
                 "SELECT to_state FROM transitions WHERE event_id=? AND from_state='SAFETY' AND code IN ('SIMULATION_SAFETY_CLEARED','SAFETY_RISK')",
                 (str(event_id),),
             ).fetchone()
-            target = "CANCELLED" if has_risk else "PHYSICAL_BLOCKED"
+            target = "CANCELLED" if has_risk else "INSERTION_READY" if self.doorless else "PHYSICAL_BLOCKED"
             if previous:
                 if previous["to_state"] != target:
                     raise CycleError("SAFETY_DECISION_CONFLICT")
@@ -259,6 +261,7 @@ class SimulationFlow:
                 "IDENTIFYING",
                 "SAFETY",
                 "PHYSICAL_BLOCKED",
+                "INSERTION_READY",
             } or self.store.mechanical.has_risk(conn, event_id):
                 raise CycleError("CANCELLATION_NOT_SAFE")
             self.store.mechanical.abort_intents(conn, event_id)
@@ -284,6 +287,10 @@ class SimulationFlow:
         # A checagem definitiva de estado e a transição ocorrem na transação
         # de intenção do journal. Esta leitura apenas valida escopo/procedência.
         snapshot = self.get(event_id)
+        if self.doorless and operation in {"OPEN_INSERTION_DOOR", "CLOSE_INSERTION_DOOR"}:
+            raise CycleError("INSERTION_DOOR_REMOVED", 410)
+        if not self.doorless and operation == "CONFIRM_HAND_REMOVED":
+            raise CycleError("COMMAND_OUT_OF_SEQUENCE")
         if (
             self.vision
             and operation == "CYCLE_LOWER_HATCH"
@@ -322,7 +329,7 @@ class SimulationFlow:
             ),
             hand_removed=hand_removed,
         )
-        if self.vision and operation == "CLOSE_INSERTION_DOOR":
+        if self.vision and operation in {"CLOSE_INSERTION_DOOR", "CONFIRM_HAND_REMOVED"}:
             self.vision.after_close(entry)
         if self.vision and operation == "CYCLE_LOWER_HATCH":
             self.vision.frames.pop(str(event_id), None)

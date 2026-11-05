@@ -1,5 +1,15 @@
 # TotemEdge principal — Windows DEV integrado
 
+Atualização de 05/11/2026: o perfil principal `vision-dev` usa compartimento sem
+porta. Após segurança, `INSERTION_READY` permite posicionar o item; o botão
+**Retirei a mão** registra `CONFIRM_HAND_REMOVED` e inicia a captura, sem movimento,
+espera ou PIN adicional de porta. O PIN do alçapão continua exigido. As rotas
+legadas open/close retornam 410 neste perfil; históricos antigos são preservados.
+O journal SQLite é atualizado automaticamente para aceitar a declaração. O campo
+legado `vision.close_command_id` passa a referenciar essa confirmação nos novos
+ciclos. Nenhuma evidência física é inventada e os recibos antigos permanecem.
+O laboratório legado continua disponível para testes de compatibilidade.
+
 Atualização autorizada (02/11): principal em http://127.0.0.1:8000/ com economia
 DEV habilitada. Apenas dev-central/totem-edge-dev recriados, volume e histórico
 preservados. Para próximos comandos deste projeto usar

@@ -2,7 +2,7 @@
 (function (root) {
   "use strict";
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const states = new Set(["IDENTIFYING", "AUTHENTICATING", "SAFETY", "PHYSICAL_BLOCKED", "OPENING", "DOOR_OPEN", "CLOSING", "DOOR_CLOSED", "CAPTURING", "CLASSIFYING", "REVIEW", "RETURN_REQUIRED", "HATCH_IN_PROGRESS", "REGISTRATION_PENDING", "REGISTERING", "REGISTERED", "INDETERMINATE", "TECHNICAL_FAILURE", "CANCELLED", "COMPLETED"]);
+  const states = new Set(["IDENTIFYING", "AUTHENTICATING", "SAFETY", "PHYSICAL_BLOCKED", "INSERTION_READY", "READY_TO_CAPTURE", "OPENING", "DOOR_OPEN", "CLOSING", "DOOR_CLOSED", "CAPTURING", "CLASSIFYING", "REVIEW", "RETURN_REQUIRED", "HATCH_IN_PROGRESS", "REGISTRATION_PENDING", "REGISTERING", "REGISTERED", "INDETERMINATE", "TECHNICAL_FAILURE", "CANCELLED", "COMPLETED"]);
   class LocalApiError extends Error {
     constructor(code, status = null) { super("Não foi possível confirmar a operação local."); this.code = code; this.status = status; }
   }
@@ -55,7 +55,7 @@
   function journalEntry(entry, event) {
     const phases = { INTENT: 'PENDING', DISPATCHING: 'PENDING', ACCEPTED: 'PENDING', COMPLETED: 'SUCCEEDED', REJECTED: 'UNAVAILABLE', FAILED: 'FAILURE', TIMED_OUT: 'UNKNOWN', CANCELLED: 'UNKNOWN', INDETERMINATE: 'UNKNOWN', ABORTED: 'UNAVAILABLE' };
     if (!entry || entry.source !== 'SIMULATED' || entry.command?.event_id !== event || !uuid.test(entry.command?.mechanical_command_id) ||
-        !['OPEN_INSERTION_DOOR', 'CLOSE_INSERTION_DOOR', 'CYCLE_LOWER_HATCH', 'CONFIRM_INITIAL_STATE'].includes(entry.command.operation) ||
+        !['CONFIRM_HAND_REMOVED', 'OPEN_INSERTION_DOOR', 'CLOSE_INSERTION_DOOR', 'CYCLE_LOWER_HATCH', 'CONFIRM_INITIAL_STATE'].includes(entry.command.operation) ||
         !Object.hasOwn(phases, entry.phase) || !(phases[entry.phase] === entry.result || entry.phase === 'FAILED' && entry.result === 'UNKNOWN')) throw new LocalApiError('INVALID_RESPONSE');
     return entry;
   }
@@ -67,7 +67,7 @@
       if (e.status === 'CONFIRMED') snapshot({...s,state:'REGISTERED',receipt:e.receipt});
       if (e.status !== 'AWAITING_COMPLETION' && s?.state !== 'COMPLETED') throw new LocalApiError('INVALID_RESPONSE');
     }
-    const actions = new Set(["identify", "safety", "cancel", "open", "close", "hatch", "confirm-initial", "review-fixture", "vision-review", "vision-analyze", "vision-recapture"]);
+    const actions = new Set(["identify", "safety", "cancel", "hand-removed", "open", "close", "hatch", "confirm-initial", "review-fixture", "vision-review", "vision-analyze", "vision-recapture"]);
     if (value?.source !== "SIMULATED" || !s || !uuid.test(s.event_id) || !states.has(s.state) || !uuid.test(s.class_id) || !["student", "class_only"].includes(s.mode) || s.receipt !== null ||
         !Array.isArray(value.commands) || value.commands.some(c => !c || c.source !== "SIMULATED") ||
         !Array.isArray(value.allowed_actions) || value.allowed_actions.some(a => !actions.has(a)) || new Set(value.allowed_actions).size !== value.allowed_actions.length ||
@@ -84,7 +84,7 @@
       if (r?.detected_types != null && (typeof r.detected_types !== 'object' || Array.isArray(r.detected_types) || Object.entries(r.detected_types).some(([id, name]) => !r.candidateIds?.includes(id) || typeof name !== 'string' || !name.trim() || name.length > 120))) throw new LocalApiError('INVALID_RESPONSE');
       if (!Array.isArray(v.allowed_candidates) || v.allowed_candidates.some(id => !ids.includes(id)) || new Set(v.allowed_candidates).size !== v.allowed_candidates.length || v.allowed_candidates.some(id => id !== 'unknown' && !r?.candidateIds.includes(id)) || v.allowed_candidates.length && (v.phase !== 'COMPLETED' || r?.status !== 'recognized')) throw new LocalApiError('INVALID_RESPONSE');
       if (v.event_id !== s.event_id || !uuid.test(v.capture_id) || !uuid.test(v.close_command_id) ||
-          !value.commands.some(c => c.command.mechanical_command_id === v.close_command_id && c.command.operation === 'CLOSE_INSERTION_DOOR' && c.phase === 'COMPLETED') ||
+          !value.commands.some(c => c.command.mechanical_command_id === v.close_command_id && ['CLOSE_INSERTION_DOOR', 'CONFIRM_HAND_REMOVED'].includes(c.command.operation) && c.phase === 'COMPLETED') ||
           !['CAPTURING', 'CLASSIFYING', 'COMPLETED', 'FAILED'].includes(v.phase) ||
           r && (!['recognized', 'rejected', 'needs-secondary'].includes(r.status) || !Array.isArray(r.candidateIds) || r.candidateIds.some(id => !ids.includes(id)) ||
           new Set(r.candidateIds).size !== r.candidateIds.length || typeof r.confidence !== 'number' || !Number.isFinite(r.confidence) || r.confidence < 0 || r.confidence > 1 ||
@@ -179,6 +179,12 @@
       const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/safety`, { has_risk: hasRisk }));
       if (value.session.event_id !== id || !value.identity || ["IDENTIFYING", "AUTHENTICATING", "SAFETY"].includes(value.session.state) ||
           hasRisk && (value.session.state !== "CANCELLED" || value.session.failure_code !== "SAFETY_RISK")) throw new LocalApiError("INVALID_RESPONSE");
+      return value;
+    }
+    async handRemoved(id, commandId) {
+      if (!uuid.test(id) || !uuid.test(commandId)) throw new LocalApiError('INVALID_ID');
+      const value = devSnapshot(await this.request(`/local/simulation/sessions/${id}/hand-removed`, {mechanical_command_id: commandId, hand_removed: true}));
+      if (value.session.event_id !== id || !value.commands.some(c => c.command.mechanical_command_id === commandId && c.command.operation === 'CONFIRM_HAND_REMOVED')) throw new LocalApiError('INVALID_RESPONSE');
       return value;
     }
     async motion(id, operation, commandId, options = {}) {

@@ -30,6 +30,7 @@ class SimulationPlan(BaseModel):
 
 DEFAULT_PLANS: Mapping[Operation, SimulationPlan] = MappingProxyType(
     {
+        "CONFIRM_HAND_REMOVED": SimulationPlan(duration_seconds=0.0),
         "OPEN_INSERTION_DOOR": SimulationPlan(duration_seconds=3.0),
         "CLOSE_INSERTION_DOOR": SimulationPlan(duration_seconds=3.0),
         "CYCLE_LOWER_HATCH": SimulationPlan(duration_seconds=4.0),

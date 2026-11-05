@@ -60,13 +60,13 @@
       this.onDisconnected = null;
     }
 
-    assertDoor(isDoorClosed) {
-      if (!isDoorClosed()) throw cameraError("DoorOpenError", "Door must be confirmed closed");
+    assertSafety(isSafeToCapture) {
+      if (!isSafeToCapture()) throw cameraError("SafetyNotConfirmedError", "Item safety and hand removal must be confirmed");
     }
 
-    async start(video, isDoorClosed) {
+    async start(video, isSafeToCapture) {
       this.stop();
-      this.assertDoor(isDoorClosed);
+      this.assertSafety(isSafeToCapture);
       if (!this.mediaDevices?.getUserMedia) throw cameraError("NotSupportedError", "Camera requires a supported secure context");
       const operation = new AbortController();
       this.operation = operation;
@@ -79,11 +79,11 @@
         }, () => {});
         const stream = await withDeadline(request, operation.signal, this.timeoutMs);
         this.stream = stream;
-        this.assertDoor(isDoorClosed);
+        this.assertSafety(isSafeToCapture);
         video.srcObject = stream;
         await withDeadline(video.play(), operation.signal, this.timeoutMs);
         await this.waitForVideo(video, operation.signal, this.timeoutMs);
-        this.assertDoor(isDoorClosed);
+        this.assertSafety(isSafeToCapture);
         if (operation.signal.aborted || this.operation !== operation) throw cameraError("AbortError", "Stale camera operation");
         this.ready = true;
         stream.getVideoTracks().forEach(track => {
@@ -99,8 +99,8 @@
       }
     }
 
-    async capture(canvas, isDoorClosed) {
-      this.assertDoor(isDoorClosed);
+    async capture(canvas, isSafeToCapture) {
+      this.assertSafety(isSafeToCapture);
       if (!this.ready || !this.stream?.getVideoTracks().some(track => track.readyState === "live")) {
         throw cameraError("NotReadableError", "Camera is not ready");
       }
@@ -114,7 +114,7 @@
       if (!context) throw cameraError("NotReadableError", "Canvas unavailable");
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const blob = await withDeadline(new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.85)), operation.signal, this.timeoutMs);
-      this.assertDoor(isDoorClosed);
+      this.assertSafety(isSafeToCapture);
       if (this.operation !== operation) throw cameraError("AbortError", "Stale capture");
       if (!blob?.size) throw cameraError("NotReadableError", "Empty capture");
       return { blob, width: canvas.width, height: canvas.height, capturedAt: new Date().toISOString() };

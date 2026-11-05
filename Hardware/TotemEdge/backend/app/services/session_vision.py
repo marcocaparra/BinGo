@@ -59,11 +59,11 @@ class SessionVision:
                 if current and current["phase"] in {"FAILED", "COMPLETED"}:
                     self._finish_recapture(conn, intent, None)
             rows = conn.execute(
-                "SELECT * FROM cycles WHERE active_slot=1 AND simulated=1 AND state='DOOR_CLOSED' AND NOT EXISTS (SELECT 1 FROM vision_attempts WHERE vision_attempts.event_id=cycles.event_id)"
+                "SELECT * FROM cycles WHERE active_slot=1 AND simulated=1 AND state IN ('DOOR_CLOSED','READY_TO_CAPTURE') AND NOT EXISTS (SELECT 1 FROM vision_attempts WHERE vision_attempts.event_id=cycles.event_id)"
             ).fetchall()
             for row in rows:
                 command = conn.execute(
-                    "SELECT mechanical_command_id FROM mechanical_commands WHERE event_id=? AND operation='CLOSE_INSERTION_DOOR' AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
+                    "SELECT mechanical_command_id FROM mechanical_commands WHERE event_id=? AND operation IN ('CLOSE_INSERTION_DOOR','CONFIRM_HAND_REMOVED') AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
                     (row["event_id"],),
                 ).fetchone()
                 if command:
@@ -203,10 +203,10 @@ class SessionVision:
             if self.store.identity_scope:
                 self.store.require_simulation_identity(conn, event)
             closed = conn.execute(
-                "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation='CLOSE_INSERTION_DOOR' AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
+                "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation IN ('CLOSE_INSERTION_DOOR','CONFIRM_HAND_REMOVED') AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
                 (str(close_id), str(event)),
             ).fetchone()
-            if row["state"] != "DOOR_CLOSED" or row["active_slot"] != 1 or not closed:
+            if row["state"] not in {"DOOR_CLOSED", "READY_TO_CAPTURE"} or row["active_slot"] != 1 or not closed:
                 raise CycleError("DOOR_CLOSED_CONFIRMATION_REQUIRED")
             if self.store.mechanical.has_risk(conn, event):
                 raise CycleError("MECHANICAL_RESULT_UNKNOWN", 503)
@@ -456,7 +456,7 @@ class SessionVision:
         ):
             return False
         closed = conn.execute(
-            "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation='CLOSE_INSERTION_DOOR' AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
+            "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation IN ('CLOSE_INSERTION_DOOR','CONFIRM_HAND_REMOVED') AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
             (attempt["close_command_id"], row["event_id"]),
         ).fetchone()
         unsafe = conn.execute(
@@ -503,11 +503,11 @@ class SessionVision:
         ):
             return False
         closed = conn.execute(
-            "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation='CLOSE_INSERTION_DOOR' AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
+            "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation IN ('CLOSE_INSERTION_DOOR','CONFIRM_HAND_REMOVED') AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
             (attempt["close_command_id"], row["event_id"]),
         ).fetchone()
         unsafe = conn.execute(
-            "SELECT 1 FROM mechanical_commands WHERE event_id=? AND (operation NOT IN ('OPEN_INSERTION_DOOR','CLOSE_INSERTION_DOOR') OR source!='SIMULATED' OR phase!='COMPLETED' OR result!='SUCCEEDED')",
+            "SELECT 1 FROM mechanical_commands WHERE event_id=? AND (operation NOT IN ('OPEN_INSERTION_DOOR','CLOSE_INSERTION_DOOR','CONFIRM_HAND_REMOVED') OR source!='SIMULATED' OR phase!='COMPLETED' OR result!='SUCCEEDED')",
             (row["event_id"],),
         ).fetchone()
         return bool(closed and not unsafe)

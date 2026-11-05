@@ -13,9 +13,9 @@ function fixture(options = {}) {
   return { camera, stream, track, video, canvas, calls: () => calls };
 }
 
-test('closed-door gate prevents accessing webcam', async () => {
+test('safety confirmation gate prevents accessing webcam', async () => {
   const f = fixture();
-  await assert.rejects(f.camera.start(f.video, () => false), { name: 'DoorOpenError' });
+  await assert.rejects(f.camera.start(f.video, () => false), { name: 'SafetyNotConfirmedError' });
   assert.equal(f.calls(), 0);
 });
 
@@ -45,17 +45,17 @@ test('ready webcam captures real frame metadata without audio', async () => {
   assert.equal(f.video.srcObject, null);
 });
 
-test('capture checks door again', async () => {
+test('capture checks safety confirmation again', async () => {
   const f = fixture();
   await f.camera.start(f.video, () => true);
-  await assert.rejects(f.camera.capture(f.canvas, () => false), { name: 'DoorOpenError' });
+  await assert.rejects(f.camera.capture(f.canvas, () => false), { name: 'SafetyNotConfirmedError' });
   f.camera.stop();
 });
 
-test('door changing during startup releases acquired stream', async () => {
+test('safety confirmation changing during startup releases acquired stream', async () => {
   const f = fixture();
   let checks = 0;
-  await assert.rejects(f.camera.start(f.video, () => ++checks === 1), { name: 'DoorOpenError' });
+  await assert.rejects(f.camera.start(f.video, () => ++checks === 1), { name: 'SafetyNotConfirmedError' });
   assert.equal(f.track.stopCount, 1);
 });
 
@@ -110,11 +110,11 @@ test('leaving during permission prompt stops a late stream', async () => {
   assert.equal(f.track.stopCount, 1);
 });
 
-test('door changing while encoding blocks completed capture', async () => {
+test('safety confirmation changing while encoding blocks completed capture', async () => {
   const f = fixture();
   await f.camera.start(f.video, () => true);
   let checks = 0;
-  await assert.rejects(f.camera.capture(f.canvas, () => ++checks === 1), { name: 'DoorOpenError' });
+  await assert.rejects(f.camera.capture(f.canvas, () => ++checks === 1), { name: 'SafetyNotConfirmedError' });
   f.camera.stop();
 });
 

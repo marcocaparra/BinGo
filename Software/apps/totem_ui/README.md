@@ -34,6 +34,7 @@ Se a porta `8092` ja estiver ocupada, use outra porta e mantenha o mesmo caminho
 - Escolha de categoria do item.
 - Checagem de segurança para pilhas, baterias e celulares.
 - Estados de inserir, analisar, sucesso e chamar professor.
+- Compartimento sem porta: segurança → inserir item → retirar a mão → câmera, sem etapas de abertura ou fechamento. Devolução e ajuste permitem retirar/reposicionar o item diretamente.
 
 ## Fora do escopo
 
@@ -44,16 +45,16 @@ Se a porta `8092` ja estiver ocupada, use outra porta e mantenha o mesmo caminho
 
 ## Teste de webcam no PC
 
-- O modo padrão usa webcam real, somente na etapa Câmera e após a porta simulada ser fechada.
+- O modo padrão usa webcam real, somente na etapa Câmera e após confirmar a segurança do item e a retirada da mão.
 - Clique em `Ativar câmera` e permita o acesso no navegador. O microfone não é solicitado.
 - Confira o preview, clique em `Capturar imagem` e use `Refazer captura` se necessário.
 - `Continuar com IA simulada` preserva a demonstração existente: a foto não é enviada nem usada pelo classificador simulado.
 - A captura fica só em memória até encerrar/resetar a sessão. Não há armazenamento persistente nem upload.
 - A webcam é desligada ao capturar, sair da etapa, ocultar a aba ou fechar a página.
 - Permissão negada, câmera ocupada/ausente, desconexão e timeout impedem a captura e permitem tentar novamente ou usar a devolução existente.
-- Use localhost/127.0.0.1 ou HTTPS. No Orange Pi ainda é necessário validar dispositivo, navegador, iluminação e confirmação real da porta.
+- Use localhost/127.0.0.1 ou HTTPS. No Orange Pi ainda é necessário validar dispositivo, navegador e iluminação.
 - Para manter a demonstração sem acesso a hardware, use `?camera=simulated`.
-- Para abrir diretamente a etapa em revisão com porta **simulada** fechada, use `?screen=camera`.
+- Para abrir diretamente a etapa em revisão com as confirmações de segurança preenchidas, use `?screen=camera`.
 - Para usar o Rekognition real, inicie o serviço Edge e abra `?screen=camera&vision=remote`.
 
 Testes locais (sem acesso à webcam):
@@ -69,7 +70,7 @@ python -m unittest tests/edge_vision_service_test.py
 
 O teste de navegador `tests/camera_flow.test.cjs` requer Playwright no ambiente Node e um servidor ativo. Usa dispositivo **sintético**, não acessa a webcam humana. Execute `node --test tests/camera_flow.test.cjs`; `BINGO_TOTEM_URL` troca a URL padrão (porta 8105), e `BINGO_BROWSER_PATH` troca o executável padrão do Edge no Windows. Os prints vão para `_visual_check_local`, fora do versionamento. A matriz inclui 420x720, 480x800 e 600x1024, com texto normal e ampliado 2x.
 
-A integração não confirma mão retirada por visão computacional nem estado real da porta. Não usar este front sozinho para comandar hardware. Evidências de câmera real, Orange Pi, IA e vídeo permanecem pendentes até execução reproduzível.
+A integração não confirma mão retirada por visão computacional. Não usar este front sozinho para comandar hardware. Evidências de câmera real, Orange Pi, IA e vídeo permanecem pendentes até execução reproduzível.
 
 ## Preparação da IA
 

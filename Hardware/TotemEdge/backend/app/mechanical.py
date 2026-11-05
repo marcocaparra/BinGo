@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Operation = Literal[
+    "CONFIRM_HAND_REMOVED",
     "OPEN_INSERTION_DOOR",
     "CLOSE_INSERTION_DOOR",
     "CYCLE_LOWER_HATCH",

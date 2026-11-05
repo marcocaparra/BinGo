@@ -60,6 +60,7 @@ class CycleStore:
 
                 fcntl.flock(self._lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.mechanical = MechanicalJournal(self)
+            self._upgrade_hand_confirmation_journal()
             self._initialize()
             self._recover()
         except BaseException:
@@ -68,6 +69,32 @@ class CycleStore:
 
     def close(self):
         self._lease.close()  # O SO libera a trava mesmo após encerramento abrupto.
+
+    def _upgrade_hand_confirmation_journal(self):
+        """Extend the operation CHECK, preserving all journal IDs and history."""
+        with closing(sqlite3.connect(self.path, isolation_level=None)) as conn:
+            conn.row_factory = sqlite3.Row
+            table = conn.execute("SELECT sql FROM sqlite_master WHERE name='mechanical_commands'").fetchone()
+            if not table or "CONFIRM_HAND_REMOVED" in table[0]:
+                return
+            self.mechanical.validate_schema(conn)
+            # Foreign keys stay disabled only on this private migration connection.
+            # No table is renamed before the copy, so child references keep their names.
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                objects = conn.execute("SELECT sql FROM sqlite_master WHERE tbl_name='mechanical_commands' AND type IN ('index','trigger') AND sql IS NOT NULL").fetchall()
+                conn.execute(MECHANICAL_SCHEMA[0].replace("CREATE TABLE mechanical_commands (", "CREATE TABLE mechanical_commands_upgrade (", 1))
+                conn.execute("INSERT INTO mechanical_commands_upgrade SELECT * FROM mechanical_commands")
+                conn.execute("DROP TABLE mechanical_commands")
+                conn.execute("ALTER TABLE mechanical_commands_upgrade RENAME TO mechanical_commands")
+                for (statement,) in objects:
+                    conn.execute(statement)
+                if conn.execute("PRAGMA foreign_key_check").fetchone():
+                    raise RuntimeError("Journal migration has invalid references")
+                conn.commit()
+            except BaseException:
+                conn.rollback()
+                raise
 
     @contextmanager
     def transaction(self):
@@ -607,7 +634,7 @@ class CycleStore:
         ):
             raise CycleError("COMMAND_OUT_OF_SEQUENCE")
         if (
-            entry.command.operation == "CLOSE_INSERTION_DOOR"
+            entry.command.operation in {"CLOSE_INSERTION_DOOR", "CONFIRM_HAND_REMOVED"}
             and hand_removed is not True
         ):
             raise CycleError("HAND_REMOVAL_DECLARATION_REQUIRED", 422)
@@ -639,7 +666,7 @@ class CycleStore:
                 moving,
                 code="SIMULATION_MECHANICAL_REQUESTED",
                 updates={"hand_removed": 1}
-                if entry.command.operation == "CLOSE_INSERTION_DOOR"
+                if entry.command.operation in {"CLOSE_INSERTION_DOOR", "CONFIRM_HAND_REMOVED"}
                 else None,
             )
 
@@ -726,6 +753,7 @@ class CycleStore:
         ):
             return
         needed = {
+            "READY_TO_CAPTURE": "CONFIRM_HAND_REMOVED",
             "DOOR_OPEN": "OPEN_INSERTION_DOOR",
             "DOOR_CLOSED": "CLOSE_INSERTION_DOOR",
             "REVIEW": "CLOSE_INSERTION_DOOR",
@@ -737,10 +765,16 @@ class CycleStore:
                 (event_id, needed[row["state"]]),
             ).fetchone():
                 return
+            if row["state"] == "REVIEW" and conn.execute(
+                "SELECT 1 FROM mechanical_commands WHERE event_id=? AND operation='CONFIRM_HAND_REMOVED' AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
+                (event_id,),
+            ).fetchone():
+                return
         elif row["state"] in {
             "IDENTIFYING",
             "SAFETY",
             "PHYSICAL_BLOCKED",
+            "INSERTION_READY",
             "INDETERMINATE",
         }:
             return

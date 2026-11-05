@@ -245,7 +245,7 @@ const screens = [
       <section class="screen screen--corner screen--safety screen--stack-action">
         ${topbar("Segurança")}
         <div class="content-zone content-zone--corner content-zone--safety">
-          ${talk(assets.b1nIdeaCorner, "Antes de abrir, vamos conferir o item.", "corner safety-guide")}
+          ${talk(assets.b1nIdeaCorner, "Antes de começar, vamos conferir o item.", "corner safety-guide")}
           <div class="safety-card">
             <strong>O item está seguro?</strong>
             <div class="safety-row"><span>1</span><p>Não está vazando nem estufado.</p></div>
@@ -256,19 +256,6 @@ const screens = [
         <div class="action-zone action-zone--stack">
           <button class="primary-action" data-safety-safe>Sim, está seguro</button>
           <button class="alert-action" data-safety-risk>Encontrei um risco</button>
-        </div>
-      </section>
-    `,
-  },
-  {
-    id: "opening",
-    label: "Abrindo porta",
-    render: () => `
-      <section class="screen screen--corner screen--process screen--door-process screen--auto" data-process="opening">
-        ${topbar("Abertura", { back: false })}
-        <div class="content-zone content-zone--computing">
-          ${talk(assets.b1nIdeaCorner, "Vou abrir o compartimento para você.", "corner character-idea")}
-          ${processSignal(doorIcon(), "Abrindo com segurança", "Aguarde a confirmação da porta.", "Hardware simulado")}
         </div>
       </section>
     `,
@@ -298,23 +285,10 @@ const screens = [
         <div class="content-zone content-zone--corner content-zone--hand">
           ${talk(assets.b1nIdeaCorner, "Retire a mão antes de continuar.", "corner character-idea")}
           <div class="hand-signal" aria-hidden="true"><span class="material-hand">back_hand</span></div>
-          <div class="instruction-note"><strong>Confira a abertura</strong><span>A porta só fecha depois da sua confirmação.</span></div>
+          <div class="instruction-note"><strong>Confira a abertura</strong><span>A câmera começa depois que você retirar a mão.</span></div>
         </div>
         <div class="action-zone">
           <button class="primary-action" data-hand-confirmed>Retirei a mão</button>
-        </div>
-      </section>
-    `,
-  },
-  {
-    id: "door-progress",
-    label: "Fechando porta",
-    render: () => `
-      <section class="screen screen--corner screen--process screen--door-process screen--auto" data-process="closing">
-        ${topbar("Preparando", { back: false })}
-        <div class="content-zone content-zone--computing">
-          ${talk(assets.b1nIdeaCorner, "Agora vou preparar a câmera.", "corner character-idea")}
-          ${processSignal(doorIcon(), "Fechando a porta", "A câmera começa somente depois da confirmação.", "Hardware simulado")}
         </div>
       </section>
     `,
@@ -333,7 +307,7 @@ const screens = [
               ${cameraMode === "simulated" ? '<div class="scan-line"></div><span class="camera-label">Captura simulada</span>' : '<video data-camera-video autoplay muted playsinline hidden aria-label="Preview ao vivo da webcam"></video><canvas data-camera-canvas hidden aria-label="Imagem capturada"></canvas><span class="camera-placeholder" data-camera-placeholder>Câmera desligada</span>'}
             </div>
           </div>
-          ${cameraMode === "simulated" ? '<span class="simulation-badge">Câmera simulada</span>' : `<p class="camera-status" data-camera-status role="status" aria-live="polite">A imagem fica nesta sessão e não é armazenada. Microfone desligado.</p><span class="simulation-badge">Porta simulada fechada · ${visionMode === "remote" ? "AWS Rekognition" : "IA simulada"}</span>`}
+          ${cameraMode === "simulated" ? '<span class="simulation-badge">Câmera simulada</span>' : `<p class="camera-status" data-camera-status role="status" aria-live="polite">A imagem fica nesta sessão e não é armazenada. Microfone desligado.</p><span class="simulation-badge">${visionMode === "remote" ? "AWS Rekognition" : "IA simulada"}</span>`}
         </div>
         ${cameraMode === "simulated" ? "" : '<div class="action-zone camera-actions"><button class="primary-action" data-camera-action="start">Ativar câmera</button><button class="secondary-action" data-camera-retake hidden>Refazer captura</button><button class="secondary-action" data-return-start>Devolver item</button></div>'}
       </section>
@@ -529,19 +503,6 @@ const screens = [
     `,
   },
   {
-    id: "return-progress",
-    label: "Devolvendo item",
-    render: () => `
-      <section class="screen screen--corner screen--process screen--auto" data-auto-next="return-confirm" data-auto-delay="2200">
-        ${topbar("Devolução", { back: false })}
-        <div class="content-zone content-zone--computing">
-          ${talk(assets.b1nIdeaCorner, "Vou abrir para você retirar o item.", "corner character-idea")}
-          ${processSignal(doorIcon(), "Preparando a retirada", "Aguarde a abertura completa.", "Hardware simulado")}
-        </div>
-      </section>
-    `,
-  },
-  {
     id: "connection-interrupted",
     label: "Conexão interrompida",
     render: () => `
@@ -563,23 +524,9 @@ const screens = [
         ${topbar("Retirada", { back: false })}
         <div class="content-zone content-zone--corner content-zone--critical">
           ${talk(assets.b1nIdeaCorner, "Retire o item da abertura.", "corner character-idea")}
-          ${statusPanel("Compartimento aberto", "Confira se a abertura ficou livre antes de encerrar.", "Hardware simulado")}
+          ${statusPanel("Retire seu item", "Confira se a abertura ficou livre antes de encerrar.", "Nenhum descarte registrado")}
         </div>
         <div class="action-zone"><button class="primary-action" data-return-confirm>Retirei o item</button></div>
-      </section>
-    `,
-  },
-  {
-    id: "mechanical-error",
-    label: "Falha mecânica",
-    render: () => `
-      <section class="screen screen--corner screen--stack-action screen--critical">
-        ${topbar("Atenção", { back: false })}
-        <div class="content-zone content-zone--corner content-zone--critical">
-          ${talk(assets.b1nIdeaCorner, "O equipamento precisa de ajuda.", "corner character-idea")}
-          ${statusPanel("Movimento não confirmado", "Não toque na abertura. O Totem ficará bloqueado.", "Falha simulada")}
-        </div>
-        <div class="action-zone"><button class="alert-action" data-jump="teacher">Chamar responsável</button></div>
       </section>
     `,
   },
@@ -637,7 +584,6 @@ let demoPanelOpen = false;
 let demoPressTimer = null;
 let safetyConfirmed = false;
 let handConfirmed = false;
-let doorStatus = "closed";
 let classificationStatus = "idle";
 let recognitionOutcome = null;
 let reviewConfirmed = false;
@@ -654,8 +600,8 @@ let capturedFrame = null;
 let cameraViewVersion = 0;
 let visionOperation = null;
 
-function cameraDoorConfirmed() {
-  return doorStatus === "closed" && handConfirmed && safetyConfirmed;
+function cameraSafetyConfirmed() {
+  return handConfirmed && safetyConfirmed;
 }
 
 function visionFrame() {
@@ -676,7 +622,7 @@ function cameraFailureText(error) {
     NotReadableError: "Não consegui ler a câmera. Feche outros apps que estejam usando a webcam e tente novamente.",
     NotSupportedError: "Abra o Totem em localhost ou HTTPS, em um navegador com suporte à câmera.",
     TimeoutError: "A câmera demorou para responder. Confira a permissão e tente novamente.",
-    DoorOpenError: "Captura bloqueada: a porta precisa estar confirmada como fechada.",
+    SafetyNotConfirmedError: "Confirme que o item está seguro e retire a mão antes de capturar.",
     SecurityError: "O navegador bloqueou a câmera. Confira as permissões deste endereço.",
   };
   return messages[error.name] || "Não consegui capturar a imagem. Tente novamente ou devolva o item.";
@@ -709,9 +655,9 @@ async function activateWebcam() {
   updateCameraView("starting", "Permita o acesso à webcam no navegador. O microfone não será ativado.");
   kiosk.querySelector(".camera-preview").scrollIntoView({ block: "nearest", behavior: "auto" });
   try {
-    await webcam.start(kiosk.querySelector("[data-camera-video]"), cameraDoorConfirmed);
+    await webcam.start(kiosk.querySelector("[data-camera-video]"), cameraSafetyConfirmed);
     if (version !== cameraViewVersion) return;
-    updateCameraView("ready", "Confira o enquadramento e capture a imagem. Porta fechada simulada no PC.");
+    updateCameraView("ready", "Confira o enquadramento e capture a imagem.");
   } catch (error) {
     if (version !== cameraViewVersion || error.name === "AbortError") return;
     updateCameraView("error", cameraFailureText(error));
@@ -723,7 +669,7 @@ async function captureWebcam() {
   const version = cameraViewVersion;
   updateCameraView("capturing", "Capturando a imagem nesta sessão…");
   try {
-    const frame = await webcam.capture(kiosk.querySelector("[data-camera-canvas]"), cameraDoorConfirmed);
+    const frame = await webcam.capture(kiosk.querySelector("[data-camera-canvas]"), cameraSafetyConfirmed);
     if (version !== cameraViewVersion) return;
     capturedFrame = frame;
     webcam.stop();
@@ -766,7 +712,6 @@ function applyReviewParams() {
   pinSetupStep = params.get("firstAccess") === "1" ? "create" : "login";
   safetyConfirmed = true;
   handConfirmed = true;
-  doorStatus = "closed";
   classificationStatus = "complete";
   recognitionOutcome = "electronic";
   reviewConfirmed = true;
@@ -807,10 +752,6 @@ function editIcon() {
 
 function recordIcon() {
   return controlIcon('<path d="M6 4H18V20H6Z" /><path d="M9 8H15M9 12H15M9 16H13" />');
-}
-
-function doorIcon() {
-  return controlIcon('<path d="M6 3H18V21H6Z" /><path d="M9 6H15V18H9Z" /><path d="M13.5 12H14" />');
 }
 
 function talk(asset, text, variant = "corner") {
@@ -882,7 +823,6 @@ function scenarioPanel() {
     ["rejected", "Item recusado"],
     ["risk", "Item com risco"],
     ["unavailable", "Totem indisponível"],
-    ["mechanical", "Falha mecânica"],
     ["connection-before", "Conexão antes da queda"],
     ["connection-after", "Conexão depois da queda"],
     ["pin-error", "Falha no primeiro acesso"],
@@ -1150,21 +1090,7 @@ function render() {
   }
 
   const process = document.querySelector("[data-process]")?.dataset.process;
-  if (process === "opening") {
-    autoAdvanceTimer = setTimeout(() => {
-      if (demoScenario === "mechanical") {
-        jump("mechanical-error");
-        return;
-      }
-      doorStatus = "open";
-      jump("insert");
-    }, 2200);
-  } else if (process === "closing") {
-    autoAdvanceTimer = setTimeout(() => {
-      doorStatus = "closed";
-      jump("camera");
-    }, 3200);
-  } else if (process === "classification") {
+  if (process === "classification") {
     runVisionAnalysis("primary");
   } else if (process === "secondary") {
     runVisionAnalysis("secondary");
@@ -1249,7 +1175,7 @@ function handleKioskClick(event) {
     return;
   }
   if (target.matches("[data-safety-safe]")) {
-    startOpening();
+    startInsertion();
     return;
   }
   if (target.matches("[data-safety-risk]")) {
@@ -1261,7 +1187,7 @@ function handleKioskClick(event) {
     return;
   }
   if (target.matches("[data-hand-confirmed]")) {
-    startDoorClose();
+    confirmHandRemoved();
     return;
   }
   if (target.matches("[data-recognition-confirm]")) {
@@ -1361,16 +1287,15 @@ function cancelDemoPress() {
   clearTimeout(demoPressTimer);
 }
 
-function startOpening() {
+function startInsertion() {
   safetyConfirmed = true;
-  doorStatus = "opening";
-  jump("opening");
+  handConfirmed = false;
+  jump("insert");
 }
 
-function startDoorClose() {
+function confirmHandRemoved() {
   handConfirmed = true;
-  doorStatus = "closing";
-  jump("door-progress");
+  jump("camera");
 }
 
 async function runVisionAnalysis(stage) {
@@ -1445,8 +1370,7 @@ function completeProcessing() {
 }
 
 function startReturn() {
-  doorStatus = "opening";
-  jump("return-progress");
+  jump("return-confirm");
 }
 
 function startItemAdjustment() {
@@ -1457,8 +1381,8 @@ function startItemAdjustment() {
   classificationStatus = "idle";
   classificationOrigin = null;
   visionCandidateIds = [];
-  doorStatus = "opening";
-  jump("opening");
+  handConfirmed = false;
+  jump("insert");
 }
 
 function next() {
@@ -1477,11 +1401,8 @@ function jump(id) {
   }
 
   const blocked = (
-    (id === "opening" && !safetyConfirmed)
-    || (id === "insert" && doorStatus !== "open")
-    || (id === "hand-confirm" && doorStatus !== "open")
-    || (id === "door-progress" && !handConfirmed)
-    || (["camera", "classification"].includes(id) && doorStatus !== "closed")
+    (["insert", "hand-confirm"].includes(id) && !safetyConfirmed)
+    || (["camera", "classification"].includes(id) && !cameraSafetyConfirmed())
     || (id === "classification" && cameraMode === "real" && !capturedFrame)
     || (["recognized", "review"].includes(id) && recognitionOutcome !== "electronic")
     || (id === "computing" && !reviewConfirmed)
@@ -1638,7 +1559,6 @@ function resetState() {
   classificationOrigin = "VISION_PRIMARY";
   safetyConfirmed = false;
   handConfirmed = false;
-  doorStatus = "closed";
   classificationStatus = "idle";
   recognitionOutcome = null;
   reviewConfirmed = false;
