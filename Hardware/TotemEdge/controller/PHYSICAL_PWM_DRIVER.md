@@ -1,8 +1,9 @@
 # Base PWM física das duas escotilhas — 09/11/2026
 
-Continuação desta etapa: [PROJECT_MAPPING.md](PROJECT_MAPPING.md) define a
-convenção configurável esquerda/3 e direita/4, metadados RX/TX, preparação do
-plano das duas escotilhas e passagem explícita/comparação do JSON C/Python.
+Atualização física de 10/11: [PROJECT_MAPPING.md](PROJECT_MAPPING.md) registra,
+olhando pela frente, direita/pwmchip0/canal 3 e esquerda/pwmchip0/canal 4,
+conforme testes reais relatados no Orange Pi Zero 3. RX/TX ficam desconhecidos.
+O plano das duas escotilhas e a comparação explícita do JSON C/Python permanecem.
 O driver e os bloqueios físicos descritos abaixo são reutilizados.
 
 O STATUS técnico vigente e os contratos mecânicos mantêm atuação e confirmação
@@ -124,8 +125,9 @@ a incerteza. Nada foi alterado na composição Python, frontend, IA ou economia.
 
 ## O que impede a ativação
 
-1. Mapa RX/TX → conector/pad/pinmux → chip/canal Linux ainda não comprovado.
-   PWM3/direita e PWM4/esquerda continuam rótulos; o mapa legado não os resolve.
+1. Chip/canais dos dois motores já foram comprovados nos testes relatados:
+   chip 0, direita/3 e esquerda/4 pela frente. Falta identificação elétrica
+   específica de RX/TX, conector/pad/pinmux; não alterar o cabeamento.
 2. Frequência/período/polaridade e quatro pulsos da geometria atual não medidos.
 3. Critério/provedor de evidência de movimento e retorno inicial não definidos.
    Não foi presumido sensor nem adotado tempo de queda como prova.

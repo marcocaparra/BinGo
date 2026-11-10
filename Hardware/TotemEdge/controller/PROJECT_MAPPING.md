@@ -1,4 +1,4 @@
-# Convenção configurável e ciclo C/Python — 09/11/2026
+# Mapeamento físico pela frente e ciclo C/Python — 10/11/2026
 
 Esta atualização usa o driver físico, JSON operacional, IPC V1 e journals já
 implementados. Não há novo transporte, API HTTP, simulador ou executor alternativo.
@@ -6,32 +6,43 @@ A atuação permanece bloqueada, inclusive quando todos os campos forem declarad
 
 ## Convenção e fonte de configuração
 
-A convenção solicitada está em [operational.example.json](operational.example.json).
+A convenção definitiva de orientação é **olhando o Totem pela frente**. O
+responsável informou que os dois canais foram testados fisicamente no Orange Pi
+Zero 3 e movimentaram os motores correspondentes. Esse relato de 10/11/2026 é a
+evidência registrada em `mapping_reference`; não é uma execução física feita
+pelos testes automatizados desta alteração. Não alterar o cabeamento.
+
+O mapa confirmado está em [operational.example.json](operational.example.json).
 Esse arquivo é o modelo de configuração, não um arquivo instalado na placa.
 O arquivo local indicado por `BINGO_C_CONTROLLER_CONFIG` é a fonte efetivamente
 carregada. Não foram modificados arquivos operacionais fora do repositório.
 
-| Lado | Canal Linux definido pelo projeto | Fechada | Aberta | Ligação pretendida |
-| --- | --- | --- | --- | --- |
-| Esquerda | 3 | 113° | 5° | RX |
-| Direita | 4 | 70° | 175° | TX |
+| Lado visto pela frente | Chip Linux | Canal Linux confirmado | Fechada | Aberta | RX/TX |
+| --- | --- | --- | --- | --- | --- |
+| Direita | pwmchip0 | 3 | 70° | 175° | Não confirmado |
+| Esquerda | pwmchip0 | 4 | 113° | 5° | Não confirmado |
 
 `pwm_channel`, `closed_degrees`, `open_degrees` e `intended_signal` são campos
 explícitos por lado. O driver usa somente chip/canal e pulsos declarados; não
 deriva canais de RX/TX ou de nomes PWM. Graus são metadados, sem conversão em ns.
-Os valores podem ser ajustados no JSON com registro de homologação; não há
-segunda tabela ativa de mapeamento em C ou Python.
+Chip/canal e ângulos agora refletem o teste relatado. `intended_signal` permanece
+`null` nos dois lados; não se atribui RX/TX por posição, nome ou convenção
+anterior. Não há segunda tabela ativa de mapeamento em C ou Python.
 
-O modelo mantém `pwm_chip`, `period_ns`, `polarity`, pad/conector, quatro pulsos
-e referências de homologação como `null`. `pwmchip0` e período 20.000.000 ns
-continuam apenas no diagnóstico de evidência histórica de `dafc9ab`, não são
-defaults do driver atual. Não foram inventados pulsos para 113°/5°/70°/175°.
+O modelo agora declara `pwm_chip=0` nos dois lados. `period_ns`, `polarity`,
+pad/conector, quatro pulsos e referências de calibração/conclusão/segurança
+continuam `null`. O período 20.000.000 ns permanece referência histórica de
+`dafc9ab`, sem virar calibração atual. Não foram inventados pulsos para os ângulos.
 
 O preflight sem JSON agora informa `pwm_label=null`: ele não conhece o mapa
 operacional. O diagnóstico configurado informa os números realmente lidos do
 JSON. O laboratório antigo doorless-v1 conserva RIGHT/PWM3 e LEFT/PWM4 para
 não reinterpretar seus IDs/resultados; esses rótulos não participam do driver
-físico. A decisão posterior esquerda/3 e direita/4 prevalece na configuração física.
+físico. A configuração física vigente é direita/3 e esquerda/4, ambas no chip 0.
+O relato real substitui a convenção provisória inversa de 09/11. O objeto
+`legacy_evidence` do preflight continua descrevendo `dafc9ab` (esquerda/3,
+direita/4); não foi reescrito para aparentar que aquele commit já continha a
+orientação física confirmada agora.
 
 ## Integração com o backend
 
@@ -108,13 +119,14 @@ supor posição. O perfil legado e as suas migrações não foram recalibrados.
 
 ## Confirmações exatas no Orange Pi
 
-1. Identificar placa/revisão, imagem/kernel e overlays. Comprovar RX ligado à
-   esquerda e TX à direita no conector real e relacionar cada fio ao pad/pinmux
-   e função PWM. A intenção RX/TX não comprova disponibilidade de PWM nem
-   ausência de console/UART concorrente.
-2. Conferir onde os canais Linux 3/esquerda e 4/direita aparecem na imagem atual:
-   chip correto, `npwm`, permissões e conflitos. Confirmar se pwmchip0 realmente
-   corresponde à montagem; não preencher esse campo só pela referência antiga.
+1. Chip/canais e motores correspondentes já foram confirmados pelo teste
+   relatado: direita/chip 0/canal 3 e esquerda/chip 0/canal 4, pela frente.
+   Documentar imagem/kernel/overlays e identificar eletricamente conector,
+   pad/pinmux, RX/TX e eventuais conflitos UART/console. RX/TX não são deduzidos
+   desse teste e o cabeamento deve permanecer como está.
+2. Registrar as permissões e exclusividade dos canais na instalação do serviço.
+   O movimento observado não homologa por si só a operação concorrente,
+   recuperação ou persistência do controller.
 3. Medir e homologar período/polaridade e quatro larguras de pulso, em ns,
    correspondentes às poses esquerda 113°/5° e direita 70°/175°. Os 20 ms
    históricos e pulsos nominais antigos não são prova da calibração atual.
@@ -126,11 +138,28 @@ supor posição. O perfil legado e as suas migrações não foram recalibrados.
    Não foi afirmada existência de sensores. Tempo, escrita PWM e declaração de
    mão retirada não substituem evidência de movimento.
 6. Integrar/homologar o provedor de evidências e o executor do plano antes de
-   qualquer teste energizado; validar armazenamento, locks, falhas/restart e
-   replay com cada motor isolado e depois com ambos. Preencher referências no
-   JSON, sozinho, não satisfaz essas etapas nem libera o hardware.
+   habilitar movimentos pelo backend; validar armazenamento, locks, falhas/restart
+   e replay. Os testes reais já relatados não liberam automaticamente esse caminho.
+   Preencher referências no JSON, sozinho, não satisfaz essas etapas.
 
-## Validação sem hardware
+## Validação pontual sem hardware — 10/11/2026
+
+**77 aprovados, zero falhas/skips, 32,67 s.** Foram executados somente os testes
+focados abaixo, em container efêmero da imagem de ferramentas existente, sem
+rede/dispositivos, com checkout readonly e tmpfs temporário. As fixtures C
+compilam seus binários como parte dos testes; nenhum build/deploy operacional.
+
+```sh
+python -m pytest -q -p no:cacheprovider tests/test_c_project_mapping.py tests/test_c_controller_doorless.py tests/test_c_controller_physical.py tests/test_c_controller_operational.py --tb=short
+```
+
+Verificam o mapa atual C/Python sem RX/TX/pulsos presumidos, bloqueio físico,
+snapshot imutável mesmo após configuração divergente, idempotência, retenção,
+perfis históricos e estados indeterminados. Não foi executado hardware nesta
+correção; o teste real dos motores é o relato do responsável registrado acima.
+Nenhum schema, journal operacional, ID ou cabeamento foi alterado.
+
+## Validação anterior sem hardware — 09/11/2026
 
 Testes compilam as variantes C e o teste unitário nativo do driver; verificam
 convenção do modelo, ausência de pulsos/pinmux presumidos, concordância do plano,

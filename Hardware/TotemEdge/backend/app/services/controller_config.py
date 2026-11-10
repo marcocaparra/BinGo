@@ -11,6 +11,11 @@ class _SettingsModel(BaseModel):
 
 
 class ConfiguredHatch(_SettingsModel):
+    """Sides are viewed from the Totem's front; JSON supplies the physical map.
+
+    A tested Linux chip/channel does not establish an electrical RX/TX identity.
+    """
+
     intended_signal: Literal["RX", "TX"] | None = None
     closed_degrees: int | None = Field(default=None, ge=0, le=180)
     open_degrees: int | None = Field(default=None, ge=0, le=180)

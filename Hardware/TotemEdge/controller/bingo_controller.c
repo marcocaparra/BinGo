@@ -51,8 +51,10 @@ static int simulated_fail_after = -1;
  * Manual angle references only. No angle-to-pulse conversion is authorized.
  * Keep the legacy routines above unchanged for historical laboratory commands.
  */
-/* Retained laboratory v1 identity: never reinterpret its journal/calibration
- * using the project's later LEFT=Linux3 / RIGHT=Linux4 convention.
+/* Retained laboratory v1 identity: never reinterpret its journal/calibration.
+ * Physical orientation is viewed from the FRONT: JSON RIGHT=chip0/channel3,
+ * LEFT=chip0/channel4 (reported hardware tests 2026-11-10). These laboratory
+ * labels are not used to derive the physical mapping or RX/TX wiring.
  */
 #define LAB_RIGHT_PWM_LABEL 3
 #define LAB_LEFT_PWM_LABEL 4

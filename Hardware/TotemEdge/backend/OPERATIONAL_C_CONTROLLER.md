@@ -1,8 +1,9 @@
 # Comunicação operacional Python ↔ C bloqueada — 07/11/2026
 
-Convenção/configuração e integração atualizadas em 09/11:
-[PROJECT_MAPPING.md](../controller/PROJECT_MAPPING.md). O JSON define esquerda no
-canal 3 e direita no 4; RX/TX são apenas intenção. Python agora encaminha o JSON
+Mapeamento atualizado em 10/11, após os testes reais relatados no Orange Pi Zero 3:
+[PROJECT_MAPPING.md](../controller/PROJECT_MAPPING.md). Olhando pela frente, o
+JSON define direita em pwmchip0/canal 3 e esquerda em pwmchip0/canal 4. RX/TX
+ficam desconhecidos (`null`), sem alteração do cabeamento. Python encaminha o JSON
 explicitamente ao C e verifica o mapa/plano retornados. A dependência anterior
 da variável herdada pelo filho não se aplica mais. Atuação permanece bloqueada.
 
@@ -42,9 +43,10 @@ pulsos calculados, sensor presumido ou chave para habilitar movimento.
   conclusão e segurança/recuperação. Referências textuais não comprovam
   homologação por si só. Canal compartilhado e pulso >= período são inválidos.
 
-PWM3/direita e PWM4/esquerda continuam sendo rótulos conhecidos no C, com
-70°/175° e 113°/5°. O JSON nomeia os lados, sem converter rótulos em índices
-Linux. Os números históricos nunca são usados como valores ausentes.
+O JSON registra o mapa físico confirmado: direita/canal 3 com 70°/175° e
+esquerda/canal 4 com 113°/5°, ambas no chip 0, vistas pela frente. O C e o Python
+leem esse arquivo; não deduzem canais de RX/TX. Referências e resultados históricos
+conservam seus significados originais, sem preencher calibração ausente.
 
 Sem variável de configuração, o padrão continua `UnavailableController` e
 nenhum processo C é criado. Arquivo inválido, ausente, maior que 16 KiB,

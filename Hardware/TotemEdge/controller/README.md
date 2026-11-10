@@ -1,11 +1,13 @@
 # Comunicação local Python ↔ C
 
-## Convenção do projeto e plano das duas escotilhas — 09/11/2026
+## Mapeamento físico confirmado — 10/11/2026
 
-O JSON operacional centraliza ESQUERDA → canal Linux 3 → 113°/5° e DIREITA →
-canal Linux 4 → 70°/175°. RX/esquerda e TX/direita são metadados de ligação
-pretendida, não provas de pinmux. Chip, período, polaridade e pulsos continuam
-sem valores operacionais presumidos; pwmchip0/20 ms são referência histórica.
+Olhando o Totem pela frente: DIREITA → pwmchip0/canal Linux 3 → 70°/175°;
+ESQUERDA → pwmchip0/canal Linux 4 → 113°/5°. Os dois motores correspondentes
+movimentaram nos testes reais relatados pelo responsável no Orange Pi Zero 3.
+O JSON operacional registra esse mapa, sem alterar o cabeamento. RX/TX ficam
+`null`, pois não há confirmação elétrica específica. Período, polaridade e
+pulsos calibrados permanecem pendentes; 20 ms é referência histórica.
 
 Python passa o JSON explicitamente ao C e compara seu diagnóstico com a
 configuração validada. O plano configurável prepara abertura das duas,

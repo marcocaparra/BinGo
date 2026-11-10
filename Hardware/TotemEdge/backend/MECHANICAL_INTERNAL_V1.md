@@ -1,10 +1,12 @@
 # Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
-## Convenção configurável e plano C/Python — 09/11/2026
+## Mapeamento físico pela frente e plano C/Python — 10/11/2026
 
-O JSON operacional define esquerda/canal Linux 3 (113°/5°) e direita/canal 4
-(70°/175°). RX/TX são ligação pretendida, com pinmux pendente. Graus não viram
-pulsos. Python passa o arquivo explicitamente ao C e compara o diagnóstico de
+O JSON operacional define direita/pwmchip0/canal Linux 3 (70°/175°) e
+esquerda/pwmchip0/canal 4 (113°/5°), olhando pela frente, conforme os dois motores
+movimentados nos testes reais relatados pelo responsável no Orange Pi Zero 3.
+RX/TX permanecem `null`, sem comprovação elétrica ou mudança do cabeamento.
+Graus não viram pulsos. Python passa o arquivo explicitamente ao C e compara o diagnóstico de
 mapa e plano antes de conectar. O plano prepara as duas aberturas, evidências
 de abertura/queda, os dois fechamentos e evidência de retorno inicial, sem ordem
 ou tempo implícitos. Atuação, provedor de evidência e conclusão física continuam

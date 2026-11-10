@@ -1,6 +1,17 @@
 STATUS técnico — BinGo
 
-TotemEdge, convenção e plano das escotilhas C/Python (09/11/2026): o JSON
+TotemEdge, correção pontual após teste físico relatado (10/11/2026): olhando o
+Totem pela frente, DIREITA → pwmchip0/canal Linux 3 → 70° fechada/175° aberta;
+ESQUERDA → pwmchip0/canal 4 → 113° fechada/5° aberta. O responsável confirmou
+movimento dos motores correspondentes no Orange Pi Zero 3. JSON corrigido sem
+alterar cabeamento; RX/TX desconhecidos, pulsos calibrados não presumidos.
+Journals históricos, IDs, idempotência e bloqueios físicos preservados. Referência:
+Hardware/TotemEdge/controller/PROJECT_MAPPING.md. A convenção provisória de
+09/11 abaixo foi substituída; descreve o histórico, não o mapa físico vigente.
+Validação desta correção: 77 testes focados aprovados, zero falhas/skips, 32,67 s;
+sem hardware, mudanças em câmera/IA/interface/Docker, commit, push ou deploy.
+
+Histórico — TotemEdge, convenção e plano das escotilhas C/Python (09/11/2026): o JSON
 operacional define esquerda/canal Linux 3 (113°/5°) e direita/canal 4 (70°/175°).
 RX/esquerda e TX/direita são intenções, ainda sem comprovação de pinmux. Chip e
 período atuais, polaridade e pulsos permanecem pendentes; pwmchip0/20 ms são

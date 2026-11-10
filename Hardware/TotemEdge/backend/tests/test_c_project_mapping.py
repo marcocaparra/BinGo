@@ -44,14 +44,16 @@ async def test_project_mapping_is_explicit_without_pinmux_or_pulse_inference(
         left.closed_degrees,
         left.open_degrees,
         left.intended_signal,
-    ) == (3, 113, 5, "RX")
+    ) == (4, 113, 5, None)
     assert (
         right.pwm_channel,
         right.closed_degrees,
         right.open_degrees,
         right.intended_signal,
-    ) == (4, 70, 175, "TX")
-    assert left.pwm_chip is right.pwm_chip is settings.physical.period_ns is None
+    ) == (3, 70, 175, None)
+    assert left.pwm_chip == right.pwm_chip == 0
+    assert settings.physical.period_ns is settings.physical.polarity is None
+    assert "2026-11-10" in settings.physical.mapping_reference
     assert left.closed_pulse_ns is left.open_pulse_ns is None
     assert right.closed_pulse_ns is right.open_pulse_ns is None
     assert (
@@ -97,18 +99,25 @@ async def test_backend_passes_same_json_explicitly_and_retains_rejected_cycle(
             row[0] == str(request.mechanical_command_id) and json.loads(row[1]) == data
         )
     # A changed config does not reinterpret the retained C order identity.
-    data["physical"]["right"]["intended_signal"] = "RX"
+    # Synthetic configuration drift only; never alter the proven wiring/map.
+    data["physical"]["right"]["pwm_channel"] = 9
     path.write_text(json.dumps(data))
     controller, readiness = await CProcessController.open_operational(
         path, backend_journal=store.path
     )
     assert (
-        readiness.configured_physical.right.pwm_channel == 4
-    )  # No RX -> 3 conversion.
+        readiness.configured_physical.right.pwm_channel == 9
+    )  # Retained IDs must not be reinterpreted even under a valid new config.
     try:
         with pytest.raises(ControllerError) as error:
             await controller.submit(request)
         assert error.value.code == "C_ID_CONFLICT"
+        with sqlite3.connect(tmp_path / "c.db") as db:
+            retained = json.loads(
+                db.execute("SELECT configuration FROM orders").fetchone()[0]
+            )
+            assert retained["physical"]["right"]["pwm_channel"] == 3
+            assert retained["physical"]["left"]["pwm_channel"] == 4
     finally:
         await controller.aclose()
         store.close()
