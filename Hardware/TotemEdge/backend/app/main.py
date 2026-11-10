@@ -72,6 +72,8 @@ def create_app(
                 source = (
                     "UNAVAILABLE"
                     if isinstance(controller, UnavailableController)
+                    else controller.source
+                    if isinstance(controller, CProcessController)
                     else "SIMULATED"
                 )
             else:
@@ -80,12 +82,16 @@ def create_app(
                     backend_journal=sqlite_path,
                 )
                 source = "UNAVAILABLE"
-            mechanical = MechanicalService(
-                store,
-                controller,
-                source=source,
-                auto_initial=bool(getattr(_simulation, "dev_integration", False)),
-            )
+            try:
+                mechanical = MechanicalService(
+                    store,
+                    controller,
+                    source=source,
+                    auto_initial=bool(getattr(_simulation, "dev_integration", False)),
+                )
+            except BaseException:
+                await controller.aclose()
+                raise
             try:
                 application.state.controller = controller
                 # Startup snapshot. A connected C controller also exposes its

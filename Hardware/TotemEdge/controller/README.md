@@ -1,18 +1,55 @@
 # Comunicação local Python ↔ C
 
+## Vigente: executor C joint-v1 — 10/11/2026
+
+O C executa abertura conjunta, hold de 5000 ms, fechamento conjunto e
+estabilização de 5000 ms com CLOCK_MONOTONIC, sob a política versionada
+`operational-sequence-v1`. Verifica primeiro comandos PWM habilitados/calibrados
+como fechados; sucesso significa execução operacional, sem medir pose ou queda.
+Reutiliza IPC V1, driver, locks e journal (migração física v2/v3→v4 sem mudar IDs,
+snapshots ou resultados históricos). Falha/interrupção/timeout mantém UNKNOWN,
+sem redisparo, fechamento corretivo ou desligamento automático.
+
+O Python reconhece/diagnostica essa configuração, mas não inicia o receptor
+ativo; backend e economia continuam bloqueados. Não há flag de habilitação.
+Roteiro mínimo para o primeiro ensaio supervisionado do **executor C**, critérios
+e limites estão em [PHYSICAL_PWM_DRIVER.md](PHYSICAL_PWM_DRIVER.md).
+As próximas seções documentam incrementos anteriores, sem substituírem esse estado.
+
+## Plano conjunto joint-v1 e permanência de cinco segundos — 10/11/2026
+
+C e Python agora validam `physical.cycle.mode="joint-v1"`, com
+`hold_open_ms=5000`, `hold_start="after_both_open_commands"` e
+`hold_clock="monotonic"`. O plano é REQUIRE_INITIAL_CLOSED → OPEN_BOTH →
+HOLD_OPEN → CLOSE_BOTH → AWAIT_INITIAL_EVIDENCE. Os comandos de cada par
+pertencem ao mesmo estágio; os cinco segundos começam após ambas as escritas
+de abertura bem-sucedidas, sem comprovar pose/queda. Ordens sequenciais são
+proibidas nesse modo. Ausência de modo conserva o contrato legado sem reinterpretar IDs.
+
+O diagnóstico compara etapas **e** política temporal. Planejar não atua nem
+espera cinco segundos. Despacho físico, confirmação, parada e recuperação
+continuam bloqueados; não houve alteração de IPC/journals/locks ou novo executor.
+Contrato e limites: [PROJECT_MAPPING.md](PROJECT_MAPPING.md).
+
 ## Mapeamento físico confirmado — 10/11/2026
 
 Olhando o Totem pela frente: DIREITA → pwmchip0/canal Linux 3 → 70°/175°;
 ESQUERDA → pwmchip0/canal Linux 4 → 113°/5°. Os dois motores correspondentes
 movimentaram nos testes reais relatados pelo responsável no Orange Pi Zero 3.
 O JSON operacional registra esse mapa, sem alterar o cabeamento. RX/TX ficam
-`null`, pois não há confirmação elétrica específica. Período, polaridade e
-pulsos calibrados permanecem pendentes; 20 ms é referência histórica.
+`null`, pois não há confirmação elétrica específica. A calibração real aprovada
+em 10/11 já consta no JSON: período 20 ms, polaridade normal; direita fechada/
+aberta 1.750.000/600.000 ns e esquerda 1.350.000/2.300.000 ns, sem alterar graus.
 
 Python passa o JSON explicitamente ao C e compara seu diagnóstico com a
 configuração validada. O plano configurável prepara abertura das duas,
 evidências de abertura/queda, fechamento das duas e evidência de retorno inicial.
-Não há ordem implícita, tempo como prova ou movimento liberado. Os rótulos do
+O responsável aprovou abertura e fechamento conjuntos, praticamente simultâneos,
+já testados com queda de objeto. `open_order`/`close_order` são sequenciais e
+permanecem `null`; o novo modo acima representa a decisão. A permanência está
+definida no plano, mas seu executor e os critérios de conclusão/parada/recuperação
+não foram implementados ou liberados.
+Não há tempo como prova ou movimento liberado. Os rótulos do
 laboratório doorless-v1 permanecem históricos e imutáveis, não são mapa físico.
 
 Detalhes, testes e pendências: [PROJECT_MAPPING.md](PROJECT_MAPPING.md).

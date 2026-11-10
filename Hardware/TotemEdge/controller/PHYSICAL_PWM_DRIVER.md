@@ -1,10 +1,196 @@
 # Base PWM física das duas escotilhas — 09/11/2026
 
+## Atualização de integração Python/IPC — 10/11/2026
+
+O backend preparou o lifecycle PHYSICAL do mesmo executor, mantendo a composição
+operacional bloqueada até homologação supervisionada. O driver/plano/PWM/calibração
+abaixo não foram reimplementados ou alterados neste incremento. IPC V1 e journal
+C v4 permanecem; GET passou a recusar snapshot diferente do carregado com
+CONFIGURATION_CONFLICT, evitando atribuir um resultado antigo a outra configuração.
+O receptor sem configuração continua permitindo inspeção histórica bloqueada.
+
+Python persiste snapshot/intenção antes de SUBMIT, utiliza budget de 30 s (10 s
+de esperas + 20 s técnicos) e consulta pelo restante do prazo. Sucesso é somente
+operacional; sessão, sensores/physical_confirmed e economia não são confirmados.
+EOF/SIGTERM no lifecycle físico inibem novas escritas pelo C; o adaptador não usa
+SIGKILL nem presume que motores pararam. Recuperação usa GET explícito do mesmo
+ID, sem redisparo e sem promover UNKNOWN. C conserva locks e política de falha.
+
+O harness existente foi estendido apenas para testes de IPC com peers/sinais reais
+e espera controlada no syscall, sem PWM real nem opções de fault injection no
+executável de produção. Validação: **430 testes focados aprovados, zero falhas/skips,
+34,15 s**, com compilação C. Contratos, arquivos e ligação futura do fluxo de tela:
+[OPERATIONAL_C_CONTROLLER.md](../backend/OPERATIONAL_C_CONTROLLER.md).
+
+## Vigente: executor C conjunto e conclusão operacional — 10/11/2026
+
+Esta seção substitui os bloqueios de execução integral descritos nas etapas
+históricas abaixo. O responsável aprovou conclusão **operacional** pela execução
+integral sem erro detectado; sensores, posição medida e queda independente não
+foram declarados. O backend continua sem despacho PHYSICAL e sem crédito econômico.
+
+O mesmo `physical.cycle`/plano `joint-v1` recebe uma extensão explícita:
+
+```json
+"completion_policy": "operational-sequence-v1",
+"initial_condition": "closed_pwm_readback",
+"close_settle_ms": 5000
+```
+
+Esses três campos são um grupo obrigatório; não são uma flag de habilitação.
+`hold_open_ms=5000`, marco `after_both_open_commands` e relógio `monotonic`
+continuam obrigatórios. Ambos os tempos são inteiros estritos de 5000 ms nesta
+versão. Ordens sequenciais continuam proibidas. Sem a extensão, o joint-v1 anterior
+continua terminando em AWAIT_INITIAL_EVIDENCE e não executa. Sem `mode`, preserva-se
+o plano sequencial/ausente anterior. Snapshots antigos nunca recebem essa política.
+
+Plano operacional C/Python: **REQUIRE_CLOSED_PWM → OPEN_BOTH → HOLD_OPEN →
+CLOSE_BOTH → SETTLE_CLOSED**. O executor C reutiliza o driver/syscalls e os locks
+existentes; não encadeia duas chamadas `pwm_pose`, cuja inibição por resultado
+desconhecido é preservada. O IPC aceita somente CYCLE_LOWER_HATCH neste modo.
+
+1. Depois de COMMIT durável de PHYSICAL/ACCEPTED no journal, adquire ambos os
+   locks globais. Abre somente canais **já exportados**; exige `enable=1`, período,
+   polaridade e duty de fechamento iguais ao snapshot. Não exporta, habilita,
+   reconfigura ou faz homing. Essa leitura comprova o comando PWM, **não a pose**.
+2. Escreve os dois duties de abertura consecutivamente, sem espera de motor.
+   sysfs não garante bordas elétricas simultâneas. Somente depois das duas
+   escritas bem-sucedidas começa HOLD_OPEN de 5000 ms com CLOCK_MONOTONIC.
+3. Escreve ambos os duties de fechamento no mesmo estágio e aguarda mais
+   5000 ms monotônicos após ambas as escritas bem-sucedidas. Sucesso significa
+   que a sequência operacional acabou sem falha detectada; não physical_confirmed.
+
+Evidência informada pelo responsável em 10/11/2026: script presencial
+`/tmp/bingo_teste_duas_escotilhas.sh`, Orange Pi Zero 3 montado, 3000 ms inicialmente
+fechado, 5000 ms aberto, 5000 ms após fechamento conjunto. Alinhamento, abertura,
+queda de objeto e retorno aprovados visualmente. Os **5000 ms após fechamento**
+foram aprovados como duração operacional; não constituem tempo mínimo físico.
+Os 3000 ms iniciais documentam o teste e não são uma espera implícita do executor.
+O script foi relatado pelo responsável; não está sendo recuperado nem executado aqui.
+
+### Admissão, journal e falhas
+
+Configuração numérica válida, política completa e referências de mapa,
+calibração, conclusão operacional e homologação do ciclo são exigidas. RX/TX,
+pin/pad continuam desconhecidos e não são usados para derivar chip/canal.
+`safety_recovery_reference=null` não autoriza desligamento ou recuperação.
+O JSON exemplo registra as aprovações recebidas, sem instalar nada na placa.
+
+O diagnóstico somente leitura mantém os campos antigos e acrescenta
+`c_executor_configured`; esse campo não consulta hardware nem garante prontidão.
+O handshake configurado é `V1 READY PHYSICAL DOORLESS_V1 OPERATIONAL_SEQUENCE_V1`;
+sem a política/referências exigidas continua UNAVAILABLE/PHYSICAL_BLOCKED.
+SUBMIT/GET e os campos V1 não mudaram. O timeout de comando precisa ser **maior
+que 10 s** (as duas esperas mais I/O); 30 s é um orçamento para teste supervisionado,
+não um tempo de movimento. O timeout é monotônico e abrange a sequência inteira.
+
+Journal físico **v4**, mesma application_id e mesmas dez colunas: migração
+transacional de v2/v3 preserva rowids, IDs, resultados, origem e snapshots exatos.
+v4 permite COMPLETED/SUCCEEDED/PHYSICAL somente para CYCLE_LOWER_HATCH com
+`completion_policy=operational-sequence-v1` no snapshot. Nunca promove registros
+antigos; ACCEPTED após reinício vira FAILED/UNKNOWN antes de qualquer I/O.
+Journal Python e journal/perfis de laboratório não migram neste incremento.
+
+Falha de qualquer canal, escrita curta, erro de close, condição inicial divergente,
+SIGINT/SIGTERM, timeout, erro de relógio ou desconexão detectada durante o ciclo
+gera FAILED/UNKNOWN/EXECUTION_ERROR, inibe novas escritas e bloqueia novos IDs.
+O laço verifica interrupção/prazo/perda de peer entre escritas e em esperas de até
+20 ms. Syscalls sysfs dependem do kernel; isso não é garantia de parada em tempo real.
+Não há fechamento corretivo nem desenergização automática: **o último PWM pode
+continuar aplicado**. Interrupção não significa que o motor foi fisicamente parado.
+Processo morto antes da atualização final deixa intenção ACCEPTED durável para
+recuperação UNKNOWN. IDs repetidos retornam DUPLICATE; mudar o snapshot retorna
+ID_CONFLICT; um novo ID para evento já executado também não repete o ciclo.
+GET só lê. Perda da resposta pode deixar o chamador indeterminado, mesmo com um
+resultado já durável no C: consultar o mesmo ID, jamais reenviar automaticamente.
+
+### Primeiro ciclo supervisionado no Orange Pi
+
+1. Compilar o C existente com SQLite/JSON disponível, sem BINGO_PWM_SIMULATED;
+   conferir paths de executável/JSON/journal, permissões sysfs e locks globais.
+   Manter banco e arquivo de configuração persistentes e separados do Python.
+2. Conferir presencialmente direita=pwmchip0/pwm3, esquerda=pwmchip0/pwm4,
+   período 20000000 ns, normal e os quatro pulsos aprovados. Preservar cabeamento;
+   não usar RX/TX como prova elétrica. Verificar alinhamento/área livre e um meio
+   presencial seguro de interromper a alimentação, pois não há recuperação automática.
+3. Preparar pelas rotinas presenciais já aprovadas ambas fechadas e com PWM
+   **habilitado**. Ler enable/period/polarity/duty_cycle dos dois canais; se não
+   coincidirem, não tentar usar o executor para homing ou corrigir a montagem.
+   Validar essa condição inicial de comando durante a homologação do executor.
+4. Executar `--physical-config /caminho/absoluto/controller.json` (não move).
+   Iniciar o mesmo binário numa sessão interativa mantendo stdin/stdout abertos:
+
+   ```text
+   binario --ipc-physical /caminho/absoluto/controller.sqlite3 --profile doorless-v1 --config /caminho/absoluto/controller.json
+   V1 SUBMIT <uuid-comando> <uuid-evento> CYCLE_LOWER_HATCH 30
+   V1 GET <uuid-comando>
+   ```
+
+   Usar UUIDs válidos minúsculos e o mesmo journal. Não usar pipe que feche stdin
+   depois de SUBMIT. A aceitação é emitida antes do movimento; GET é atendido
+   após a tentativa. Observar juntas a abertura, a permanência e o fechamento;
+   conferir o resultado e o snapshot no journal. O ensaio físico do **executor C**
+   ainda não foi realizado, embora o ciclo no script já tenha sido aprovado.
+5. Se houver UNKNOWN ou perda de resposta, consultar/inspecionar o mesmo ID e
+   parar o ensaio. Não criar outro ID, limpar banco ou reiniciar para contornar
+   risco. Reconciliação, parada mecânica e recuperação continuam pendentes de
+   política presencial homologada, sem mecanismo de desbloqueio automático.
+
+Testes sem hardware: `test_c_joint_executor.py` usa o harness nativo existente,
+com injeção de falhas e relógio nos syscalls de link. Confere intenção commitada
+por um leitor SQLite independente antes de cada escrita. Não há outro driver,
+simulador, raiz sysfs configurável ou opção de fault injection no binário real.
+
+Validação final deste incremento: **376 testes aprovados, zero falhas/skips,
+44,48 s**, compilando C11 com -Wall -Wextra -Werror. Inclui configuração inválida,
+concordância C/Python, durações, condições iniciais divergentes, falha de apenas
+um canal na abertura/fechamento, escrita curta/erro de close, interrupção em
+HOLD_OPEN/SETTLE_CLOSED, timeout, erro de relógio, perda de peer, crash após intenção,
+reinício, replay/ID_CONFLICT, evento repetido e migração histórica v2/v3.
+Uma rodada anterior teve 375 aprovados e timeout no subprocesso da CLI Python
+(10 s); esse caso passou isolado e na repetição integral, sem aumentar limites.
+A imagem de testes já existente foi utilizada, sem alterar Docker ou acessar hardware.
+
+```sh
+python -m pytest -q -p no:cacheprovider tests/test_c_joint_executor.py tests/test_c_joint_cycle.py tests/test_c_project_mapping.py tests/test_c_pwm_driver.py tests/test_c_controller.py tests/test_c_controller_doorless.py tests/test_c_controller_operational.py tests/test_c_controller_physical.py tests/test_mechanical_journal.py tests/test_mechanical_boundary.py tests/test_controller.py tests/test_doorless_flow.py --tb=short
+```
+
+Arquivos deste incremento, além das alterações anteriores já presentes na branch:
+
+- C/configuração: `controller/bingo_pwm.inc`, `bingo_ipc.inc`,
+  `operational.example.json` e `tests/pwm_driver_test.c`.
+- Python: `backend/app/services/controller_config.py` e `c_controller.py`.
+- Testes backend: `test_c_joint_executor.py`, `test_c_joint_cycle.py`,
+  `test_c_project_mapping.py` e `test_c_pwm_driver.py`.
+- Contratos: este documento, `controller/PROJECT_MAPPING.md`, `README.md`,
+  `backend/OPERATIONAL_C_CONTROLLER.md`, `MECHANICAL_INTERNAL_V1.md` e
+  `Software/docs/STATUS_12-08.md`.
+
+## Histórico: preparação do plano e das primitivas
+
+Plano conjunto implementado em 10/11: `joint-v1` usa estágios OPEN_BOTH e
+CLOSE_BOTH, com HOLD_OPEN de 5.000 ms monotônicos após os dois comandos de
+abertura. C e Python concordam em etapas e parâmetros temporais; o modo ausente
+preserva o plano antigo. Apenas contrato/plano/diagnóstico evoluíram: as primitivas
+PWM, locks, journal físico v3 e bloqueios de execução foram preservados. O
+driver não executa o novo plano até haver confirmação/parada/recuperação homologadas.
+Detalhes: [PROJECT_MAPPING.md](PROJECT_MAPPING.md).
+
 Atualização física de 10/11: [PROJECT_MAPPING.md](PROJECT_MAPPING.md) registra,
 olhando pela frente, direita/pwmchip0/canal 3 e esquerda/pwmchip0/canal 4,
 conforme testes reais relatados no Orange Pi Zero 3. RX/TX ficam desconhecidos.
 O plano das duas escotilhas e a comparação explícita do JSON C/Python permanecem.
 O driver e os bloqueios físicos descritos abaixo são reutilizados.
+
+Registro adicional de 10/11: calibração física aprovada (direita fechada/aberta
+1.750.000/600.000 ns; esquerda 1.350.000/2.300.000 ns; período 20.000.000 ns,
+polaridade normal). Foram relatados fechamento alinhado, abertura adequada,
+ciclo conjunto e queda de objeto. A decisão final é abrir e fechar ambas
+praticamente simultaneamente. O plano novo representa essa decisão; as primitivas
+por lado ainda não constituem um executor de par. Ordens sequenciais ficam `null`
+no modo conjunto e conservam somente o significado histórico no modo ausente.
+Evidência e inventário preciso das evoluções C/Python pendentes estão em
+[PROJECT_MAPPING.md](PROJECT_MAPPING.md). Não foi liberada atuação.
 
 O STATUS técnico vigente e os contratos mecânicos mantêm atuação e confirmação
 físicas bloqueadas. Esta etapa implementa a base C de I/O, comandos internos por
@@ -128,12 +314,16 @@ a incerteza. Nada foi alterado na composição Python, frontend, IA ou economia.
 1. Chip/canais dos dois motores já foram comprovados nos testes relatados:
    chip 0, direita/3 e esquerda/4 pela frente. Falta identificação elétrica
    específica de RX/TX, conector/pad/pinmux; não alterar o cabeamento.
-2. Frequência/período/polaridade e quatro pulsos da geometria atual não medidos.
+2. Período, polaridade e quatro pulsos já foram aprovados na montagem real e
+   registrados no JSON. Isso não homologa o executor conjunto, permanência
+   aberta ou critérios automáticos de conclusão; referências formais do modelo
+   permanecem sem preenchimento neste incremento.
 3. Critério/provedor de evidência de movimento e retorno inicial não definidos.
    Não foi presumido sensor nem adotado tempo de queda como prova.
 4. Política segura de parada/torque/obstrução/recuperação ainda não homologada.
-5. Política de ciclo autorizado e sua integração com evidências/journal ainda
-   precisam ser implementadas após essas definições. Os permits internos são
+5. O ciclo final aprovado é conjunto e seu plano já representa cinco segundos
+   de permanência comandada. Faltam executor e integração com evidências/journal,
+   implementação da contagem e política de parada/recuperação. Os permits internos são
    falsos, não preenchíveis pelo JSON, e não há caller físico de produção.
 
 Portanto não há comando de produção capaz de testar motores energizados nesta

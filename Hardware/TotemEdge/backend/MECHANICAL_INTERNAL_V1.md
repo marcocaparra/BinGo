@@ -1,5 +1,101 @@
 # Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
+## Integração Python/C preparada com gate de homologação — 10/11/2026
+
+O mesmo CProcessController/MechanicalService agora suporta a capacidade privada
+PHYSICAL/joint-v1 do C existente, sem nova API, serviço ou driver. A composição
+operacional FastAPI permanece bloqueada em `open_operational` por
+PHYSICAL_SUPERVISION_PENDING; não há flag de ativação. A composição preparada
+é exercitada somente pelos subprocessos/harness controlados dos testes.
+
+INTENT + snapshot imutável são commitados no journal Python antes de DISPATCHING
+e SUBMIT. O adaptador verifica essa barreira e compartilha com o C uma cópia
+estável dos mesmos bytes JSON. A extensão mechanical_controller_bindings é
+aditiva no SQLite existente; IDs e registros antigos não ganham snapshot inferido.
+Journal C continua v4, IPC continua V1. GET configurado recusa snapshot diferente
+com CONFIGURATION_CONFLICT, sem alterar história. Budget físico preparado: 30 s,
+sendo 10 s das esperas comandadas e 20 s de margem técnica, sem alterar timeouts
+de IDs antigos. A consulta de conclusão usa o restante do prazo original.
+
+COMPLETED/SUCCEEDED no comando PHYSICAL é somente conclusão operacional C;
+physical_confirmed, payload, recibo/economia e conclusão de descarte continuam
+bloqueados. O bloqueio de sessão INDETERMINATE/slot retido após PHYSICAL permanece.
+Não há CONFIRM_INITIAL_STATE automático nem porta superior.
+
+Falhas/ambiguidade mantêm UNKNOWN e nenhum caminho reenvia após reinício.
+Encerramento físico usa EOF/SIGTERM cooperativo ao C, sem SIGKILL, sem afirmar
+parada mecânica ou remover torque. Recuperação explícita por reconcile(id) usa
+somente GET e registra observação no histórico, conservando INDETERMINATE até
+política homologada, inclusive se C já tiver concluído. INTENT não despachado
+permanece abortado, sem tentativa automática. Registros sem binding ficam bloqueados.
+
+430 testes focados passaram, zero falhas/skips, 34,15 s, compilando C e sem hardware.
+Contratos completos, arquivos, comando de testes e passos para ligar as ações
+existentes da tela: [OPERATIONAL_C_CONTROLLER.md](OPERATIONAL_C_CONTROLLER.md).
+As seções abaixo registram etapas anteriores, substituídas por esta preparação.
+
+## Executor C conjunto com conclusão operacional — 10/11/2026
+
+Vigente: o responsável aprovou conclusão por execução integral do ciclo sem erro
+detectado, sem sensores, pose medida ou confirmação independente de queda.
+`joint-v1` foi reutilizado com extensão opcional versionada
+`completion_policy=operational-sequence-v1`, `initial_condition=closed_pwm_readback`
+e `close_settle_ms=5000`. Plano operacional C/Python: REQUIRE_CLOSED_PWM → OPEN_BOTH
+→ HOLD_OPEN → CLOSE_BOTH → SETTLE_CLOSED. Hold e estabilização são 5000 ms
+monotônicos após as duas escritas correspondentes. O tempo de fechamento foi
+confirmado pelo responsável no script presencial; não é mínimo físico nem prova.
+
+Somente o C pode executar este incremento, depois de intenção commitada e locks;
+verifica comandos PWM já habilitados/calibrados como fechados antes de escrever.
+Falha parcial, timeout, interrupção ou perda detectada de comunicação geram
+UNKNOWN, bloqueando novos IDs. Reinício nunca repete ACCEPTED. Mesmo evento
+com ID novo não repete ciclo já executado. Sem correção/fechamento/disable automático.
+Históricos e planos sem extensão conservam semântica, snapshots e IDs.
+Journal físico v4 migra v2/v3 sem mudar resultados antigos; V1, journal Python
+e laboratório não mudam. A origem PHYSICAL não se torna prova de pose/queda.
+
+O Python apenas valida/compara/diagnostica e impede a abertura de processo C
+ativo. MechanicalService continua recusando PHYSICAL. Integração PHYSICAL,
+reconciliação e parada/recuperação exigem incremento específico; economia continua
+bloqueada. Contratos atuais: [driver](../controller/PHYSICAL_PWM_DRIVER.md) e
+[integração](OPERATIONAL_C_CONTROLLER.md). As seções abaixo são históricas;
+exigências anteriores de confirmação independente não se aplicam à conclusão
+operacional explicitamente versionada, e continuam válidas para registros antigos.
+
+## Plano conjunto C/Python sem despacho — 10/11/2026
+
+`joint-v1` explicita abertura/fechamento de ambas no mesmo estágio e permanência
+comandada de 5.000 ms monotônicos após ambas as escritas de abertura bem-sucedidas.
+O plano de cinco etapas começa exigindo estado inicial fechado e termina em
+AWAIT_INITIAL_EVIDENCE; PWM e tempo não confirmam pose/queda/conclusão. Não há
+espera por um motor terminar para representar o comando do outro.
+
+Validadores C/Python recusam ordem sequencial misturada, duração diferente,
+tipos/unidades ambíguos, marco e relógio incorretos. Sem modo, o contrato antigo
+continua idêntico. Diagnóstico compara plano e política temporal; metadados
+ausentes/divergentes falham fechados. Configuração nova não reinterpreta ID/snapshot
+antigo. IPC V1, journal C v3, journal Python, locks e UNKNOWN/INDETERMINATE permanecem.
+Não foi alterada a recusa PHYSICAL de MechanicalService ou o permit do C.
+Confirmação, parada, recuperação e executor físico seguem pendentes.
+[PROJECT_MAPPING.md](../controller/PROJECT_MAPPING.md) contém o contrato e os limites.
+
+## Calibração real e decisão de movimento conjunto — 10/11/2026
+
+O responsável aprovou testes montados no Orange Pi Zero 3: fechamento alinhado,
+abertura adequada, ciclo conjunto e queda de objeto. Pulsos registrados no JSON:
+direita/canal 3 fechada 1.750.000 ns, aberta 600.000 ns; esquerda/canal 4
+fechada 1.350.000 ns, aberta 2.300.000 ns; ambas no chip 0, período
+20.000.000 ns e polaridade normal. Graus preservados, orientação pela frente.
+RX/TX e recuperação não foram inferidos.
+
+A decisão aprovada é abrir e fechar ambas praticamente simultaneamente, após
+começar fechadas e com permanência aberta conforme política ainda a homologar.
+O contrato atual `open_order`/`close_order` e seus planos C/Python são
+sequenciais: permanecem `null`, sem representar falsamente movimento conjunto.
+Não houve mudança de executor, validadores, IPC, schemas, journals ou autorização.
+Evidência, divergência e componentes exatos a evoluir:
+[PROJECT_MAPPING.md](../controller/PROJECT_MAPPING.md).
+
 ## Mapeamento físico pela frente e plano C/Python — 10/11/2026
 
 O JSON operacional define direita/pwmchip0/canal Linux 3 (70°/175°) e

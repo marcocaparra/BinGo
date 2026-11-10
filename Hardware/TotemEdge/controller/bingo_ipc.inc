@@ -1,5 +1,5 @@
 /* Private V1 stdio protocol. Included in bingo_controller.c to reuse static PWM
- * routines without exporting or rewriting them. Physical IPC only rejects.
+ * routines without exporting or rewriting them. No startup/replay motion.
  */
 #include <ctype.h>
 #include <math.h>
@@ -29,11 +29,13 @@
 #define IPC_REJECTION "CONTROLLER_UNAVAILABLE"
 #define IPC_EXTRA_COLUMNS "source TEXT NOT NULL,configuration TEXT NOT NULL,"
 #define IPC_EXTRA_IDENTITY ",source,configuration"
-#define IPC_CREATE_VERSION "PRAGMA user_version=3;"
+#define IPC_CREATE_VERSION "PRAGMA user_version=4;"
 #define IPC_RESULT_CONSTRAINT \
     "CHECK(profile='doorless-v1' AND ((source='UNAVAILABLE' AND state='REJECTED' AND result='UNAVAILABLE' " \
     "AND error IN ('CONTROLLER_UNAVAILABLE','CONTROLLER_BUSY')) OR " \
     "(source='PHYSICAL' AND ((state='ACCEPTED' AND result='PENDING' AND error='-') OR " \
+    "(state='COMPLETED' AND result='SUCCEEDED' AND error='-' AND operation='CYCLE_LOWER_HATCH' " \
+    "AND json_valid(configuration) AND json_extract(configuration,'$.physical.cycle.completion_policy') IS 'operational-sequence-v1') OR " \
     "(state='FAILED' AND result='UNKNOWN' AND error='EXECUTION_ERROR')))))"
 #endif
 
@@ -120,7 +122,7 @@ static int ipc_emit(const char *id)
 #ifdef BINGO_PWM_SIMULATED
     sqlite3_stmt *s = ipc_prepare("SELECT id,event,operation,timeout,state,result,error FROM orders WHERE id=?");
 #else
-    sqlite3_stmt *s = ipc_prepare("SELECT id,event,operation,timeout,state,result,error,source FROM orders WHERE id=?");
+    sqlite3_stmt *s = ipc_prepare("SELECT id,event,operation,timeout,state,result,error,source,configuration FROM orders WHERE id=?");
 #endif
     ipc_bind(s, 1, id);
     int status = sqlite3_step(s);
@@ -133,6 +135,16 @@ static int ipc_emit(const char *id)
     const char *source = IPC_SOURCE;
 #ifndef BINGO_PWM_SIMULATED
     source = (const char *)sqlite3_column_text(s, 7);
+    /* V1 GET carries no configuration field. A configured receiver must not
+     * attribute an old result to a different loaded snapshot. Unconfigured
+     * historical read-only inspection remains available, without dispatch.
+     */
+    if (physical_pwm.config.snapshot[0] &&
+        strcmp(physical_pwm.config.snapshot, (const char *)sqlite3_column_text(s, 8))) {
+        sqlite3_finalize(s);
+        ipc_error("CONFIGURATION_CONFLICT");
+        return 0;
+    }
 #endif
     if (fprintf(stdout, "V1 RESULT %s %s %s %s %s %s %s %s\n",
                 sqlite3_column_text(s, 0), sqlite3_column_text(s, 1),
@@ -183,6 +195,32 @@ static int ipc_in_sequence(const char *event, const char *op)
     return allowed;
 }
 
+#ifndef BINGO_PWM_SIMULATED
+static int ipc_joint_execute(const char *id, double seconds)
+{
+    if (!ipc_db || !sqlite3_get_autocommit(ipc_db) || !ipc_uuid(id)) return PWM_BLOCKED;
+    sqlite3_stmt *s = ipc_prepare("SELECT count(*) FROM orders WHERE id=? AND operation='CYCLE_LOWER_HATCH' "
+        "AND profile='doorless-v1' AND source='PHYSICAL' AND state='ACCEPTED' AND configuration=?");
+    ipc_bind(s, 1, id); ipc_bind(s, 2, physical_pwm.config.snapshot);
+    if (sqlite3_step(s) != SQLITE_ROW) ipc_fatal();
+    int allowed = sqlite3_column_int(s, 0);
+    sqlite3_finalize(s);
+    if (!allowed) return PWM_BLOCKED;
+    int result = pwm_joint_execute(&physical_pwm, seconds);
+    s = ipc_prepare("UPDATE orders SET state=?,result=?,error=? WHERE id=? AND source='PHYSICAL' AND state='ACCEPTED'");
+    ipc_bind(s, 1, result ? "FAILED" : "COMPLETED");
+    ipc_bind(s, 2, result ? "UNKNOWN" : "SUCCEEDED");
+    ipc_bind(s, 3, result ? "EXECUTION_ERROR" : "-");
+    ipc_bind(s, 4, id); ipc_done(s);
+    if (sqlite3_changes(ipc_db) != 1) ipc_fatal();
+    if (!result) {
+        physical_pwm.touched = 0;
+        pwm_release(&physical_pwm);
+    }
+    return result;
+}
+#endif
+
 static void ipc_submit(char **parts, long delay_ms)
 {
     const char *id = parts[2], *event = parts[3], *op = parts[4], *timeout = parts[5];
@@ -229,17 +267,20 @@ static void ipc_submit(char **parts, long delay_ms)
 #ifdef BINGO_PWM_SIMULATED
     int allowed = ipc_in_sequence(event, op);
 #else
-    /* No map, calibrated pulses or completion contract is commissioned.
-     * Reuse durable identity/replay, but NEVER accept an execution intent.
-     */
-    int allowed = 0;
+    int allowed = !strcmp(op, "CYCLE_LOWER_HATCH") && seconds > 10 && seconds <= 86400 &&
+        pwm_operational_configured(&physical_pwm.config);
     (void)delay_ms;
 #endif
     const char *rejection = IPC_REJECTION;
 #ifndef BINGO_PWM_SIMULATED
-    s = ipc_prepare("SELECT count(*) FROM orders WHERE source='PHYSICAL' AND state IN ('ACCEPTED','FAILED')");
+    s = ipc_prepare("SELECT count(*) FROM orders WHERE source='PHYSICAL' AND "
+        "(state IN ('ACCEPTED','FAILED') OR event=?)");
+    ipc_bind(s, 1, event);
     if (sqlite3_step(s) != SQLITE_ROW) ipc_fatal();
-    if (sqlite3_column_int(s, 0) || pwm_stop_requested) rejection = "CONTROLLER_BUSY";
+    if (sqlite3_column_int(s, 0) || pwm_stop_requested || physical_pwm.inhibited || physical_pwm.indeterminate) {
+        rejection = "CONTROLLER_BUSY";
+        allowed = 0;
+    }
     sqlite3_finalize(s);
 #endif
 #ifdef BINGO_PWM_SIMULATED
@@ -253,7 +294,7 @@ static void ipc_submit(char **parts, long delay_ms)
     ipc_bind(s, 7, allowed ? "-" : rejection);
     ipc_bind(s, 8, ipc_profile);
 #ifndef BINGO_PWM_SIMULATED
-    ipc_bind(s, 9, "UNAVAILABLE");
+    ipc_bind(s, 9, allowed ? "PHYSICAL" : "UNAVAILABLE");
     ipc_bind(s, 10, physical_pwm.config.snapshot);
 #endif
     ipc_done(s);
@@ -280,6 +321,8 @@ static void ipc_submit(char **parts, long delay_ms)
     ipc_bind(s, 3, failed ? "OPERATION_FAILED" : "-");
     ipc_bind(s, 4, id);
     ipc_done(s);
+#else
+    (void)ipc_joint_execute(id, seconds);
 #endif
 }
 
@@ -348,7 +391,7 @@ static int ipc_start(const char *path, long delay_ms)
 #ifdef BINGO_PWM_SIMULATED
     else if (version != 1 && version != 2) ipc_fatal();
 #else
-    else if (version != 2 && version != 3) ipc_fatal();
+    else if (version != 2 && version != 3 && version != 4) ipc_fatal();
 #endif
     s = ipc_prepare("PRAGMA application_id");
     if (sqlite3_step(s) != SQLITE_ROW || sqlite3_column_int(s, 0) != IPC_APPLICATION_ID) ipc_fatal();
@@ -382,7 +425,15 @@ static int ipc_start(const char *path, long delay_ms)
                 "INSERT INTO orders_upgrade(rowid,id,event,operation,timeout,state,result,error,profile,source,configuration) "
                 "SELECT rowid,id,event,operation,timeout,state,result,error,profile,'UNAVAILABLE','' FROM orders;"
                 "DROP TABLE orders; ALTER TABLE orders_upgrade RENAME TO orders;"
-                IPC_ORDER_PROTECTIONS "PRAGMA user_version=3; COMMIT;");
+                IPC_ORDER_PROTECTIONS IPC_CREATE_VERSION "COMMIT;");
+    } else if (version == 3) {
+        /* Extend allowable NEW outcomes without changing old snapshots, IDs,
+         * rowids or the meaning of any historical result. */
+        ipc_sql("BEGIN IMMEDIATE; CREATE TABLE orders_upgrade(" IPC_ORDER_COLUMNS ");"
+                "INSERT INTO orders_upgrade(rowid,id,event,operation,timeout,state,result,error,profile,source,configuration) "
+                "SELECT rowid,id,event,operation,timeout,state,result,error,profile,source,configuration FROM orders;"
+                "DROP TABLE orders; ALTER TABLE orders_upgrade RENAME TO orders;"
+                IPC_ORDER_PROTECTIONS IPC_CREATE_VERSION "COMMIT;");
     }
     /* A crash cannot restore position or authorize redispatch, even when it
      * occurred before the first write. No PWM/homing/corrective close here.
@@ -390,10 +441,14 @@ static int ipc_start(const char *path, long delay_ms)
     ipc_sql("UPDATE orders SET state='FAILED',result='UNKNOWN',error='EXECUTION_ERROR' WHERE state='ACCEPTED'");
     s = ipc_prepare("SELECT count(*) FROM orders WHERE profile!='doorless-v1' OR NOT "
         "((source='UNAVAILABLE' AND state='REJECTED' AND result='UNAVAILABLE' AND error IN ('CONTROLLER_UNAVAILABLE','CONTROLLER_BUSY')) OR "
-        "(source='PHYSICAL' AND state='FAILED' AND result='UNKNOWN' AND error='EXECUTION_ERROR'))");
+        "(source='PHYSICAL' AND state='FAILED' AND result='UNKNOWN' AND error='EXECUTION_ERROR') OR "
+        "(source='PHYSICAL' AND operation='CYCLE_LOWER_HATCH' AND state='COMPLETED' AND result='SUCCEEDED' AND error='-' "
+        "AND json_valid(configuration) AND json_extract(configuration,'$.physical.cycle.completion_policy') IS 'operational-sequence-v1'))");
     if (sqlite3_step(s) != SQLITE_ROW || sqlite3_column_int(s, 0)) ipc_fatal();
     sqlite3_finalize(s);
-    if (fprintf(stdout, "V1 READY UNAVAILABLE DOORLESS_V1 PHYSICAL_BLOCKED\n") < 0 || fflush(stdout)) ipc_fatal();
+    if (fprintf(stdout, pwm_operational_configured(&physical_pwm.config) ?
+                "V1 READY PHYSICAL DOORLESS_V1 OPERATIONAL_SEQUENCE_V1\n" :
+                "V1 READY UNAVAILABLE DOORLESS_V1 PHYSICAL_BLOCKED\n") < 0 || fflush(stdout)) ipc_fatal();
 #endif
     char line[512];
     while (

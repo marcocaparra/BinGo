@@ -13,8 +13,8 @@
       "soc_pad": null,
       "pwm_chip": 0,
       "pwm_channel": 3,
-      "closed_pulse_ns": null,
-      "open_pulse_ns": null
+      "closed_pulse_ns": 1750000,
+      "open_pulse_ns": 600000
     },
     "left": {
       "intended_signal": null,
@@ -24,20 +24,27 @@
       "soc_pad": null,
       "pwm_chip": 0,
       "pwm_channel": 4,
-      "closed_pulse_ns": null,
-      "open_pulse_ns": null
+      "closed_pulse_ns": 1350000,
+      "open_pulse_ns": 2300000
     },
-    "period_ns": null,
-    "polarity": null,
+    "period_ns": 20000000,
+    "polarity": "normal",
     "mapping_reference": "PROJECT_MAPPING.md: teste físico informado pelo responsável em 2026-11-10; orientação pela frente",
-    "calibration_reference": null,
-    "completion_reference": null,
+    "calibration_reference": "PROJECT_MAPPING.md: calibração física aprovada pelo responsável em 2026-11-10",
+    "completion_reference": "PHYSICAL_PWM_DRIVER.md: operational-sequence-v1 aprovado pelo responsável em 2026-11-10",
     "safety_recovery_reference": null,
     "cycle": {
+      "mode": "joint-v1",
+      "hold_open_ms": 5000,
+      "hold_start": "after_both_open_commands",
+      "hold_clock": "monotonic",
+      "completion_policy": "operational-sequence-v1",
+      "initial_condition": "closed_pwm_readback",
+      "close_settle_ms": 5000,
       "open_order": null,
       "close_order": null,
       "drop_reference": null,
-      "homologation_reference": null
+      "homologation_reference": "PHYSICAL_PWM_DRIVER.md: /tmp/bingo_teste_duas_escotilhas.sh, 2026-11-10, 5000 ms aberta e 5000 ms após fechamento"
     }
   }
 }

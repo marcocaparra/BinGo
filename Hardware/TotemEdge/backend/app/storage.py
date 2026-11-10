@@ -264,6 +264,7 @@ class CycleStore:
             if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
                 raise RuntimeError("Referências SQLite inválidas; operação bloqueada.")
             # Additive local audit extension; no change to economic payload/schema.
+            self.mechanical.prepare_controller_bindings(conn)
             conn.execute(VISION_SCHEMA)
             conn.execute(RETRY_SCHEMA)
             conn.execute(RECAPTURE_SCHEMA)

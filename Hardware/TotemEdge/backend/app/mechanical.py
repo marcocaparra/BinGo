@@ -115,7 +115,10 @@ class MechanicalController(Protocol):
     wait consulta a mesma identidade e retorna um resultado terminal correlato.
     I/O deve ser assíncrono, limitado e cooperar com cancelamento; cancelar uma
     consulta não significa parar atuação física. Nenhum método pode inferir
-    COMPLETED de escrita PWM, aceite ou tempo decorrido em hardware real.
+    confirmação de posição/queda de escrita PWM, aceite ou tempo decorrido.
+    COMPLETED/PHYSICAL no canal joint-v1 versionado representa somente a
+    conclusão operacional reportada pelo C, vinculada ao snapshot persistido.
+    Não autoriza physical_confirmed, conclusão de descarte ou registro econômico.
     Durabilidade local, bloqueios e recuperação pertencem ao journal; execução
     única e consulta após restart no dispositivo exigem contrato homologado.
     """

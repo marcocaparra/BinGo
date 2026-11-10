@@ -1,8 +1,9 @@
-"""Existing C IPC, with a durable but execution-blocked operational channel."""
+"""Existing C IPC/lifecycle; production physical activation stays gated."""
 
 import asyncio
 import math
 from pathlib import Path
+import tempfile
 from typing import Literal
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from app.services.controller_config import (
     CControllerSettings,
     ControllerReadiness,
     PhysicalConfigDiagnostic,
+    JOINT_COMMAND_TIMEOUT_SECONDS,
 )
 
 
@@ -67,8 +69,8 @@ class PhysicalPreflight(_PreflightModel):
 class CProcessController:
     """Private stdio capability; reconnect means a new explicit instance, no resend.
 
-    connect() remains laboratory-only. open_operational() requires an explicit
-    config and a PHYSICAL_BLOCKED handshake: it can only receive rejections.
+    connect() remains laboratory-only. open_operational() keeps the supervised
+    physical activation gate; _connect_joint prepares that existing IPC path.
     get() is a local snapshot; query(command) consults the retained device ID.
     doorless-v1 is the default and requires an explicit capability handshake;
     legacy-v1 is available only for historical laboratory sequences.
@@ -82,6 +84,34 @@ class CProcessController:
         self._closed = False
         self._source = source
         self._readiness: ControllerReadiness | None = None
+        self._configuration: str | None = None
+        self._backend_journal: Path | None = None
+        self._journal = None
+        self._deadlines: dict[UUID, float] = {}
+        self._active: UUID | None = None
+        self._close_task = None
+        self._reaper = None
+
+    @property
+    def source(self):
+        return self._source
+
+    @property
+    def physical_configuration(self) -> str | None:
+        return self._configuration if self._source == "PHYSICAL" else None
+
+    def _bind_journal(self, journal):
+        if journal.store.path != self._backend_journal or self._journal not in (None, journal):
+            raise ValueError("Physical controller requires its bound Python journal.")
+        self._journal = journal
+
+    def validate_physical_command(self, command):
+        if (
+            self.physical_configuration is None
+            or command.operation != "CYCLE_LOWER_HATCH"
+            or not JOINT_COMMAND_TIMEOUT_SECONDS <= command.timeout_seconds <= 86400
+        ):
+            raise ControllerError("INVALID_PHYSICAL_COMMAND_POLICY")
 
     @property
     def readiness(self) -> ControllerReadiness | None:
@@ -133,7 +163,9 @@ class CProcessController:
                 or configured.period_ns != settings.physical.period_ns
                 or configured.polarity != settings.physical.polarity
                 or configured.cycle_plan != settings.physical.cycle.plan()
+                or configured.cycle_policy != settings.physical.cycle.joint_policy()
                 or configured.configuration != configuration
+                or configured.c_executor_configured != settings.physical.c_executor_configured()
             ):
                 raise ControllerError("PWM_CONFIGURATION_MISMATCH")
         except ControllerError as error:
@@ -149,10 +181,22 @@ class CProcessController:
                 dict.fromkeys(
                     (
                         *blockers,
-                        *report.blockers,
+                        *(
+                            ("PHYSICAL_DISPATCH_DISABLED",)
+                            if settings.physical.cycle.completion_policy
+                            else report.blockers
+                        ),
+                        *(("PHYSICAL_SUPERVISION_PENDING",) if configured.c_executor_configured else ()),
                         *(
                             ("CYCLE_POLICY_UNVERIFIED",)
                             if not configured.cycle_plan
+                            or (
+                                configured.cycle_policy is not None
+                                and (
+                                    (not settings.physical.cycle.drop_reference and not settings.physical.cycle.completion_policy)
+                                    or not settings.physical.cycle.homologation_reference
+                                )
+                            )
                             else ()
                         ),
                     )
@@ -160,6 +204,11 @@ class CProcessController:
             ),
             configured_physical=settings.physical,
             cycle_plan=configured.cycle_plan,
+            cycle_policy=configured.cycle_policy,
+            c_executor_configured=configured.c_executor_configured,
+            physical_command_timeout_seconds=(
+                JOINT_COMMAND_TIMEOUT_SECONDS if configured.c_executor_configured else None
+            ),
         )
 
     @classmethod
@@ -173,6 +222,10 @@ class CProcessController:
             config, backend_journal=backend_journal
         )
         if settings is None or readiness.transport != "DIAGNOSTIC_OK":
+            return UnavailableController(), readiness
+        if readiness.c_executor_configured:
+            # Hard production composition gate, pending supervised homologation.
+            # No JSON/env/API override authorizes physical activation.
             return UnavailableController(), readiness
         try:
             controller = await cls._launch(
@@ -205,6 +258,43 @@ class CProcessController:
             update={"transport": "CONNECTED_BLOCKED"}
         )
         return controller, controller.readiness
+
+    @classmethod
+    async def _connect_joint(cls, config: Path, *, backend_journal: Path):
+        """Prepared private composition; NOT called by operational FastAPI.
+
+        Controlled harness tests exercise this exact IPC path. Production stays
+        gated in open_operational until supervised homologation, without a flag.
+        """
+        settings, readiness = await cls.diagnose_operational(
+            config, backend_journal=backend_journal
+        )
+        if (
+            settings is None or readiness.transport != "DIAGNOSTIC_OK"
+            or not readiness.c_executor_configured
+        ):
+            raise ControllerError("PHYSICAL_CONFIGURATION_REQUIRED")
+        raw = config.read_bytes()
+        if len(raw) > 16384 or CControllerSettings.model_validate_json(raw) != settings:
+            raise ControllerError("PWM_CONFIGURATION_MISMATCH")
+        # Freeze the exact existing JSON bytes, including whitespace, across
+        # child startup and later edits to the original file. C still consumes
+        # the same JSON via --config and retains these bytes in journal v4.
+        with tempfile.TemporaryFile() as snapshot:
+            snapshot.write(raw)
+            snapshot.flush()
+            snapshot.seek(0)
+            controller = await cls._launch(
+                [str(settings.executable.resolve()), "--ipc-physical", str(settings.journal.resolve()),
+                 "--profile", settings.profile, "--config", f"/proc/self/fd/{snapshot.fileno()}"],
+                expected=b"V1 READY PHYSICAL DOORLESS_V1 OPERATIONAL_SEQUENCE_V1\n",
+                io_timeout_seconds=settings.io_timeout_seconds,
+                source="PHYSICAL", pass_fds=(snapshot.fileno(),),
+            )
+        controller._configuration = raw.decode("utf-8")
+        controller._backend_journal = backend_journal.resolve()
+        controller._readiness = readiness
+        return controller
 
     @staticmethod
     async def physical_preflight(
@@ -304,13 +394,14 @@ class CProcessController:
         )
 
     @classmethod
-    async def _launch(cls, args, *, expected, io_timeout_seconds, source):
+    async def _launch(cls, args, *, expected, io_timeout_seconds, source, pass_fds=()):
         process = await asyncio.create_subprocess_exec(
             *args,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             limit=512,
+            pass_fds=pass_fds,
         )
         self = cls(process, io_timeout_seconds=io_timeout_seconds, source=source)
         try:
@@ -322,12 +413,14 @@ class CProcessController:
             raise
         return self
 
-    async def _rpc(self, line: str) -> list[str]:
+    async def _rpc(self, line: str, *, timeout_seconds=None) -> list[str]:
         async with self._lock:
             if self._closed:
                 raise ControllerError("CONTROLLER_CLOSED")
             try:
-                async with asyncio.timeout(self._io_timeout):
+                async with asyncio.timeout(
+                    self._io_timeout if timeout_seconds is None else timeout_seconds
+                ):
                     self._process.stdin.write(line.encode("ascii") + b"\n")
                     await self._process.stdin.drain()
                     raw = await self._process.stdout.readline()
@@ -355,21 +448,30 @@ class CProcessController:
                 operation=parts[4],
                 timeout_seconds=float(parts[5]),
             )
-            if received != command or parts[9] != self._source:
+            source = parts[9]
+            denied_physical = (
+                self._source == "PHYSICAL" and source == "UNAVAILABLE"
+                and parts[6] == "REJECTED"
+            )
+            if received != command or (source != self._source and not denied_physical):
                 raise ValueError
             result = MechanicalResponse(
                 command=received,
                 state=parts[6],
                 result=parts[7],
                 error_code=None if parts[8] == "-" else parts[8],
-                source=self._source,
+                source=source,
             )
         except (ValueError, TypeError):
             raise ControllerError("INCONSISTENT_RESPONSE") from None
         previous = self._responses.get(command.mechanical_command_id)
         if previous is not None and previous.command != command:
             raise ControllerError("MECHANICAL_COMMAND_ID_CONFLICT")
+        if self._source == "PHYSICAL" and previous is not None and previous.state != "ACCEPTED" and previous != result:
+            raise ControllerError("INCONSISTENT_RESPONSE")
         self._responses[command.mechanical_command_id] = result
+        if self._source == "PHYSICAL" and result.state != "ACCEPTED" and self._active == command.mechanical_command_id:
+            self._active = None
         return result
 
     async def submit(self, command: MechanicalCommand) -> MechanicalResponse:
@@ -379,6 +481,20 @@ class CProcessController:
             if previous.command != command:
                 raise ControllerError("MECHANICAL_COMMAND_ID_CONFLICT")
             return previous
+        if self._source == "PHYSICAL":
+            self.validate_physical_command(command)
+            if self._journal is None:
+                raise ControllerError("MECHANICAL_INTENT_REQUIRED")
+            entry = self._journal.get(command.mechanical_command_id)
+            if (
+                entry.command != command or entry.source != "PHYSICAL" or entry.phase != "DISPATCHING"
+                or self._journal.controller_configuration(command.mechanical_command_id) != self._configuration
+            ):
+                raise ControllerError("MECHANICAL_INTENT_REQUIRED")
+            if self._active is not None:
+                raise ControllerError("CONTROLLER_BUSY")
+            self._active = command.mechanical_command_id
+            self._deadlines[command.mechanical_command_id] = asyncio.get_running_loop().time() + command.timeout_seconds
         parts = await self._rpc(
             f"V1 SUBMIT {command.mechanical_command_id} {command.event_id} "
             f"{command.operation} {format(command.timeout_seconds, '.17g')}"
@@ -406,7 +522,14 @@ class CProcessController:
     async def query(self, command: MechanicalCommand) -> MechanicalResponse:
         """Explicit read-only device lookup; never restores journal eligibility."""
         command = MechanicalCommand.model_validate(command.model_dump())
-        parts = await self._rpc(f"V1 GET {command.mechanical_command_id}")
+        timeout = None
+        if self._source == "PHYSICAL":
+            if self._journal is None or self._journal.controller_configuration(command.mechanical_command_id) != self._configuration:
+                raise ControllerError("MECHANICAL_CONFIG_SNAPSHOT_CONFLICT")
+            deadline = self._deadlines.get(command.mechanical_command_id)
+            if deadline is not None:
+                timeout = max(0, deadline - asyncio.get_running_loop().time())
+        parts = await self._rpc(f"V1 GET {command.mechanical_command_id}", timeout_seconds=timeout)
         return await self._checked_decode(command, parts)
 
     async def wait(self, mechanical_command_id: UUID) -> MechanicalResponse:
@@ -414,7 +537,11 @@ class CProcessController:
         if response.state != "ACCEPTED":
             return response
         # The sequential C process finishes an accepted order before reading GET.
-        return await self.query(response.command)
+        result = await self.query(response.command)
+        if self._source == "PHYSICAL" and result.state == "ACCEPTED":
+            await self.aclose()
+            raise ControllerError("INCONSISTENT_RESPONSE")
+        return result
 
     async def cancel(self, mechanical_command_id: UUID) -> MechanicalResponse:
         response = self.get(mechanical_command_id)
@@ -433,6 +560,29 @@ class CProcessController:
 
     async def aclose(self):
         self._closed = True
+        if self._close_task is None:
+            self._close_task = asyncio.create_task(self._close_process())
+        await asyncio.shield(self._close_task)
+
+    async def _close_process(self):
+        if self._source == "PHYSICAL":
+            # EOF + the C signal handler inhibit further writes. Neither proves
+            # a safe mechanical stop; never SIGKILL a physical executor.
+            if self._process.stdin is not None:
+                self._process.stdin.close()
+            if self._process.returncode is None:
+                try:
+                    self._process.terminate()
+                except ProcessLookupError:
+                    pass
+            self._reaper = asyncio.create_task(self._process.wait())
+            try:
+                await asyncio.wait_for(asyncio.shield(self._reaper), max(2.0, self._io_timeout))
+            except TimeoutError:
+                # Keep a waiter/reference until the child actually exits. A
+                # stalled kernel syscall is uncertainty, not permission to kill.
+                pass
+            return
         if self._process.returncode is None:
             # Only simulated or execution-blocked children can pass a handshake.
             # Killing this process is not a physical safe-stop protocol.

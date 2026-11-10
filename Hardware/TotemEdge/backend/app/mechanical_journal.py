@@ -104,10 +104,47 @@ SCHEMA = (
         BEGIN SELECT RAISE(ABORT,'Append-only mechanical history'); END""",
 )
 
+# Additive extension of the existing Python journal, not a new journal/version.
+# Old commands remain unbound; no configuration is inferred for historical IDs.
+CONTROLLER_BINDING_SCHEMA = (
+    """CREATE TABLE mechanical_controller_bindings (
+        mechanical_command_id TEXT PRIMARY KEY NOT NULL REFERENCES mechanical_commands(mechanical_command_id),
+        configuration TEXT NOT NULL CHECK(length(configuration)>0)
+    )""",
+    """CREATE TRIGGER mechanical_binding_no_update BEFORE UPDATE ON mechanical_controller_bindings
+        BEGIN SELECT RAISE(ABORT,'Immutable controller configuration'); END""",
+    """CREATE TRIGGER mechanical_binding_no_delete BEFORE DELETE ON mechanical_controller_bindings
+        BEGIN SELECT RAISE(ABORT,'Retained controller configuration'); END""",
+)
+
 
 class MechanicalJournal:
     def __init__(self, store: "CycleStore"):
         self.store = store
+
+    @staticmethod
+    def prepare_controller_bindings(conn):
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='mechanical_controller_bindings'").fetchone():
+            for statement in CONTROLLER_BINDING_SCHEMA:
+                conn.execute(statement)
+        columns = {r[1] for r in conn.execute("PRAGMA table_info(mechanical_controller_bindings)")}
+        triggers = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")}
+        if columns != {"mechanical_command_id", "configuration"} or not {
+            "mechanical_binding_no_update", "mechanical_binding_no_delete"
+        } <= triggers:
+            raise RuntimeError("Snapshot mecânico incompatível; operação bloqueada.")
+        if conn.execute("""SELECT 1 FROM mechanical_controller_bindings b
+            LEFT JOIN mechanical_commands c USING(mechanical_command_id)
+            WHERE c.mechanical_command_id IS NULL OR c.source!='PHYSICAL' LIMIT 1""").fetchone():
+            raise RuntimeError("Snapshot mecânico sem identidade física.")
+
+    def controller_configuration(self, identifier: UUID) -> str | None:
+        with self.store.transaction() as conn:
+            row = conn.execute(
+                "SELECT configuration FROM mechanical_controller_bindings WHERE mechanical_command_id=?",
+                (str(identifier),),
+            ).fetchone()
+            return row[0] if row else None
 
     @staticmethod
     def _row(conn, identifier):
@@ -237,7 +274,8 @@ class MechanicalJournal:
             return tuple(JournalEvent(**dict(row)) for row in rows)
 
     def request(
-        self, command: MechanicalCommand, *, source: Source, hand_removed: bool = False
+        self, command: MechanicalCommand, *, source: Source, hand_removed: bool = False,
+        configuration: str | None = None,
     ) -> tuple[JournalEntry, bool]:
         command = MechanicalCommand.model_validate(command.model_dump())
         if source not in {"UNAVAILABLE", "SIMULATED", "PHYSICAL"}:
@@ -251,7 +289,16 @@ class MechanicalJournal:
                 entry = self._entry(previous)
                 if entry.command != command:
                     raise ControllerError("MECHANICAL_COMMAND_ID_CONFLICT")
+                if configuration is not None:
+                    binding = conn.execute(
+                        "SELECT configuration FROM mechanical_controller_bindings WHERE mechanical_command_id=?",
+                        (str(command.mechanical_command_id),),
+                    ).fetchone()
+                    if entry.source != source or binding is None or binding[0] != configuration:
+                        raise ControllerError("MECHANICAL_CONFIG_SNAPSHOT_CONFLICT")
                 return entry, False
+            if configuration is not None and (source != "PHYSICAL" or not configuration):
+                raise ControllerError("MECHANICAL_CONFIG_SNAPSHOT_CONFLICT")
             cycle = self.store._row(conn, command.event_id)
             if (
                 cycle["active_slot"] != 1
@@ -281,6 +328,9 @@ class MechanicalJournal:
                 "INSERT INTO mechanical_history VALUES(?,0,'INTENT','PENDING',NULL,?)",
                 (str(command.mechanical_command_id), at),
             )
+            if configuration is not None:
+                conn.execute("INSERT INTO mechanical_controller_bindings VALUES(?,?)",
+                    (str(command.mechanical_command_id), configuration))
             entry = self._entry(self._row(conn, command.mechanical_command_id))
             self.store.begin_simulated_motion(conn, entry, hand_removed=hand_removed)
             return entry, True
@@ -326,7 +376,11 @@ class MechanicalJournal:
         with self.store.transaction() as conn:
             row = self._row(conn, identifier)
             entry = self._entry(row)
-            if response.command != entry.command or response.source != entry.source:
+            physical_rejection = (
+                entry.source == "PHYSICAL" and response.source == "UNAVAILABLE"
+                and response.state == "REJECTED"
+            )
+            if response.command != entry.command or (response.source != entry.source and not physical_rejection):
                 raise ControllerError("MECHANICAL_RESPONSE_MISMATCH")
             # Replay exato não cria versão/histórico, inclusive após conclusão.
             if (entry.phase, entry.result, entry.error_code) == (
@@ -365,6 +419,22 @@ class MechanicalJournal:
                 "ACCEPTED",
             }:
                 raise ControllerError("MECHANICAL_STALE_STATE")
+            entry = self._transition(conn, row, "INDETERMINATE", "UNKNOWN", code)
+            self._block_cycle(conn, entry.command.event_id)
+            return entry
+
+    def observe_recovery(self, identifier: UUID, *, configuration: str, code: str) -> JournalEntry:
+        """Append a GET observation without restoring execution or drop eligibility."""
+        with self.store.transaction() as conn:
+            row = self._row(conn, identifier)
+            binding = conn.execute("SELECT configuration FROM mechanical_controller_bindings WHERE mechanical_command_id=?",
+                (str(identifier),)).fetchone()
+            if row["source"] != "PHYSICAL" or row["phase"] not in {
+                "INDETERMINATE", "FAILED", "TIMED_OUT", "CANCELLED"
+            } or binding is None or binding[0] != configuration:
+                raise ControllerError("MECHANICAL_RECOVERY_NOT_ALLOWED")
+            if row["phase"] == "INDETERMINATE" and row["error_code"] == code:
+                return self._entry(row)
             entry = self._transition(conn, row, "INDETERMINATE", "UNKNOWN", code)
             self._block_cycle(conn, entry.command.event_id)
             return entry

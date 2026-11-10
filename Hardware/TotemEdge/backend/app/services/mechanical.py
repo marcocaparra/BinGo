@@ -16,6 +16,7 @@ from app.cycles import CycleError
 from app.mechanical_journal import JournalEntry
 from app.storage import CycleStore
 from app.services.controller import SimulatedController
+from app.services.c_controller import CProcessController
 
 
 class MechanicalService:
@@ -24,15 +25,21 @@ class MechanicalService:
         store: CycleStore,
         controller: MechanicalController,
         *,
-        source: Literal["UNAVAILABLE", "SIMULATED"],
+        source: Literal["UNAVAILABLE", "SIMULATED", "PHYSICAL"],
         auto_initial: bool = False,
     ):
-        # PHYSICAL continua sem despacho autorizado neste incremento.
-        if source not in {"UNAVAILABLE", "SIMULATED"}:
+        if source not in {"UNAVAILABLE", "SIMULATED", "PHYSICAL"} or (
+            source == "PHYSICAL" and (
+                not isinstance(controller, CProcessController)
+                or controller.physical_configuration is None
+            )
+        ):
             raise ValueError("Controller físico ainda não homologado.")
         self.store = store
         self.controller = controller
         self.source = source
+        if source == "PHYSICAL":
+            controller._bind_journal(store.mechanical)
         if auto_initial and (source != "SIMULATED" or not store.simulation_enabled):
             raise ValueError("Confirmação automática exige simulação isolada.")
         self.auto_initial = auto_initial
@@ -119,8 +126,13 @@ class MechanicalService:
     ) -> JournalEntry:
         if self._closed:
             raise ControllerError("CONTROLLER_CLOSED")
+        configuration = None
+        if self.source == "PHYSICAL":
+            self.controller.validate_physical_command(command)
+            configuration = self.controller.physical_configuration
         entry, created = self.store.mechanical.request(
-            command, source=self.source, hand_removed=hand_removed
+            command, source=self.source, hand_removed=hand_removed,
+            configuration=configuration,
         )
         if not created:
             # Inclusive INTENT: replay nunca reivindica despacho pendente.
@@ -260,6 +272,30 @@ class MechanicalService:
         if task is not None:
             await asyncio.shield(task)
         return self.get(identifier)
+
+    async def reconcile(self, identifier: UUID) -> JournalEntry:
+        """Explicit same-ID GET after recovery. Never SUBMIT/promote UNKNOWN."""
+        entry = self.get(identifier)
+        if self.source != "PHYSICAL" or entry.source != "PHYSICAL" or self._closed:
+            raise ControllerError("MECHANICAL_RECOVERY_NOT_ALLOWED")
+        configuration = self.controller.physical_configuration
+        if self.store.mechanical.controller_configuration(identifier) != configuration:
+            raise ControllerError("MECHANICAL_CONFIG_SNAPSHOT_CONFLICT")
+        if entry.phase not in {"INDETERMINATE", "FAILED", "TIMED_OUT", "CANCELLED"}:
+            return entry
+        try:
+            response = await self.controller.query(entry.command)
+            code = f"RECOVERY_C_{response.state}_{response.result}"
+        except ControllerError as error:
+            code = {
+                "C_NOT_FOUND": "RECOVERY_C_NOT_FOUND",
+                "C_CONFIGURATION_CONFLICT": "RECOVERY_CONFIG_SNAPSHOT_CONFLICT",
+            }.get(error.code, "RECOVERY_RESPONSE_UNKNOWN")
+        except (OSError, TimeoutError, ValueError):
+            code = "RECOVERY_RESPONSE_UNKNOWN"
+        return self.store.mechanical.observe_recovery(
+            identifier, configuration=configuration, code=code
+        )
 
     async def cancel(self, identifier: UUID) -> JournalEntry:
         entry = self.get(identifier)

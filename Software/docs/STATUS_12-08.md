@@ -1,6 +1,100 @@
 STATUS técnico — BinGo
 
-TotemEdge, correção pontual após teste físico relatado (10/11/2026): olhando o
+TotemEdge, integração operacional Python/C preparada (10/11/2026): reutilizados
+CProcessController, MechanicalService, IPC V1, driver e journals existentes.
+INTENT e snapshot JSON são persistidos juntos no journal Python; o C recebe os
+mesmos bytes congelados por --config. Binding imutável aditivo no mesmo SQLite,
+sem mudar IDs, históricos, schema C v4 ou inferir contexto para registros antigos.
+GET C configurado agora recusa divergência de snapshot por CONFIGURATION_CONFLICT.
+Budget físico preparado de 30 s (10 s de esperas aprovadas + 20 s para I/O/journal/
+escalonamento); GET usa o restante monotônico, sem timeout curto indevido ou
+reinício de prazo. IDs históricos e default genérico de 10 s não são reinterpretados.
+Sucesso PHYSICAL é conclusão operacional de comando; sessão permanece bloqueada,
+sem physical_confirmed, conclusão de descarte, pontuação, payload ou recibo.
+Falha, timeout, desconexão, cancelamento e resposta ambígua preservam UNKNOWN.
+Lifecycle físico fecha stdin/sinaliza SIGTERM cooperativo, sem SIGKILL, sem afirmar
+parada dos motores; último PWM pode persistir. Após reinício, reconciliação interna
+explícita usa somente GET do mesmo ID e registra observação sem promover UNKNOWN
+ou reenviar. FastAPI operacional continua UnavailableController por
+PHYSICAL_SUPERVISION_PENDING, sem override/flag de ativação. Composição privada
+PHYSICAL e gate público foram testados; as ações reais da tela ainda não despacham.
+Pendências: homologar C+Python e intervenção/recuperação no Orange Pi; depois ligar
+explicitamente a composição e ações atuais de sessão ao serviço, no fluxo sem
+porta superior, sem alterar economia ou usar sucesso operacional como descarte.
+Validação final: 430 testes focados aprovados, zero falhas/skips, 34,15 s,
+incluindo compilação C11, sucesso, falhas parciais, timeout/interrupção, shutdown,
+duplicação, reinício/GET, snapshots, FastAPI e sessões. Sem hardware ou alteração
+de frontend/câmera/IA/Supabase/Docker/economia; sem deploy/commit/push/merge.
+Contrato e inventário: Hardware/TotemEdge/backend/OPERATIONAL_C_CONTROLLER.md.
+
+Histórico — executor C e incrementos anteriores:
+
+TotemEdge, executor C conjunto implementado (10/11/2026): reutilizado joint-v1,
+driver PWM, locks e IPC V1. Extensão explícita completion_policy=operational-sequence-v1,
+initial_condition=closed_pwm_readback e close_settle_ms=5000. Plano C/Python:
+REQUIRE_CLOSED_PWM → OPEN_BOTH → HOLD_OPEN → CLOSE_BOTH → SETTLE_CLOSED.
+Os dois comandos de cada estágio são consecutivos, sem aguardar motor terminar;
+hold de 5000 ms após ambas as aberturas e estabilização de 5000 ms após ambos os
+fechamentos, CLOCK_MONOTONIC. O responsável confirmou esse tempo no teste
+/tmp/bingo_teste_duas_escotilhas.sh (3000 ms inicial, 5000 ms aberto, 5000 ms fechado).
+É duração operacional aprovada, não mínimo mecânico ou confirmação de pose/queda.
+Admissão exige ambos os comandos PWM já habilitados/calibrados como fechados;
+não exporta, habilita ou faz homing nesse executor. Intenção durável precede I/O.
+Sucesso representa somente execução integral sem falha detectada. Falhas parciais,
+interrupção, timeout/desconexão detectados mantêm UNKNOWN e impedem novo acionamento.
+Sem fechamento corretivo ou disable automático: último PWM pode continuar ativo.
+Journal físico v4 migra v2/v3, preservando IDs/rowids/snapshots/resultados; V1,
+journal Python e laboratório ficam preservados. Configurações antigas sem extensão
+não passam a executar. Python valida/compara e diagnostica a capacidade configurada,
+mas retorna UnavailableController antes de iniciar um C ativo; MechanicalService
+continua recusando PHYSICAL e não libera economia. Falta ensaio supervisionado do
+executor C na placa e integração PHYSICAL/prazos/lifecycle/reconciliação no backend,
+além da homologação de parada/recuperação. Não houve hardware, commit/push/deploy.
+Contrato vigente e roteiro: Hardware/TotemEdge/controller/PHYSICAL_PWM_DRIVER.md.
+Validação final: 376 testes focados aprovados, zero falhas/skips, 44,48 s,
+com compilação C11 (-Wall -Wextra -Werror), sem hardware. Uma rodada anterior
+teve timeout de 10 s no subprocesso da CLI Python; passou isoladamente e na
+repetição integral, sem alterar timeout de teste ou de I/O. Foram cobertos falha
+parcial de canal, interrupção em HOLD_OPEN/estabilização, falha no fechamento,
+relógio/timeout, perda de peer, reinício, repetição/deriva de configuração e
+compatibilidade v2/v3. Sem mudanças em frontend/IA/Supabase/Docker/economia.
+
+Histórico — incrementos anteriores:
+
+TotemEdge, plano conjunto C/Python implementado sem despacho (10/11/2026):
+physical.cycle aceita modo explícito joint-v1, inteiro hold_open_ms=5000,
+hold_start=after_both_open_commands e hold_clock=monotonic. Plano concordante:
+REQUIRE_INITIAL_CLOSED → OPEN_BOTH → HOLD_OPEN → CLOSE_BOTH → AWAIT_INITIAL_EVIDENCE.
+Os cinco segundos começam somente após ambas as escritas de abertura bem-sucedidas;
+não comprovam posição/queda/conclusão. Ordens sequenciais não são aceitas no modo
+conjunto; modo ausente conserva plano/configurações/históricos anteriores.
+Diagnóstico verifica etapas e política temporal. Mantidos IPC V1, journal físico
+v3, journal Python, locks, IDs/snapshots e UNKNOWN/INDETERMINATE. Nenhum novo
+executor, driver, endpoint ou container; atuação ainda UNAVAILABLE, até critérios
+de confirmação, parada e recuperação implementados/homologados. Calibração, mapa
+pela frente e RX/TX desconhecidos preservados. Contrato em
+Hardware/TotemEdge/controller/PROJECT_MAPPING.md. Sem commit/push/merge/deploy.
+Validação final: 329 testes focados aprovados, zero falhas/skips, 23,02 s,
+incluindo compilações C; sem hardware ou mudança de limites de I/O.
+
+TotemEdge, calibração real e decisão conjunta registradas (10/11/2026): o
+responsável confirmou no Orange Pi Zero 3 montado fechamento perfeitamente
+alinhado, abertura adequada, abertura/fechamento conjuntos e queda de um objeto.
+Pela frente: direita/pwmchip0/canal 3 fechada 1.750.000 ns, aberta 600.000 ns;
+esquerda/pwmchip0/canal 4 fechada 1.350.000 ns, aberta 2.300.000 ns. Período
+20.000.000 ns, polaridade normal; graus mantidos. Esses seis valores foram
+registrados no JSON. A decisão final é mover ambas praticamente simultaneamente,
+não abertura sequencial. `physical.cycle.open_order`/`close_order` só aceitam
+sequência e permanecem null: contratos/validadores/planos/executor ainda precisam
+evoluir. Permanência aberta, critérios de conclusão e recuperação não estão
+homologados; nenhum sensor, RX/TX ou sucesso automático foi presumido. Atuação,
+journals, IDs e bloqueios preservados, sem executor novo ou despacho físico.
+Inventário exato da evolução pendente: Hardware/TotemEdge/controller/PROJECT_MAPPING.md.
+Validação do registro: 77 testes focados existentes aprovados, zero falhas/skips,
+16,98 s. Sem mudança de runtime/executor/validadores, hardware, frontend, IA,
+Supabase, Docker, regras econômicas, commit, push ou deploy neste incremento.
+
+Histórico — TotemEdge, correção pontual após teste físico relatado (10/11/2026): olhando o
 Totem pela frente, DIREITA → pwmchip0/canal Linux 3 → 70° fechada/175° aberta;
 ESQUERDA → pwmchip0/canal 4 → 113° fechada/5° aberta. O responsável confirmou
 movimento dos motores correspondentes no Orange Pi Zero 3. JSON corrigido sem

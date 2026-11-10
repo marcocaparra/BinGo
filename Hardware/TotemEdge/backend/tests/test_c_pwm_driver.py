@@ -30,7 +30,7 @@ def native(tmp_path_factory):
             "-Wno-unused-function",
             str(source),
             "-lsqlite3",
-            "-Wl,--wrap=open,--wrap=openat,--wrap=read,--wrap=write,--wrap=close",
+            "-Wl,--wrap=open,--wrap=openat,--wrap=read,--wrap=write,--wrap=close,--wrap=clock_gettime,--wrap=clock_nanosleep,--wrap=poll",
             "-o",
             str(target),
         ],
@@ -177,7 +177,7 @@ def test_json_configuration_complete_or_missing_still_cannot_commission(
         tmp_path / "c.db.lock"
     ]  # Only journal lock, no device access.
     with sqlite3.connect(tmp_path / "c.db") as conn:
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
         assert (
             json.loads(conn.execute("SELECT configuration FROM orders").fetchone()[0])
             == data

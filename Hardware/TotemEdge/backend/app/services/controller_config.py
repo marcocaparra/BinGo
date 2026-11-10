@@ -1,9 +1,14 @@
-"""Explicit local C configuration. Declarations never authorize physical motion."""
+"""Shared C configuration; Python validates it without enabling physical dispatch."""
 
 from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+# 10 s of commanded waits + 20 s for initial readback, SQLite, sysfs,
+# scheduling and IPC. This is a command budget, never mechanical evidence.
+JOINT_COMMAND_TIMEOUT_SECONDS = 30.0
 
 
 class _SettingsModel(BaseModel):
@@ -35,6 +40,29 @@ class ConfiguredMapping(_SettingsModel):
     left: ConfiguredHatch
 
 
+class JointCyclePolicy(_SettingsModel):
+    """joint-v1 timing is a command policy, never proof of motion or drop."""
+
+    mode: Literal["joint-v1"]
+    hold_open_ms: int
+    hold_start: Literal["after_both_open_commands"]
+    hold_clock: Literal["monotonic"]
+    completion_policy: Literal["operational-sequence-v1"] | None = None
+    close_settle_ms: int | None = None
+    initial_condition: Literal["closed_pwm_readback"] | None = None
+
+    @model_validator(mode="after")
+    def approved_duration(self) -> Self:
+        if self.hold_open_ms != 5000:
+            raise ValueError("joint-v1 exige permanência de 5000 ms.")
+        if self.completion_policy is not None:
+            if self.close_settle_ms != 5000 or self.initial_condition is None:
+                raise ValueError("Conclusão operacional exige estabilização de 5000 ms e condição inicial explícita.")
+        elif self.close_settle_ms is not None or self.initial_condition is not None:
+            raise ValueError("Estabilização e condição inicial exigem política de conclusão explícita.")
+        return self
+
+
 class PhysicalConfigDiagnostic(_SettingsModel):
     protocol: Literal["bingo-pwm-config-v1"]
     configuration: Literal["INCOMPLETE", "DECLARED"]
@@ -45,15 +73,58 @@ class PhysicalConfigDiagnostic(_SettingsModel):
     period_ns: int | None = Field(ge=1)
     polarity: Literal["normal", "inversed"] | None
     cycle_plan: tuple[str, ...]
+    cycle_policy: JointCyclePolicy | None = None
+    c_executor_configured: bool = False
 
 
 class CycleDeclarations(_SettingsModel):
+    # Missing mode preserves the original sequential/empty contract verbatim.
+    mode: Literal["joint-v1"] | None = None
+    hold_open_ms: int | None = None
+    hold_start: Literal["after_both_open_commands"] | None = None
+    hold_clock: Literal["monotonic"] | None = None
+    completion_policy: Literal["operational-sequence-v1"] | None = None
+    close_settle_ms: int | None = None
+    initial_condition: Literal["closed_pwm_readback"] | None = None
     open_order: Literal["left_then_right", "right_then_left"] | None = None
     close_order: Literal["left_then_right", "right_then_left"] | None = None
     drop_reference: str | None = Field(default=None, min_length=1)
     homologation_reference: str | None = Field(default=None, min_length=1)
 
+    @model_validator(mode="after")
+    def unambiguous_policy(self) -> Self:
+        if self.mode is not None:
+            if self.open_order is not None or self.close_order is not None:
+                raise ValueError("Modo conjunto não aceita ordem sequencial.")
+            self.joint_policy()
+        elif any(
+            value is not None
+            for value in (
+                self.hold_open_ms, self.hold_start, self.hold_clock,
+                self.completion_policy, self.close_settle_ms, self.initial_condition,
+            )
+        ):
+            raise ValueError("Permanência explícita exige modo joint-v1.")
+        return self
+
+    def joint_policy(self) -> JointCyclePolicy | None:
+        if self.mode is None:
+            return None
+        return JointCyclePolicy.model_validate(
+            {
+                "mode": self.mode,
+                "hold_open_ms": self.hold_open_ms,
+                "hold_start": self.hold_start,
+                "hold_clock": self.hold_clock,
+                "completion_policy": self.completion_policy,
+                "close_settle_ms": self.close_settle_ms,
+                "initial_condition": self.initial_condition,
+            }
+        )
+
     def configured(self) -> bool:
+        if self.mode is not None:
+            return self.joint_policy() is not None
         return all(
             (
                 self.open_order,
@@ -66,6 +137,14 @@ class CycleDeclarations(_SettingsModel):
     def plan(self) -> tuple[str, ...]:
         if not self.configured():
             return ()
+        if self.mode is not None:
+            return (
+                "REQUIRE_CLOSED_PWM" if self.completion_policy else "REQUIRE_INITIAL_CLOSED",
+                "OPEN_BOTH",
+                "HOLD_OPEN",
+                "CLOSE_BOTH",
+                "SETTLE_CLOSED" if self.completion_policy else "AWAIT_INITIAL_EVIDENCE",
+            )
         opening = (
             ("OPEN_LEFT", "OPEN_RIGHT")
             if self.open_order == "left_then_right"
@@ -149,6 +228,24 @@ class PhysicalDeclarations(_SettingsModel):
             blockers.append("MOTION_CONFIRMATION_UNDEFINED")
         return tuple(blockers)
 
+    def c_executor_configured(self) -> bool:
+        """Command-state admission for C only; no measured position provider."""
+        return bool(
+            self.cycle.completion_policy == "operational-sequence-v1"
+            and self.mapping_reference
+            and self.calibration_reference
+            and self.completion_reference
+            and self.cycle.homologation_reference
+            and self.period_ns is not None
+            and self.polarity is not None
+            and all(
+                all(getattr(h, key) is not None for key in (
+                    "pwm_chip", "pwm_channel", "closed_pulse_ns", "open_pulse_ns",
+                ))
+                for h in (self.right, self.left)
+            )
+        )
+
 
 class CControllerSettings(_SettingsModel):
     schema_version: Literal["bingo-c-controller-v1"] = Field(alias="schema")
@@ -197,3 +294,6 @@ class ControllerReadiness(_SettingsModel):
     blockers: tuple[str, ...]
     configured_physical: PhysicalDeclarations | None = None
     cycle_plan: tuple[str, ...] = ()
+    cycle_policy: JointCyclePolicy | None = None
+    c_executor_configured: bool = False
+    physical_command_timeout_seconds: float | None = None

@@ -21,9 +21,16 @@ from test_mechanical_journal import blocked
 pytestmark = pytest.mark.skipif(sys.platform != "linux", reason="Linux C toolchain")
 
 
-def project_configuration(binaries, tmp_path):
+def project_configuration(binaries, tmp_path, *, historical=True):
     source = Path(__file__).resolve().parents[2] / "controller/operational.example.json"
     data = json.loads(source.read_text())
+    if historical:
+        # Retain the prior planning-only snapshot for its compatibility tests.
+        # Executor tests explicitly use historical=False (the current example).
+        for key in ("completion_policy", "close_settle_ms", "initial_condition"):
+            data["physical"]["cycle"].pop(key)
+        data["physical"].update(calibration_reference=None, completion_reference=None)
+        data["physical"]["cycle"]["homologation_reference"] = None
     data.update(executable=str(binaries["physical"]), journal=str(tmp_path / "c.db"))
     path = tmp_path / "project.json"
     path.write_text(json.dumps(data))
@@ -52,10 +59,16 @@ async def test_project_mapping_is_explicit_without_pinmux_or_pulse_inference(
         right.intended_signal,
     ) == (3, 70, 175, None)
     assert left.pwm_chip == right.pwm_chip == 0
-    assert settings.physical.period_ns is settings.physical.polarity is None
+    assert settings.physical.period_ns == 20_000_000
+    assert settings.physical.polarity == "normal"
     assert "2026-11-10" in settings.physical.mapping_reference
-    assert left.closed_pulse_ns is left.open_pulse_ns is None
-    assert right.closed_pulse_ns is right.open_pulse_ns is None
+    assert (left.closed_pulse_ns, left.open_pulse_ns) == (1_350_000, 2_300_000)
+    assert (right.closed_pulse_ns, right.open_pulse_ns) == (1_750_000, 600_000)
+    assert (
+        settings.physical.cycle.open_order
+        is settings.physical.cycle.close_order
+        is None
+    )
     assert (
         left.soc_pad
         is right.soc_pad
@@ -65,7 +78,15 @@ async def test_project_mapping_is_explicit_without_pinmux_or_pulse_inference(
     )
     assert "PWM_MAPPING_UNVERIFIED" in readiness.blockers
     assert "PULSE_CALIBRATION_UNVERIFIED" in readiness.blockers
-    assert "CYCLE_POLICY_UNVERIFIED" in readiness.blockers and not readiness.cycle_plan
+    assert "CYCLE_POLICY_UNVERIFIED" in readiness.blockers
+    assert readiness.cycle_plan == (
+        "REQUIRE_INITIAL_CLOSED",
+        "OPEN_BOTH",
+        "HOLD_OPEN",
+        "CLOSE_BOTH",
+        "AWAIT_INITIAL_EVIDENCE",
+    )
+    assert readiness.cycle_policy.hold_open_ms == 5000
     assert not (tmp_path / "c.db").exists()
 
 
