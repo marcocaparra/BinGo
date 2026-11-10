@@ -1,5 +1,44 @@
 # Contratos locais — fundação de sessão V1
 
+## Vigente — fluxo operacional supervisionado sem porta, 10/11/2026
+
+Extensão autorizada neste incremento; substitui a ausência operacional descrita
+no histórico. Mantidas as mesmas guardas locais, no-store e rotas de sessão.
+Sem configuração C válida e comissionamento presencial, não existe habilitação
+física nem ONLINE. /local/status só permite início quando central e prontidão
+local atual passam; não é autorização econômica ou liberação para alunos.
+
+As respostas Session das consultas existentes ganham `operational` opcional:
+`commands` (journal durável), `vision` (mesma projeção SessionVision),
+`allowed_actions`, `execution_ready`, `blocker`,
+`audience="attending-technicians-only"`. Fora dessa composição permanece null.
+GET ativa/sessão lê sem câmera/IA/movimento. Não existe endpoint genérico C/PWM.
+
+Com prefixo S=/local/sessions/{event_id}:
+
+| Ação | Entrada | Efeito |
+| --- | --- | --- |
+| POST S/safety | `{has_risk: boolean estrito}` | seguro: INSERTION_READY; risco: CANCELLED; decisão durável/replay, conflito 409 |
+| POST S/hand-removed | `{hand_removed: true}` | declara retirada da mão, persiste checkpoint lógico e solicita uma captura/análise; replay não fotografa |
+| POST S/vision-review | `{capture_id: UUID, item_id: ID oferecido, action: confirm ou correct}` | revisão imutável de observação eletrônica aceita; não move |
+| POST S/hatch | `{}` | verifica revisão/central/comissionamento; solicita CYCLE_LOWER_HATCH com ID estável UUIDv5 do evento, prazo fixo 30 s |
+| GET S/vision-image/{capture_id} | X-Totem-Request: 1 | JPEG já em RAM, privado/no-store, nunca recaptura |
+
+São as ações oficiais já existentes no fluxo, agora disponíveis na sessão
+operacional. /simulation, DEV e seus PINs/economia seguem isolados. Campos extras,
+opcodes, pulsos, pontos, `physical_confirmed` ou timeout enviados ao hatch são
+recusados. Hand-removed é declaração de usuário, não sensor e não chama C.
+
+Hatch retorna Session após aceite/replay; **HTTP 200 não significa conclusão**.
+Consultar journal.phase/result/source por GET. Durante execução, HATCH_IN_PROGRESS;
+conclusão operacional PHYSICAL ou falha retêm INDETERMINATE/slot. A tela diferencia
+sucesso operacional, indisponibilidade e incerteza. Não há finalização/recibo/pontos
+por tempo visual ou C SUCCEEDED. Reinício mantém bloqueio e não reenvia comandos.
+
+Não existe endpoint público para liberar UNKNOWN, devolver por movimento,
+confirmar queda ou forçar outra sessão. Recuperação técnica é GET do mesmo ID e
+inspeção auditada, conforme [roteiro](../deploy/physical/README.md).
+
 Decisão vigente de 05/11/2026: o perfil vision-dev já implementa SAFETY →
 INSERTION_READY → CONFIRM_HAND_REMOVED → READY_TO_CAPTURE → captura/análise e
 revisão, sem porta. A rota simulada hand-removed exige a declaração estrita e

@@ -1,0 +1,10 @@
+{
+  "schema": "bingo-commissioning-evidence-v1",
+  "criterion": "REPLACE_WITH_CRITERION",
+  "outcome": "PENDING_NOT_APPROVED",
+  "approved_by": "REPLACE_WITH_RESPONSIBLE_TECHNICIAN",
+  "approved_at": 0.0,
+  "configuration_sha256": "REPLACE_WITH_INSTALLED_CONFIGURATION_SHA256",
+  "executable_sha256": "REPLACE_WITH_INSTALLED_ARM64_BINARY_SHA256",
+  "findings": "Describe the actual witnessed test, assembly, power isolator, failure, response, limitations and retained evidence. This template is intentionally invalid and grants no permission."
+}

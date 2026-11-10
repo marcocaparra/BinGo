@@ -1,4 +1,4 @@
-"""Máquina única de sessão; movimentos conectados somente em sessões simuladas."""
+"""Máquina única de sessão; o journal autoriza transições mecânicas."""
 
 from datetime import datetime
 from typing import Literal
@@ -86,6 +86,7 @@ class Session(BaseModel):
     failure_code: str | None
     receipt: DepositReceipt | None
     updated_at: str
+    operational: dict | None = None
 
 
 class SimulationIdentity(BaseModel):

@@ -1,11 +1,18 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool, model_validator
 
 
 class LocalStatus(BaseModel):
-    """Recorte seguro do contrato V1; ONLINE ainda não está implementado."""
+    """Central readiness plus local commissioning; never economic confirmation."""
 
-    status: Literal["OFFLINE"]
-    can_start_deposit: Literal[False]
-    message: str
+    status: Literal["OFFLINE", "ONLINE"]
+    can_start_deposit: StrictBool
+    message: str | None
+
+    @model_validator(mode="after")
+    def consistent(self):
+        if ((self.status == "ONLINE") != self.can_start_deposit
+                or (self.message is None) != self.can_start_deposit):
+            raise ValueError("Inconsistent local readiness")
+        return self

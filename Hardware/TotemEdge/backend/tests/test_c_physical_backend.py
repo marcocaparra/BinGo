@@ -60,7 +60,7 @@ async def setup(binaries, native, tmp_path, monkeypatch):
                     JOIN mechanical_controller_bindings USING(mechanical_command_id)""").fetchone()
                 assert phase == "DISPATCHING"
                 assert snapshot == controller.physical_configuration
-                assert db.execute("SELECT count(*) FROM mechanical_history").fetchone() == (2,)
+                assert db.execute("SELECT count(*) FROM mechanical_history WHERE mechanical_command_id=?", (line.split()[2],)).fetchone() == (2,)
                 db.rollback()
         return await real_rpc(controller, line, **kwargs)
 

@@ -17,7 +17,7 @@ async def local_status(
     response: Response,
     service: Annotated[LocalStatusService, Depends(get_status_service)],
 ) -> LocalStatus:
-    """Estado operacional local, bloqueado até existir verificação real."""
+    """Disponibilidade atual; central saudável isoladamente não autoriza descarte."""
     response.headers["Cache-Control"] = "no-store"
     snapshot = await service.check_status()
     return snapshot.local

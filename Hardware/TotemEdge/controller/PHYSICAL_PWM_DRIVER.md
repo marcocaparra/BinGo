@@ -1,5 +1,30 @@
 # Base PWM física das duas escotilhas — 09/11/2026
 
+## Vigente — admissão operacional condicional, 10/11/2026
+
+O ensaio C direto informado pelo responsável em 10/11 no Orange Pi Zero 3
+confirmou handshake PHYSICAL/DOORLESS_V1/OPERATIONAL_SEQUENCE_V1, execução
+`CYCLE_LOWER_HATCH 30`, ambas abertas por 5 s e fechadas, GET
+COMPLETED/SUCCEEDED/PHYSICAL e duplicata recusada sem novo movimento.
+Calibração preservada: direita chip0/pwm3 1750000/600000 ns;
+esquerda chip0/pwm4 1350000/2300000 ns; 20000000 ns, normal.
+É evidência fornecida pelo usuário, não ensaio executado nesta estação.
+
+O Python agora pode compor esse executor sob política de comissionamento
+presencial documentada em [OPERATIONAL_C_CONTROLLER](../backend/OPERATIONAL_C_CONTROLLER.md).
+O driver/executor/PWM não foram substituídos. O novo CLI somente de leitura
+`--physical-initial-check CONFIG` reutiliza pwm_lock_channels/pwm_closed_command
+e retorna bingo-initial-pwm-v1/closed_pwm=true/physical_confirmed=false apenas
+quando ambas as leituras passam. Não abre journals ou escreve/exporta/habilita.
+O Python o usa antes da composição física; a verificação do executor antes de
+OPEN_BOTH permanece obrigatória e independente. Locks da admissão são liberados
+sem afirmar pose/torque seguro. Journals C v4 e frames IPC V1 não mudaram.
+
+Não houve acionamento físico nesta implementação. Corte seguro, recuperação e
+proteções de alunos não foram presumidos; requisitos e instalação em
+[deploy/physical](../deploy/physical/README.md). Descrições abaixo do bloqueio
+permanente Python são históricas, substituídas pelo gate condicional vigente.
+
 ## Atualização de integração Python/IPC — 10/11/2026
 
 O backend preparou o lifecycle PHYSICAL do mesmo executor, mantendo a composição
@@ -22,7 +47,7 @@ executável de produção. Validação: **430 testes focados aprovados, zero fal
 34,15 s**, com compilação C. Contratos, arquivos e ligação futura do fluxo de tela:
 [OPERATIONAL_C_CONTROLLER.md](../backend/OPERATIONAL_C_CONTROLLER.md).
 
-## Vigente: executor C conjunto e conclusão operacional — 10/11/2026
+## Histórico: entrega do executor C conjunto e conclusão operacional — 10/11/2026
 
 Esta seção substitui os bloqueios de execução integral descritos nas etapas
 históricas abaixo. O responsável aprovou conclusão **operacional** pela execução

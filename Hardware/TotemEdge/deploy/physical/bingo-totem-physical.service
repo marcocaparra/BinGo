@@ -1,0 +1,40 @@
+[Unit]
+Description=BinGo attended TotemEdge Python and C IPC V1
+After=network.target
+ConditionPathExists=/etc/bingo/physical/controller.json
+
+[Service]
+Type=simple
+User=bingo
+Group=bingo
+WorkingDirectory=/opt/bingo/TotemEdge/backend
+# Preserve the operator's existing secrets; runtime paths are in a separate file.
+EnvironmentFile=/etc/bingo/totem.env
+EnvironmentFile=/etc/bingo/physical/runtime.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/bingo/venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --no-access-log --no-proxy-headers --timeout-graceful-shutdown 35
+# Restart cannot repeat movement; a human must inspect before restarting.
+Restart=no
+KillMode=control-group
+KillSignal=SIGTERM
+SendSIGKILL=no
+TimeoutStopSec=45
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadOnlyPaths=/sys
+ReadWritePaths=/var/lib/bingo/python /var/lib/bingo/controller
+ReadWritePaths=/run/lock/bingo-pwmchip0-pwm3.lock /run/lock/bingo-pwmchip0-pwm4.lock
+# Resolve/verify these existing kernel paths on the actual board before install.
+# Readback requires no write access to export, period, polarity or enable.
+ReadWritePaths=/sys/class/pwm/pwmchip0/pwm3/duty_cycle /sys/class/pwm/pwmchip0/pwm4/duty_cycle
+
+# Deliberately no [Install]: do not enable unattended boot/student operation.

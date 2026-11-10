@@ -1,5 +1,11 @@
 # Execução containerizada do Totem Edge V1
 
+Para a instalação física no Orange Pi, seguir o [roteiro presencial ARM64](physical/README.md).
+A imagem Python abaixo não constitui uma instalação do executor físico. O roteiro
+preserva Docker/.env/SQLite e define permissões mínimas, migração, evidências e
+parada sem habilitação no boot. Uso por alunos e liberação após falha permanecem
+pendentes de homologação física.
+
 Um container executa FastAPI/Uvicorn e serve o frontend oficial na mesma origem.
 SQLite ocupa um volume Docker persistente. O navegador permanece no Linux do
 equipamento, acessando loopback. Não há Node, Nginx, Chromium, IA local, serviços

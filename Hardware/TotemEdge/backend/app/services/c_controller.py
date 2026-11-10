@@ -1,9 +1,9 @@
-"""Existing C IPC/lifecycle; production physical activation stays gated."""
+"""Existing C IPC/lifecycle, with conditional attended physical commissioning."""
 
 import asyncio
 import math
-from pathlib import Path
 import tempfile
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
@@ -12,10 +12,10 @@ from pydantic import BaseModel, ConfigDict
 from app.mechanical import ControllerError, MechanicalCommand, MechanicalResponse
 from app.services.controller import UnavailableController
 from app.services.controller_config import (
+    JOINT_COMMAND_TIMEOUT_SECONDS,
     CControllerSettings,
     ControllerReadiness,
     PhysicalConfigDiagnostic,
-    JOINT_COMMAND_TIMEOUT_SECONDS,
 )
 
 
@@ -35,6 +35,12 @@ class HatchReference(_PreflightModel):
 class AssemblyReference(_PreflightModel):
     right: HatchReference
     left: HatchReference
+
+
+class InitialPWMCheck(_PreflightModel):
+    protocol: Literal["bingo-initial-pwm-v1"]
+    closed_pwm: Literal[True]
+    physical_confirmed: Literal[False]
 
 
 class LegacyPWMEvidence(_PreflightModel):
@@ -69,8 +75,8 @@ class PhysicalPreflight(_PreflightModel):
 class CProcessController:
     """Private stdio capability; reconnect means a new explicit instance, no resend.
 
-    connect() remains laboratory-only. open_operational() keeps the supervised
-    physical activation gate; _connect_joint prepares that existing IPC path.
+    connect() remains laboratory-only. open_operational() validates attended
+    commissioning; _connect_joint implements that same existing IPC path.
     get() is a local snapshot; query(command) consults the retained device ID.
     doorless-v1 is the default and requires an explicit capability handshake;
     legacy-v1 is available only for historical laboratory sequences.
@@ -91,6 +97,7 @@ class CProcessController:
         self._active: UUID | None = None
         self._close_task = None
         self._reaper = None
+        self._commissioning = None
 
     @property
     def source(self):
@@ -113,6 +120,16 @@ class CProcessController:
         ):
             raise ControllerError("INVALID_PHYSICAL_COMMAND_POLICY")
 
+    def check_commissioning(self):
+        if self._commissioning is None:
+            raise ControllerError("PHYSICAL_SUPERVISION_PENDING")
+        self._commissioning.check()
+        import hashlib
+        if hashlib.sha256(self._configuration.encode()).hexdigest() != self._commissioning.record.configuration_sha256:
+            raise ControllerError("MECHANICAL_CONFIG_SNAPSHOT_CONFLICT")
+        if self._closed or self._process.returncode is not None:
+            raise ControllerError("CONTROLLER_DISCONNECTED")
+
     @property
     def readiness(self) -> ControllerReadiness | None:
         if self._readiness is not None and (
@@ -121,6 +138,8 @@ class CProcessController:
             return self._readiness.model_copy(
                 update={
                     "transport": "FAILED",
+                    "execution_ready": False,
+                    "source": "UNAVAILABLE",
                     "blockers": self._readiness.blockers + ("CONTROLLER_DISCONNECTED",),
                 }
             )
@@ -218,15 +237,48 @@ class CProcessController:
         The C journal is separate from the Python journal. No fallback to the
         simulated executable, reconnect, replay or startup command is allowed.
         """
+        # An executable-capable configuration must pass authority/permissions
+        # BEFORE even a diagnostic subprocess is created by production startup.
+        if config is not None:
+            try:
+                candidate = CControllerSettings.from_file(config, backend_journal=backend_journal)
+                if candidate.physical.c_executor_configured():
+                    from app.services.commissioning import CommissioningPolicy
+                    try:
+                        CommissioningPolicy(config, candidate, backend_journal).check()
+                    except ControllerError:
+                        return UnavailableController(), ControllerReadiness(
+                            configuration="INCOMPLETE" if candidate.physical.blockers() else "DECLARED",
+                            transport="NOT_CONNECTED", blockers=(*candidate.physical.blockers(), "PHYSICAL_SUPERVISION_PENDING"),
+                            configured_physical=candidate.physical, cycle_plan=candidate.physical.cycle.plan(),
+                            cycle_policy=candidate.physical.cycle.joint_policy(), c_executor_configured=True,
+                            physical_command_timeout_seconds=JOINT_COMMAND_TIMEOUT_SECONDS,
+                        )
+            except (OSError, ValueError):
+                pass  # Existing invalid-configuration diagnostic below is fail closed.
         settings, readiness = await cls.diagnose_operational(
             config, backend_journal=backend_journal
         )
         if settings is None or readiness.transport != "DIAGNOSTIC_OK":
             return UnavailableController(), readiness
         if readiness.c_executor_configured:
-            # Hard production composition gate, pending supervised homologation.
-            # No JSON/env/API override authorizes physical activation.
-            return UnavailableController(), readiness
+            from app.services.commissioning import CommissioningPolicy
+
+            policy = CommissioningPolicy(config, settings, backend_journal)
+            try:
+                policy.check()
+                controller = await cls._connect_joint(config, backend_journal=backend_journal, initial_check=True)
+                controller._commissioning = policy
+                controller._readiness = readiness.model_copy(update={
+                    "transport": "CONNECTED_ATTENDED", "execution_ready": True,
+                    "source": "PHYSICAL", "blockers": (),
+                })
+                return controller, controller.readiness
+            except (OSError, ValueError, ControllerError, TimeoutError) as error:
+                return UnavailableController(), readiness.model_copy(update={
+                    "blockers": tuple(dict.fromkeys((*readiness.blockers,
+                        error.code if isinstance(error, ControllerError) else "CONTROLLER_CONNECTION_FAILED"))),
+                })
         try:
             controller = await cls._launch(
                 [
@@ -260,11 +312,10 @@ class CProcessController:
         return controller, controller.readiness
 
     @classmethod
-    async def _connect_joint(cls, config: Path, *, backend_journal: Path):
-        """Prepared private composition; NOT called by operational FastAPI.
-
-        Controlled harness tests exercise this exact IPC path. Production stays
-        gated in open_operational until supervised homologation, without a flag.
+    async def _connect_joint(cls, config: Path, *, backend_journal: Path, initial_check=False):
+        """Existing IPC composition. Production enters via open_operational's
+        commissioning policy and read-only initial check; maintenance uses GET only.
+        Controlled harnesses may exercise this path without hardware access.
         """
         settings, readiness = await cls.diagnose_operational(
             config, backend_journal=backend_journal
@@ -284,6 +335,14 @@ class CProcessController:
             snapshot.write(raw)
             snapshot.flush()
             snapshot.seek(0)
+            # Reuse the C driver for read-only initial PWM validation and both
+            # global locks. No export, enable, homing or corrective write.
+            if initial_check:
+                await cls._read_diagnostic(
+                    settings.executable, ["--physical-initial-check", f"/proc/self/fd/{snapshot.fileno()}"],
+                    schema=InitialPWMCheck, io_timeout_seconds=settings.io_timeout_seconds,
+                    error_code="INITIAL_PWM_NOT_CLOSED", pass_fds=(snapshot.fileno(),),
+                )
             controller = await cls._launch(
                 [str(settings.executable.resolve()), "--ipc-physical", str(settings.journal.resolve()),
                  "--profile", settings.profile, "--config", f"/proc/self/fd/{snapshot.fileno()}"],
@@ -316,7 +375,7 @@ class CProcessController:
 
     @staticmethod
     async def _read_diagnostic(
-        executable, arguments, *, schema, io_timeout_seconds, error_code
+        executable, arguments, *, schema, io_timeout_seconds, error_code, pass_fds=()
     ):
         """Shared bounded JSON reader; diagnostics never open operational journals."""
         if not math.isfinite(io_timeout_seconds) or io_timeout_seconds <= 0:
@@ -331,6 +390,7 @@ class CProcessController:
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.DEVNULL,
                     limit=8192,
+                    pass_fds=pass_fds,
                 )
                 raw = b""
                 while len(raw) <= 8192:
@@ -493,6 +553,9 @@ class CProcessController:
                 raise ControllerError("MECHANICAL_INTENT_REQUIRED")
             if self._active is not None:
                 raise ControllerError("CONTROLLER_BUSY")
+            if self._commissioning is not None:
+                self.check_commissioning()
+                self._commissioning.consume(self._journal.store, command)
             self._active = command.mechanical_command_id
             self._deadlines[command.mechanical_command_id] = asyncio.get_running_loop().time() + command.timeout_seconds
         parts = await self._rpc(

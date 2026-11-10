@@ -1,5 +1,14 @@
 # Fluxo do Ecossistema de Descarte — BinGo V1
 
+**TotemEdge em 10/11/2026.** Para a montagem atual, prevalece o fluxo sem porta
+superior de [LOCAL_API_V1](../../../Hardware/TotemEdge/backend/LOCAL_API_V1.md):
+triagem → inserção → declaração de mão retirada → visão/revisão → autorização →
+duas escotilhas inferiores em conjunto. O executor só comprova a sequência
+operacional de comandos. Sem evidência homologada de queda/retorno físico, não
+gera `physical_confirmed`, registro ou pontuação. Referências à porta superior
+abaixo descrevem o desenho anterior. O comissionamento atual é exclusivo de
+técnicos presentes e não altera as regras econômicas de domínio.
+
 Este documento descreve o fluxo de descarte de lixo eletrônico da primeira versão oficial do BinGo, envolvendo o aluno, o Totem, o Hardware, o sistema de visão computacional, o Gemini e o Backend. O objetivo principal do fluxo é permitir que um aluno descarte um lixo eletrônico de forma orientada, receba pontos pela ação e tenha o descarte registrado em seu histórico.
 
 Na regra-alvo da primeira versão, todos os descartes válidos partem da mesma recompensa-base: `800` BinCoins para o aluno identificado e `1900` XP para a turma. Esses valores são a redenominação oficial por fator `100` das antigas unidades `8` e `19`; preservam a mesma relação econômica e devem ser usados como unidade real pelo domínio, backend, banco, APIs, Admin e Mobile, sem multiplicação apenas visual no frontend. A categoria canônica pode acrescentar um bônus percentual somente aos BinCoins, sem multiplicar a taxa nem alterar o XP. Ela também serve para exibição, histórico, estatísticas e avaliação da visão computacional; tamanho físico não participa do cálculo. A conversão está versionada e validada localmente e foi aplicada e aprovada no postflight do `bingo-dev`; em 2026-09-15, o Mobile autenticado já instalado exibiu os valores hospedados na nova unidade sem reinstalação ou novo `flutter run`. Essa comprovação é exclusiva do DEV e não declara aplicação ou validação em produção.

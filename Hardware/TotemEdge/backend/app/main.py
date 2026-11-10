@@ -1,6 +1,6 @@
-from contextlib import asynccontextmanager
-from collections.abc import Callable
 import os
+from collections.abc import Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx2 as httpx
@@ -9,16 +9,19 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.camera_api import camera_error, configured_camera
+from app.camera_api import router as camera_router
 from app.clients.supabase import CentralError, SupabaseEdgeClient
 from app.cycles import CycleError
 from app.mechanical import ControllerError, MechanicalController
 from app.routes import health, local, sessions
+from app.services.c_controller import CProcessController
+from app.services.camera import CameraError
 from app.services.capture import CaptureService
 from app.services.controller import UnavailableController
-from app.services.c_controller import CProcessController
 from app.services.mechanical import MechanicalService
-from app.services.simulation_flow import SimulationFlow
 from app.services.sessions import SessionService
+from app.services.simulation_flow import SimulationFlow
 from app.services.status import LocalStatusService
 from app.services.vision import build_internal_vision
 from app.simulation import (
@@ -26,8 +29,6 @@ from app.simulation import (
     reject_simulation_in_operational,
 )
 from app.storage import CycleStore
-from app.camera_api import configured_camera, router as camera_router, camera_error
-from app.services.camera import CameraError
 
 
 def create_app(
@@ -81,7 +82,7 @@ def create_app(
                     Path(controller_config) if controller_config is not None else None,
                     backend_journal=sqlite_path,
                 )
-                source = "UNAVAILABLE"
+                source = controller.source if isinstance(controller, CProcessController) else "UNAVAILABLE"
             try:
                 mechanical = MechanicalService(
                     store,
@@ -156,12 +157,42 @@ def create_app(
                             )
                             application.state.simulation_flow.vision = session_vision
                             session_vision.recover_unstarted()
+                        if _simulation is None and controller_config is not None:
+                            from app.services.session_vision import SessionVision
+
+                            store.operational_enabled = source == "PHYSICAL"
+                            application.state.capture.vision = application.state.vision
+                            session_vision = SessionVision(
+                                application.state.capture, mechanical,
+                                model=os.getenv("GEMINI_MODEL", "gemini-flash-lite-latest"),
+                                operational=True,
+                            )
+                            application.state.sessions.mechanical = mechanical
+                            application.state.sessions.vision = session_vision
+
+                            async def operational_readiness():
+                                import asyncio
+                                application.state.sessions.physical_ready()
+                                async with asyncio.timeout(3):
+                                    camera_status = await camera.status()
+                                if camera_status.get("present") is not True or camera_status.get("busy") is not False:
+                                    return False
+                                with store.transaction() as conn:
+                                    # Unresolved histories inhibit even if PWM happens
+                                    # to read closed after reboot. Never clear journals.
+                                    if conn.execute("SELECT 1 FROM mechanical_commands WHERE phase IN ('INTENT','DISPATCHING','ACCEPTED','FAILED','TIMED_OUT','CANCELLED','INDETERMINATE')").fetchone():
+                                        return False
+                                active = store.active()
+                                return active is None or active.state in {"IDENTIFYING", "AUTHENTICATING", "SAFETY", "INSERTION_READY", "READY_TO_CAPTURE", "CAPTURING", "CLASSIFYING", "REVIEW"}
+
+                            status.operational_readiness = operational_readiness
                         try:
                             economy = None
                             if getattr(
                                 _simulation, "vision_enabled", False
                             ) and getattr(policy, "economic_registration", False):
                                 import asyncio
+
                                 from app.services.dev_economy import DevEconomy
 
                                 economy = DevEconomy(store, central)
@@ -193,6 +224,8 @@ def create_app(
     application.add_exception_handler(CameraError, camera_error)
     if _simulation is None:
         application.include_router(sessions.router)
+        if os.getenv("BINGO_C_CONTROLLER_CONFIG") is not None:
+            application.include_router(sessions.physical_router)
     if _simulation:
         from app.routes.simulation import router as simulation_router
 

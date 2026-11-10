@@ -29,6 +29,7 @@ static char lock_paths[2][64];
 static int lock_count;
 static int executing, crash_write, wrong_initial, interrupt_hold, interrupt_settle, lost_peer, expired, expire_settle;
 static int wrong_period, wrong_polarity, wrong_enable, clock_failure;
+static int deny_duty_open;
 static int ipc_peers, pause_hold;
 static int64_t test_now = 1000000000, write_times[32];
 
@@ -102,6 +103,8 @@ int __wrap_open(const char *path, int flags, ...)
 int __wrap_openat(int directory, const char *name, int flags, ...)
 {
     if (directory >= 0 && directory < 1024 && handles[directory].kind) {
+        if (deny_duty_open && handles[directory].kind == 2 && !strcmp(name, "duty_cycle") &&
+            (flags & O_ACCMODE) == O_WRONLY) { errno = EACCES; return -1; }
         if (handles[directory].kind == 1 && !strncmp(name, "pwm", 3)) {
             if (missing_once) { missing_once = 0; errno = ENOENT; return -1; }
             assert(channel_count < 2);
@@ -179,6 +182,22 @@ int main(int argc, char **argv)
     assert(argc == 5 || (argc == 6 && !strcmp(argv[5], "ipc")));
     PWMDriver driver; pwm_init(&driver);
     assert(pwm_load_config(&driver.config, argv[1]) == 0);
+    if (!strncmp(argv[2], "initial-check", 13)) {
+        executing = 1;
+        physical_pwm = driver;
+        wrong_initial = !strcmp(argv[2], "initial-check-duty");
+        wrong_enable = !strcmp(argv[2], "initial-check-disabled");
+        wrong_period = !strcmp(argv[2], "initial-check-period");
+        wrong_polarity = !strcmp(argv[2], "initial-check-polarity");
+        missing_once = !strcmp(argv[2], "initial-check-missing");
+        deny_duty_open = !strcmp(argv[2], "initial-check-permission");
+        char *args[] = {argv[0], "--physical-initial-check", argv[1], NULL};
+        int result = controller_entrypoint(3, args);
+        assert(writes == 0 && physical_pwm.touched == 0);
+        assert(result == (!strcmp(argv[2], "initial-check") ? 0 : 2));
+        for (int i = 0; i < lock_count; i++) assert(unlink(lock_paths[i]) == 0);
+        return result;
+    }
     if (!strncmp(argv[2], "execute", 7)) {
         ipc_peers = argc == 6;
         if (ipc_peers) {

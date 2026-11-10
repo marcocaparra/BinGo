@@ -35,12 +35,22 @@ class SessionVision:
         *,
         model: str,
         deferred_analysis=False,
+        operational=False,
     ):
         self.capture, self.store = capture, capture.store
         self.mechanical, self.model = mechanical, model
         self.tasks = {}
         self.deferred_analysis = deferred_analysis
         self.frames = {}
+        self.operational = operational
+
+    def _session_row(self, conn, event):
+        if not self.operational:
+            return self.store.simulation_row(conn, event)
+        row = self.store._row(conn, event)
+        if row["simulated"]:
+            raise CycleError("PHYSICAL_SESSION_REQUIRED")
+        return row
 
     @staticmethod
     def identifier(close_id):
@@ -194,7 +204,7 @@ class SessionVision:
     async def analyze(self, event: UUID, close_id: UUID):
         identifier = self.identifier(close_id)
         with self.store.transaction() as conn:
-            row = self.store.simulation_row(conn, event)
+            row = self._session_row(conn, event)
             previous = self.snapshot(conn, event)
             if previous:
                 if previous["close_command_id"] != str(close_id):
@@ -203,11 +213,11 @@ class SessionVision:
             if self.store.identity_scope:
                 self.store.require_simulation_identity(conn, event)
             closed = conn.execute(
-                "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation IN ('CLOSE_INSERTION_DOOR','CONFIRM_HAND_REMOVED') AND source='SIMULATED' AND phase='COMPLETED' AND result='SUCCEEDED'",
-                (str(close_id), str(event)),
+                "SELECT 1 FROM mechanical_commands WHERE mechanical_command_id=? AND event_id=? AND operation IN ('CLOSE_INSERTION_DOOR','CONFIRM_HAND_REMOVED') AND source=? AND phase='COMPLETED' AND result='SUCCEEDED'",
+                (str(close_id), str(event), "PHYSICAL" if self.operational else "SIMULATED"),
             ).fetchone()
             if row["state"] not in {"DOOR_CLOSED", "READY_TO_CAPTURE"} or row["active_slot"] != 1 or not closed:
-                raise CycleError("DOOR_CLOSED_CONFIRMATION_REQUIRED")
+                raise CycleError("HAND_REMOVAL_DECLARATION_REQUIRED" if self.operational else "DOOR_CLOSED_CONFIRMATION_REQUIRED")
             if self.store.mechanical.has_risk(conn, event):
                 raise CycleError("MECHANICAL_RESULT_UNKNOWN", 503)
             conn.execute(
@@ -222,11 +232,13 @@ class SessionVision:
             # Pixels remain separate from the simulated mechanical provenance.
             frame = await self.capture.acquire(identifier)
             validate_frame(frame)
+            if self.operational and frame.simulated:
+                raise VisionError("SIMULATED_CAPTURE_BLOCKED")
             if frame.media_type != "image/jpeg":
                 raise VisionError("UNSUPPORTED_IMAGE_TYPE")
             audit = dict(
                 camera="SIMULATED" if frame.simulated else "DEVICE",
-                mechanical="SIMULATED",
+                mechanical="USER_DECLARATION" if self.operational else "SIMULATED",
                 policy=POLICY,
                 capture=dict(media_type=frame.media_type, bytes=len(frame.content)),
                 observations=[],
@@ -263,7 +275,7 @@ class SessionVision:
                         json.dumps(
                             self.snapshot(conn, event)["provenance"]
                             or {
-                                "mechanical": "SIMULATED",
+                                "mechanical": "USER_DECLARATION" if self.operational else "SIMULATED",
                                 "policy": POLICY,
                                 "observations": [],
                             }
@@ -308,6 +320,8 @@ class SessionVision:
                     raise VisionError("VISION_AUDIT_FAILED") from None
 
             observation = await self.capture.vision.classify(frame, observe=observe)
+            if self.operational and observation.simulated:
+                raise VisionError("SIMULATED_CLASSIFICATION_BLOCKED")
             result = validate_result(
                 observation.result.model_dump(), observation.result.origin
             )
@@ -388,7 +402,7 @@ class SessionVision:
                         json.dumps(
                             self.snapshot(conn, event)["provenance"]
                             or {
-                                "mechanical": "SIMULATED",
+                                "mechanical": "USER_DECLARATION" if self.operational else "SIMULATED",
                                 "policy": POLICY,
                                 "observations": [],
                             }
@@ -407,7 +421,7 @@ class SessionVision:
 
     def image(self, event, identifier):
         with self.store.transaction() as conn:
-            row = self.store.simulation_row(conn, event)
+            row = self._session_row(conn, event)
             attempt = self.snapshot(conn, event)
             frame = self.frames.get(str(event))
             if (
@@ -720,7 +734,7 @@ class SessionVision:
 
     def review(self, event, capture_id, item_id, action):
         with self.store.transaction() as conn:
-            row = self.store.simulation_row(conn, event)
+            row = self._session_row(conn, event)
             attempt = self.snapshot(conn, event)
             if not attempt or attempt["capture_id"] != str(capture_id):
                 raise CycleError("CAPTURE_ID_CONFLICT")

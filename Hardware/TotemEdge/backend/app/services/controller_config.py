@@ -288,9 +288,9 @@ class CControllerSettings(_SettingsModel):
 
 class ControllerReadiness(_SettingsModel):
     configuration: Literal["NOT_CONFIGURED", "INVALID", "INCOMPLETE", "DECLARED"]
-    transport: Literal["NOT_CONNECTED", "DIAGNOSTIC_OK", "CONNECTED_BLOCKED", "FAILED"]
-    execution_ready: Literal[False] = False
-    source: Literal["UNAVAILABLE"] = "UNAVAILABLE"
+    transport: Literal["NOT_CONNECTED", "DIAGNOSTIC_OK", "CONNECTED_BLOCKED", "CONNECTED_ATTENDED", "FAILED"]
+    execution_ready: bool = False
+    source: Literal["UNAVAILABLE", "PHYSICAL"] = "UNAVAILABLE"
     blockers: tuple[str, ...]
     configured_physical: PhysicalDeclarations | None = None
     cycle_plan: tuple[str, ...] = ()

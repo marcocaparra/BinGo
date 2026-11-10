@@ -1,5 +1,14 @@
 # Plano B — Operação Offline do Totem BinGo!
 
+**TotemEdge em 10/11/2026.** `/local/status` está implementado. No fluxo
+presencial de comissionamento, ONLINE exige a resposta central aprovada e
+prontidão local atual (autorização, controller, câmera/IA e journals). Ver
+[LOCAL_API_V1](../../Hardware/TotemEdge/backend/LOCAL_API_V1.md). Antes da
+inserção, a triagem só libera se estiver disponível; depois da inserção,
+falha preserva a sessão e bloqueia hatch até verificação, sem pontos ou novo
+movimento de recuperação. O resultado de comando já aceito continua consultável
+offline pelo mesmo ID. O fluxo operacional não está liberado para alunos.
+
 ## Objetivo
 
 Este documento define como o Totem BinGo! deve se comportar quando estiver sem conexão com o backend central ou quando algum serviço necessário para o fluxo real estiver indisponível.

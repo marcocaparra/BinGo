@@ -1,8 +1,7 @@
 """Journal local: identidade imutável, reserva única e histórico transacional."""
 
-from datetime import datetime, timezone
-import sqlite3
-from typing import Literal, TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -302,7 +301,10 @@ class MechanicalJournal:
             cycle = self.store._row(conn, command.event_id)
             if (
                 cycle["active_slot"] != 1
-                or (not cycle["simulated"] and cycle["state"] != "PHYSICAL_BLOCKED")
+                or (not cycle["simulated"] and cycle["state"] != "PHYSICAL_BLOCKED"
+                    and not (getattr(self.store, "operational_enabled", False)
+                             and source == "PHYSICAL" and cycle["state"] == "REVIEW"
+                             and command.operation == "CYCLE_LOWER_HATCH"))
                 or cycle["physical_confirmed"]
             ):
                 raise ControllerError("MECHANICAL_CYCLE_NOT_BLOCKED")
@@ -310,7 +312,19 @@ class MechanicalJournal:
                 "SELECT 1 FROM mechanical_commands WHERE active_slot=1"
             ).fetchone():
                 raise ControllerError("MECHANICAL_OPERATION_IN_PROGRESS")
-            at = datetime.now(timezone.utc).isoformat()
+            if not cycle["simulated"] and cycle["state"] == "REVIEW":
+                attempt = conn.execute("SELECT phase,decision,provenance FROM vision_attempts WHERE event_id=?",
+                                       (str(command.event_id),)).fetchone()
+                import json
+                audit = json.loads(attempt["provenance"] or "{}") if attempt else {}
+                if (not cycle["hand_removed"] or not attempt or attempt["phase"] != "COMPLETED"
+                        or not attempt["decision"] or audit.get("camera") != "DEVICE"
+                        or audit.get("inference") != "PROVIDER"
+                        or conn.execute("SELECT 1 FROM mechanical_commands WHERE event_id=? AND operation='CYCLE_LOWER_HATCH'",
+                                        (str(command.event_id),)).fetchone()):
+                    raise ControllerError("VISION_REVIEW_REQUIRED")
+                self.store._record(conn, cycle, "HATCH_IN_PROGRESS", code="PHYSICAL_CYCLE_REQUESTED")
+            at = datetime.now(UTC).isoformat()
             conn.execute(
                 "INSERT INTO mechanical_commands VALUES(?,?,?,?,?,?,'PENDING',NULL,1,0,?,?)",
                 (
@@ -336,7 +350,7 @@ class MechanicalJournal:
             return entry, True
 
     def _transition(self, conn, row, phase, result, code) -> JournalEntry:
-        at = datetime.now(timezone.utc).isoformat()
+        at = datetime.now(UTC).isoformat()
         version = row["version"] + 1
         cursor = conn.execute(
             "UPDATE mechanical_commands SET phase=?,result=?,error_code=?,active_slot=?,version=?,updated_at=? WHERE mechanical_command_id=? AND phase=? AND version=?",
@@ -456,7 +470,7 @@ class MechanicalJournal:
             conn.execute(
                 """SELECT 1 FROM mechanical_commands WHERE event_id=? AND
                (phase IN ('DISPATCHING','ACCEPTED','FAILED','TIMED_OUT','CANCELLED','INDETERMINATE')
-                OR (source='PHYSICAL' AND phase='COMPLETED')) LIMIT 1""",
+                OR (source='PHYSICAL' AND phase='COMPLETED' AND operation!='CONFIRM_HAND_REMOVED')) LIMIT 1""",
                 (str(event_id),),
             ).fetchone()
             is not None

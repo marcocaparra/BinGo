@@ -12,6 +12,20 @@
     const receipt = value.receipt;
     if (confirmed && (!receipt || receipt.event_id !== value.event_id || !uuid.test(receipt.id) || ["points_awarded_student", "points_awarded_class", "bonus_bincoins_awarded"].some(key => !Number.isSafeInteger(receipt[key]) || receipt[key] < 0))) throw new LocalApiError("INVALID_RESPONSE");
     if (!confirmed && receipt !== null) throw new LocalApiError("INVALID_RESPONSE");
+    if (value.operational != null) {
+      const op = value.operational;
+      if (typeof op.execution_ready !== 'boolean' || op.audience !== 'attending-technicians-only' ||
+          !Array.isArray(op.commands) || !Array.isArray(op.allowed_actions) ||
+          op.allowed_actions.some(a => !['hand-removed', 'vision-review', 'hatch'].includes(a)) ||
+          new Set(op.allowed_actions).size !== op.allowed_actions.length || !op.execution_ready && op.allowed_actions.length) throw new LocalApiError('INVALID_RESPONSE');
+      for (const entry of op.commands) {
+        if (!['PHYSICAL', 'UNAVAILABLE'].includes(entry.source)) throw new LocalApiError('INVALID_RESPONSE');
+        journalEntry(entry, value.event_id, entry.source);
+      }
+      if (op.vision && (op.vision.event_id !== value.event_id || !uuid.test(op.vision.capture_id) ||
+          !op.commands.some(c => c.command.mechanical_command_id === op.vision.close_command_id && c.command.operation === 'CONFIRM_HAND_REMOVED' && c.phase === 'COMPLETED') ||
+          !Array.isArray(op.vision.allowed_candidates))) throw new LocalApiError('INVALID_RESPONSE');
+    }
     return value;
   }
   class LocalApi {
@@ -48,13 +62,13 @@
     async start(body) { return snapshot(await this.request("/local/sessions", body)); }
     async session(id) { if (!uuid.test(id)) throw new LocalApiError("INVALID_ID"); return snapshot(await this.request(`/local/sessions/${id}`)); }
     async action(id, action, body = {}) {
-      if (!uuid.test(id) || !["pin", "safety", "hand-removed", "cancel", "retry-registration", "finish"].includes(action)) throw new LocalApiError("INVALID_ID");
+      if (!uuid.test(id) || !["pin", "safety", "hand-removed", "vision-review", "hatch", "cancel", "retry-registration", "finish"].includes(action)) throw new LocalApiError("INVALID_ID");
       return snapshot(await this.request(`/local/sessions/${id}/${action}`, body));
     }
   }
-  function journalEntry(entry, event) {
+  function journalEntry(entry, event, source = 'SIMULATED') {
     const phases = { INTENT: 'PENDING', DISPATCHING: 'PENDING', ACCEPTED: 'PENDING', COMPLETED: 'SUCCEEDED', REJECTED: 'UNAVAILABLE', FAILED: 'FAILURE', TIMED_OUT: 'UNKNOWN', CANCELLED: 'UNKNOWN', INDETERMINATE: 'UNKNOWN', ABORTED: 'UNAVAILABLE' };
-    if (!entry || entry.source !== 'SIMULATED' || entry.command?.event_id !== event || !uuid.test(entry.command?.mechanical_command_id) ||
+    if (!entry || entry.source !== source || entry.command?.event_id !== event || !uuid.test(entry.command?.mechanical_command_id) ||
         !['CONFIRM_HAND_REMOVED', 'OPEN_INSERTION_DOOR', 'CLOSE_INSERTION_DOOR', 'CYCLE_LOWER_HATCH', 'CONFIRM_INITIAL_STATE'].includes(entry.command.operation) ||
         !Object.hasOwn(phases, entry.phase) || !(phases[entry.phase] === entry.result || entry.phase === 'FAILED' && entry.result === 'UNKNOWN')) throw new LocalApiError('INVALID_RESPONSE');
     return entry;

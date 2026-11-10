@@ -1,5 +1,23 @@
 # Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
+## Vigente — composição operacional condicional, 10/11/2026
+
+O gate permanente abaixo foi substituído por comissionamento presencial
+verificável, exclusivo de técnicos: relatórios root-owned com hashes, boot,
+journals, prazo curto e autorização para um único comando. Falha mantém
+UnavailableController. O mesmo C verifica PWM fechado sem movimento no startup.
+SessionService/SessionVision agora levam as ações HTTP oficiais até
+MechanicalService → CProcessController → IPC V1 → joint-v1 físico. Hand-removed
+é declaração lógica durável no journal, não comando PWM nem sensor. Hatch usa
+ID derivado do evento, prazo 30 s e barreiras transacionais existentes.
+
+Sucesso mecânico continua retendo INDETERMINATE/slot e não produz economia.
+Timeout, falha parcial, EOF, shutdown/reinício e recuperação por GET não limpam
+UNKNOWN. A inspeção local pode ser anexada ao mesmo SQLite; liberação após falha
+e uso por alunos seguem pendentes de homologação física. Não há homing/reset.
+Detalhes vigentes: [integração](OPERATIONAL_C_CONTROLLER.md) e
+[instalação/homologação](../deploy/physical/README.md). Seções seguintes são históricas.
+
 ## Integração Python/C preparada com gate de homologação — 10/11/2026
 
 O mesmo CProcessController/MechanicalService agora suporta a capacidade privada

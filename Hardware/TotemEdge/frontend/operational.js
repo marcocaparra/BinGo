@@ -7,6 +7,9 @@ window.BinGoOperational = {
     let session = null, context = null, stage = "loading", mode = "student";
     let segment = null, grade = null, studentId = null, pin = "", command = null;
     let busy = false, warning = "", filter = "", searchActive = false, keyboardShift = true;
+    let pollTimer = null;
+    const pendingStartKey = 'bingo-operational-start-v1';
+    const allowed = action => session?.operational?.allowed_actions?.includes(action);
     const escape = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
     const button = (label, action, value = "", primary = true) => `<button class="${primary ? "primary-action" : "secondary-action"}" data-op="${action}" data-value="${escape(value)}" ${busy ? "disabled" : ""}>${escape(label)}</button>`;
     const list = (label, action, value) => `<button class="list-button" data-op="${action}" data-value="${escape(value)}" ${busy || action === "class" && command ? "disabled" : ""}><span>${escape(label)}</span></button>`;
@@ -19,6 +22,17 @@ window.BinGoOperational = {
       return `<section class="screen screen--corner screen--stack-action" data-operational-state="${escape(session?.state || stage)}">${topbar(title, { back: false })}<div class="content-zone content-zone--corner">${talk(assets.b1nIdeaCorner, escape(text), "corner")}<div class="status-panel"><strong>${escape(title)}</strong>${warning ? `<p role="alert">${escape(warning)}</p>` : ""}</div></div><div class="action-zone action-zone--stack">${actions}</div></section>`;
     }
     function render() {
+      clearTimeout(pollTimer);
+      if (!busy && ['READY_TO_CAPTURE', 'CAPTURING', 'CLASSIFYING', 'HATCH_IN_PROGRESS'].includes(session?.state)) {
+        // Only read durable state. This timer never completes or starts a cycle.
+        pollTimer = setTimeout(async () => {
+          if (busy) return;
+          busy = true;
+          try { session = await api.session(session.event_id); }
+          catch { warning = 'Não foi possível consultar o ciclo. Chame um responsável; nenhum novo movimento será enviado.'; }
+          finally { busy = false; render(); }
+        }, 750);
+      }
       let html;
       if (stage === "loading") html = panel("Verificando", "Consultando o serviço local do Totem.");
       else if (stage === "unavailable") html = panel("Totem temporariamente indisponível", "A operação real está bloqueada. Tente novamente ou chame um responsável.", button("Verificar novamente", "status") + (["IDENTIFYING", "SAFETY", "PHYSICAL_BLOCKED"].includes(session?.state) ? button("Cancelar preparação", "cancel", "", false) : ""));
@@ -31,7 +45,16 @@ window.BinGoOperational = {
       else if (session?.state === "IDENTIFYING") html = `<section class="screen screen--pin" data-operational-state="IDENTIFYING">${topbar("PIN", { back: false })}<div class="content-zone content-zone--pin">${talk(assets.b1nPrivacyCorner, "Digite seu PIN de quatro números.", "corner character-privacy")}<div class="pin-display">${[0, 1, 2, 3].map(i => `<span class="pin-dot ${i < pin.length ? "filled" : ""}"></span>`).join("")}</div><div class="pin-pad">${["1", "2", "3", "4", "5", "6", "7", "8", "9", "Apagar", "0", "OK"].map(key => `<button class="key" data-op="pin-key" data-value="${key}" ${busy || (key === "OK" && pin.length !== 4) ? "disabled" : ""}>${key}</button>`).join("")}</div><p role="alert">${escape(warning)}</p></div><div class="action-zone">${button("Cancelar", "cancel", "", false)}</div></section>`;
       else if (session?.state === "SAFETY") html = panel("Segurança", "O objeto apresenta vazamento, estufamento, líquidos, partes cortantes ou outro risco?", button("Não apresenta risco", "safe") + button("Apresenta risco", "risk", "", false));
       else if (session?.state === "PHYSICAL_BLOCKED") html = panel("Integração física pendente", "Nenhum movimento foi solicitado. O equipamento ainda não está homologado.", button("Encerrar preparação", "cancel"));
-      else if (session?.state === "DOOR_OPEN") html = panel("Posicione um único item", "Depois de posicionar o objeto, retire a mão do compartimento.", button("Retirei a mão", "hand-removed"));
+      else if (['INSERTION_READY', 'REVIEW'].includes(session?.state) && session?.operational?.execution_ready === false) html = panel('Ciclo indisponível', 'Nenhum movimento novo foi solicitado. Se o item já foi inserido, chame um responsável e mantenha as mãos afastadas.', button('Atualizar estado', 'refresh'));
+      else if (session?.state === "INSERTION_READY") html = panel("Posicione um único item", "Ensaio com responsável presente. Insira um item e retire a mão do compartimento.", allowed('hand-removed') ? button("Retirei a mão", "hand-removed") : button("Atualizar estado", "refresh"));
+      else if (['READY_TO_CAPTURE', 'CAPTURING', 'CLASSIFYING'].includes(session?.state)) html = panel("Analisando o item", "Aguarde a captura e a análise do item. Mantenha as mãos afastadas.", button("Atualizar estado", "refresh", "", false));
+      else if (session?.state === 'REVIEW') {
+        const vision = session.operational?.vision;
+        const name = window.BinGoLocalApi.studentType(vision, vision?.decision?.item_id || vision?.observation?.itemId);
+        html = panel(vision?.decision ? 'Autorizar ciclo mecânico' : 'Confira o item', vision?.decision ? `${name}. O responsável está presente e pronto para cortar a alimentação? Ao autorizar, ambas as escotilhas abrirão e fecharão. A sequência não confirma pontos.` : `Identificamos: ${name}. Confira antes de autorizar o movimento.`,
+          allowed('hatch') ? button('Autorizar abertura e fechamento', 'hatch') : allowed('vision-review') ? button('Confirmar identificação', 'vision-confirm') + vision.allowed_candidates.map(id => button(window.BinGoLocalApi.studentType(vision, id), 'vision-correct', id, false)).join('') : button('Atualizar estado', 'refresh'));
+      }
+      else if (session?.state === 'HATCH_IN_PROGRESS') html = panel('Ciclo mecânico em execução', 'Mantenha as mãos afastadas. Aguardando o resultado durável do controlador.', button('Consultar estado', 'refresh', '', false));
       else if (session?.state === "REGISTRATION_PENDING") html = panel("Registro pendente", "O ciclo confirmado está preservado. Não faça outro descarte. A recompensa aguarda confirmação central.", button("Tentar registrar novamente", "retry-registration"));
       else if (session?.state === "REGISTERED") {
         visuals.renderReceipt(session, busy);
@@ -40,13 +63,16 @@ window.BinGoOperational = {
           message.textContent = warning; message.setAttribute('role', 'alert');
         }
         return;
-      } else if (["INDETERMINATE", "TECHNICAL_FAILURE", "RETURN_REQUIRED"].includes(session?.state)) html = panel("Chame um responsável", session.state === "RETURN_REQUIRED" ? "O objeto foi recusado. A devolução depende da integração física; nenhum descarte válido foi registrado." : "O estado do ciclo exige recuperação. Novos descartes estão bloqueados.", button("Atualizar estado", "refresh"));
+      } else if (["INDETERMINATE", "TECHNICAL_FAILURE", "RETURN_REQUIRED"].includes(session?.state)) {
+        const operationalDone = session.operational?.commands?.some(c => c.command.operation === 'CYCLE_LOWER_HATCH' && c.source === 'PHYSICAL' && c.phase === 'COMPLETED' && c.result === 'SUCCEEDED');
+        html = panel(operationalDone ? 'Sequência operacional concluída' : 'Chame um responsável', operationalDone ? 'O controlador concluiu a abertura e o fechamento. A queda do item e os pontos ainda não foram confirmados. O Totem permanece reservado para inspeção do responsável.' : session.state === 'RETURN_REQUIRED' ? 'O objeto foi recusado. Chame um responsável para retirar o item com segurança. Nenhum ponto foi registrado.' : 'O ciclo exige inspeção presencial. Não coloque as mãos nas escotilhas. O responsável deve isolar a alimentação antes de desobstruir; novos descartes estão bloqueados.', button('Atualizar estado', 'refresh'));
+      }
       else if (["CANCELLED", "COMPLETED"].includes(session?.state)) html = panel("Sessão encerrada", session.state === "CANCELLED" ? "A preparação foi cancelada sem descarte." : "O registro está confirmado.", button("Voltar ao início", "status"));
       else html = panel("Aguardando confirmação", "Esta etapa depende de uma confirmação efetiva do serviço local.", button("Atualizar estado", "refresh"));
       kiosk.innerHTML = html;
     }
     async function checkStatus() {
-      pin = ""; studentId = null; command = null; warning = ""; stage = "loading"; render();
+      pin = ""; studentId = null; warning = ""; stage = "loading"; render();
       // Recuperação é consultada mesmo offline; não descartar ciclo ativo no browser.
       session = await api.active();
       const status = await api.status();
@@ -54,9 +80,14 @@ window.BinGoOperational = {
         stage = "session";
         if (session.state === "IDENTIFYING" && status.can_start_deposit) context = await api.context();
         if (["IDENTIFYING", "AUTHENTICATING", "SAFETY", "PHYSICAL_BLOCKED"].includes(session.state) && !status.can_start_deposit) { stage = "unavailable"; warning = status.message; }
-      } else { stage = status.can_start_deposit ? "idle" : "unavailable"; warning = status.message || ""; }
+      } else {
+        command = JSON.parse(sessionStorage.getItem(pendingStartKey) || 'null');
+        if (command && status.can_start_deposit) { context = await api.context(); stage = 'class'; }
+        else stage = status.can_start_deposit ? "idle" : "unavailable";
+        warning = status.message || "";
+      }
     }
-    async function startSession() { session = await api.start(command); command = null; stage = "session"; }
+    async function startSession() { session = await api.start(command); command = null; sessionStorage.removeItem(pendingStartKey); stage = "session"; }
     async function handle(action, value) {
       warning = "";
       if (action === "status") return checkStatus();
@@ -77,7 +108,12 @@ window.BinGoOperational = {
       if (action === "mode") { mode = value; stage = "segment"; return; }
       if (action === "segment") { segment = value; stage = "year"; return; }
       if (action === "grade") { grade = value; stage = "class"; return; }
-      if (action === "class") { command = { command_id: crypto.randomUUID(), mode, class_id: value }; return startSession(); }
+      if (action === "class") {
+        command = { command_id: crypto.randomUUID(), mode, class_id: value };
+        sessionStorage.setItem(pendingStartKey, JSON.stringify(command));
+        if (sessionStorage.getItem(pendingStartKey) !== JSON.stringify(command)) throw new Error('Storage unavailable');
+        return startSession();
+      }
       if (action === "resume-start") return startSession();
       if (action === "reset-selection") {
         if (command) {
@@ -98,11 +134,29 @@ window.BinGoOperational = {
       }
       if (action === "safe" || action === "risk") { session = await api.action(session.event_id, "safety", { has_risk: action === "risk" }); return; }
       if (action === "refresh") { session = await api.session(session.event_id); return; }
+      if (action === 'vision-confirm' || action === 'vision-correct') {
+        if (!allowed('vision-review')) return;
+        const vision = session.operational.vision;
+        session = await api.action(session.event_id, 'vision-review', { capture_id: vision.capture_id, item_id: action === 'vision-confirm' ? vision.observation.itemId : value, action: action === 'vision-confirm' ? 'confirm' : 'correct' });
+        return;
+      }
+      if (action === 'hatch') {
+        if (!allowed('hatch')) return;
+        session = await api.action(session.event_id, 'hatch');
+        return;
+      }
+      if (action === 'hand-removed') {
+        if (!allowed('hand-removed')) return;
+        session = await api.action(session.event_id, 'hand-removed', { hand_removed: true });
+        return;
+      }
       if (["cancel", "retry-registration", "finish", "hand-removed"].includes(action)) { session = await api.action(session.event_id, action); pin = ""; return; }
     }
     try {
       const devApi = new window.BinGoLocalApi.DevApi();
       if (await devApi.isDev()) return window.BinGoOperational.startDev(kiosk, visuals, devApi);
+      const retained = sessionStorage.getItem(pendingStartKey);
+      if (retained) command = JSON.parse(retained);
     } catch {
       stage = "unavailable"; warning = "Não foi possível confirmar o perfil local. Verifique a conexão e atualize a página."; render();
       kiosk.addEventListener("click", () => window.location.reload(), { once: true });
@@ -114,7 +168,7 @@ window.BinGoOperational = {
       busy = true; render();
       try { await handle(target.dataset.op, target.dataset.value); }
       catch (error) {
-        warning = error.code === "STUDENT_PIN_INVALID" ? "Não foi possível confirmar seu PIN. Tente novamente." : error.code === "PHYSICAL_INTEGRATION_REQUIRED" ? "A integração física ainda não está disponível." : "Não foi possível confirmar a operação. Nenhum sucesso foi presumido.";
+        warning = error.code === "STUDENT_PIN_INVALID" ? "Não foi possível confirmar seu PIN. Tente novamente." : error.code === "PHYSICAL_INTEGRATION_REQUIRED" ? "A integração física ainda não está disponível." : error.code === 'TOTEM_UNAVAILABLE' && session ? 'Descarte indisponível. Se já inseriu o item, chame um responsável.' : "Não foi possível confirmar a operação. Nenhum sucesso foi presumido.";
         pin = "";
         if (stage === "loading" || !session && !command) stage = "unavailable";
       } finally { busy = false; render(); }

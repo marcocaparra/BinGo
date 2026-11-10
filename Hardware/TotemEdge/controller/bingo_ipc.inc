@@ -492,6 +492,25 @@ int main(int argc, char **argv)
     struct sigaction stop = {.sa_handler = pwm_signal};
     sigemptyset(&stop.sa_mask);
     if (sigaction(SIGTERM, &stop, NULL) || sigaction(SIGINT, &stop, NULL)) return 2;
+    if (argc == 3 && !strcmp(argv[1], "--physical-initial-check")) {
+        /* Read-only admission using the SAME driver and lock namespace.
+         * Never export/enable/configure PWM, never infer a measured pose. */
+        int bad = pwm_load_config(&physical_pwm.config, argv[2]) ||
+            !pwm_operational_configured(&physical_pwm.config) ||
+            pwm_lock_channels(&physical_pwm);
+        for (int side = 0; !bad && side < 2; side++) {
+            bad = pwm_closed_command(&physical_pwm, side);
+            if (!bad) {
+                /* Check permission without truncating or writing the attribute. */
+                int duty = openat(physical_pwm.channel_fd[side], "duty_cycle", O_WRONLY | O_NOFOLLOW);
+                bad = duty < 0 || close(duty);
+            }
+        }
+        pwm_release(&physical_pwm);
+        if (bad) return 2;
+        puts("{\"protocol\":\"bingo-initial-pwm-v1\",\"closed_pwm\":true,\"physical_confirmed\":false}");
+        return 0;
+    }
     if (argc == 3 && !strcmp(argv[1], "--physical-config")) {
         if (pwm_load_config(&physical_pwm.config, argv[2])) {
             fprintf(stderr, "INVALID_PWM_CONFIGURATION\n"); return 2;

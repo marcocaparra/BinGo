@@ -1,6 +1,67 @@
-# Comunicação operacional Python ↔ C bloqueada — 07/11/2026
+# Comunicação operacional Python ↔ C
 
-## Vigente: lifecycle Python/C integrado, ativação supervisionada pendente — 10/11/2026
+## Vigente — ativação condicional para técnicos presentes, 10/11/2026
+
+Esta seção substitui o bloqueio permanente e as descrições de preparação abaixo.
+`open_operational` agora conecta o C PHYSICAL existente quando a política local
+de comissionamento passa. Não há flag/env de bypass. Ausência ou falha conserva
+UnavailableController/PHYSICAL_SUPERVISION_PENDING. O exemplo segue incompleto.
+
+`commissioning.json`, ao lado do JSON C, exige aprovação root-owned, oito
+relatórios íntegros de comissionamento vinculados aos hashes do JSON/binário,
+boot atual, caminhos separados de journals, responsável presente e validade
+máxima 600 s. A autorização é consumida por um único ID, duravelmente no SQLite
+Python antes de SUBMIT. O primeiro ensaio `python-c-validation` exige os sete
+relatórios prévios, sem exigir circularmente a própria prova Python/C; a etapa
+`integrated-validation` exige os oito. Nenhuma etapa libera alunos. Alterações
+de arquivos, permissões/aliases, hashes, boot, prazo ou pendências do C bloqueiam.
+
+Startup executa `--physical-initial-check` no mesmo C/driver, sob ambos os locks,
+com snapshot congelado. Somente leitura de canais já preparados, enable=1,
+período/polaridade/duty fechado aprovados; nenhum export/enable/homing ou escrita.
+O executor repete a admissão antes do movimento. O filho e o serviço reutilizam
+os mesmos journals, IPC V1 e `joint-v1`; timeout total da ação da tela é 30 s.
+
+SessionService conecta as ações oficiais: triagem → INSERTION_READY → declaração
+estrita de mão retirada (checkpoint lógico durável, **não enviado ao C**) →
+SessionVision/câmera/cascata existentes → revisão imutável → hatch autorizado.
+O ID de hatch é UUIDv5 derivado do event_id; o browser não escolhe operação C/PWM
+ou prazo. Intenção/snapshot/transição para HATCH_IN_PROGRESS são atômicos antes
+do despacho. Replays, inclusive concorrentes, não retomam INTENT nem enviam
+outro SUBMIT. As consultas recuperam estados mesmo offline/sem autorização válida.
+
+Readiness exige central saudável, câmera presente/ociosa, IA configurada,
+comissionamento e ausência de pendências. O status da câmera não captura.
+Indisponibilidade de provedor durante análise vira falha técnica sem movimento;
+não há probe fictício da IA nem aceite automático. Antes do compromisso mecânico
+o backend consulta novamente a central e os critérios locais.
+
+Snapshot HTTP inclui `operational` com journal, visão, ações e prontidão. A UI
+consulta GET durante execução/refresh; timer nenhum conclui o ciclo. Sucesso
+PHYSICAL conserva INDETERMINATE/slot, `physical_confirmed=0`, sem payload,
+recibo, registro central ou pontos, exibindo “Sequência operacional concluída”.
+Falhas indicam intervenção/isolamento presencial. Nenhum resultado operacional
+é convertido em evidência independente de queda.
+
+Encerramento cooperativo e UNKNOWN/reconciliação GET permanecem como abaixo.
+`app.controller_recovery` fornece o procedimento local GET-only e inspeção
+append-only, sem reset. **Liberação após falha e uso por alunos permanecem
+pendentes de recursos/procedimento físicos homologados e contrato de evidência.**
+Não foi removida incerteza para permitir outro ensaio.
+
+Instalação nativa ARM64, convivência/migração do Docker sem perda de .env/SQLite,
+unit sem restart automático, permissões de somente dois duties, emissão de
+evidências e homologação exata: [roteiro de instalação](../deploy/physical/README.md).
+Nenhum comando desse roteiro foi executado na placa nesta entrega.
+
+Validação: 1.075 casos de backend aprovados entre rodada ampla e reexecução
+isolada dos três testes intermitentes de startup de subprocessos de visão;
+53 testes focados na revisão final. Smoke de navegador com PIN controlado,
+FastAPI, SQLite, IPC e executor C nativo com syscalls interceptadas confirmou
+clique duplo, refresh e resultado sem crédito. 28 contratos JS e sete
+verificações do smoke anterior aprovados. Nenhum PWM real foi acessado.
+
+## Histórico: lifecycle Python/C preparado, ativação ainda bloqueada — 10/11/2026
 
 O caminho privado existente agora acompanha o executor `joint-v1` pelo IPC V1
 com origem PHYSICAL. `CProcessController._connect_joint` prepara o mesmo receptor

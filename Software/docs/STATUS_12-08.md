@@ -1,6 +1,47 @@
 STATUS técnico — BinGo
 
-TotemEdge, integração operacional Python/C preparada (10/11/2026): reutilizados
+TotemEdge, percurso operacional condicional entregue (10/11/2026): a tela
+existente usa SessionService/SessionVision → MechanicalService →
+CProcessController → C nativo por IPC V1 → joint-v1 PWM3/PWM4. Sem porta
+superior. Declaração de mão retirada e revisão são duráveis; o hatch usa ID
+derivado do evento, intenção/snapshot antes de SUBMIT e prazo total de 30 s.
+Cliques e refresh recuperam o journal sem redisparar. A sequência preserva
+abertura/fechamento conjuntos, 5 s abertos e 5 s estabilizando após fechar.
+
+Ensaio direto informado pelo responsável no Orange Pi Zero 3: binário sem
+BINGO_PWM_SIMULATED, READY PHYSICAL/DOORLESS_V1/OPERATIONAL_SEQUENCE_V1,
+CYCLE_LOWER_HATCH 30, GET COMPLETED/SUCCEEDED/PHYSICAL e duplicata recusada
+sem movimento. Calibração direita chip0/pwm3 1750000/600000 ns, esquerda
+chip0/pwm4 1350000/2300000 ns, período 20000000 ns e polaridade normal.
+O relato comprova executor direto, não valida a integração Python/C na placa.
+
+O bloqueio permanente de composição agora é condicional. Só abre PHYSICAL sob
+comissionamento presencial: evidências protegidas vinculadas a binário/config,
+boot, journals e autorização de até 600 s para um ID; condição inicial e
+permissões de PWM verificadas no C sem escrever/energizar. Sem os critérios,
+mantém PHYSICAL_SUPERVISION_PENDING/UnavailableController. Central/câmera/IA
+e journals são guardas adicionais. Não se libera aluno por relatório/flag.
+
+Sucesso operacional e UNKNOWN conservam o slot e não produzem confirmação
+física, payload, recibo, registro central ou pontos. Timeout, falha parcial,
+shutdown ou reinício nunca causam reenvio/homing/fechamento corretivo. CLI de
+manutenção consulta o mesmo ID com GET e registra inspeção no SQLite sem liberar
+UNKNOWN. Faltam corte seguro/proteção homologados, recuperação/reenergização
+validada e evidência física independente para conclusão econômica; não existe
+liberação para alunos ou reset após falha nesta etapa.
+
+Instalação futura nativa ARM64, isolamento de canais/locks, migração preservando
+Docker/.env/SQLite e homologação em Hardware/TotemEdge/deploy/physical/README.md.
+Validação de software: 1.075 casos de backend aprovados entre a suíte ampla
+(1.072) e a reexecução isolada dos três casos intermitentes de prontidão de
+subprocessos de visão, sem alterar seus prazos. Regressão focada final: 53
+aprovados. Também passaram 28 contratos JS, sete verificações do smoke anterior
+e o smoke navegador/PIN → FastAPI → executor C nativo com syscalls interceptadas,
+clique duplicado, refresh, conclusão durável e ausência de recibo/recompensa.
+Ruff e git diff --check aprovados. Sem comprovação elétrica ou ARM64 nova.
+Sem acionamento, deploy, commit, push ou merge.
+
+Histórico — TotemEdge, integração operacional Python/C preparada (10/11/2026): reutilizados
 CProcessController, MechanicalService, IPC V1, driver e journals existentes.
 INTENT e snapshot JSON são persistidos juntos no journal Python; o C recebe os
 mesmos bytes congelados por --config. Binding imutável aditivo no mesmo SQLite,

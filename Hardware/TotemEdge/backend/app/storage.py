@@ -674,7 +674,9 @@ class CycleStore:
     def check_simulated_claim(self, conn, entry):
         row = self._row(conn, entry.command.event_id)
         if not row["simulated"]:
-            return row["active_slot"] == 1 and row["state"] == "PHYSICAL_BLOCKED"
+            return row["active_slot"] == 1 and (row["state"] == "PHYSICAL_BLOCKED" or (
+                getattr(self, "operational_enabled", False) and entry.source == "PHYSICAL"
+                and entry.command.operation == "CYCLE_LOWER_HATCH" and row["state"] == "HATCH_IN_PROGRESS"))
         self.simulation_row(conn, entry.command.event_id)
         return (
             row["active_slot"] == 1
