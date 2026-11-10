@@ -15,6 +15,7 @@ from app.mechanical import ControllerError, MechanicalController
 from app.routes import health, local, sessions
 from app.services.capture import CaptureService
 from app.services.controller import UnavailableController
+from app.services.c_controller import CProcessController
 from app.services.mechanical import MechanicalService
 from app.services.simulation_flow import SimulationFlow
 from app.services.sessions import SessionService
@@ -38,6 +39,13 @@ def create_app(
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
+        controller_config = os.getenv("BINGO_C_CONTROLLER_CONFIG")
+        if controller_config is not None and (
+            _simulation is not None or controller_factory is not None
+        ):
+            raise ValueError(
+                "Configuração C operacional conflita com controller injetado/DEV."
+            )
         sqlite_path = Path(
             os.getenv(
                 "BINGO_SQLITE_PATH",
@@ -58,19 +66,31 @@ def create_app(
             else None,
         )
         try:
-            controller = (
-                controller_factory() if controller_factory else UnavailableController()
-            )
+            readiness = None
+            if controller_factory is not None:
+                controller = controller_factory()
+                source = (
+                    "UNAVAILABLE"
+                    if isinstance(controller, UnavailableController)
+                    else "SIMULATED"
+                )
+            else:
+                controller, readiness = await CProcessController.open_operational(
+                    Path(controller_config) if controller_config is not None else None,
+                    backend_journal=sqlite_path,
+                )
+                source = "UNAVAILABLE"
             mechanical = MechanicalService(
                 store,
                 controller,
-                source="UNAVAILABLE"
-                if isinstance(controller, UnavailableController)
-                else "SIMULATED",
+                source=source,
                 auto_initial=bool(getattr(_simulation, "dev_integration", False)),
             )
             try:
                 application.state.controller = controller
+                # Startup snapshot. A connected C controller also exposes its
+                # current local readiness (including a later disconnect).
+                application.state.controller_readiness = readiness
                 application.state.mechanical = mechanical
                 async with httpx.AsyncClient(
                     transport=_simulation.build_transport(transport)

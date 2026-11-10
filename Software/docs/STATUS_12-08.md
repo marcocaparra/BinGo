@@ -1,5 +1,30 @@
 STATUS técnico — BinGo
 
+TotemEdge, convenção e plano das escotilhas C/Python (09/11/2026): o JSON
+operacional define esquerda/canal Linux 3 (113°/5°) e direita/canal 4 (70°/175°).
+RX/esquerda e TX/direita são intenções, ainda sem comprovação de pinmux. Chip e
+período atuais, polaridade e pulsos permanecem pendentes; pwmchip0/20 ms são
+referência histórica. Python passa o JSON explicitamente ao C e confronta seu
+diagnóstico de mapa/plano antes de conectar. Plano sem tempo/ordem presumidos
+prepara abertura das duas, evidências de abertura/queda, fechamento das duas e
+evidência inicial; não autoriza atuação. IDs/journals/UNKNOWN preservados, sem
+reinterpretar os rótulos históricos do laboratório. Contrato e pendências:
+Hardware/TotemEdge/controller/PROJECT_MAPPING.md. Sem frontend/IA/Supabase/Docker,
+hardware, commit, push ou deploy nesta continuação.
+Compilação C e 280 testes focados Linux aprovados, zero falhas/skips, em 22,67 s.
+
+TotemEdge, base PWM C das duas escotilhas (09/11/2026): configuração JSON existente
+validada no C, chip/canal/período/polaridade/pulsos sem defaults físicos, primitivas
+por lado/pose e lock global por canal. Movimento e confirmação continuam bloqueados:
+faltam mapa RX/TX/sysfs, calibração, evidência de conclusão e política segura de
+parada/ciclo. Nem JSON preenchido nem tempo decorrido habilitam/confirmam atuação.
+Journal físico v2→v3 preserva IDs/recusas, vincula snapshot imutável e recupera
+intenções como FAILED/UNKNOWN sem reexecução. C/IPC operacional continuam
+UNAVAILABLE; backend Python e fluxo sem porta preservados. Contrato e roteiro
+por motor: Hardware/TotemEdge/controller/PHYSICAL_PWM_DRIVER.md. Sem hardware,
+deploy, commit, push ou alterações em frontend/IA/Supabase/Docker nesta etapa.
+Compilação C e 270 testes focados Linux aprovados, zero falhas/skips, em 18,75 s.
+
 TotemEdge sem porta, laboratório Python/C (05/11/2026): prevalecem o fluxo do
 commit c2a9770 e a decisão física de duas escotilhas, sem porta superior. O
 adaptador C tem perfil simulado doorless-v1: CONFIRM_HAND_REMOVED (zero PWM) →

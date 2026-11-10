@@ -12,11 +12,18 @@
 /* stdout is reserved for the local protocol; legacy diagnostics stay on stderr. */
 #define printf(...) fprintf(stderr, __VA_ARGS__)
 
+#include "bingo_physical.inc"
+#include "bingo_pwm.inc"
+
 #ifdef BINGO_PWM_SIMULATED
 static int simulated_writes = 0;
 static int simulated_fail_after = -1;
 #endif
 
+/* Historical dafc9ab values ONLY. Active physical mapping comes from JSON;
+ * these nominal pulses must never configure the current assembly.
+ * Physical startup remains blocked in bingo_inicializar and the IPC entrypoint.
+ */
 #define PWM_CHIP 0
 #define PWM_PERIOD_NS 20000000L
 #define SERVO_0_GRAUS_NS 500000L
@@ -44,12 +51,15 @@ static int simulated_fail_after = -1;
  * Manual angle references only. No angle-to-pulse conversion is authorized.
  * Keep the legacy routines above unchanged for historical laboratory commands.
  */
+/* Retained laboratory v1 identity: never reinterpret its journal/calibration
+ * using the project's later LEFT=Linux3 / RIGHT=Linux4 convention.
+ */
 #define LAB_RIGHT_PWM_LABEL 3
 #define LAB_LEFT_PWM_LABEL 4
-#define LAB_RIGHT_CLOSED_DEG 70
-#define LAB_RIGHT_OPEN_DEG 175
-#define LAB_LEFT_CLOSED_DEG 113
-#define LAB_LEFT_OPEN_DEG 5
+#define LAB_RIGHT_CLOSED_DEG HATCH_RIGHT_CLOSED_DEG
+#define LAB_RIGHT_OPEN_DEG HATCH_RIGHT_OPEN_DEG
+#define LAB_LEFT_CLOSED_DEG HATCH_LEFT_CLOSED_DEG
+#define LAB_LEFT_OPEN_DEG HATCH_LEFT_OPEN_DEG
 #define LAB_DROP_INTERVAL_MS 6000UL
 
 static int simulated_hatch_pose(const char *side, int label, int angle,

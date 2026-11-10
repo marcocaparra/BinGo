@@ -1,4 +1,67 @@
-# Comunicação local Python ↔ C — laboratório com PWM simulado
+# Comunicação local Python ↔ C
+
+## Convenção do projeto e plano das duas escotilhas — 09/11/2026
+
+O JSON operacional centraliza ESQUERDA → canal Linux 3 → 113°/5° e DIREITA →
+canal Linux 4 → 70°/175°. RX/esquerda e TX/direita são metadados de ligação
+pretendida, não provas de pinmux. Chip, período, polaridade e pulsos continuam
+sem valores operacionais presumidos; pwmchip0/20 ms são referência histórica.
+
+Python passa o JSON explicitamente ao C e compara seu diagnóstico com a
+configuração validada. O plano configurável prepara abertura das duas,
+evidências de abertura/queda, fechamento das duas e evidência de retorno inicial.
+Não há ordem implícita, tempo como prova ou movimento liberado. Os rótulos do
+laboratório doorless-v1 permanecem históricos e imutáveis, não são mapa físico.
+
+Detalhes, testes e pendências: [PROJECT_MAPPING.md](PROJECT_MAPPING.md).
+
+## Base PWM física bloqueada — 09/11/2026
+
+O C agora valida o JSON existente e contém primitivas PWM para as duas escotilhas,
+com lock por canal, tratamento de erros e inibição/parada condicionada à política
+de segurança. A atuação de produção permanece bloqueada; nem JSON completo nem
+tempo decorrido confirmam movimento. O journal físico migra v2→v3 preservando IDs
+e recusas, vincula configuração imutável e retém intenções não comprovadas como
+UNKNOWN. O laboratório mantém seu schema/perfis anteriores.
+
+Contrato, limites e roteiro por motor:
+[PHYSICAL_PWM_DRIVER.md](PHYSICAL_PWM_DRIVER.md).
+
+## Comunicação operacional bloqueada — continuação de 07/11/2026
+
+O backend compõe o adaptador existente por configuração local explícita.
+O novo receptor `--ipc-physical ... --profile doorless-v1` usa o protocolo/journal
+V1, anuncia `UNAVAILABLE/PHYSICAL_BLOCKED` e apenas grava recusas, sem executar
+movimento. Seu banco tem identidade distinta do laboratório; nem preencher a
+configuração nem consultar prontidão libera atuação. O fluxo permanece sem porta.
+
+Configuração, diagnóstico, tratamento de falhas e pendências estão em
+[OPERATIONAL_C_CONTROLLER.md](../backend/OPERATIONAL_C_CONTROLLER.md).
+Modelo sem mapa/pulsos presumidos: [operational.example.json](operational.example.json).
+O teste adicional desta etapa é `tests/test_c_controller_operational.py`.
+As seções seguintes registram as etapas anteriores; a composição operacional
+e o receptor que só recusa substituem a indisponibilidade de comunicação nelas
+descrita, preservando o bloqueio de movimentos e a recusa PHYSICAL do serviço.
+
+## Preparação física bloqueada — 07/11/2026
+
+O binário sem `BINGO_PWM_SIMULATED` agora oferece `--physical-preflight`, um
+relatório JSON sem acesso a sysfs ou journals. O adaptador Python o lê com
+`CProcessController.physical_preflight`; `python -m app.controller_cli
+--executable /caminho/absoluto/bingo_controller` apresenta o relatório e sai 2
+porque a execução física permanece bloqueada. Isso não é detecção de hardware.
+Não existe opção para habilitar atuação por esse diagnóstico.
+
+O histórico `dafc9ab` usava esquerda=`pwmchip0/pwm3` e direita=`pwmchip0/pwm4`.
+Esses índices não comprovam o mapeamento dos rótulos PWM3/direita e PWM4/esquerda
+da montagem RX/TX atual. Ângulos conhecidos e canais/pulsos desconhecidos são
+reportados separadamente. As constantes lógicas agora são compartilhadas pelo
+relatório e pelo laboratório existente, sem interpolação de pulsos.
+
+Evidências, diferenças, comandos de diagnóstico, bloqueios e verificação física
+pendente estão em [PHYSICAL_PREPARATION.md](PHYSICAL_PREPARATION.md).
+O CMD de testes também inclui `tests/test_c_controller_physical.py`; as seções
+seguintes preservam o histórico das validações anteriores.
 
 ## Perfil sem porta — 05/11/2026
 

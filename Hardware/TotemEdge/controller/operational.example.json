@@ -1,0 +1,43 @@
+{
+  "schema": "bingo-c-controller-v1",
+  "executable": "/opt/bingo/bin/bingo_controller",
+  "journal": "/var/lib/bingo/controller.sqlite3",
+  "profile": "doorless-v1",
+  "io_timeout_seconds": 2.0,
+  "physical": {
+    "right": {
+      "intended_signal": "TX",
+      "closed_degrees": 70,
+      "open_degrees": 175,
+      "connector_pin": null,
+      "soc_pad": null,
+      "pwm_chip": null,
+      "pwm_channel": 4,
+      "closed_pulse_ns": null,
+      "open_pulse_ns": null
+    },
+    "left": {
+      "intended_signal": "RX",
+      "closed_degrees": 113,
+      "open_degrees": 5,
+      "connector_pin": null,
+      "soc_pad": null,
+      "pwm_chip": null,
+      "pwm_channel": 3,
+      "closed_pulse_ns": null,
+      "open_pulse_ns": null
+    },
+    "period_ns": null,
+    "polarity": null,
+    "mapping_reference": null,
+    "calibration_reference": null,
+    "completion_reference": null,
+    "safety_recovery_reference": null,
+    "cycle": {
+      "open_order": null,
+      "close_order": null,
+      "drop_reference": null,
+      "homologation_reference": null
+    }
+  }
+}

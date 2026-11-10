@@ -1,5 +1,58 @@
 # Controller mecânico interno — Incrementos 1, 2 e integração simulada 3B
 
+## Convenção configurável e plano C/Python — 09/11/2026
+
+O JSON operacional define esquerda/canal Linux 3 (113°/5°) e direita/canal 4
+(70°/175°). RX/TX são ligação pretendida, com pinmux pendente. Graus não viram
+pulsos. Python passa o arquivo explicitamente ao C e compara o diagnóstico de
+mapa e plano antes de conectar. O plano prepara as duas aberturas, evidências
+de abertura/queda, os dois fechamentos e evidência de retorno inicial, sem ordem
+ou tempo implícitos. Atuação, provedor de evidência e conclusão física continuam
+bloqueados. Journals/IDs/UNKNOWN e o fluxo sem porta são preservados; rótulos do
+laboratório antigo não são reinterpretados como canais físicos. Contrato:
+[PROJECT_MAPPING.md](../controller/PROJECT_MAPPING.md).
+
+## Base PWM C, sem atuação habilitada — 09/11/2026
+
+O controlador C valida o mesmo JSON de configuração e contém primitivas físicas
+por lado/pose, sem recuperar a porta superior. O journal físico migra v2→v3
+preservando IDs/recusas, acrescentando origem/snapshot imutáveis e recuperação
+ACCEPTED → FAILED/UNKNOWN, sem redisparo e com bloqueio de novos IDs após risco.
+Não há produtor de confirmação física, parada homologada ou caller de produção
+para as primitivas. O protocolo operacional continua UNAVAILABLE e o serviço
+Python continua recusando PHYSICAL. Configuração declarada não habilita atuação.
+Contrato e bancada: [PHYSICAL_PWM_DRIVER.md](../controller/PHYSICAL_PWM_DRIVER.md).
+
+## Comunicação operacional bloqueada — continuação de 07/11/2026
+
+`BINGO_C_CONTROLLER_CONFIG` permite ao lifespan compor `CProcessController` com
+JSON local explícito e perfil somente doorless-v1. O C físico agora recebe
+SUBMIT/GET no protocolo/journal existente, mas só grava respostas
+REJECTED/UNAVAILABLE, com identidade de banco exclusiva. A origem do serviço
+é UNAVAILABLE; não há executor físico, movimento ou confirmação implícita.
+Ausência/falha de configuração ou comunicação preserva o controller indisponível.
+
+Prontidão distingue configuração declarada, diagnóstico e canal conectado
+bloqueado; nenhuma dessas condições habilita atuação. Jornals, correlação,
+idempotência e UNKNOWN/INDETERMINATE são preservados. A configuração não resolve
+o mapeamento nem comprova homologação. Detalhes em
+[OPERATIONAL_C_CONTROLLER.md](OPERATIONAL_C_CONTROLLER.md).
+As seções seguintes registram as etapas anteriores.
+
+## Diagnóstico da preparação física — 07/11/2026
+
+`CProcessController.physical_preflight(executable)` lê o relatório versionado
+do binário C físico bloqueado, sem criar controller, enviar SUBMIT/GET ou abrir
+journals. O CLI privado `python -m app.controller_cli --executable /caminho/binario`
+imprime os dados e sai 2. A leitura é limitada por prazo e tamanho; resposta
+inválida, origem/prontidão indevida, executável simulado ou ausente falham fechados.
+
+O relatório não inspeciona a placa nem concede autorização: canais e pulsos da
+montagem atual são desconhecidos. `connect` continua exigindo SIMULATED e o
+serviço continua recusando PHYSICAL. Factory operacional, journal, idempotência,
+elegibilidade econômica e bloqueios de recuperação permanecem preservados.
+Relatório e roteiro: [PHYSICAL_PREPARATION.md](../controller/PHYSICAL_PREPARATION.md).
+
 ## Laboratório sem porta — decisão de 05/11/2026
 
 Substitui a sequência OPEN/CLOSE no novo caminho, sem modificar o frontend ou
